@@ -1,0 +1,8 @@
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+pydantic>=2.6,<3.0
+workalendar>=17.0,<18.0
+cryptography>=42.0,<43.0
+pytest
+pytest-mock
+httpx

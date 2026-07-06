@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+*.pyc
+kami.db
+.secret_key
