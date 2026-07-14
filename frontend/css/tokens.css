@@ -1,0 +1,36 @@
+/*
+ * Tokens visuais do Kami — extraídos do protótipo (kami_telas_final.html)
+ * pra manter fidelidade com o design já validado.
+ *
+ * --accent é a cor pensada pra ser sobrescrita em runtime: o
+ * app.js lê user_profile.accent_color (GET /api/perfil) e faz
+ * document.documentElement.style.setProperty('--accent', cor) no
+ * boot. --accent-dim é DERIVADA de --accent via color-mix() — antes
+ * era um hex fixo (sempre verde, mesmo trocando o tema) e qualquer
+ * elemento que dependia dela (borda de conquista desbloqueada, tag
+ * "v1" da sidebar etc.) ficava preso na cor padrão. 58% foi escolhido
+ * por reproduzir a mesma relação do tom "dim" original (#4f6f4f) em
+ * cima do accent padrão (#8fbf8f), então nada muda visualmente pra
+ * quem já está no tema default. Todo o resto do tema é fixo
+ * (preto/branco/cinza, decisão de design da seção 11 do projeto).
+ */
+:root {
+  --bg: #000000;
+  --bg-alt: #0a0a0a;
+  --panel: #050505;
+  --card: #0d0d0d;
+  --border: #3c3c3c;
+  --border-soft: #242424;
+
+  --accent: #8fbf8f;       /* default — sobrescrito por accent_color do perfil */
+  --accent-dim: color-mix(in srgb, var(--accent) 58%, black);
+  --amber: #b3a06a;
+  --red: #b06060;
+
+  --text: #c9c9c9;
+  --text-bright: #f2f2f2;
+  --text-dim: #8a8a8a;
+  --text-faint: #4d4d4d;
+
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
+}
