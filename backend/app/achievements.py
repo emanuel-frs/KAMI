@@ -5,11 +5,19 @@ Conquistas automáticas por regra fixa (v1 — 'ai_generated' é pós-mvp).
   - count_by_attribute: {"type": "count_by_attribute", "attribute": "aprendizado", "count": 10}
   - count_total:        {"type": "count_total", "count": 50}
   - streak_days:        {"type": "streak_days", "days": 7}
+  - goal_completed:     {"type": "goal_completed"} — desbloqueia quando pelo menos
+                        1 meta (goals.status='concluida') existir. Passou a disparar
+                        de verdade com a implementação do módulo Metas (routers/metas.py);
+                        antes ficava registrada mas nunca era avaliada porque o módulo
+                        que gera o dado (goals) ainda não existia.
 
 Tipos já registrados mas que dependem de módulos futuros (ficam
 como "nunca disparam" até esses módulos existirem):
-  - goal_completed:      depende de Metas Pessoais
-  - milestone_completed: depende de Aprendizado (trilhas/marcos)
+  - milestone_completed: já é coberto por Aprendizado desde que o módulo entrou
+    (roadmap concluindo marcos é gravado como action_log com categoria
+    'aprendizado' via register_action) — mas o tipo aqui é distinto do que
+    'count_by_attribute' já cobre, então segue sem checagem própria até
+    existir um critério específico pra ele.
 
 `check_achievements(conn)` roda depois de cada ação registrada,
 avalia todas as conquistas ainda bloqueadas e desbloqueia as que
@@ -83,6 +91,12 @@ def _count_total(conn) -> int:
     return conn.execute("SELECT COUNT(*) AS c FROM action_logs").fetchone()["c"]
 
 
+def _count_goals_completed(conn) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) AS c FROM goals WHERE status = 'concluida'"
+    ).fetchone()["c"]
+
+
 def _longest_streak_days(conn) -> int:
     rows = conn.execute(
         "SELECT DISTINCT substr(created_at, 1, 10) AS d FROM action_logs ORDER BY d"
@@ -109,8 +123,8 @@ def _meets_criteria(conn, criteria: dict) -> bool:
         return _count_total(conn) >= criteria["count"]
     if t == "streak_days":
         return _longest_streak_days(conn) >= criteria["days"]
-    # goal_completed / milestone_completed: ainda não têm módulo pra checar de verdade.
-    # Ficam registradas, mas nunca disparam sozinhas até Metas/Aprendizado existirem.
+    if t == "goal_completed":
+        return _count_goals_completed(conn) >= criteria.get("count", 1)
     return False
 
 

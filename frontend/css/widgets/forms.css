@@ -204,3 +204,48 @@ input[type="range"]:focus::-webkit-slider-thumb { outline: 1px solid var(--accen
 }
 
 /* Estilo do cabeçalho da trilha (fixo) */
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+
+/* idem no bloco de :focus (mesma lista, só troca a regra) */
+input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* 2) regra NOVA — não existia em forms.css, é só pro date:
+   inverte o ícone nativo do calendário (vem preto por padrão) pra ficar
+   visível e no tom do tema em vez de sumir no fundo escuro */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(0) hue-rotate(0deg);
+  cursor: pointer;
+  opacity: 0.7;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* texto do placeholder "mm/dd/yyyy" e dos segmentos vazios — WebKit usa
+   essa pseudo-classe pros campos internos (mês/dia/ano) do date, não o
+   ::placeholder comum */
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: var(--text);
+}
