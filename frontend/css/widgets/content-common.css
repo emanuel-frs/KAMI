@@ -1,0 +1,30 @@
+/* ── conteúdo interno de widgets — portado de kami_telas_final.html ────────
+ * O JS de cada widget (attributes.js, log.js, achievements.js,
+ * org-notifications.js) já gera exatamente essas classes desde o início —
+ * só o CSS correspondente nunca tinha sido trazido do protótipo pro app
+ * real, por isso os widgets renderizavam como texto puro sem estilo.
+ */
+
+.empty-state {
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 20px 8px;
+  text-align: center;
+  border: 1px dashed var(--border-soft);
+}
+
+/* barras de progresso (usadas em attr-row e em outros lugares que reaproveitam bar-track/bar-fill) */
+.bar-track {
+  height: 7px;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  margin: 4px 0;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--text-dim);
+  transition: width 0.35s ease;
+}
+.bar-fill.alt { background: var(--accent); }
+

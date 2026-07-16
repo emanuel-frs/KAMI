@@ -1,0 +1,180 @@
+/* ── card base ───────────────────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── widget fixo (ex: profile) ───────────────────────────────────────────
+ * data-pinned é setado pelo próprio widget (ver profile.js) pra widgets
+ * que não podem ser reordenados nem sair da posição 1/1. Usamos
+ * grid-column-start/grid-row-start com !important pra sobrescrever
+ * qualquer posição que o grid.js calcule via inline style — só o start
+ * é forçado, o span/altura calculado pelo JS continua intacto.
+ * A borda na lateral esquerda sinaliza visualmente que é um widget
+ * especial, fixo, diferente dos demais.
+ */
+.card[data-pinned] {
+  grid-column-start: 1 !important;
+  grid-row-start: 1 !important;
+  border-left: 3px solid var(--accent);
+}
+.card[data-pinned] .drag-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.card-head::before { content: "▸ "; color: var(--text-faint); }
+.card-head .push { margin-left: auto; font-size: 10px; }
+
+.card-body {
+  padding: 12px 14px;
+  flex: 1 1 auto;
+  min-height: 0; /* crucial pro flex-fill: permite o filho (lista) crescer/encolher
+                    de verdade em vez de sempre manter a altura do conteúdo bruto —
+                    é isso que deixa o scroll interno funcionar quando o card é
+                    redimensionado manualmente pro conteúdo caber sem cortar */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── ancora ao fim do widget ────────────────────────────────────────────
+ * Empurra o elemento (e o que vem depois dele) pro final do card quando
+ * ele é redimensionado maior do que o conteúdo precisa, consumindo a
+ * folga extra do flex column em vez de deixar espaço vazio entre o
+ * conteúdo e a borda inferior. Usada hoje em registrar.js (botão
+ * "registrar ação"); pode ser aplicada em qualquer botão de ação
+ * primária de outros widgets.
+ */
+.wg-anchor-bottom {
+  margin-top: auto;
+}
+
+/* ── drag e resize ───────────────────────────────────────────────────────── */
+.card.dragging-card {
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .5);
+  border-color: var(--accent-dim);
+  opacity: .96;
+}
+body.kami-dragging,
+body.kami-dragging * { cursor: grabbing !important; user-select: none !important; }
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-faint);
+  touch-action: none;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.drag-handle:hover { color: var(--accent); }
+
+.wg-size-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 3px;
+  font-size: 9px;
+  color: var(--accent);
+  background: var(--card);
+  padding: 0 4px;
+  border: 1px solid var(--border-soft);
+  opacity: 0;
+  transition: opacity .12s;
+  pointer-events: none;
+  z-index: 2;
+}
+.card.resizing .wg-size-badge { opacity: 1; }
+
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 17px;
+  height: 17px;
+  line-height: 14px;
+  text-align: right;
+  padding: 2px 3px 1px 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: nwse-resize;
+  user-select: none;
+  touch-action: none;
+  opacity: 0.55;
+  z-index: 2;
+}
+.resize-handle:hover { color: var(--accent); opacity: 1; }
+.card.resizing { box-shadow: 0 0 0 1px var(--accent-dim); }
+
+.resize-reset {
+  position: absolute;
+  right: 19px;
+  bottom: 2px;
+  font-size: 10px;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: none;
+  z-index: 2;
+}
+.card[data-manual="1"] .resize-reset { display: block; }
+.resize-reset:hover { color: var(--accent); }
+
+body.kami-resizing,
+body.kami-resizing * { user-select: none !important; cursor: nwse-resize !important; }
+
+/* ── modo visualização / edição ──────────────────────────────────────────── */
+.card[data-editable] .edit-mode { display: none; }
+.card[data-editable].editing .view-mode { display: none; }
+.card[data-editable] .card-head .mode-toggle-btn { margin-left: auto; }
+
+/* min-height de segurança pro modo de edição — o ajuste "de verdade" do
+   tamanho do card (grid-row-end) é feito via JS (profile.js), isso aqui
+   é só um fallback caso o JS não rode a tempo (ex: reflow muito rápido). */
+.card[data-editable].editing .edit-mode {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.card[data-editable] .view-mode {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* ── avatar do widget de perfil ──────────────────────────────────────────
+ * Box um pouco maior que o antigo (era 88x88 inline) pra caber mais
+ * detalhe da arte ASCII. O <pre> interno tem o font-size ajustado
+ * dinamicamente via fitAsciiText() (js/widgets/ascii.js) pra preencher
+ * esse espaço sem cortar nem sobrar borda demais.
+ */
+.pw-avatar-btn {
+  flex: 0 0 auto;
+  width: 116px;
+  height: 116px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.pw-avatar-btn:hover {
+  border-color: var(--accent-dim);
+}
+

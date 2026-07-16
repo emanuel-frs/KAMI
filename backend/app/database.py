@@ -46,12 +46,64 @@ def get_db():
         conn.close()
 
 
+def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra quem já tinha um kami.db criado antes da coluna
+    body_preview existir — `CREATE TABLE IF NOT EXISTS` no schema.sql
+    NÃO altera uma tabela que já existe, então bancos antigos ficariam
+    sem a coluna pra sempre sem isso aqui. SQLite não tem `ADD COLUMN
+    IF NOT EXISTS`, então checamos via PRAGMA antes de tentar.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(email_cache)").fetchall()]
+    if "body_preview" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN body_preview TEXT")
+        conn.commit()
+
+
+def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de description/notes/position/
+    xp_awarded existirem em milestones. `position` é backfillada a partir
+    da ordem antiga (rowid, mesma ordem que a API já devolvia antes desta
+    mudança) — sem isso, todo marco existente nasceria empatado em 0 e a
+    ordem visual embaralharia na primeira listagem.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(milestones)").fetchall()]
+
+    if "description" not in cols:
+        conn.execute("ALTER TABLE milestones ADD COLUMN description TEXT")
+    if "notes" not in cols:
+        conn.execute("ALTER TABLE milestones ADD COLUMN notes TEXT")
+    if "xp_awarded" not in cols:
+        conn.execute("ALTER TABLE milestones ADD COLUMN xp_awarded INTEGER")
+
+    needs_position_backfill = "position" not in cols
+    if needs_position_backfill:
+        conn.execute("ALTER TABLE milestones ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+    if needs_position_backfill:
+        tracks = conn.execute("SELECT DISTINCT track_id FROM milestones").fetchall()
+        for t in tracks:
+            rows = conn.execute(
+                "SELECT id FROM milestones WHERE track_id = ? ORDER BY rowid",
+                (t["track_id"],),
+            ).fetchall()
+            for i, r in enumerate(rows):
+                conn.execute("UPDATE milestones SET position = ? WHERE id = ?", (i, r["id"]))
+        conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
+
+    _migrate_email_cache_body_preview(conn)
+    _migrate_milestones_fields(conn)
+
     _seed_defaults(conn)
 
     # import local pra evitar import circular (achievements importa new_id/now_iso daqui)

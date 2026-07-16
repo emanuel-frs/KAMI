@@ -1,0 +1,28 @@
+/*
+ * widgets.css — agregador.
+ *
+ * Este arquivo virou só uma lista de @import. O CSS de verdade está
+ * dividido em css/widgets/*.css (ver README-widgets-css.md nesta pasta
+ * pra saber o que tem em cada arquivo).
+ *
+ * A ORDEM DOS IMPORTS IMPORTA — reflete exatamente a ordem em que as
+ * regras apareciam no widgets.css original de 1563 linhas. Não
+ * reordenar sem checar cascata (ex: .btn é definido em forms.css e tem
+ * um pequeno reforço de transition/focus no final desse mesmo arquivo,
+ * que precisa continuar vindo depois da definição base).
+ *
+ * index.html não precisa mudar: continua com um único
+ * <link rel="stylesheet" href="css/widgets.css">.
+ */
+
+@import url("widgets/grid.css");
+@import url("widgets/card-base.css");
+@import url("widgets/forms.css");
+@import url("widgets/content-common.css");
+@import url("widgets/widget-attributes.css");
+@import url("widgets/widget-log.css");
+@import url("widgets/widget-achievements.css");
+@import url("widgets/widget-organizacao.css");
+@import url("widgets/tooltip.css");
+@import url("widgets/widget-aprendizado-roadmap.css");
+@import url("widgets/widget-aprendizado-heatmap.css");

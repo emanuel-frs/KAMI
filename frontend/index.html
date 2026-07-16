@@ -6,57 +6,67 @@
 <title>Kami</title>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/widgets.css">
+<link rel="stylesheet" href="css/widgets/grid.css">
+<link rel="stylesheet" href="css/widgets/card-base.css">
+<link rel="stylesheet" href="css/widgets/forms.css">
+<link rel="stylesheet" href="css/widgets/content-common.css">
+<link rel="stylesheet" href="css/widgets/widget-attributes.css">
+<link rel="stylesheet" href="css/widgets/widget-log.css">
+<link rel="stylesheet" href="css/widgets/widget-achievements.css">
+<link rel="stylesheet" href="css/widgets/widget-organizacao.css">
+<link rel="stylesheet" href="css/widgets/tooltip.css">
+<link rel="stylesheet" href="css/widgets/widget-aprendizado-roadmap.css">
+<link rel="stylesheet" href="css/widgets/widget-aprendizado-heatmap.css">
 </head>
 <body>
 
-  <div class="titlebar" data-tauri-drag-region>
-    <div class="titlebar-text" data-tauri-drag-region>kami<span class="cursor"></span></div>
-    <div class="win-ctrls">
-      <button class="win-ctrl-btn" id="win-minimize" title="minimizar">—</button>
-      <button class="win-ctrl-btn" id="win-maximize" title="maximizar">□</button>
-      <button class="win-ctrl-btn win-ctrl-close" id="win-close" title="fechar">✕</button>
-    </div>
-  </div>
+<div class="titlebar" data-tauri-drag-region>
+<div class="titlebar-text" data-tauri-drag-region>kami<span class="cursor"></span></div>
+<div class="win-ctrls">
+<button class="win-ctrl-btn" id="win-minimize" title="minimizar">—</button>
+<button class="win-ctrl-btn" id="win-maximize" title="maximizar">□</button>
+<button class="win-ctrl-btn win-ctrl-close" id="win-close" title="fechar">✕</button>
+</div>
+</div>
 
-  <div class="layout">
-      <nav class="sidebar">
-        <div class="sidebar-brand">
-          <pre class="ascii-logo">██╗  ██╗ █████╗ ███╗   ███╗ ██╗
+<div class="layout">
+<nav class="sidebar">
+<div class="sidebar-brand">
+<pre class="ascii-logo">██╗  ██╗ █████╗ ███╗   ███╗ ██╗
 ██║ ██╔╝██╔══██╗████╗ ████║ ██║
 █████╔╝ ███████║██╔████╔██║ ██║
 ██╔═██╗ ██╔══██║██║╚██╔╝██║ ██║
 ██║  ██╗██║  ██║██║ ╚═╝ ██║ ██║
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═╝</pre>
-          <div class="tagline" id="sidebar-tagline">carregando…</div>
-        </div>
+<div class="tagline" id="sidebar-tagline">carregando…</div>
+</div>
 
-        <div class="nav-tree" id="nav-tree">
-          <div class="tree-root">kami/</div>
-          <div class="nav-link" data-page="perfil"><span class="branch">├─</span>perfil<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link" data-page="nucleo"><span class="branch">├─</span>núcleo<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link disabled" data-page="carreira"><span class="branch">├─</span>carreira<span class="nav-tag">pós-mvp</span></div>
-          <div class="nav-link" data-page="financas"><span class="branch">├─</span>finanças<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link" data-page="aprendizado"><span class="branch">├─</span>aprendizado<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link" data-page="organizacao"><span class="branch">├─</span>organização<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link" data-page="metas"><span class="branch">├─</span>metas pessoais<span class="nav-tag v1">v1</span></div>
-          <div class="nav-link disabled" data-page="calendario"><span class="branch">├─</span>calendário<span class="nav-tag">pós-mvp</span></div>
-          <div class="nav-link disabled" data-page="assistente"><span class="branch">└─</span>assistente kami<span class="nav-tag">pós-mvp</span></div>
-        </div>
+<div class="nav-tree" id="nav-tree">
+<div class="tree-root">kami/</div>
+<div class="nav-link" data-page="perfil"><span class="branch">├─</span>perfil<span class="nav-tag v1">v1</span></div>
+<div class="nav-link" data-page="nucleo"><span class="branch">├─</span>núcleo<span class="nav-tag v1">v1</span></div>
+<div class="nav-link" data-page="financas"><span class="branch">├─</span>finanças<span class="nav-tag v1">v1</span></div>
+<div class="nav-link" data-page="aprendizado"><span class="branch">├─</span>aprendizado<span class="nav-tag v1">v1</span></div>
+<div class="nav-link" data-page="organizacao"><span class="branch">├─</span>organização<span class="nav-tag v1">v1</span></div>
+<div class="nav-link" data-page="metas"><span class="branch">├─</span>metas pessoais<span class="nav-tag v1">v1</span></div>
+<div class="nav-link disabled" data-page="carreira"><span class="branch">├─</span>carreira<span class="nav-tag">pós-mvp</span></div>
+<div class="nav-link disabled" data-page="calendario"><span class="branch">├─</span>calendário<span class="nav-tag">pós-mvp</span></div>
+<div class="nav-link disabled" data-page="assistente"><span class="branch">└─</span>assistente kami<span class="nav-tag">pós-mvp</span></div>
+</div>
 
-        <div class="sidebar-footer">
-          <pre class="mini-avatar" id="sidebar-avatar">sem avatar ainda —
+<div class="sidebar-footer">
+<pre class="mini-avatar" id="sidebar-avatar">sem avatar ainda —
 configure no módulo
 perfil.</pre>
-        </div>
-      </nav>
+</div>
+</nav>
 
-      <main class="page" id="page-root">
-        <!-- cada page module (js/pages/*.js) renderiza aqui via router -->
-      </main>
-  </div>
+<main class="page" id="page-root">
+<!-- cada page module (js/pages/*.js) renderiza aqui via router -->
+</main>
+</div>
 
-  <script type="module" src="js/titlebar.js"></script>
-  <script type="module" src="js/app.js"></script>
+<script type="module" src="js/titlebar.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

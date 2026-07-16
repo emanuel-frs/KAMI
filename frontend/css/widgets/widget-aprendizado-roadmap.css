@@ -1,0 +1,562 @@
+/* ── módulo aprendizado: lista de trilhas + roadmap (aprendizado.js) ──────
+ * Bloco maior do CSS (trilhas na lateral, timeline conectada de módulos,
+ * canvas com pan, estados done/active/locked/esquecido, edição inline
+ * de nome/descrição da trilha, modal de confirmação). Ficou junto num
+ * arquivo só porque as regras são bem entrelaçadas entre si. */
+
+/* Garante que o card-body use grid */
+.apr-grid {
+  display: grid;
+  grid-template-columns: 30% 1fr;
+  gap: 16px;
+  align-items: start;
+  min-height: 200px;
+}
+
+/* Opcional: borda separadora */
+.apr-left {
+  border-right: 1px solid var(--border-soft);
+  padding-right: 12px;
+  overflow-y: auto;
+}
+
+/* ── roadmap ───────────────────────────────────────────────────────────── */
+.apr-right {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+#apr-detail-body {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.roadmap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 4px 12px 4px;
+}
+
+.roadmap-item {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  padding: 10px 12px;
+  border-left: 3px solid var(--border-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.1s;
+}
+.roadmap-item:hover {
+  border-left-color: var(--accent);
+  background: rgba(255,255,255,0.04);
+}
+.roadmap-item[data-status="concluido"] {
+  border-left-color: var(--accent);
+}
+.roadmap-item[data-status="esquecido"] {
+  border-left-color: var(--red);
+}
+
+.roadmap-item .top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.roadmap-item .name {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.roadmap-item .status-icon {
+  font-weight: bold;
+}
+.roadmap-item .desc {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.roadmap-item .status-label {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Estilo dos itens da lista (mantido) */
+.apr-track-item {
+  padding: 8px 4px;
+  border-bottom: 1px dashed var(--border-soft);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.apr-track-item:last-child {
+  border-bottom: none;
+}
+.apr-track-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.apr-track-item.selected {
+  background: rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--accent);
+  padding-left: 6px;
+}
+
+.apr-track-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.apr-track-name {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.apr-track-item.selected .apr-track-name {
+  color: var(--accent);
+}
+.apr-track-pct {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.apr-track-item.selected .apr-track-pct {
+  color: var(--accent);
+}
+
+textarea {
+  resize: vertical;            /* permite redimensionar só na vertical */
+  min-height: 60px;            /* altura mínima confortável (≈3 linhas) */
+}
+
+.apr-track-road{
+  display: flex;
+  height: 100%;
+  width: 100%;
+  padding: 20px 8px;
+  border: 1px dashed var(--border-soft);
+}
+
+/* ── roadmap timeline (trilhas de aprendizado) ────────────────────────────
+ * done      -> módulo concluído (verde, preenchido)
+ * esquecido -> módulo marcado como esquecido (vermelho)
+ * active    -> primeiro módulo pendente da sequência (destaque claro)
+ * locked    -> demais módulos pendentes (tracejado, apagado)
+ */
+.roadmap-timeline {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 2px 14px;
+}
+
+.roadmap-node { position: relative; }
+
+.roadmap-connector {
+  width: 2px;
+  height: 14px;
+  margin-left: 19px;
+  background: var(--border-soft);
+}
+.roadmap-node:first-child .roadmap-connector { visibility: hidden; }
+
+/* dashed por padrão levando a nós ainda não alcançados */
+.roadmap-node[data-visual="locked"] .roadmap-connector,
+.roadmap-node[data-visual="active"] .roadmap-connector {
+  background: none;
+  border-left: 2px dashed var(--border-soft);
+  width: 0;
+}
+/* sólido/verde quando vem de um módulo já concluído (sobrescreve o dashed acima) */
+.roadmap-node[data-visual="done"] + .roadmap-node .roadmap-connector {
+  background: none;
+  border-left: 2px solid var(--accent);
+  width: 0;
+}
+
+.roadmap-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  transition: border-color .12s, background .12s;
+}
+
+.roadmap-title {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roadmap-desc {
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 4px 12px 0 41px;
+}
+
+.roadmap-arrow {
+  color: var(--text-faint);
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.roadmap-drag-dot {
+  color: var(--text-faint);
+  cursor: grab;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.roadmap-drag-dot:hover { color: var(--accent); }
+
+.roadmap-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+.roadmap-actions .icon-btn { color: var(--text-faint); cursor: pointer; font-size: 12px; }
+.roadmap-actions .ms-edit-btn:hover { color: var(--accent); }
+.roadmap-actions .ms-delete-btn:hover { color: var(--red); }
+
+/* ── concluído ── */
+.roadmap-node[data-visual="done"] .roadmap-box { background: var(--accent); border-color: var(--accent); }
+.roadmap-node[data-visual="done"] .roadmap-title { color: var(--bg); font-weight: 500; }
+.roadmap-node[data-visual="done"] .roadmap-arrow,
+.roadmap-node[data-visual="done"] .roadmap-drag-dot,
+.roadmap-node[data-visual="done"] .roadmap-actions .icon-btn { color: var(--bg); opacity: .7; }
+.roadmap-node[data-visual="done"] .ms-checkbox:checked { background: var(--bg); border-color: var(--bg); }
+.roadmap-node[data-visual="done"] .ms-checkbox:checked::after { border-color: var(--accent); }
+
+/* ── ativo (primeiro pendente da sequência) ── */
+.roadmap-node[data-visual="active"] .roadmap-box { border-color: var(--text-bright); background: var(--card); }
+.roadmap-node[data-visual="active"] .roadmap-title { color: var(--text-bright); font-weight: 500; }
+.roadmap-node[data-visual="active"] .roadmap-arrow { color: var(--text-bright); }
+
+/* ── travado (ainda não chegou a vez) ── */
+.roadmap-node[data-visual="locked"] .roadmap-box { border: 1px dashed var(--border-soft); background: transparent; }
+.roadmap-node[data-visual="locked"] .roadmap-title { color: var(--text-faint); }
+.roadmap-node[data-visual="locked"] .roadmap-arrow,
+.roadmap-node[data-visual="locked"] .roadmap-drag-dot,
+.roadmap-node[data-visual="locked"] .roadmap-actions .icon-btn { opacity: .45; }
+.roadmap-node[data-visual="locked"] .ms-checkbox { border-style: dashed; opacity: .6; }
+
+/* ── esquecido ── */
+.roadmap-node[data-visual="esquecido"] .roadmap-box { border-color: var(--red); background: transparent; }
+.roadmap-node[data-visual="esquecido"] .roadmap-title { color: var(--red); }
+
+/* hover leve nos que ainda estão "abertos" pra interação */
+.roadmap-node[data-visual="active"] .roadmap-box:hover,
+.roadmap-node[data-visual="locked"] .roadmap-box:hover { border-color: var(--accent-dim); }
+
+.roadmap-node[draggable="true"]:active .roadmap-box { opacity: .7; }
+
+.roadmap-node.drag-over .roadmap-box { border-color: var(--accent) !important; }
+
+/* ── canvas do roadmap: fundo liso, altura limitada, pan por arraste ──── */
+.roadmap-canvas {
+  position: relative;
+  height: 100%;
+  max-height: 360px;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-top: none;
+  cursor: grab;
+}
+.roadmap-canvas.panning { cursor: grabbing; }
+
+.roadmap-canvas-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.roadmap-canvas-scroll::-webkit-scrollbar { display: none; }
+
+.roadmap-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* centraliza os blocos, não estica mais full-width */
+  padding: 36px 20px 56px;
+  min-height: 100%;
+}
+
+.roadmap-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.roadmap-connector {
+  width: 0;
+  height: 16px;
+  border-left: 2px dashed var(--border-soft);
+}
+.roadmap-node:first-child .roadmap-connector { visibility: hidden; }
+.roadmap-node[data-visual="done"] + .roadmap-node .roadmap-connector {
+  border-left: 2px solid var(--accent);
+}
+
+.roadmap-box {
+  width: 360px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  transition: border-color .12s, background .12s, box-shadow .12s;
+  cursor: pointer;
+}
+
+.roadmap-title {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roadmap-desc {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  max-width: 260px;
+  padding: 4px 8px 0;
+}
+
+/* seleção (passo intermediário antes de virar input de edição) */
+.roadmap-node.selected .roadmap-box {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.roadmap-title-input {
+  flex: 1 1 auto;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+
+#apr-detail-header {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-soft);
+  border-bottom: 0;
+  background: transparent; /* sem fundo cinza */
+  z-index: 10;
+}
+
+/* Estilo do input de edição do nome */
+.track-name-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.track-name-edit-wrap input {
+  width: 180px;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.track-name-edit-wrap .icon-btn {
+  font-size: 14px;
+  color: var(--text-faint);
+  cursor: pointer;
+  line-height: 1;
+}
+.track-name-edit-wrap .icon-btn:hover {
+  color: var(--accent);
+}
+.track-name-edit-wrap .icon-btn.cancel:hover {
+  color: var(--red);
+}
+
+/* === Remove tooltip "barra" indesejada e melhora hover === */
+
+/* 1. Para o botão de expandir (e outros ícones no cabeçalho) */
+#btn-expand-map,
+#btn-add-module,
+#btn-delete-track,
+#btn-back-from-edit {
+  text-decoration: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border); /* mantém a borda padrão */
+}
+
+/* 2. Remove qualquer pseudo-elemento extra que possa surgir no hover */
+#btn-expand-map::before,
+#btn-expand-map::after,
+#btn-add-module::before,
+#btn-add-module::after,
+#btn-delete-track::before,
+#btn-delete-track::after,
+#btn-back-from-edit::before,
+#btn-back-from-edit::after {
+  display: none !important;
+}
+
+/* 3. Ajusta o tooltip para não aparecer como uma barra sobre o botão */
+[data-tooltip]::after {
+  /* mantém o tooltip, mas garante que não crie uma "barra" estranha */
+  background: var(--panel);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  padding: 4px 7px;
+  font-size: 9.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 60; /* acima de tudo */
+  /* posição já definida: bottom: 125%, mas se quiser ajustar */
+}
+
+/* 4. Remove qualquer sombra ou borda extra no hover dos botões do cabeçalho */
+#btn-expand-map:hover,
+#btn-add-module:hover,
+#btn-back-from-edit:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent; /* ou mantenha o fundo padrão */
+}
+
+/* 5. Botão excluir (cabeçalho) – hover vermelho */
+#btn-delete-track:hover {
+  color: var(--red) !important;
+  border-color: var(--red) !important;
+  background: rgba(255, 0, 0, 0.05);
+}
+
+/* 6. Botão excluir dentro do modal de edição (já tem style, mas reforça) */
+[data-action="delete-milestone"]:hover {
+  color: var(--red) !important;
+  border-color: var(--red) !important;
+  background: rgba(255, 0, 0, 0.05);
+}
+
+.roadmap-expand-btn{
+  color: var(--text-faint);
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.roadmap-box {
+  flex-wrap: wrap;
+}
+
+.roadmap-expanded {
+  width: 100%;
+  padding: 5px 0;
+  flex-basis: 100%;
+}
+
+.roadmap-expanded-desc {
+  font-size: 11px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.roadmap-node[data-visual="done"] .roadmap-expanded-desc,
+.roadmap-node[data-visual="done"] .roadmap-expanded .field label {
+  color: var(--bg);
+  opacity: 0.85;
+}
+
+.roadmap-node[data-visual="done"] .roadmap-expanded textarea {
+  background: rgba(0, 0, 0, 0.15);
+  border-color: var(--bg);
+  color: var(--bg);
+}
+
+.roadmap-node[data-visual="done"] .roadmap-expanded textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.roadmap-node[data-visual="done"] .roadmap-expanded .btn {
+  background: var(--accent);
+  border-color: var(--bg);
+  color: var(--bg);
+}
+
+.roadmap-node[data-visual="done"] .roadmap-expanded .btn.primary {
+  background: var(--bg);
+  color: var(--accent);
+  border-color: var(--bg);
+}
+
+.roadmap-canvas-scroll {
+  height: 100%;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
+}
+
+.roadmap-canvas-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.roadmap-canvas-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.roadmap-canvas-scroll::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border: 1px solid var(--border-soft);
+}
+.roadmap-canvas-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.roadmap-expanded-desc {
+  font-size: 11px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.roadmap-expanded textarea {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+}
+
+.roadmap-expanded {
+  overflow: hidden;
+}
+
+.apr-right {
+  overflow: visible;
+}
+
+#apr-detail-body {
+  overflow-y: auto;
+}
+
+#confirm-modal {
+  z-index: 1000;
+}
+
+.track-goal-subtitle {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+

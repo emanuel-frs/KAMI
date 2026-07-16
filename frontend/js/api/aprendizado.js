@@ -13,3 +13,5 @@ export const createMilestone = (trackId, data) =>
 export const updateMilestone = (milestoneId, data) =>
   put(`/api/aprendizado/milestones/${milestoneId}`, data);
 export const deleteMilestone = (milestoneId) => del(`/api/aprendizado/milestones/${milestoneId}`);
+export const reorderMilestones = (trackId, milestoneIds) =>
+  put(`/api/aprendizado/tracks/${trackId}/milestones/reorder`, { milestone_ids: milestoneIds });

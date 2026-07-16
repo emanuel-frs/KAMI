@@ -1,0 +1,31 @@
+/* ── tooltip genérico [data-tooltip] + botão de ícone quadrado ────────────
+ * Utilitário compartilhável — hoje usado no header do modo edição do
+ * módulo Aprendizado, mas não é específico dele (pode ser aplicado em
+ * qualquer botão de ícone de outros widgets). */
+
+[data-tooltip] { position: relative; }
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--panel);
+  color: var(--text-bright);
+  font-size: 9.5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s, transform .12s;
+  z-index: 50;
+}
+[data-tooltip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.icon-btn-square {
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; font-size: 12px;
+}
+

@@ -1,0 +1,227 @@
+/* ── heatmap de atividade (aprendizado.js) — estilo contribution graph ────
+ * Grid de células por dia (hm-cell), navegação por ano e legenda. Usa
+ * as mesmas variáveis de cor do tema, independente do roadmap acima. */
+
+.apr-heatmap-wrap {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.apr-heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 13px);
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.hm-cell {
+  width: 13px;
+  height: 13px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  position: relative;
+  cursor: default;
+}
+.hm-cell.lvl-1 { background: var(--accent-dim); opacity: 0.5; border-color: transparent; }
+.hm-cell.lvl-2 { background: var(--accent-dim); opacity: 0.85; border-color: transparent; }
+.hm-cell.lvl-3 { background: var(--accent); opacity: 0.9; border-color: transparent; }
+.hm-cell.milestone { box-shadow: 0 0 0 2px var(--amber); z-index: 1; }
+.hm-cell.milestone::after {
+  content: "★";
+  position: absolute;
+  top: -7px;
+  left: 1px;
+  font-size: 7px;
+  color: var(--amber);
+  line-height: 1;
+}
+.apr-heatmap-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 9.5px;
+  color: var(--text-faint);
+  min-width: 170px;
+  padding-top: 2px;
+}
+.apr-heatmap-legend .lg-row { display: flex; align-items: center; gap: 7px; }
+.apr-heatmap-legend .lg-sw { width: 11px; height: 11px; flex: 0 0 auto; }
+
+.apr-heatmap-card-inner {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.apr-heatmap-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.apr-heatmap-months {
+  display: grid;
+  gap: 3px;
+  margin-left: 26px;
+  margin-bottom: 4px;
+  height: 12px;
+}
+.apr-heatmap-months span {
+  font-size: 9px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.apr-heatmap-body {
+  display: flex;
+  gap: 6px;
+}
+
+.apr-heatmap-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, 13px);
+  gap: 3px;
+  flex-shrink: 0;
+  width: 20px;
+}
+.apr-heatmap-weekdays span {
+  font-size: 9px;
+  color: var(--text-faint);
+  line-height: 13px;
+}
+
+.apr-heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 13px);
+  gap: 3px;
+  width: max-content;
+}
+
+.hm-cell {
+  width: 13px;
+  height: 13px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  position: relative;
+  cursor: default;
+}
+.hm-cell.lvl-1 { background: var(--accent-dim); opacity: 0.5; border-color: transparent; }
+.hm-cell.lvl-2 { background: var(--accent-dim); opacity: 0.85; border-color: transparent; }
+.hm-cell.lvl-3 { background: var(--accent); opacity: 0.9; border-color: transparent; }
+.hm-cell.milestone { box-shadow: 0 0 0 2px var(--amber); z-index: 1; }
+.hm-cell.milestone::after {
+  content: "★";
+  position: absolute;
+  top: -7px;
+  left: 1px;
+  font-size: 7px;
+  color: var(--amber);
+  line-height: 1;
+}
+.hm-cell-empty {
+  width: 13px;
+  height: 13px;
+  background: transparent;
+  border: none;
+  pointer-events: none;
+}
+
+.apr-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 9.5px;
+  color: var(--text-faint);
+}
+.apr-heatmap-legend .lg-sw {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-soft);
+}
+.apr-heatmap-legend .lg-milestone {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 14px;
+}
+
+.apr-heatmap-years {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.apr-heatmap-year-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  text-align: right;
+  cursor: pointer;
+  color: var(--text-faint);
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--font);
+}
+.apr-heatmap-year-btn:hover {
+  color: var(--text-dim);
+}
+.apr-heatmap-year-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+.apr-heatmap-legend {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 9.5px;
+  color: var(--text-faint);
+}
+.apr-heatmap-legend span {
+  display: inline-flex;
+  align-items: center;
+}
+.apr-heatmap-legend .lg-sw {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-soft);
+}
+.apr-heatmap-legend .lg-milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 14px;
+}
+
+.apr-heatmap-years {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
+}
+.apr-heatmap-years::-webkit-scrollbar {
+  width: 6px;
+}
+.apr-heatmap-years::-webkit-scrollbar-track {
+  background: transparent;
+}
+.apr-heatmap-years::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border: 1px solid var(--border-soft);
+}

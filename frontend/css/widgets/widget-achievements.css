@@ -1,0 +1,78 @@
+/* ── conquistas (achievements.js) — galeria estilo steam ───────────────────
+ * desbloqueadas ganham ícone em destaque + borda de acento + data;
+ * bloqueadas ficam em tons de cinza com cadeado sobre o ícone.
+ */
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  align-content: start; /* sem isso, com poucas conquistas o grid esticaria as
+                            linhas pra preencher a altura, em vez de crescer
+                            de cima pra baixo e deixar sobra embaixo */
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 320px; /* teto padrão — só vale enquanto o card tem altura automática */
+  overflow-y: auto;
+  padding-right: 3px; /* separa o conteúdo da scrollbar */
+}
+.card[data-manual="1"] .ach-grid {
+  max-height: none;
+}
+.ach-grid.ach-grid-lg { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
+.ach {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  padding: 12px 10px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+.ach.unlocked {
+  border-color: var(--accent-dim);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.ach-icon-wrap {
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  position: relative;
+  overflow: hidden;
+}
+.ach-icon { font-size: 24px; line-height: 1; filter: grayscale(1) brightness(0.55); opacity: 0.55; }
+.ach.unlocked .ach-icon-wrap {
+  border-color: var(--accent-dim);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 72%);
+}
+.ach.unlocked .ach-icon { filter: none; opacity: 1; }
+.ach-lock { position: absolute; font-size: 15px; color: var(--text-faint); }
+.ach .a-title { font-size: 11px; margin-bottom: 0; }
+.ach.unlocked .a-title { color: var(--accent); }
+.ach .a-desc { font-size: 9.5px; color: var(--text-faint); line-height: 1.45; }
+.ach.unlocked .a-desc { color: var(--text-dim); }
+.ach .a-date {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-soft);
+  letter-spacing: 0.3px;
+}
+.ach.unlocked .a-date { color: var(--accent-dim); }
+.ach .a-status {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-soft);
+}
+

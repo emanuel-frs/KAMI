@@ -1,0 +1,16 @@
+/* ── atributos (attributes.js) ─────────────────────────────────────────── */
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  padding: 4px;
+}
+.attr-row span.label { font-size: 11px; color: var(--text-dim); width: 98px; flex: 0 0 auto; }
+.attr-row .bar-track { flex: 1; margin: 0; }
+.attr-row b { font-size: 10px; color: var(--text-faint); width: 44px; text-align: right; }
+.attr-row.on { background: rgba(255, 255, 255, 0.04); }
+.attr-row.on .bar-fill { background: var(--accent); }
+.attr-row.on span.label { color: var(--accent); }
+

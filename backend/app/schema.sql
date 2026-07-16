@@ -137,10 +137,15 @@ CREATE TABLE IF NOT EXISTS milestones (
     id                TEXT PRIMARY KEY,
     track_id          TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
     title             TEXT NOT NULL,
+    description       TEXT,               -- descricao fixa do modulo, editada no modal "editar modulo"
+    notes             TEXT,                -- anotacoes livres do usuario, separadas da descricao
     status            TEXT NOT NULL DEFAULT 'pendente',  -- 'pendente' | 'concluido' | 'esquecido'
+    position          INTEGER NOT NULL DEFAULT 0,  -- ordem dentro da trilha (reordenavel, estilo trello)
     started_at        TEXT,
     completed_at      TEXT,
-    last_activity_at  TEXT
+    last_activity_at  TEXT,
+    xp_awarded         INTEGER             -- XP creditado ao concluir este marco especifico — usado
+                                            -- pra estornar o valor exato se o marco for desmarcado
 );
 
 -- ---------------- ORGANIZAÇÃO ----------------
@@ -174,7 +179,10 @@ CREATE TABLE IF NOT EXISTS email_cache (
     sender       TEXT NOT NULL,
     received_at  TEXT NOT NULL,
     is_read      INTEGER NOT NULL DEFAULT 0,
-    summary_text TEXT                 -- NULL no v1 (sem IA); campo reservado pro pós-mvp
+    summary_text TEXT,                -- NULL no v1 (sem IA); campo reservado pro pós-mvp
+    body_preview TEXT                 -- trecho em TEXTO PURO do corpo (sem HTML), truncado
+                                       -- na extração (ver app/routers/organizacao.py) — nunca
+                                       -- o corpo original/HTML bruto, por segurança (XSS/tracking)
 );
 
 -- ---------------- METAS PESSOAIS ----------------

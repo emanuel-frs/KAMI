@@ -1,0 +1,29 @@
+/* ── log (log.js) e prioridades (priorities.js, reaproveita a mesma classe) ── */
+.log-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 260px; /* teto padrão — só vale enquanto o card tem altura automática */
+  overflow-y: auto;
+  padding-right: 3px; /* separa o conteúdo da scrollbar */
+}
+/* card redimensionado manualmente (⋰) tem altura explícita — a lista deve
+   preencher esse espaço de verdade em vez de ficar presa no teto padrão,
+   deixando sobra vazia ou (pior) cortando visualmente o conteúdo. */
+.card[data-manual="1"] .log-list {
+  max-height: none;
+}
+.log-item {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 7px 3px;
+  border-bottom: 1px dashed var(--border-soft);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.log-item:last-child { border-bottom: none; }
+.log-item .tag { color: var(--accent); white-space: nowrap; }
+.log-item .tag.unread { color: var(--amber); }
+.log-item .desc { flex: 1; }
+.log-item .meta { color: var(--text-faint); font-size: 10px; }
+

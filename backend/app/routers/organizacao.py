@@ -27,6 +27,10 @@ Endpoints:
 
   GET    /api/organizacao/email-accounts            lista contas (nunca devolve a senha)
   POST   /api/organizacao/email-accounts            cadastra conta (senha vai criptografada)
+  PUT    /api/organizacao/email-accounts/{id}       edita conta (todos os campos opcionais —
+                                                     só reescreve o que vier no payload; se
+                                                     app_password vier, recriptografa e troca;
+                                                     se não vier, mantém a senha salva)
   DELETE /api/organizacao/email-accounts/{id}       remove conta (cache junto, CASCADE)
   POST   /api/organizacao/email-accounts/{id}/sync  conecta via IMAP e atualiza o cache
 
@@ -39,6 +43,7 @@ comportamento esperado):
   - adicionar um link:            +2xp
   - sincronizar e-mail com sucesso: +3xp (1x por chamada de sync, não por e-mail novo)
   - sincronizar repo do github:    +2xp
+  - editar uma conta de e-mail:   sem XP (não é uma "ação" nova, é manutenção)
 """
 import email as email_lib
 import imaplib
@@ -65,6 +70,10 @@ XP_EMAIL_SYNC  = 3
 GITHUB_API_BASE = "https://api.github.com/repos/"
 # GitHub exige um User-Agent em toda chamada, senão devolve 403
 GITHUB_HEADERS = {"User-Agent": "kami-app-local", "Accept": "application/vnd.github+json"}
+
+# tamanho máximo do trecho de corpo guardado por e-mail — texto puro,
+# já achatado (sem quebras de linha) e truncado; nunca o corpo original.
+BODY_PREVIEW_MAX_LEN = 280
 
 
 # ==================== schemas ====================
@@ -99,6 +108,21 @@ class EmailAccountIn(BaseModel):
     app_password: str  # texto puro só no payload de entrada; nunca guardado assim
 
 
+class EmailAccountUpdate(BaseModel):
+    """
+    Todos os campos opcionais — é um PATCH-like via PUT (só reescreve o
+    que vier no payload). app_password só é recriptografado/trocado se
+    vier preenchido; se vier None/omitido, a senha salva permanece a
+    mesma (não obriga o usuário a redigitar a senha só pra trocar o
+    apelido, por exemplo).
+    """
+    label: Optional[str] = None
+    imap_host: Optional[str] = None
+    imap_port: Optional[int] = None
+    username: Optional[str] = None
+    app_password: Optional[str] = None
+
+
 class EmailAccountOut(BaseModel):
     id: str
     label: str
@@ -122,6 +146,7 @@ class EmailCacheOut(BaseModel):
     received_at: str
     is_read: bool
     summary_text: Optional[str] = None
+    body_preview: Optional[str] = None
 
 
 # ==================== links ====================
@@ -297,6 +322,51 @@ def _decode_mime_words(s: str) -> str:
     return decoded
 
 
+def _extract_body_preview(msg, max_len: int = BODY_PREVIEW_MAX_LEN) -> Optional[str]:
+    """
+    Extrai um trecho em TEXTO PURO do corpo do e-mail — nunca HTML.
+
+    Só lê a parte text/plain (ignora text/html de propósito, e não faz
+    nenhum parsing/strip de HTML aqui): não queremos guardar nem
+    renderizar HTML de e-mails de terceiros — a maioria dos e-mails de
+    marketing/spam abusa de HTML com tracking, e o frontend NUNCA deve
+    fazer innerHTML direto do corpo de um e-mail recebido. Se só existir
+    text/html (sem alternativa em texto puro), devolve None — sem prévia
+    é mais seguro do que arriscar mostrar/guardar HTML bruto.
+    """
+    body = None
+    if msg.is_multipart():
+        for part in msg.walk():
+            content_disposition = str(part.get("Content-Disposition", ""))
+            if part.get_content_type() == "text/plain" and "attachment" not in content_disposition:
+                try:
+                    payload = part.get_payload(decode=True)
+                    if payload is None:
+                        continue
+                    charset = part.get_content_charset() or "utf-8"
+                    body = payload.decode(charset, errors="replace")
+                except Exception:
+                    continue
+                break
+    else:
+        if msg.get_content_type() == "text/plain":
+            try:
+                payload = msg.get_payload(decode=True)
+                if payload is not None:
+                    charset = msg.get_content_charset() or "utf-8"
+                    body = payload.decode(charset, errors="replace")
+            except Exception:
+                body = None
+
+    if not body:
+        return None
+
+    flat = " ".join(body.split())  # achata quebras de linha/espaços repetidos
+    if not flat:
+        return None
+    return flat[:max_len] + ("…" if len(flat) > max_len else "")
+
+
 @router.get("/email-accounts", response_model=List[EmailAccountOut])
 def list_email_accounts(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM email_accounts ORDER BY label").fetchall()
@@ -322,6 +392,33 @@ def create_email_account(payload: EmailAccountIn, db=Depends(get_db)):
     return {
         "id": account_id, "label": payload.label, "imap_host": payload.imap_host,
         "imap_port": payload.imap_port, "username": payload.username,
+    }
+
+
+@router.put("/email-accounts/{account_id}", response_model=EmailAccountOut)
+def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+
+    label = payload.label if payload.label is not None else row["label"]
+    imap_host = payload.imap_host if payload.imap_host is not None else row["imap_host"]
+    imap_port = payload.imap_port if payload.imap_port is not None else row["imap_port"]
+    username = payload.username if payload.username is not None else row["username"]
+    app_password_enc = (
+        encrypt_password(payload.app_password) if payload.app_password else row["app_password_enc"]
+    )
+
+    db.execute(
+        "UPDATE email_accounts SET label = ?, imap_host = ?, imap_port = ?, username = ?, "
+        "app_password_enc = ? WHERE id = ?",
+        (label, imap_host, imap_port, username, app_password_enc, account_id),
+    )
+    db.commit()
+
+    return {
+        "id": account_id, "label": label, "imap_host": imap_host,
+        "imap_port": imap_port, "username": username,
     }
 
 
@@ -389,10 +486,13 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
             if dup:
                 continue
 
+            body_preview = _extract_body_preview(msg)
+
             db.execute(
-                "INSERT INTO email_cache (id, account_id, subject, sender, received_at, is_read, summary_text) "
-                "VALUES (?, ?, ?, ?, ?, 0, NULL)",
-                (new_id(), account_id, subject, sender, received_at),
+                "INSERT INTO email_cache "
+                "(id, account_id, subject, sender, received_at, is_read, summary_text, body_preview) "
+                "VALUES (?, ?, ?, ?, ?, 0, NULL, ?)",
+                (new_id(), account_id, subject, sender, received_at, body_preview),
             )
             new_count += 1
         db.commit()

@@ -1,0 +1,135 @@
+/* ── contas de e-mail (pages/organizacao.js) ───────────────────────────── */
+.org-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.org-account:last-child { border-bottom: none; }
+.org-account-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.org-account-info b { font-size: 12px; color: var(--text-bright); font-weight: 500; }
+.org-account-info .meta { font-size: 10px; color: var(--text-faint); }
+.org-account-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.org-account-actions .sync-msg { font-size: 10px; color: var(--accent); }
+.org-account-actions .icon-btn {
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.org-account-actions .icon-btn:hover { color: var(--accent); }
+
+/* ── lista de e-mails (mais rica que .log-item — tem avatar, remetente e
+   prévia do corpo) ── */
+.email-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 3px;
+  border-bottom: 1px dashed var(--border-soft);
+  cursor: pointer;
+}
+.email-item:last-child { border-bottom: none; }
+.email-item:hover { background: rgba(255, 255, 255, 0.03); }
+.email-avatar {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.email-main { flex: 1 1 auto; min-width: 0; }
+.email-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.email-subject {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.email-item.unread .email-subject { color: var(--text-bright); }
+.email-tag {
+  flex-shrink: 0;
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.email-item.unread .email-tag { color: var(--amber); }
+.email-sender,
+.email-preview {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.email-preview { opacity: 0.8; }
+.email-meta {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+/* ── modal de detalhe do e-mail ── */
+.email-detail-field { margin-bottom: 12px; }
+.email-detail-field label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+  margin-bottom: 3px;
+}
+.email-detail-field .val { font-size: 12px; color: var(--text-dim); }
+.email-detail-field .val.subject { color: var(--text-bright); font-size: 13px; }
+.email-detail-field .val.preview {
+  line-height: 1.6;
+  white-space: pre-wrap;   /* quebra em espaços/linhas normalmente */
+  overflow-wrap: break-word; /* só força quebra no meio de um "token" (ex: url longa) quando não há outro jeito */
+  max-height: 140px;
+  overflow: hidden;
+}
+.email-detail-field .val.preview.expanded { max-height: none; }
+.email-detail-field .val.preview .email-link {
+  color: var(--accent);
+  text-decoration: underline;
+  word-break: break-all; /* urls não têm espaço nenhum pra quebrar — aqui pode forçar mais */
+}
+.email-detail-field .val.preview .email-link:hover { color: var(--text-bright); }
+.email-toggle-preview {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 10.5px;
+  cursor: pointer;
+  padding: 6px 0 0;
+  text-decoration: underline;
+  display: none;
+}
+.vm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 7px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.vm-row:last-child { border-bottom: none; }
+.vm-row .k { color: var(--text-faint); }
+.vm-row .v { color: var(--text-bright); text-align: right; }
+
