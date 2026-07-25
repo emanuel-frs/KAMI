@@ -4,6 +4,7 @@ import { levelFromXp } from "../components/xp.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
+import { openOnboardingModal } from "../modals/onboarding-modal.js";
 import { showErrorModal } from "../modals/err-model.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
@@ -81,7 +82,10 @@ export async function render(el, widget) {
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
-          <button type="button" class="btn sm mode-toggle-btn" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar nome/cor</button>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn sm" data-action="tutorial" style="display:flex; align-items:center; gap:5px;">${icon("undo", { size: 11 })} ver tutorial novamente</button>
+            <button type="button" class="btn sm mode-toggle-btn" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar nome/cor</button>
+          </div>
         </div>
         <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:11px; color:var(--text-dim);">
           <span style="width:11px; height:11px; background:${profile.accent_color}; display:inline-block; border:1px solid var(--border-soft);"></span>
@@ -198,6 +202,10 @@ export async function render(el, widget) {
     if (originalHeight !== null) cardEl.style.height = originalHeight;
     else cardEl.style.removeProperty("height");
   }
+
+  el.querySelector('[data-action="tutorial"]')?.addEventListener("click", () => {
+    openOnboardingModal();
+  });
 
   // ── toggle view/edit (nome/cor) ──────────────────────────────────────
   el.querySelector('[data-action="edit"]')?.addEventListener("click", () => {

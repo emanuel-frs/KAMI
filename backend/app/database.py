@@ -94,6 +94,21 @@ def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_user_profile_onboarding(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de onboarding_completed existir
+    (item 15.6, decisão 25). Sem isso, quem já tem um kami.db de antes desta
+    mudança nunca ganharia a coluna e o onboarding tentaria ler/gravar um
+    campo inexistente. Default 0 (não visto ainda) — igual ao DEFAULT do
+    schema.sql, mas precisa ser feito manualmente via ALTER TABLE porque
+    `CREATE TABLE IF NOT EXISTS` não altera uma tabela já existente.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()]
+    if "onboarding_completed" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -103,6 +118,7 @@ def init_db() -> None:
 
     _migrate_email_cache_body_preview(conn)
     _migrate_milestones_fields(conn)
+    _migrate_user_profile_onboarding(conn)
 
     _seed_defaults(conn)
 

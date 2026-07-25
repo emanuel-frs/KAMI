@@ -21,6 +21,7 @@ class ProfileOut(BaseModel):
     display_name: str
     accent_color: str
     avatar_ascii: Optional[str] = None
+    onboarding_completed: bool
     updated_at: str
 
 
@@ -31,6 +32,10 @@ class ProfileUpdate(BaseModel):
 
 class AvatarUpdate(BaseModel):
     avatar_ascii: str
+
+
+class OnboardingUpdate(BaseModel):
+    completed: bool
 
 
 def _get_profile_row(db):
@@ -65,6 +70,24 @@ def update_avatar(payload: AvatarUpdate, db=Depends(get_db)):
     db.execute(
         "UPDATE user_profile SET avatar_ascii = ?, updated_at = ? WHERE id = ?",
         (payload.avatar_ascii, now_iso(), row["id"]),
+    )
+    db.commit()
+    return dict(_get_profile_row(db))
+
+
+@router.put("/onboarding", response_model=ProfileOut)
+def update_onboarding(payload: OnboardingUpdate, db=Depends(get_db)):
+    """
+    Item 15.6 (decisão 25): marca (ou desmarca) o tutorial como visto.
+    Chamado ao fechar o modal de onboarding — reaberto depois via
+    configurações ("ver tutorial novamente") sem alterar essa flag de novo,
+    já que reabrir manualmente não deve fazer o app parar de mostrá-lo
+    sozinho de novo no próximo boot.
+    """
+    row = _get_profile_row(db)
+    db.execute(
+        "UPDATE user_profile SET onboarding_completed = ?, updated_at = ? WHERE id = ?",
+        (1 if payload.completed else 0, now_iso(), row["id"]),
     )
     db.commit()
     return dict(_get_profile_row(db))

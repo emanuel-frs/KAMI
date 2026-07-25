@@ -1,0 +1,209 @@
+/* ---------- onboarding (item 15.6, decisão 25 — REVISADA) ----------
+   Tour multi-step: modal fixo com ilustração + texto + nav por passo.
+   Escopo: prefixo ob- em tudo (sem conflito com o resto do app).
+   Reutiliza .modal-backdrop / .modal de base.css e .btn de forms.css. */
+
+/* ── wrapper do modal ──────────────────────────────────────────────── */
+.modal.ob-modal {
+  width: min(560px, 94vw);
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+}
+
+.modal.ob-modal .modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-step-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+/* ── body: ilustração à esquerda, texto à direita ──────────────────── */
+.ob-body {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 14px;
+  flex: 1 1 auto;
+}
+
+.ob-illus-wrap {
+  flex: 0 0 170px;
+  min-width: 0;
+}
+
+.ob-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ob-title {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--text-bright);
+  margin: 0 0 8px;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+
+.ob-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── footer: prev | dots | next ────────────────────────────────────── */
+.ob-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-alt);
+  gap: 10px;
+}
+
+.ob-btn-prev,
+.ob-btn-next {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+
+.ob-btn-prev {
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+}
+.ob-btn-prev:hover { color: var(--text); border-color: var(--border); }
+
+.ob-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+.ob-dot {
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.ob-dot--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── ilustrações genéricas ─────────────────────────────────────────── */
+.ob-illus {
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  padding: 10px;
+  font-size: 10px;
+  color: var(--text-dim);
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* intro: XP bars */
+.ob-illus-row { display: flex; align-items: center; gap: 6px; }
+.ob-xp-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border-soft);
+  display: block;
+}
+.ob-xp-fill { display: block; height: 100%; background: var(--accent); }
+.ob-level { color: var(--accent); font-size: 9px; white-space: nowrap; }
+.ob-attr-row { font-size: 9.5px; }
+.ob-attr { flex: 1; color: var(--text-dim); }
+.ob-attr-xp { color: var(--accent); white-space: nowrap; }
+
+/* perfil */
+.ob-profile-card { display: flex; gap: 8px; align-items: flex-start; }
+.ob-avatar {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--accent);
+  margin: 0;
+  white-space: pre;
+}
+.ob-profile-info { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+.ob-profile-name { color: var(--text-bright); font-size: 10.5px; }
+.ob-profile-sub { font-size: 9px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; }
+.ob-accent-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+}
+
+/* núcleo */
+.ob-nucleo-attrs { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.ob-attr-line { display: flex; align-items: center; gap: 5px; font-size: 9.5px; }
+.ob-attr-name { flex: 0 0 76px; color: var(--text-dim); }
+.ob-mini-bar { flex: 1; height: 3px; background: var(--border-soft); }
+.ob-mini-fill { display: block; height: 100%; background: var(--accent-dim); }
+.ob-lv { font-size: 9px; color: var(--accent); white-space: nowrap; }
+
+/* finanças */
+.ob-fin-row { display: flex; justify-content: space-between; font-size: 10px; }
+.ob-fin-label { color: var(--text-faint); }
+.ob-fin-val { font-size: 10.5px; }
+.ob-fin-pos { color: var(--accent); }
+.ob-fin-neg { color: var(--red); }
+.ob-fin-divider { border-top: 1px solid var(--border-soft); margin: 3px 0; }
+.ob-fin-next { font-size: 9px; color: var(--text-faint); margin-top: 4px; }
+.ob-fin-date { color: var(--amber); }
+
+/* aprendizado */
+.ob-track-header { display: flex; justify-content: space-between; font-size: 10px; }
+.ob-track-name { color: var(--text); }
+.ob-track-pct { color: var(--accent); }
+.ob-track-bar { height: 3px; background: var(--border-soft); margin: 4px 0 6px; }
+.ob-track-fill { display: block; height: 100%; background: var(--accent); }
+.ob-milestones { display: flex; flex-direction: column; gap: 3px; }
+.ob-milestone { font-size: 9.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ob-ms-done { color: var(--accent); }
+.ob-ms-faint { color: var(--text-faint); }
+
+/* organização */
+.ob-org-row { display: flex; align-items: center; gap: 6px; font-size: 10px; margin-bottom: 4px; }
+.ob-org-icon { font-size: 11px; }
+.ob-org-label { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-email-preview {
+  border-left: 2px solid var(--border-soft);
+  padding-left: 6px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ob-email-from { font-size: 9px; color: var(--text-faint); }
+.ob-email-subj { font-size: 10px; color: var(--text); }
+
+/* metas */
+.ob-meta-card {
+  border: 1px solid var(--border-soft);
+  padding: 6px 8px;
+  margin-bottom: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ob-meta-card--done { opacity: 0.6; }
+.ob-meta-title { font-size: 10px; color: var(--text); }
+.ob-meta-bar { height: 3px; background: var(--border-soft); }
+.ob-meta-fill { display: block; height: 100%; background: var(--accent); }
+.ob-meta-sub { font-size: 9px; color: var(--text-faint); }

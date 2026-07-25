@@ -11,11 +11,12 @@ PRAGMA foreign_keys = ON;
 
 -- ---------------- PERFIL (decisão 15) ----------------
 CREATE TABLE IF NOT EXISTS user_profile (
-    id            TEXT PRIMARY KEY,   -- linha única (app single-user no v1)
-    display_name  TEXT NOT NULL,
-    accent_color  TEXT NOT NULL DEFAULT '#8fbf8f',
-    avatar_ascii  TEXT,               -- NULL = sem avatar ainda
-    updated_at    TEXT NOT NULL
+    id                    TEXT PRIMARY KEY,   -- linha única (app single-user no v1)
+    display_name          TEXT NOT NULL,
+    accent_color          TEXT NOT NULL DEFAULT '#8fbf8f',
+    avatar_ascii          TEXT,               -- NULL = sem avatar ainda
+    onboarding_completed  INTEGER NOT NULL DEFAULT 0,  -- decisão 25 (seção 15.6)
+    updated_at            TEXT NOT NULL
 );
 
 -- ---------------- DASHBOARDS / WIDGETS (decisão 17) ----------------

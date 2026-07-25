@@ -49,3 +49,38 @@ def test_update_avatar(client):
 def test_update_avatar_requires_field(client):
     resp = client.put("/api/perfil/avatar", json={})
     assert resp.status_code == 422
+
+
+def test_profile_seeds_onboarding_not_completed(client):
+    resp = client.get("/api/perfil")
+    assert resp.status_code == 200
+    assert resp.json()["onboarding_completed"] is False
+
+
+def test_update_onboarding_marks_completed(client):
+    resp = client.put("/api/perfil/onboarding", json={"completed": True})
+    assert resp.status_code == 200
+    assert resp.json()["onboarding_completed"] is True
+
+    # confirma persistência
+    resp2 = client.get("/api/perfil")
+    assert resp2.json()["onboarding_completed"] is True
+
+
+def test_update_onboarding_can_be_unset(client):
+    client.put("/api/perfil/onboarding", json={"completed": True})
+    resp = client.put("/api/perfil/onboarding", json={"completed": False})
+    assert resp.status_code == 200
+    assert resp.json()["onboarding_completed"] is False
+
+
+def test_update_onboarding_requires_field(client):
+    resp = client.put("/api/perfil/onboarding", json={})
+    assert resp.status_code == 422
+
+
+def test_update_onboarding_bumps_updated_at(client):
+    before = client.get("/api/perfil").json()["updated_at"]
+    resp = client.put("/api/perfil/onboarding", json={"completed": True})
+    after = resp.json()["updated_at"]
+    assert after >= before
