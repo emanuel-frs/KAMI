@@ -1,0 +1,123 @@
+/* ============================================================
+ * ADIÇÃO ao widget-financas-extra.css — colar no final. Paleta
+ * deliberadamente restrita ao que já existe em tokens.css (--accent
+ * pra "bom"/entrada, --amber pra alerta, --red pra "ruim"/saída) —
+ * sem cores novas, seguindo a decisão de design do tema (seção 11).
+ * ============================================================ */
+
+/* ── legenda (fluxo) ──────────────────────────────────────────────────── */
+.chart-legend{
+  display: flex;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.legend-item{ display: flex; align-items: center; gap: 5px; }
+.legend-dot{ width: 8px; height: 8px; display: inline-block; }
+.legend-dot.entrada{ background: var(--accent); }
+.legend-dot.saida{ background: var(--red); }
+
+/* ── wrapper (fluxo + evolução) — ocupa a altura toda do widget,
+   deixando o SVG crescer/encolher junto com o resize; labels e
+   legenda ficam com altura fixa nas pontas ── */
+.chart-fluxo-wrap,
+.chart-evolucao{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.chart-fluxo{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── SVG base (fluxo + evolução) ─────────────────────────────────────── */
+.chart-svg{
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: block;
+  overflow: visible;
+}
+.chart-grid-line{
+  stroke: var(--border-soft);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.chart-legend,
+.chart-fluxo-labels{
+  flex: 0 0 auto;
+}
+.chart-fluxo-labels{
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  padding: 0 2px;
+}
+
+/* ── fluxo: barras entrada/saída ─────────────────────────────────────── */
+.cf-bar{ opacity: 0.9; transition: opacity .1s; }
+.cf-bar:hover{ opacity: 1; }
+.cf-bar.entrada{ fill: var(--accent); }
+.cf-bar.saida{ fill: var(--red); }
+
+/* ── evolução: linha + área acumulada ────────────────────────────────── */
+.chart-area{
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: none;
+}
+.chart-line{
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.chart-dot{
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  cursor: default;
+}
+.chart-dot:hover{ fill: var(--accent); }
+
+/* ── categorias: lista de barras rankeada ────────────────────────────── */
+.chart-categorias-list{ display: flex; flex-direction: column; gap: 8px; }
+.cat-row{ display: flex; align-items: center; gap: 8px; font-size: 10.5px; }
+.cat-label{
+  width: 88px; flex-shrink: 0; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cat-bar-track{
+  flex: 1 1 auto; height: 6px; background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border-soft); overflow: hidden;
+}
+.cat-bar-track .bar-fill{ height: 100%; background: var(--accent); }
+.cat-valor{
+  flex-shrink: 0; width: 72px; text-align: right; color: var(--text-bright);
+  white-space: nowrap;
+}
+
+/* ── limites: mesma lista, com semáforo accent/âmbar/vermelho ───────── */
+.chart-limites-list{ display: flex; flex-direction: column; gap: 9px; }
+.lim-row{ display: flex; align-items: center; gap: 8px; font-size: 10.5px; }
+.lim-label{
+  width: 116px; flex-shrink: 0; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lim-bar-track{
+  flex: 1 1 auto; height: 6px; background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border-soft); overflow: hidden;
+}
+.lim-bar-track .bar-fill{ height: 100%; }
+.bar-fill.lim-ok{ background: var(--accent); }
+.bar-fill.lim-warn{ background: var(--amber); }
+.bar-fill.lim-danger{ background: var(--red); }
+.lim-valor{
+  flex-shrink: 0; color: var(--text-bright); white-space: nowrap; text-align: right;
+}
+.lim-valor-detail{ color: var(--text-faint); font-size: 9px; }

@@ -31,13 +31,27 @@ body::before {
 }
 a { color: var(--text-bright); }
 ::selection { background: var(--text); color: #000; }
-::-webkit-scrollbar { width: 9px; height: 9px; }
+
+/* ── scrollbar temática ────────────────────────────────────────────────
+ * Antes usava var(--border)/var(--text-dim), cinza neutro igual o
+ * scroll padrão do SO só que fininho — pouca diferença visual real.
+ * Aqui o thumb já nasce na cor de destaque (--accent-dim) em vez de só
+ * mudar de cor no hover, e ganha uma borda no tom do fundo pra criar um
+ * respiro entre o thumb e a track (efeito "flutuando"), em vez de ser
+ * um bloco colado nas bordas do track.
+ */
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg-alt); }
-::-webkit-scrollbar-thumb { background: var(--border); }
-::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border: 2px solid var(--bg-alt);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: var(--bg-alt); }
 /* Firefox não usa ::-webkit-scrollbar — equivalente pra manter o mesmo
-   visual fino/tema-escuro fora do webview do Tauri (ex: durante dev no browser). */
-* { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg-alt); }
+   visual temático fora do webview do Tauri (ex: durante dev no browser). */
+* { scrollbar-width: thin; scrollbar-color: var(--accent-dim) var(--bg-alt); }
 
 /* ---------- TITLEBAR (janela frameless — decisão: custom em vez de
    decoração nativa do SO) ----------

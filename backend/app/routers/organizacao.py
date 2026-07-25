@@ -45,6 +45,7 @@ comportamento esperado):
   - sincronizar repo do github:    +2xp
   - editar uma conta de e-mail:   sem XP (não é uma "ação" nova, é manutenção)
 """
+from datetime import datetime as dt
 import email as email_lib
 import imaplib
 import json
@@ -99,6 +100,23 @@ class GithubRepoOut(BaseModel):
     last_synced_at: Optional[str] = None
     sync_error: Optional[str] = None  # não persistido; só informativo na resposta
 
+class GithubTokenIn(BaseModel):
+    token: str
+
+
+class GithubTokenStatus(BaseModel):
+    configured: bool
+
+
+class CommitActivityWeek(BaseModel):
+    week_start: str   # ISO date do início da semana (segunda-feira)
+    total: int
+
+
+class CommitActivityOut(BaseModel):
+    repo_full_name: str
+    weeks: List[CommitActivityWeek]
+    error: Optional[str] = None
 
 class EmailAccountIn(BaseModel):
     label: str
@@ -192,15 +210,37 @@ def delete_link(link_id: str, db=Depends(get_db)):
     db.commit()
 
 
+def _get_github_headers(db) -> dict:
+    """
+    Monta os headers da chamada à API do GitHub. Se houver um token
+    salvo em github_settings, adiciona Authorization e sobe o rate
+    limit de 60/h (sem auth) pra 5000/h — e passa a enxergar
+    repositórios privados aos quais o token tenha acesso.
+    Se não houver token, ou se a decriptação falhar (chave rotacionada,
+    dado corrompido), cai de volta pro comportamento público sem auth
+    — nunca quebra o fluxo existente por causa disso.
+    """
+    headers = dict(GITHUB_HEADERS)
+    row = db.execute("SELECT token_enc FROM github_settings LIMIT 1").fetchone()
+    if row and row["token_enc"]:
+        try:
+            token = decrypt_password(row["token_enc"])
+            headers["Authorization"] = f"Bearer {token}"
+        except ValueError:
+            pass
+    return headers
+
 # ==================== github ====================
 
-def _fetch_github_status(repo_full_name: str) -> tuple:
+def _fetch_github_status(repo_full_name: str, db) -> tuple:
     """
-    Chama a API pública do GitHub. Retorna (status_dict, error_str).
-    Nunca levanta exceção — falha de rede/rate-limit/repo inexistente
-    vira um sync_error informativo, e o cache antigo (se houver) é preservado.
+    Chama a API do GitHub (autenticada, se houver token salvo).
+    Retorna (status_dict, error_str). Nunca levanta exceção — falha de
+    rede/rate-limit/repo inexistente/sem permissão vira um sync_error
+    informativo, e o cache antigo (se houver) é preservado.
     """
-    req = urllib.request.Request(GITHUB_API_BASE + repo_full_name, headers=GITHUB_HEADERS)
+    headers = _get_github_headers(db)
+    req = urllib.request.Request(GITHUB_API_BASE + repo_full_name, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -212,13 +252,17 @@ def _fetch_github_status(repo_full_name: str) -> tuple:
                 "default_branch": data.get("default_branch"),
                 "pushed_at": data.get("pushed_at"),
                 "html_url": data.get("html_url"),
+                "language": data.get("language"),
+                "private": data.get("private", False),
             }
             return status, None
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            return None, "repositório não encontrado (verifique se é público e o nome está correto)"
+            return None, "repositório não encontrado (privado sem token com acesso, ou nome incorreto)"
         if e.code == 403:
-            return None, "rate limit da api pública do github atingido (60 req/h sem token) — tente de novo mais tarde"
+            return None, "rate limit da api do github atingido — configure um token pra 5000 req/h"
+        if e.code == 401:
+            return None, "token do github inválido ou expirado — reconfigure em configurações"
         return None, f"erro http {e.code} ao consultar github"
     except (urllib.error.URLError, TimeoutError):
         return None, "sem conexão com a api do github no momento"
@@ -248,7 +292,7 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
     if existing:
         raise HTTPException(status_code=422, detail="esse repositório já está cadastrado")
 
-    status, error = _fetch_github_status(payload.repo_full_name)
+    status, error = _fetch_github_status(payload.repo_full_name, db)
     repo_id = new_id()
     synced_at = now_iso() if status else None
     db.execute(
@@ -277,7 +321,7 @@ def sync_github_repo(repo_id: str, db=Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="repositório não encontrado")
 
-    status, error = _fetch_github_status(row["repo_full_name"])
+    status, error = _fetch_github_status(row["repo_full_name"], db)
     if status:
         db.execute(
             "UPDATE github_repos SET cached_status = ?, last_synced_at = ? WHERE id = ?",
@@ -545,3 +589,89 @@ def mark_email_read(cache_id: str, db=Depends(get_db)):
     db.commit()
     updated = db.execute("SELECT * FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
     return dict(updated) | {"is_read": bool(updated["is_read"])}
+
+@router.get("/github-token", response_model=GithubTokenStatus)
+def get_github_token_status(db=Depends(get_db)):
+    row = db.execute("SELECT token_enc FROM github_settings LIMIT 1").fetchone()
+    return {"configured": bool(row and row["token_enc"])}
+
+
+@router.put("/github-token", response_model=GithubTokenStatus)
+def save_github_token(payload: GithubTokenIn, db=Depends(get_db)):
+    token = payload.token.strip()
+    if not token:
+        raise HTTPException(status_code=422, detail="token vazio")
+
+    # valida o token contra a api antes de salvar — evita salvar lixo
+    # e só descobrir na próxima sincronização de repo
+    req = urllib.request.Request(
+        "https://api.github.com/rate_limit",
+        headers={**GITHUB_HEADERS, "Authorization": f"Bearer {token}"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=8)
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            raise HTTPException(status_code=422, detail="token inválido ou sem permissão")
+        raise HTTPException(status_code=422, detail=f"erro ao validar token (http {e.code})")
+    except (urllib.error.URLError, TimeoutError):
+        raise HTTPException(status_code=422, detail="sem conexão com a api do github pra validar o token")
+
+    enc = encrypt_password(token)
+    existing = db.execute("SELECT id FROM github_settings LIMIT 1").fetchone()
+    if existing:
+        db.execute(
+            "UPDATE github_settings SET token_enc = ?, updated_at = ? WHERE id = ?",
+            (enc, now_iso(), existing["id"]),
+        )
+    else:
+        db.execute(
+            "INSERT INTO github_settings (id, token_enc, updated_at) VALUES (?, ?, ?)",
+            (new_id(), enc, now_iso()),
+        )
+    db.commit()
+    return {"configured": True}
+
+
+@router.delete("/github-token", status_code=204)
+def delete_github_token(db=Depends(get_db)):
+    db.execute("DELETE FROM github_settings")
+    db.commit()
+
+
+@router.get("/github-repos/{repo_id}/commit-activity", response_model=CommitActivityOut)
+def get_commit_activity(repo_id: str, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="repositório não encontrado")
+
+    try:
+        headers = _get_github_headers(db)
+        url = f"{GITHUB_API_BASE}{row['repo_full_name']}/stats/commit_activity"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            if resp.status == 202:
+                return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": "github ainda calculando estatísticas — tente de novo em instantes"}
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if not isinstance(data, list):
+            return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": "resposta inesperada da api do github"}
+
+        weeks = []
+        for w in data[-10:]:
+            try:
+                weeks.append({
+                    "week_start": dt.utcfromtimestamp(w["week"]).date().isoformat(),
+                    "total": w["total"],
+                })
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        return {"repo_full_name": row["repo_full_name"], "weeks": weeks, "error": None}
+
+    except urllib.error.HTTPError as e:
+        return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": f"erro http {e.code} ao buscar atividade de commits"}
+    except (urllib.error.URLError, TimeoutError):
+        return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": "sem conexão com a api do github no momento"}
+    except Exception as e:
+        return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": f"erro inesperado: {e}"}

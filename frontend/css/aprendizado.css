@@ -1,0 +1,155 @@
+/* ---------- textarea (genérico) ----------
+ * widgets.css já estiliza input/select mas nenhum widget tinha precisado
+ * de campo multi-linha até agora (notas de módulo, descrição). Mesmos
+ * tokens visuais dos inputs — se quiser, pode mover isso pra dentro de
+ * widgets.css depois, é só uma questão de onde o arquivo mora.
+ */
+textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 6px 8px;
+  line-height: 1.5;
+  resize: vertical;
+}
+textarea:focus { outline: none; border-color: var(--accent); }
+textarea::placeholder { color: var(--text-faint); }
+
+/* ---------- página aprendizado ---------- */
+.al-card { min-height: 420px; }
+.al-body {
+  display: flex;
+  gap: 0;
+  flex: 1 1 auto;
+}
+
+.al-tracks-col {
+  width: 260px;
+  flex: 0 0 auto;
+  border-right: 1px solid var(--border-soft);
+  padding-right: 14px;
+  margin-right: 14px;
+  transition: width 0.15s ease;
+}
+.al-tracks-col.al-tracks-col-collapsed {
+  width: 140px;
+}
+
+.al-roadmap-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── coluna de trilhas ── */
+.al-track-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.al-track-row:hover { border-color: var(--accent-dim); color: var(--text-bright); }
+.al-track-row.on { border-color: var(--accent); color: var(--accent); }
+.al-track-pct { color: var(--text-faint); font-size: 10.5px; }
+.al-track-row.on .al-track-pct { color: var(--accent-dim); }
+
+.al-track-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.al-track-back:hover { color: var(--accent); }
+
+/* ── toolbar do roadmap ── */
+.al-roadmap-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.al-icon-btn {
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 13px;
+  line-height: 1;
+}
+.al-icon-btn:hover { color: var(--accent); }
+
+/* ── modo visualização — roadmap conectado, estilo timeline ── */
+.al-roadmap-list { display: flex; flex-direction: column; }
+.al-roadmap-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+}
+.al-roadmap-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 38px;
+  bottom: -8px;
+  width: 2px;
+  background: var(--border-soft);
+}
+.al-roadmap-item.done:not(:last-child)::after { background: var(--accent-dim); }
+
+.al-node {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-faint);
+  z-index: 1;
+}
+.al-roadmap-item.done .al-node { background: var(--accent); border-color: var(--accent); color: var(--bg); cursor: pointer; }
+.al-roadmap-item.current .al-node { border-color: var(--accent); color: var(--accent); cursor: pointer; }
+
+.al-label { font-size: 12px; color: var(--text-faint); flex: 1 1 auto; }
+.al-roadmap-item.done .al-label,
+.al-roadmap-item.current .al-label { color: var(--text-bright); cursor: pointer; }
+.al-roadmap-item.locked .al-label { color: var(--text-faint); }
+.al-chevron { color: var(--text-faint); font-size: 13px; }
+
+/* ── modo edição — lista estilo trello, arrastável ── */
+.al-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 6px;
+  border: 1px solid var(--border-soft);
+  margin-bottom: 6px;
+  background: var(--card);
+}
+.al-edit-item.dragging { opacity: 0.5; border-color: var(--accent-dim); }
+.al-drag-handle { cursor: grab; color: var(--text-faint); touch-action: none; }
+.al-drag-handle:hover { color: var(--accent); }
+.al-edit-check {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.al-edit-check.on { background: var(--accent); border-color: var(--accent); }
+.al-edit-label { flex: 1 1 auto; font-size: 12px; color: var(--text-dim); }

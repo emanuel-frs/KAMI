@@ -79,14 +79,6 @@ CREATE TABLE IF NOT EXISTS income_entries (
     status            TEXT NOT NULL DEFAULT 'previsto'  -- 'previsto' | 'pago'
 );
 
-CREATE TABLE IF NOT EXISTS credit_cards (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    closing_day INTEGER NOT NULL,
-    due_day     INTEGER NOT NULL,
-    card_limit  REAL
-);
-
 CREATE TABLE IF NOT EXISTS fixed_bills (
     id      TEXT PRIMARY KEY,
     name    TEXT NOT NULL,
@@ -104,24 +96,73 @@ CREATE TABLE IF NOT EXISTS debts (
     status       TEXT NOT NULL DEFAULT 'aberta'
 );
 
-CREATE TABLE IF NOT EXISTS subscriptions (
-    id                   TEXT PRIMARY KEY,
-    name                 TEXT NOT NULL,
-    amount               REAL NOT NULL,
-    billing_day          INTEGER NOT NULL,
-    installment_current  INTEGER,     -- NULL = assinatura recorrente sem fim
-    installment_total    INTEGER,
-    active               INTEGER NOT NULL DEFAULT 1
+-- ---------------- WALLET (bancos → contas) ----------------
+-- Substitui a antiga credit_cards. Um banco agrupa 1+ contas; cada conta
+-- escolhe individualmente se possui_saldo e/ou possui_credito. O banco
+-- "dinheiro" é fixo (is_dinheiro=1), criado sob demanda pelo backend
+-- (ver app/routers/wallet.py::_ensure_dinheiro_bank), nunca deletável.
+CREATE TABLE IF NOT EXISTS wallet_banks (
+    id          TEXT PRIMARY KEY,
+    nome        TEXT NOT NULL,
+    icon_ascii  TEXT,
+    created_at  TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS wallet_accounts (
+    id              TEXT PRIMARY KEY,
+    bank_id         TEXT NOT NULL REFERENCES wallet_banks(id) ON DELETE CASCADE,
+    nome            TEXT NOT NULL,
+    possui_saldo    INTEGER NOT NULL DEFAULT 0,
+    saldo_atual     REAL,
+    possui_credito  INTEGER NOT NULL DEFAULT 0,
+    fatura_atual    REAL,
+    limite_total    REAL,
+    dia_vencimento  INTEGER,
+    UNIQUE(bank_id, nome)
+);
+
+-- Assinaturas são só lembrete informativo (não afetam saldo/fatura
+-- automaticamente) — a conta vinculada é referência visual apenas.
+CREATE TABLE IF NOT EXISTS wallet_subscriptions (
+    id             TEXT PRIMARY KEY,
+    nome           TEXT NOT NULL,
+    valor_esperado REAL NOT NULL,
+    dia_cobranca   INTEGER NOT NULL,
+    conta_id       TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+    active         INTEGER NOT NULL DEFAULT 1
+);
+
+-- Um registro por (assinatura, mês) — nasce "não paga" quando o mês é
+-- consultado pela primeira vez (mesmo padrão sob-demanda de income_entries).
+CREATE TABLE IF NOT EXISTS wallet_subscription_periods (
+    id               TEXT PRIMARY KEY,
+    subscription_id  TEXT NOT NULL REFERENCES wallet_subscriptions(id) ON DELETE CASCADE,
+    mes_ano          TEXT NOT NULL,   -- 'YYYY-MM'
+    paga             INTEGER NOT NULL DEFAULT 0,
+    valor_pago       REAL,            -- override, só se pago com valor diferente do esperado
+    UNIQUE(subscription_id, mes_ano)
+);
+
+-- transactions: troca card_id (apontava pra credit_cards, removida) por
+-- conta_id (wallet_accounts, agora obrigatório), e ganha suporte a
+-- transferência. Uma transferência é UMA linha só (origem + destino na
+-- mesma linha) — não duas linhas linkadas, já que os dois saldos são
+-- atualizados na mesma operação e não há necessidade de separar.
 CREATE TABLE IF NOT EXISTS transactions (
-    id          TEXT PRIMARY KEY,
-    description TEXT NOT NULL,
-    amount      REAL NOT NULL,
-    type        TEXT NOT NULL,         -- 'entrada' | 'saida'
-    category    TEXT NOT NULL,
-    card_id     TEXT REFERENCES credit_cards(id) ON DELETE SET NULL,
-    date        TEXT NOT NULL
+    id                TEXT PRIMARY KEY,
+    description       TEXT NOT NULL,
+    amount            REAL NOT NULL,
+    type              TEXT NOT NULL,   -- 'entrada' | 'saida' | 'transferencia'
+    category          TEXT NOT NULL,
+    conta_id          TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- origem (ou única conta) —
+                                                                                -- obrigatório na criação (ver
+                                                                                -- financas.py), mas nullable aqui
+                                                                                -- pra não apagar histórico se a
+                                                                                -- conta for deletada depois
+    forma_pagamento   TEXT,            -- 'saldo' | 'credito' — só quando a conta tem os dois (tipo 'saida')
+    conta_destino_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- só transferência interna
+    destino_externo   TEXT,            -- só transferência externa (texto livre)
+    date              TEXT NOT NULL
 );
 
 -- ---------------- APRENDIZADO ----------------
@@ -205,8 +246,37 @@ CREATE TABLE IF NOT EXISTS goal_contributions (
     date     TEXT NOT NULL
 );
 
+-- ---------------- CONFIGURAÇÃO GITHUB (token pessoal, opcional) ----------------
+CREATE TABLE IF NOT EXISTS github_settings (
+    id         TEXT PRIMARY KEY,   -- linha única (mesmo padrão de user_profile)
+    token_enc  TEXT,               -- fine-grained PAT, criptografado (mesmo esquema do IMAP)
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS compras_parceladas (
+    id                   TEXT PRIMARY KEY,
+    nome                 TEXT NOT NULL,
+    valor_total          REAL NOT NULL,
+    num_parcelas         INTEGER NOT NULL,
+    conta_id             TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+    mes_primeira_parcela TEXT NOT NULL,
+    ajuste_parcelas      INTEGER NOT NULL DEFAULT 0,
+    created_at           TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS compra_parcelada_aplicacoes (
+    id             TEXT PRIMARY KEY,
+    compra_id      TEXT NOT NULL REFERENCES compras_parceladas(id) ON DELETE CASCADE,
+    mes_ano        TEXT NOT NULL,
+    parcela_numero INTEGER NOT NULL,
+    valor_aplicado REAL NOT NULL,
+    UNIQUE(compra_id, mes_ano)
+);
+
 -- ---------------- ÍNDICES ÚTEIS ----------------
 CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_conta ON transactions(conta_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_accounts_bank ON wallet_accounts(bank_id);
 CREATE INDEX IF NOT EXISTS idx_email_cache_account ON email_cache(account_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_screen ON dashboard_widgets(screen);

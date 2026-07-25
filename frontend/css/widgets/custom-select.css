@@ -1,0 +1,108 @@
+/* ── dropdown customizado (custom-select.js) ──────────────────────────────
+ * Substitui a aparência de <select> nativo. O <select> original some
+ * visualmente (.csel-native) mas continua no DOM como fonte de verdade
+ * de .value/change — ver comentário em custom-select.js.
+ */
+
+.csel-native {
+  /* display:none em vez de opacity/position, já que não precisamos que
+     ele receba foco/clique nunca — toda a interação passa pelo
+     .csel-trigger/.csel-item. O .value e o dispatchEvent("change")
+     continuam funcionando normalmente em um elemento display:none. */
+  display: none !important;
+}
+
+.csel {
+  position: relative;
+  width: 100%;
+}
+
+.csel-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 6px 8px;
+  line-height: 1.4;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.csel-trigger:hover { border-color: var(--accent-dim); color: var(--text-bright); }
+.csel-trigger:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* seta — desenhada em CSS puro, não é um glyph de fonte/emoji do SO */
+.csel-trigger::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-left: 8px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-faint);
+  transition: transform .12s ease;
+}
+.csel.open .csel-trigger::after { transform: rotate(180deg); border-top-color: var(--accent); }
+
+.csel.open .csel-trigger { border-color: var(--accent); color: var(--text-bright); }
+.csel.disabled .csel-trigger { opacity: 0.4; cursor: default; }
+
+.csel-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 4px 4px 0 0 #000;
+  z-index: 210; /* acima de .modal-backdrop (200), pra funcionar dentro de modais */
+  display: none;
+}
+.csel.open .csel-list { display: block; }
+
+.csel-item {
+  padding: 7px 9px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.csel-item:last-child { border-bottom: none; }
+.csel-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-bright); }
+.csel-item.on { color: var(--accent); }
+.csel-item.disabled { opacity: 0.4; cursor: default; }
+
+/* select pequeno embutido numa linha (ex: status da dívida) — o wrapper
+   herda a classe original do <select> (ver custom-select.js), então
+   regras como .divida-status{ margin-left:auto } continuam valendo;
+   isso aqui só encolhe o trigger de volta pro tamanho do conteúdo em
+   vez de esticar 100% da linha, pra não quebrar esses layouts inline. */
+.registro-row .csel,
+.divida-meta .csel {
+  width: auto;
+  flex: 0 0 auto;
+}
+.divida-meta .csel .csel-trigger,
+.registro-row .csel .csel-trigger {
+  width: auto;
+}
+.divida-meta .csel .csel-list,
+.registro-row .csel .csel-list {
+  left: auto;
+  right: 0;
+  min-width: 120px;
+}

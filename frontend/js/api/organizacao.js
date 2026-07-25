@@ -24,3 +24,9 @@ export const listEmailCache = (params = {}) => {
   return get(`/api/organizacao/email-cache${qs ? `?${qs}` : ""}`);
 };
 export const markEmailRead = (cacheId) => put(`/api/organizacao/email-cache/${cacheId}/read`, {});
+
+// configuração do token github (opcional — repos privados + rate limit maior)
+export const getGithubTokenStatus = () => get("/api/organizacao/github-token");
+export const saveGithubToken = (token) => put("/api/organizacao/github-token", { token });
+export const deleteGithubToken = () => del("/api/organizacao/github-token");
+export const getCommitActivity = (repoId) => get(`/api/organizacao/github-repos/${repoId}/commit-activity`);

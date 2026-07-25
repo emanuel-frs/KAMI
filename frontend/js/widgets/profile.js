@@ -4,6 +4,8 @@ import { levelFromXp } from "./xp.js";
 import { escapeHtml } from "./format.js";
 import { fitAsciiText } from "./ascii.js";
 import { openAvatarModal } from "./avatar-modal.js";
+import { showErrorModal } from "./err-model.js";
+import { enhanceSelect, destroyCustomSelect } from "./custom-select.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -59,6 +61,12 @@ export async function render(el, widget) {
     return;
   }
 
+  // o select de cor (e o dropdown customizado dele, que vive num portal
+  // em <body> — ver custom-select.js) é recriado do zero a cada render()
+  // deste widget; destrói o antigo antes de sobrescrever o innerHTML,
+  // senão a lista velha fica órfã, escondida, acumulando no body.
+  destroyCustomSelect(el.querySelector("#pw-accent-input"));
+
   const totalXp = attributes.reduce((sum, a) => sum + a.current_xp, 0);
   const { level } = levelFromXp(totalXp);
   const unlockedCount = achievements.filter((a) => a.unlocked_at).length;
@@ -66,7 +74,7 @@ export async function render(el, widget) {
 
   el.innerHTML = `
     <div class="view-mode">
-      <button type="button" class="pw-avatar-btn" title="editar avatar">
+      <button type="button" class="pw-avatar-btn" data-tooltip="editar avatar">
         <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
       </button>
       <div style="flex:1 1 200px; min-width:0;">
@@ -88,7 +96,7 @@ export async function render(el, widget) {
     </div>
 
     <div class="edit-mode">
-      <button type="button" class="pw-avatar-btn" title="editar avatar" data-action="avatar-edit">
+      <button type="button" class="pw-avatar-btn" data-tooltip="editar avatar" data-action="avatar-edit">
         <pre class="pw-avatar-ascii-el" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
       </button>
       <div style="flex:1 1 200px; min-width:0;">
@@ -112,6 +120,11 @@ export async function render(el, widget) {
       </div>
     </div>
   `;
+
+  // select de cor é recriado do zero a cada render() (innerHTML acima) —
+  // por isso é montado de novo aqui, e não uma vez só como nos modais
+  // singleton (ver custom-select.js).
+  enhanceSelect(el.querySelector("#pw-accent-input"));
 
   // ── avatar: anexa o clique JÁ AQUI, antes de qualquer coisa que possa
   //    lançar erro (fitAsciiText, cálculo de grid, etc.). Antes esse
@@ -228,7 +241,7 @@ export async function render(el, widget) {
     try {
       await updateProfile({ display_name: newName, accent_color: newAccent });
     } catch (err) {
-      alert(`erro ao salvar perfil: ${err.message}`);
+      showErrorModal(err.message, "erro ao salvar perfil");
       return;
     }
 

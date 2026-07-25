@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import perfil, nucleo, financas
+from app.routers import perfil, nucleo, financas, wallet
 from app.routers import aprendizado
 from app.routers import metas
 from app.routers import organizacao
@@ -38,6 +38,7 @@ def health():
 app.include_router(perfil.router, prefix="/api/perfil", tags=["perfil"])
 app.include_router(nucleo.router, prefix="/api/nucleo", tags=["nucleo"])
 app.include_router(financas.router, prefix="/api/financas", tags=["financas"])
+app.include_router(wallet.router, prefix="/api/wallet", tags=["wallet"])
 app.include_router(aprendizado.router, prefix="/api/aprendizado", tags=["aprendizado"])
 app.include_router(metas.router, prefix="/api/metas", tags=["metas"])
 app.include_router(organizacao.router, prefix="/api/organizacao", tags=["organizacao"])

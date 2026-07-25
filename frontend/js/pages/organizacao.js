@@ -1,520 +1,771 @@
-import {
-  listEmailAccounts,
-  createEmailAccount,
-  updateEmailAccount,
-  syncEmailAccount,
-  deleteEmailAccount,
-  listEmailCache,
-  markEmailRead,
-} from "../api/organizacao.js";
-import { escapeHtml, fmtRelDate } from "../widgets/format.js";
-
 /**
- * Página: organização (v1 — só a seção de e-mail por enquanto; links e
- * github ficam pra uma próxima rodada). Layout fixo, não usa o grid de
- * widgets configurável (isso é exclusivo de perfil/núcleo, decisão 17).
+ * pages/organizacao.js — módulo Organização (v1).
  *
- * Backend: app/routers/organizacao.py — senha de app nunca sai da API,
- * sync é sempre manual, busca as últimas 20 mensagens (não é janela de
- * dias). body_preview é sempre TEXTO PURO (nunca HTML) — ver comentário
- * de _extract_body_preview no router; o frontend NUNCA deve fazer
- * innerHTML direto de conteúdo de e-mail, mesmo esse trecho já
- * sanitizado no backend — sempre via escapeHtml.
+ * Três abas: links, github, e-mail — espelha os três "tipos de fonte" do
+ * router (app/routers/organizacao.py). Layout fixo (não usa o grid
+ * configurável de dashboard_widgets — só Perfil e Núcleo usam isso).
+ *
+ * Contrato de app.js: mount(container) / unmount(). container é o
+ * #page-root persistente — o próprio nó NUNCA é recriado entre
+ * navegações, só o innerHTML muda. Por isso os listeners de clique são
+ * guardados numa referência de módulo e removidos no unmount (e também
+ * defensivamente no início do mount): sem isso, cada vez que a pessoa
+ * volta pra essa tela um novo listener se acumula no mesmo nó e cada
+ * clique passa a disparar a ação N vezes (foi exatamente o bug dos "4
+ * repositórios" e é a causa raiz de qualquer coisa que pareça "às vezes
+ * duplica" nesse arquivo).
+ *
+ * V1 NÃO inclui (ver kami_projeto.txt, seção 0.1):
+ *   - preview de busca estilizado — o campo de busca só abre o
+ *     DuckDuckGo em nova aba (fica registrado como próxima melhoria,
+ *     não implementado agora)
+ *   - resumo de e-mail por IA — o corpo mostrado é sempre o
+ *     body_preview em texto puro que já vem do backend
+ *   - token pessoal de github pra mais acesso/rate limit — fica
+ *     registrado como próxima melhoria, não implementado agora
  */
+import * as api from "../api/organizacao.js";
 
-let containerEl = null;
-let accountModalEl = null;
-let detailModalEl = null;
+const state = {
+  tab: "links",
+  links: [],
+  repos: [],
+  accounts: [],
+  selectedAccountId: null,
+  emails: [],
+  githubTokenConfigured: false,
+  commitActivity: {},
+};
 
-let accountsCache = [];
-// contas cuja última tentativa de sync falhou NESTA sessão — só assim a
-// senha fica editável no modal (ver wireAccountModal). Não é persistido
-// no backend, reseta ao recarregar a página.
-const brokenAccounts = new Set();
-
-let filterAccountId = "all";
-let filterReadStatus = "all"; // "all" | "unread" | "read"
-
-// ---------------- modal "conta de e-mail" (criar / editar) ----------------
-
-function buildAccountModal() {
-  const wrap = document.createElement("div");
-  wrap.className = "modal-backdrop";
-  wrap.id = "email-account-modal";
-  wrap.innerHTML = `
-    <div class="modal">
-      <div class="modal-head">
-        <span id="ea-modal-title">nova conta de e-mail</span>
-        <span class="close" data-action="close">✕</span>
-      </div>
-      <div class="modal-body">
-        <div class="field">
-          <label>apelido</label>
-          <input type="text" id="ea-label" placeholder="ex: gmail pessoal">
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>host imap</label>
-            <input type="text" id="ea-host" placeholder="imap.gmail.com">
-          </div>
-          <div class="field" style="max-width:110px;">
-            <label>porta</label>
-            <input type="number" id="ea-port" value="993">
-          </div>
-        </div>
-        <div class="field">
-          <label>usuário (e-mail)</label>
-          <input type="text" id="ea-username" placeholder="voce@gmail.com">
-        </div>
-        <div class="field">
-          <label>senha de app</label>
-          <input type="password" id="ea-password" placeholder="senha de app gerada no provedor">
-          <div id="ea-password-hint" style="display:none; font-size:9.5px; color:var(--text-faint); margin-top:4px;"></div>
-        </div>
-        <p class="al-hint" id="ea-hint">
-          não é a senha normal da conta — gmail, outlook e a maioria dos provedores
-          exigem gerar uma "senha de app" separada pra acesso imap de terceiros.
-          a conexão só é testada na hora de sincronizar, não ao salvar.
-        </p>
-        <div style="display:flex; gap:8px; margin-top:4px;">
-          <button type="button" class="btn primary" data-action="save" id="ea-save-btn">salvar conta</button>
-          <button type="button" class="btn sm" data-action="cancel">cancelar</button>
-        </div>
-        <div class="ea-error" style="display:none; color:var(--red); font-size:10.5px; margin-top:8px;"></div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-  wireAccountModal(wrap);
-  return wrap;
-}
-
-function wireAccountModal(wrap) {
-  wrap.querySelector('[data-action="close"]').addEventListener("click", () => closeAccountModal());
-  wrap.querySelector('[data-action="cancel"]').addEventListener("click", () => closeAccountModal());
-  wrap.addEventListener("click", (e) => {
-    if (e.target === wrap) closeAccountModal();
-  });
-
-  wrap.querySelector('[data-action="save"]').addEventListener("click", async () => {
-    const label = wrap.querySelector("#ea-label").value.trim();
-    const imapHost = wrap.querySelector("#ea-host").value.trim();
-    const imapPort = parseInt(wrap.querySelector("#ea-port").value, 10) || 993;
-    const username = wrap.querySelector("#ea-username").value.trim();
-    const passwordInput = wrap.querySelector("#ea-password");
-    const appPassword = passwordInput.disabled ? "" : passwordInput.value;
-    const errorEl = wrap.querySelector(".ea-error");
-    errorEl.style.display = "none";
-
-    const editingId = wrap.dataset.editingId || null;
-
-    if (!label || !imapHost || !username || (!editingId && !appPassword)) {
-      errorEl.textContent = "preencha apelido, host, usuário e senha de app.";
-      errorEl.style.display = "block";
-      return;
-    }
-
-    const payload = { label, imap_host: imapHost, imap_port: imapPort, username };
-    if (appPassword) payload.app_password = appPassword; // omitido = mantém a senha salva (edição)
-
-    try {
-      if (editingId) {
-        await updateEmailAccount(editingId, payload);
-        brokenAccounts.delete(editingId); // deu pra editar sem erro — assume que o problema foi resolvido
-      } else {
-        await createEmailAccount(payload);
-      }
-    } catch (err) {
-      errorEl.textContent = `erro ao salvar conta: ${err.message}`;
-      errorEl.style.display = "block";
-      return;
-    }
-
-    closeAccountModal();
-    await refreshAccounts();
-  });
-}
-
-function openAccountModal(mode, account) {
-  accountModalEl = accountModalEl || buildAccountModal();
-  const wrap = accountModalEl;
-
-  wrap.querySelector(".ea-error").style.display = "none";
-  wrap.querySelector("#ea-label").value = account?.label ?? "";
-  wrap.querySelector("#ea-host").value = account?.imap_host ?? "";
-  wrap.querySelector("#ea-port").value = account?.imap_port ?? 993;
-  wrap.querySelector("#ea-username").value = account?.username ?? "";
-
-  const passwordInput = wrap.querySelector("#ea-password");
-  const passwordHint = wrap.querySelector("#ea-password-hint");
-  passwordInput.value = "";
-
-  if (mode === "edit") {
-    wrap.dataset.editingId = account.id;
-    wrap.querySelector("#ea-modal-title").textContent = `editar: ${account.label}`;
-    wrap.querySelector("#ea-save-btn").textContent = "salvar alterações";
-
-    const isBroken = brokenAccounts.has(account.id);
-    passwordInput.disabled = !isBroken;
-    passwordInput.placeholder = isBroken
-      ? "digite a nova senha de app"
-      : "•••••••• (mantida)";
-    passwordHint.style.display = "block";
-    passwordHint.textContent = isBroken
-      ? "a última sincronização falhou — troque a senha de app aqui se for esse o problema."
-      : "senha atual mantida. só fica editável se a conexão desta conta falhar num sync.";
-  } else {
-    delete wrap.dataset.editingId;
-    wrap.querySelector("#ea-modal-title").textContent = "nova conta de e-mail";
-    wrap.querySelector("#ea-save-btn").textContent = "salvar conta";
-    passwordInput.disabled = false;
-    passwordInput.placeholder = "senha de app gerada no provedor";
-    passwordHint.style.display = "none";
-  }
-
-  wrap.classList.add("open");
-}
-
-function closeAccountModal() {
-  accountModalEl?.classList.remove("open");
-}
-
-// ---------------- modal "detalhe do e-mail" ----------------
-
-function buildDetailModal() {
-  const wrap = document.createElement("div");
-  wrap.className = "modal-backdrop";
-  wrap.id = "email-detail-modal";
-  wrap.innerHTML = `
-    <div class="modal">
-      <div class="modal-head">
-        detalhe do e-mail
-        <span class="close" data-action="close">✕</span>
-      </div>
-      <div class="modal-body">
-        <div class="email-detail-field">
-          <label>assunto</label>
-          <div class="val subject" id="ed-subject"></div>
-        </div>
-        <div class="email-detail-field">
-          <label>remetente</label>
-          <div class="val" id="ed-sender"></div>
-        </div>
-        <div class="email-detail-field">
-          <label>recebido em</label>
-          <div class="val" id="ed-date"></div>
-        </div>
-        <div class="email-detail-field">
-          <label>prévia</label>
-          <div class="val preview" id="ed-preview"></div>
-          <button type="button" class="email-toggle-preview" id="ed-toggle-preview">ver mais ▾</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-  wrap.querySelector('[data-action="close"]').addEventListener("click", () => wrap.classList.remove("open"));
-  wrap.addEventListener("click", (e) => {
-    if (e.target === wrap) wrap.classList.remove("open");
-  });
-  wrap.querySelector("#ed-toggle-preview").addEventListener("click", () => {
-    const previewEl = wrap.querySelector("#ed-preview");
-    const btn = wrap.querySelector("#ed-toggle-preview");
-    const expanded = previewEl.classList.toggle("expanded");
-    btn.textContent = expanded ? "ver menos ▴" : "ver mais ▾";
-  });
-  return wrap;
-}
-
-/**
- * Escapa o texto inteiro primeiro (nunca confia em nada vindo do
- * e-mail), e SÓ DEPOIS envolve as URLs já escapadas em <a>. Isso evita
- * qualquer chance de HTML do remetente escapar pro DOM — o que vira
- * link é sempre um recorte do texto já neutralizado, nunca o texto cru.
- */
-function linkifyEscaped(rawText) {
-  const escaped = escapeHtml(rawText);
-  return escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
-    const safeHref = url.replace(/"/g, "&quot;"); // defesa extra pro valor do atributo href
-    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer" class="email-link">${url}</a>`;
-  });
-}
-
-function renderPreview(wrap, bodyPreview) {
-  const previewEl = wrap.querySelector("#ed-preview");
-  const toggleBtn = wrap.querySelector("#ed-toggle-preview");
-
-  previewEl.classList.remove("expanded");
-  toggleBtn.textContent = "ver mais ▾";
-  toggleBtn.style.display = "none";
-
-  previewEl.innerHTML = bodyPreview
-    ? linkifyEscaped(bodyPreview)
-    : escapeHtml("sem prévia disponível pra este e-mail.");
-
-  // só sabe se precisa do botão depois do layout calcular scrollHeight
-  requestAnimationFrame(() => {
-    if (previewEl.scrollHeight > previewEl.clientHeight + 2) {
-      toggleBtn.style.display = "inline-block";
-    }
-  });
-}
-
-function openDetailModal(entry) {
-  detailModalEl = detailModalEl || buildDetailModal();
-  const wrap = detailModalEl;
-  wrap.querySelector("#ed-subject").textContent = entry.subject || "(sem assunto)";
-  wrap.querySelector("#ed-sender").textContent = entry.sender;
-  wrap.querySelector("#ed-date").textContent = new Date(entry.received_at).toLocaleString("pt-BR");
-  renderPreview(wrap, entry.body_preview);
-  wrap.classList.add("open");
-}
-
-// ---------------- contas ----------------
-
-async function refreshAccounts() {
-  const body = containerEl.querySelector("#org-accounts-body");
-  try {
-    accountsCache = await listEmailAccounts();
-  } catch (err) {
-    body.innerHTML = `<div class="empty-state">erro ao carregar contas: ${err.message}</div>`;
-    return;
-  }
-
-  if (!accountsCache.length) {
-    body.innerHTML = '<div class="empty-state">nenhuma conta cadastrada ainda.</div>';
-  } else {
-    body.innerHTML = accountsCache
-      .map(
-        (a) => `
-      <div class="org-account" data-account-row="${a.id}">
-        <div class="org-account-info">
-          <b>${escapeHtml(a.label)}</b>
-          <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}</span>
-        </div>
-        <div class="org-account-actions">
-          <span class="sync-msg" style="display:none;"></span>
-          <button type="button" class="btn sm" data-sync="${a.id}">sincronizar</button>
-          <span class="icon-btn" data-edit="${a.id}" title="editar conta">✎</span>
-          <span class="widget-remove-btn" data-delete="${a.id}" title="remover conta">✕</span>
-        </div>
-      </div>`
-      )
-      .join("");
-  }
-
-  renderAccountFilterOptions();
-}
-
-function renderAccountFilterOptions() {
-  const select = containerEl.querySelector("#org-filter-account");
-  if (!select) return;
-  const current = select.value || "all";
-  select.innerHTML =
-    `<option value="all">todas as contas</option>` +
-    accountsCache.map((a) => `<option value="${a.id}">${escapeHtml(a.label)}</option>`).join("");
-  // preserva a seleção se a conta ainda existir; senão volta pra "todas"
-  select.value = accountsCache.some((a) => a.id === current) ? current : "all";
-  filterAccountId = select.value;
-}
-
-async function handleSync(accountId, btn) {
-  const row = btn.closest(".org-account");
-  const msgEl = row.querySelector(".sync-msg");
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = "sincronizando…";
-  msgEl.style.display = "none";
-
-  try {
-    const result = await syncEmailAccount(accountId);
-    brokenAccounts.delete(accountId);
-    msgEl.style.color = "var(--accent)";
-    msgEl.textContent = `✓ ${result.new_messages} novo(s)`;
-    msgEl.style.display = "inline";
-    setTimeout(() => (msgEl.style.display = "none"), 2500);
-    await refreshEmails();
-  } catch (err) {
-    brokenAccounts.add(accountId);
-    msgEl.style.color = "var(--red)";
-    msgEl.textContent = err.message;
-    msgEl.style.display = "inline";
-  }
-
-  btn.disabled = false;
-  btn.textContent = originalLabel;
-}
-
-async function handleDelete(accountId) {
-  try {
-    await deleteEmailAccount(accountId);
-  } catch (err) {
-    alert(`erro ao remover conta: ${err.message}`);
-    return;
-  }
-  brokenAccounts.delete(accountId);
-  await refreshAccounts();
-  await refreshEmails(); // cache da conta é removido em cascata no backend
-}
-
-// ---------------- e-mails (cache) ----------------
-
-function initialFromSender(sender) {
-  // "sender" costuma vir como 'Nome <email@x.com>' ou só o e-mail
-  const namePart = sender.split("<")[0].trim() || sender;
-  return (namePart[0] || "?").toUpperCase();
-}
-
-async function refreshEmails() {
-  const body = containerEl.querySelector("#org-emails-body");
-  const params = {};
-  if (filterAccountId !== "all") params.account_id = filterAccountId;
-  if (filterReadStatus === "unread") params.is_read = false;
-  if (filterReadStatus === "read") params.is_read = true;
-
-  let emails;
-  try {
-    emails = await listEmailCache(params);
-  } catch (err) {
-    body.innerHTML = `<div class="empty-state">erro ao carregar e-mails: ${err.message}</div>`;
-    return;
-  }
-
-  if (!emails.length) {
-    body.innerHTML = accountsCache.length
-      ? '<div class="empty-state">nenhum e-mail encontrado pra esse filtro.</div>'
-      : '<div class="empty-state">nenhum e-mail sincronizado ainda — adicione uma conta e clique em "sincronizar".</div>';
-    return;
-  }
-
-  body.innerHTML = `
-    <div class="log-list" id="org-emails-list"></div>
-  `;
-  const listEl = body.querySelector("#org-emails-list");
-  listEl.innerHTML = emails
-    .map(
-      (e) => `
-    <div class="email-item${e.is_read ? "" : " unread"}" data-email-id="${e.id}">
-      <div class="email-avatar">${escapeHtml(initialFromSender(e.sender))}</div>
-      <div class="email-main">
-        <div class="email-top">
-          <span class="email-subject">${escapeHtml(e.subject) || "(sem assunto)"}</span>
-          <span class="email-tag">${e.is_read ? "lido" : "novo"}</span>
-        </div>
-        <div class="email-sender">${escapeHtml(e.sender)}</div>
-        ${e.body_preview ? `<div class="email-preview">${escapeHtml(e.body_preview)}</div>` : ""}
-      </div>
-      <div class="email-meta">${fmtRelDate(e.received_at)}</div>
-    </div>`
-    )
-    .join("");
-
-  // guarda os dados completos pra abrir o modal de detalhe sem outra
-  // chamada de rede — a lista já tem tudo que o detalhe precisa
-  listEl._entries = new Map(emails.map((e) => [e.id, e]));
-}
-
-async function handleOpenEmail(cacheId, itemEl) {
-  const entry = containerEl.querySelector("#org-emails-list")?._entries?.get(cacheId);
-  if (entry) openDetailModal(entry);
-
-  if (itemEl.classList.contains("unread")) {
-    try {
-      await markEmailRead(cacheId);
-    } catch (err) {
-      console.error("erro ao marcar e-mail como lido:", err);
-      return;
-    }
-    await refreshEmails();
-  }
-}
-
-// ---------------- ciclo de vida da página ----------------
+let rootEl = null;
+let clickHandler = null;
 
 export async function mount(container) {
-  containerEl = container;
-  container.innerHTML = `
-    <div class="wg-toolbar">
-      <button type="button" class="btn sm" id="org-add-account">+ adicionar conta</button>
-    </div>
+  rootEl = container;
 
-    <div class="card" style="margin-bottom:16px;">
-      <div class="card-head">contas de e-mail</div>
-      <div class="card-body" id="org-accounts-body">
-        <div class="empty-state">carregando…</div>
-      </div>
-    </div>
+  // defensivo: se por algum motivo unmount não rodou da última vez,
+  // não deixa acumular listener no nó persistente.
+  if (clickHandler) container.removeEventListener("click", clickHandler);
 
-    <div class="card">
-      <div class="card-head">e-mails</div>
-      <div class="card-body">
-        <div class="field-row" style="margin-bottom:8px;">
-          <div class="field">
-            <label>conta</label>
-            <select id="org-filter-account">
-              <option value="all">todas as contas</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>status</label>
-            <select id="org-filter-read">
-              <option value="all">todos</option>
-              <option value="unread">não lidos</option>
-              <option value="read">lidos</option>
-            </select>
-          </div>
-        </div>
-        <div id="org-emails-body">
-          <div class="empty-state">carregando…</div>
-        </div>
-      </div>
-    </div>
-  `;
+  container.innerHTML = template();
+  bindEvents(container);
 
-  container.querySelector("#org-add-account").addEventListener("click", () => openAccountModal("create"));
-
-  container.querySelector("#org-filter-account").addEventListener("change", (e) => {
-    filterAccountId = e.target.value;
-    refreshEmails();
-  });
-  container.querySelector("#org-filter-read").addEventListener("change", (e) => {
-    filterReadStatus = e.target.value;
-    refreshEmails();
-  });
-
-  // delegação de eventos — evita reanexar listener a cada refresh das listas
-  container.addEventListener("click", (e) => {
-    const syncBtn = e.target.closest("[data-sync]");
-    if (syncBtn) {
-      handleSync(syncBtn.dataset.sync, syncBtn);
-      return;
-    }
-    const editBtn = e.target.closest("[data-edit]");
-    if (editBtn) {
-      const account = accountsCache.find((a) => a.id === editBtn.dataset.edit);
-      if (account) openAccountModal("edit", account);
-      return;
-    }
-    const delBtn = e.target.closest("[data-delete]");
-    if (delBtn) {
-      handleDelete(delBtn.dataset.delete);
-      return;
-    }
-    const emailItem = e.target.closest("[data-email-id]");
-    if (emailItem) {
-      handleOpenEmail(emailItem.dataset.emailId, emailItem);
-    }
-  });
-
-  await refreshAccounts();
-  await refreshEmails();
+  await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus()]);
+  renderLinks();
+  renderRepos();
+  renderAccounts();
+  renderEmails();
+  renderGithubTokenBadge();
 }
 
 export function unmount() {
-  containerEl = null;
-  // os modais são singletons anexados a document.body (mesmo padrão de
-  // avatar-modal.js) — persistem entre montagens da página, só garantimos
-  // que não ficam abertos ao sair da tela.
+  if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
+  clickHandler = null;
+  rootEl = null;
+  state.tab = "links";
+  state.selectedAccountId = null;
+  state.emails = [];
+}
+
+/* ==================== template ==================== */
+
+function template() {
+  return `
+    <div class="search-row">
+      <input type="text" id="org-search" placeholder="buscar na web...">
+      <button class="btn sm" data-action="org-search">buscar ↗</button>
+    </div>
+
+    <div class="tabs" style="margin-top:16px;">
+      <div class="tab on" data-tab="links">links</div>
+      <div class="tab" data-tab="github">github</div>
+      <div class="tab" data-tab="email">e-mail</div>
+    </div>
+
+    <div id="org-panel-links">
+      <div class="card">
+        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
+        <div class="card-body" id="org-linkgroups"></div>
+      </div>
+    </div>
+
+    <div id="org-panel-github" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          repositórios
+          <span id="org-github-token-badge" class="gh-token-badge"></span>
+          <span class="push"></span>
+          <button class="btn sm" data-action="open-github-token-modal">⚙ token</button>
+          <button class="btn sm" data-action="open-repo-modal">+ conectar repositório</button>
+        </div>
+        <div class="card-body" id="org-repos"></div>
+      </div>
+    </div>
+
+    <div id="org-panel-email" style="display:none;">
+      <div class="card">
+        <div class="card-head">contas imap<span class="push"></span><button class="btn sm" data-action="open-account-modal">+ nova conta</button></div>
+        <div class="card-body" id="org-accounts"></div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-head">
+          e-mails<span id="org-emails-account-label" class="push" style="color:var(--text-faint); font-size:10px;"></span>
+        </div>
+        <div class="card-body" id="org-emails"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: novo link -->
+    <div class="modal-backdrop" id="link-modal">
+      <div class="modal">
+        <div class="modal-head">novo link <span class="close" data-action="close-link-modal">✕</span></div>
+        <div class="modal-body">
+          <div class="field"><label>título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
+          <div class="field"><label>url</label><input type="text" id="link-url" placeholder="https://..."></div>
+          <div class="field"><label>categoria</label><input type="text" id="link-cat" placeholder="geral"></div>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link">+ adicionar link</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: novo repositório -->
+    <div class="modal-backdrop" id="repo-modal">
+      <div class="modal">
+        <div class="modal-head">conectar repositório <span class="close" data-action="close-repo-modal">✕</span></div>
+        <div class="modal-body">
+          <div class="field">
+            <label>repositório</label>
+            <input type="text" id="repo-full-name" placeholder="usuario/repositorio (ou cole a url do github)">
+          </div>
+          <div class="page-sub" style="margin:0 0 8px 0; font-size:10px;">só repositórios públicos — api sem autenticação, limite de 60 req/h.</div>
+          <div id="repo-modal-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
+          <button class="btn primary" style="width:100%;" data-action="save-repo">+ conectar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: nova/editar conta de e-mail -->
+    <div class="modal-backdrop" id="account-modal">
+      <div class="modal">
+        <div class="modal-head">conta de e-mail <span class="close" data-action="close-account-modal">✕</span></div>
+        <div class="modal-body">
+          <input type="hidden" id="acc-edit-id">
+          <div class="field"><label>apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
+          <div class="field-row">
+            <div class="field"><label>host imap</label><input type="text" id="acc-host" placeholder="imap.gmail.com"></div>
+            <div class="field" style="max-width:110px;"><label>porta</label><input type="number" id="acc-port" value="993"></div>
+          </div>
+          <div class="field"><label>usuário</label><input type="text" id="acc-username" placeholder="voce@gmail.com"></div>
+          <div class="field"><label>senha de app <span id="acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="acc-password" placeholder="••••••••"></div>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-account">salvar conta</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalhe de e-mail -->
+    <div class="modal-backdrop" id="email-modal">
+      <div class="modal">
+        <div class="modal-head">e-mail <span class="close" data-action="close-email-modal">✕</span></div>
+        <div class="modal-body" id="email-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: token github -->
+      <div class="modal-backdrop" id="github-token-modal">
+        <div class="modal">
+          <div class="modal-head">token do github <span class="close" data-action="close-github-token-modal">✕</span></div>
+          <div class="modal-body">
+            <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
+              opcional — sem token, só repositórios públicos e 60 req/h. com um
+              fine-grained personal access token (permissão de leitura em
+              contents/metadata), o kami passa a ver repositórios privados e
+              sobe pra 5000 req/h.
+            </div>
+            <div class="field"><label>token</label><input type="password" id="gh-token-input" placeholder="github_pat_..."></div>
+            <div id="gh-token-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
+            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-github-token">salvar token</button>
+            <button class="btn sm" style="width:100%;" data-action="delete-github-token">remover token</button>
+          </div>
+        </div>
+      </div>
+  `;
+}
+
+/* ==================== eventos ====================
+ * Um único listener delegado no container, guardado em clickHandler pra
+ * poder ser removido no unmount (ver comentário no topo do arquivo).
+ * IMPORTANTE: nada aqui pode dar "return" cedo demais por causa de um
+ * data-attribute que não bateu — cada ação é checada de forma
+ * independente, senão os cliques em botões que não usam data-action
+ * (sync/delete/select, que usam data-sync-repo etc.) nunca chegam a ser
+ * tratados. Foi exatamente esse early-return que quebrou todos os
+ * botões de sincronizar/excluir na primeira versão deste arquivo.
+ */
+
+function bindEvents(container) {
+  container.querySelectorAll(".tab").forEach((el) => {
+    el.addEventListener("click", () => switchTab(el.dataset.tab));
+  });
+
+  container.querySelector("#org-search").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") orgSearchOpen();
+  });
+
+  clickHandler = (e) => {
+    const action = e.target.closest("[data-action]")?.dataset.action;
+    if (action === "org-search") orgSearchOpen();
+    if (action === "open-link-modal") openLinkModal();
+    if (action === "close-link-modal") closeLinkModal();
+    if (action === "save-link") handleAddLink();
+    if (action === "open-repo-modal") openRepoModal();
+    if (action === "close-repo-modal") closeRepoModal();
+    if (action === "save-repo") handleAddRepo();
+    if (action === "open-account-modal") openAccountModal();
+    if (action === "close-account-modal") closeAccountModal();
+    if (action === "save-account") handleSaveAccount();
+    if (action === "close-email-modal") closeEmailModal();
+    if (action === "open-github-token-modal") openGithubTokenModal();
+    if (action === "close-github-token-modal") closeGithubTokenModal();
+    if (action === "save-github-token") handleSaveGithubToken();
+    if (action === "delete-github-token") handleDeleteGithubToken();
+
+    const openLink = e.target.closest("[data-open-link]")?.dataset.openLink;
+    if (openLink) window.open(openLink, "_blank");
+
+    const linkId = e.target.closest("[data-delete-link]")?.dataset.deleteLink;
+    if (linkId) handleDeleteLink(linkId);
+
+    const repoSyncId = e.target.closest("[data-sync-repo]")?.dataset.syncRepo;
+    if (repoSyncId) handleSyncRepo(repoSyncId);
+    const repoDelId = e.target.closest("[data-delete-repo]")?.dataset.deleteRepo;
+    if (repoDelId) handleDeleteRepo(repoDelId);
+
+    const accSelectId = e.target.closest("[data-select-account]")?.dataset.selectAccount;
+    if (accSelectId) selectAccount(accSelectId);
+    const accSyncId = e.target.closest("[data-sync-account]")?.dataset.syncAccount;
+    if (accSyncId) handleSyncAccount(accSyncId);
+    const accEditId = e.target.closest("[data-edit-account]")?.dataset.editAccount;
+    if (accEditId) openAccountModal(accEditId);
+    const accDelId = e.target.closest("[data-delete-account]")?.dataset.deleteAccount;
+    if (accDelId) handleDeleteAccount(accDelId);
+
+    const emailId = e.target.closest("[data-open-email]")?.dataset.openEmail;
+    if (emailId) openEmailModal(emailId);
+  };
+  container.addEventListener("click", clickHandler);
+}
+
+function switchTab(tab) {
+  state.tab = tab;
+  rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
+  rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
+  rootEl.querySelector("#org-panel-github").style.display = tab === "github" ? "block" : "none";
+  rootEl.querySelector("#org-panel-email").style.display = tab === "email" ? "block" : "none";
+}
+
+/* ==================== busca (v1 — só abre em nova aba) ====================
+ * Próxima melhoria registrada (ponto 6 do feedback): trocar por um
+ * resumo inline da busca em vez de só abrir o google/duckduckgo numa
+ * aba nova. Não implementado ainda — combinado deixar pra depois dos
+ * outros pontos.
+ */
+
+function orgSearchOpen() {
+  const input = rootEl.querySelector("#org-search");
+  const v = input.value.trim();
+  if (!v) return;
+  window.open("https://duckduckgo.com/?q=" + encodeURIComponent(v), "_blank");
+}
+
+/* ==================== links ==================== */
+
+async function loadLinks() {
+  state.links = await api.listLinks();
+}
+
+function renderLinks() {
+  const wrap = rootEl.querySelector("#org-linkgroups");
+  if (!state.links.length) {
+    wrap.innerHTML = '<div class="empty-state">nenhum link cadastrado ainda.</div>';
+    return;
+  }
+  const groups = {};
+  state.links.forEach((l) => {
+    (groups[l.category] = groups[l.category] || []).push(l);
+  });
+  wrap.innerHTML = Object.entries(groups)
+    .map(([cat, links]) => {
+      const rows = links
+        .map((l) => {
+          let domain = "example.com";
+          try {
+            domain = new URL(l.url).hostname;
+          } catch (e) {
+            /* url inválida — mantém o domínio placeholder pro favicon */
+          }
+          return `
+            <div class="linkrow">
+              <img class="favicon" src="https://www.google.com/s2/favicons?domain=${escapeAttr(domain)}" alt="">
+              <span class="lr-title" data-open-link="${escapeAttr(l.url)}">${escapeHtml(l.title)}</span>
+              <span class="lr-go" data-open-link="${escapeAttr(l.url)}">↗</span>
+              <span class="lr-delete" data-delete-link="${l.id}">✕</span>
+            </div>`;
+        })
+        .join("");
+      return `<div class="linkgroup"><div class="lg-label">${escapeHtml(cat)}</div>${rows}</div>`;
+    })
+    .join("");
+}
+
+function openLinkModal() {
+  ["link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+  rootEl.querySelector("#link-modal").classList.add("open");
+}
+function closeLinkModal() {
+  rootEl.querySelector("#link-modal").classList.remove("open");
+}
+
+async function handleAddLink() {
+  const title = rootEl.querySelector("#link-title").value.trim();
+  const url = rootEl.querySelector("#link-url").value.trim();
+  const category = rootEl.querySelector("#link-cat").value.trim() || "geral";
+  if (!title || !url) {
+    alert("preencha título e url.");
+    return;
+  }
+  await api.createLink({ title, url, category });
+  closeLinkModal();
+  await loadLinks();
+  renderLinks();
+}
+
+async function handleDeleteLink(linkId) {
+  await api.deleteLink(linkId);
+  await loadLinks();
+  renderLinks();
+}
+
+/* ==================== github ==================== */
+
+async function loadRepos() {
+  state.repos = await api.listGithubRepos();
+}
+
+// aceita "usuario/repo" OU uma url completa do github colada sem querer
+// (foi exatamente o ponto 5 do feedback: colar a url inteira criava um
+// repositório "fantasma" sem nenhum aviso). Convertida aqui ANTES de
+// mandar pro backend, então o usuário nem chega a ver o problema.
+function parseRepoFullName(raw) {
+  const v = raw.trim();
+  const m = v.match(/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i);
+  if (m) return `${m[1]}/${m[2]}`;
+  return v;
+}
+
+async function renderRepos() {
+  const wrap = rootEl.querySelector("#org-repos");
+  if (!state.repos.length) {
+    wrap.innerHTML = '<div class="empty-state">nenhum repositório conectado ainda.</div>';
+    return;
+  }
+  wrap.innerHTML = state.repos.map((r) => repoCardHtml(r)).join("");
+
+  // busca atividade de commit em paralelo, sem bloquear o render inicial
+  state.repos.forEach(async (r) => {
+    if (state.commitActivity[r.id]) return;
+    try {
+      const activity = await api.getCommitActivity(r.id);
+      state.commitActivity[r.id] = activity;
+      const holder = rootEl.querySelector(`[data-sparkline-for="${r.id}"]`);
+      if (holder) holder.outerHTML = sparklineHtml(activity);
+    } catch (e) {
+      /* silencioso — sparkline é acessório */
+    }
+  });
+}
+
+function repoCardHtml(r) {
+  const s = r.cached_status;
+  const neverSynced = !s && !r.last_synced_at;
+  const stats = s
+    ? `<div class="rc-stats">
+         <span><span class="rc-star">★</span> <b>${s.stargazers_count ?? "—"}</b></span>
+         <span>issues <b>${s.open_issues_count ?? "—"}</b></span>
+         <span>branch <b>${escapeHtml(s.default_branch ?? "—")}</b></span>
+         ${s.language ? `<span>lang <b>${escapeHtml(s.language)}</b></span>` : ""}
+         ${s.private ? `<span class="gh-private-tag">privado</span>` : ""}
+       </div>
+       ${s.description ? `<div class="rc-desc">${escapeHtml(s.description)}</div>` : ""}`
+    : "";
+  const synced = r.last_synced_at
+    ? `<div class="rc-synced">última sincronização: ${fmtDateTimeBR(r.last_synced_at)}</div>`
+    : "";
+  const error = neverSynced
+    ? `<div class="rc-error">sem dados do github — repositório pode não existir, estar privado (sem token com acesso), ou o nome pode estar incorreto. tente ↻ pra sincronizar de novo.</div>`
+    : "";
+
+  // se já tem a atividade em memória (visita anterior nesta sessão),
+  // desenha o sparkline direto — sem isso, o placeholder ficava vazio
+  // pra sempre porque a busca era pulada quando já havia cache.
+  const cachedActivity = state.commitActivity[r.id];
+  const sparklineSlot = cachedActivity
+    ? sparklineHtml(cachedActivity)
+    : `<span data-sparkline-for="${r.id}"></span>`;
+
+  return `
+    <div class="repo-card${neverSynced ? " has-error" : ""}">
+      <div class="rc-head">
+        <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
+        <span class="rc-actions">
+          <span class="icon-btn" title="ressincronizar" data-sync-repo="${r.id}">↻</span>
+          <span class="icon-btn danger" title="remover" data-delete-repo="${r.id}">✕</span>
+        </span>
+      </div>
+      ${stats}
+      ${sparklineSlot}
+      ${synced}
+      ${error}
+    </div>`;
+}
+
+function sparklineHtml(activity) {
+  if (!activity || activity.error || !activity.weeks.length) return "";
+  const weeks = activity.weeks;
+  const max = Math.max(1, ...weeks.map((w) => w.total));
+  const barW = 6, gap = 2, h = 20;
+  const bars = weeks
+    .map((w, i) => {
+      const barH = Math.max(1, Math.round((w.total / max) * h));
+      const x = i * (barW + gap);
+      return `<rect x="${x}" y="${h - barH}" width="${barW}" height="${barH}" rx="1"></rect>`;
+    })
+    .join("");
+  const width = weeks.length * (barW + gap);
+  return `<div class="rc-sparkline" title="commits nas últimas ${weeks.length} semanas">
+    <svg viewBox="0 0 ${width} ${h}" width="${width}" height="${h}">${bars}</svg>
+  </div>`;
+}
+
+function openRepoModal() {
+  rootEl.querySelector("#repo-full-name").value = "";
+  const errBox = rootEl.querySelector("#repo-modal-error");
+  errBox.style.display = "none";
+  errBox.textContent = "";
+  rootEl.querySelector("#repo-modal").classList.add("open");
+}
+function closeRepoModal() {
+  rootEl.querySelector("#repo-modal").classList.remove("open");
+}
+
+async function handleAddRepo() {
+  const input = rootEl.querySelector("#repo-full-name");
+  const errBox = rootEl.querySelector("#repo-modal-error");
+  const repoFullName = parseRepoFullName(input.value);
+  if (!repoFullName || !repoFullName.includes("/")) {
+    errBox.textContent = "informe no formato usuario/repositorio (ou cole a url do github).";
+    errBox.style.display = "block";
+    return;
+  }
+
+  let result;
+  try {
+    result = await api.createGithubRepo({ repo_full_name: repoFullName });
+  } catch (err) {
+    // erro de transporte/validação (ex: 422 já cadastrado)
+    errBox.textContent = err?.message || "não foi possível conectar o repositório.";
+    errBox.style.display = "block";
+    return;
+  }
+
+  await loadRepos();
+  renderRepos();
+
+  if (result?.sync_error) {
+    // o repositório FOI criado mesmo assim (comportamento do backend),
+    // mas avisa na hora que a sincronização inicial falhou — sem isso é
+    // o ponto 5 do feedback: nada acontece e vira um card fantasma.
+    closeRepoModal();
+    alert("repositório conectado, mas a sincronização inicial falhou: " + result.sync_error);
+  } else {
+    closeRepoModal();
+  }
+}
+
+async function handleSyncRepo(repoId) {
+  const result = await api.syncGithubRepo(repoId);
+  await loadRepos();
+  renderRepos();
+  if (result?.sync_error) {
+    alert("falha ao sincronizar: " + result.sync_error);
+  }
+}
+
+async function handleDeleteRepo(repoId) {
+  await api.deleteGithubRepo(repoId);
+  await loadRepos();
+  renderRepos();
+}
+
+/* ==================== contas de e-mail ==================== */
+
+async function loadAccounts() {
+  state.accounts = await api.listEmailAccounts();
+  if (!state.selectedAccountId && state.accounts.length) {
+    state.selectedAccountId = state.accounts[0].id;
+  }
+}
+
+async function loadGithubTokenStatus() {
+  const r = await api.getGithubTokenStatus();
+  state.githubTokenConfigured = r.configured;
+}
+
+function renderGithubTokenBadge() {
+  const badge = rootEl.querySelector("#org-github-token-badge");
+  if (!badge) return;
+  badge.textContent = state.githubTokenConfigured ? "● token ativo" : "○ sem token";
+  badge.classList.toggle("on", state.githubTokenConfigured);
+}
+
+function openGithubTokenModal() {
+  rootEl.querySelector("#gh-token-input").value = "";
+  const err = rootEl.querySelector("#gh-token-error");
+  err.style.display = "none";
+  err.textContent = "";
+  rootEl.querySelector("#github-token-modal").classList.add("open");
+}
+function closeGithubTokenModal() {
+  rootEl.querySelector("#github-token-modal").classList.remove("open");
+}
+
+async function handleSaveGithubToken() {
+  const input = rootEl.querySelector("#gh-token-input");
+  const err = rootEl.querySelector("#gh-token-error");
+  const token = input.value.trim();
+  if (!token) {
+    err.textContent = "cole um token.";
+    err.style.display = "block";
+    return;
+  }
+  try {
+    await api.saveGithubToken(token);
+  } catch (e) {
+    err.textContent = e?.message || "token inválido ou sem permissão.";
+    err.style.display = "block";
+    return;
+  }
+  state.githubTokenConfigured = true;
+  renderGithubTokenBadge();
+  closeGithubTokenModal();
+}
+
+async function handleDeleteGithubToken() {
+  await api.deleteGithubToken();
+  state.githubTokenConfigured = false;
+  renderGithubTokenBadge();
+  closeGithubTokenModal();
+}
+
+function renderAccounts() {
+  const wrap = rootEl.querySelector("#org-accounts");
+  if (!state.accounts.length) {
+    wrap.innerHTML = '<div class="empty-state">nenhuma conta cadastrada ainda.</div>';
+    return;
+  }
+  wrap.innerHTML = state.accounts
+    .map(
+      (a) => `
+      <div class="org-account">
+        <div class="org-account-info" data-select-account="${a.id}" style="cursor:pointer;">
+          <b>${escapeHtml(a.label)}${a.id === state.selectedAccountId ? " ▸" : ""}</b>
+          <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}</span>
+        </div>
+        <div class="org-account-actions">
+          <span class="icon-btn" title="sincronizar" data-sync-account="${a.id}">↻</span>
+          <span class="icon-btn" title="editar" data-edit-account="${a.id}">✎</span>
+          <span class="icon-btn" title="remover" data-delete-account="${a.id}">✕</span>
+        </div>
+      </div>`
+    )
+    .join("");
+}
+
+function openAccountModal(accountId) {
+  const modal = rootEl.querySelector("#account-modal");
+  const hint = rootEl.querySelector("#acc-password-hint");
+  if (accountId) {
+    const acc = state.accounts.find((a) => a.id === accountId);
+    rootEl.querySelector("#acc-edit-id").value = acc.id;
+    rootEl.querySelector("#acc-label").value = acc.label;
+    rootEl.querySelector("#acc-host").value = acc.imap_host;
+    rootEl.querySelector("#acc-port").value = acc.imap_port;
+    rootEl.querySelector("#acc-username").value = acc.username;
+    rootEl.querySelector("#acc-password").value = "";
+    hint.textContent = "(deixe em branco pra manter a senha atual)";
+  } else {
+    rootEl.querySelector("#acc-edit-id").value = "";
+    ["acc-label", "acc-host", "acc-username", "acc-password"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+    rootEl.querySelector("#acc-port").value = 993;
+    hint.textContent = "";
+  }
+  modal.classList.add("open");
+}
+
+function closeAccountModal() {
+  rootEl.querySelector("#account-modal").classList.remove("open");
+}
+
+async function handleSaveAccount() {
+  const editId = rootEl.querySelector("#acc-edit-id").value;
+  const label = rootEl.querySelector("#acc-label").value.trim();
+  const imap_host = rootEl.querySelector("#acc-host").value.trim();
+  const imap_port = parseInt(rootEl.querySelector("#acc-port").value, 10) || 993;
+  const username = rootEl.querySelector("#acc-username").value.trim();
+  const app_password = rootEl.querySelector("#acc-password").value;
+
+  if (!label || !imap_host || !username || (!editId && !app_password)) {
+    alert("preencha apelido, host, usuário e senha de app.");
+    return;
+  }
+
+  if (editId) {
+    const payload = { label, imap_host, imap_port, username };
+    if (app_password) payload.app_password = app_password;
+    await api.updateEmailAccount(editId, payload);
+  } else {
+    await api.createEmailAccount({ label, imap_host, imap_port, username, app_password });
+  }
   closeAccountModal();
-  detailModalEl?.classList.remove("open");
+  await loadAccounts();
+  renderAccounts();
+}
+
+async function handleDeleteAccount(accountId) {
+  if (!confirm("remover esta conta? o cache de e-mails dela também será apagado.")) return;
+  await api.deleteEmailAccount(accountId);
+  if (state.selectedAccountId === accountId) {
+    state.selectedAccountId = null;
+    state.emails = [];
+  }
+  await loadAccounts();
+  renderAccounts();
+  renderEmails();
+}
+
+async function handleSyncAccount(accountId) {
+  try {
+    await api.syncEmailAccount(accountId);
+  } catch (err) {
+    alert(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.");
+    return;
+  }
+  if (state.selectedAccountId !== accountId) {
+    state.selectedAccountId = accountId;
+    renderAccounts();
+  }
+  await loadEmails(accountId);
+  renderEmails();
+}
+
+/* ==================== e-mails (cache) ==================== */
+
+async function selectAccount(accountId) {
+  state.selectedAccountId = accountId;
+  renderAccounts();
+  await loadEmails(accountId);
+  renderEmails();
+}
+
+async function loadEmails(accountId) {
+  state.emails = await api.listEmailCache({ account_id: accountId });
+}
+
+function renderEmails() {
+  const wrap = rootEl.querySelector("#org-emails");
+  const label = rootEl.querySelector("#org-emails-account-label");
+  const acc = state.accounts.find((a) => a.id === state.selectedAccountId);
+
+  label.textContent = acc ? acc.label : "";
+
+  if (!acc) {
+    wrap.innerHTML = '<div class="empty-state">selecione uma conta acima pra ver os e-mails.</div>';
+    return;
+  }
+  if (!state.emails.length) {
+    wrap.innerHTML = '<div class="empty-state">nenhum e-mail em cache — clique em ↻ pra sincronizar.</div>';
+    return;
+  }
+  wrap.innerHTML = state.emails
+    .map(
+      (e) => `
+      <div class="email-item${e.is_read ? "" : " unread"}" data-open-email="${e.id}">
+        <div class="email-avatar">${emailInitial(e.sender)}</div>
+        <div class="email-main">
+          <div class="email-top">
+            <span class="email-subject">${escapeHtml(e.subject || "(sem assunto)")}</span>
+            <span class="email-tag">${e.is_read ? "" : "novo"}</span>
+          </div>
+          <div class="email-sender">de: ${escapeHtml(e.sender)}</div>
+          <div class="email-preview">${escapeHtml(e.body_preview || "")}</div>
+        </div>
+        <div class="email-meta">${fmtDateTimeBR(e.received_at)}</div>
+      </div>`
+    )
+    .join("");
+}
+
+function emailInitial(sender) {
+  const name = (sender || "?").split("@")[0].replace(/[._-]/g, " ").trim();
+  return (name.charAt(0) || "?").toUpperCase();
+}
+
+function openEmailModal(cacheId) {
+  const email = state.emails.find((e) => e.id === cacheId);
+  if (!email) return;
+  const body = rootEl.querySelector("#email-modal-body");
+  body.innerHTML = `
+    <div class="email-detail-field"><label>assunto</label><div class="val subject">${escapeHtml(email.subject || "(sem assunto)")}</div></div>
+    <div class="vm-row"><span class="k">de</span><span class="v">${escapeHtml(email.sender)}</span></div>
+    <div class="vm-row"><span class="k">recebido em</span><span class="v">${fmtDateTimeBR(email.received_at)}</span></div>
+    <div class="email-detail-field" style="margin-top:10px;"><label>prévia (texto puro — sem resumo por ia no v1)</label>
+      <div class="val preview">${escapeHtml(email.body_preview || "sem prévia disponível.")}</div>
+    </div>
+  `;
+  rootEl.querySelector("#email-modal").classList.add("open");
+
+  if (!email.is_read) {
+    api.markEmailRead(cacheId).then(() => {
+      email.is_read = true;
+      renderEmails();
+    });
+  }
+}
+
+function closeEmailModal() {
+  rootEl.querySelector("#email-modal").classList.remove("open");
+}
+
+/* ==================== helpers ==================== */
+
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(str) {
+  return escapeHtml(str);
+}
+
+function fmtDateTimeBR(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    return iso;
+  }
 }

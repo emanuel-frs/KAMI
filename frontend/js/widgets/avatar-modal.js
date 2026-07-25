@@ -1,4 +1,6 @@
 import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "./ascii.js";
+import { showErrorModal } from "./err-model.js";
+import { enhanceSelect } from "./custom-select.js";
 
 /**
  * Modal "avatar pessoal" (decisão 18 — modais são o padrão de
@@ -91,6 +93,7 @@ tempo real.</pre>
   `;
   document.body.appendChild(wrap);
   wireModal(wrap);
+  enhanceSelect(wrap.querySelector("#av-ramp"));
   return wrap;
 }
 
@@ -167,13 +170,13 @@ function wireModal(wrap) {
   wrap.querySelector('[data-action="close"]').addEventListener("click", () => closeAvatarModal());
   wrap.querySelector('[data-action="save"]').addEventListener("click", async () => {
     if (!lastAscii) {
-      alert("gere uma conversão antes de salvar (escolha uma imagem).");
+      showErrorModal("gere uma conversão antes de salvar (escolha uma imagem).", "atenção");
       return;
     }
     try {
       await onSaveCb?.(lastAscii);
     } catch (err) {
-      alert(`erro ao salvar avatar: ${err.message}`);
+      showErrorModal(err.message, "erro ao salvar avatar");
       return;
     }
     savedPreview.textContent = lastAscii;

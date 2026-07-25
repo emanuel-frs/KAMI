@@ -1,6 +1,7 @@
 // js/widgets/log.js
 import { getLog } from "../api/nucleo.js";
 import { escapeHtml, fmtRelDate } from "./format.js";
+import { enhanceSelect } from "./custom-select.js";
 
 /** Log cronológico — escuta filtro de attributes.js e refresh de registrar.js. */
 export async function render(el, widget) {
@@ -26,6 +27,8 @@ export async function render(el, widget) {
   const listEl = el.querySelector(".log-list");
   const periodEl = el.querySelector(".log-period");
   const filterLabelEl = el.querySelector(".log-filter-label");
+
+  enhanceSelect(periodEl);
 
   let currentAttribute = "all";
   let currentPeriod = "all";

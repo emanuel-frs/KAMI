@@ -1,0 +1,252 @@
+/*
+ * widget-financas-extra.css — complementa wallet.css agora que
+ * wallet/resumo/registros/assinaturas viraram widgets de verdade
+ * (card-head + remoção + drag/resize já vêm de graça do grid.js).
+ *
+ * Remover de wallet.css as classes de layout de PÁGINA que não fazem
+ * mais sentido: .financas-resumo (par lado a lado da página toda),
+ * .financas-stack (empilhamento vertical fixo dos 3 blocos). Essas
+ * responsabilidades agora são do grid.js.
+ */
+
+/* botão(ões) de ação no topo do corpo do widget — substitui o antigo
+   botão dentro do card-head da página fixa (aqui o card-head já é
+   controlado pelo grid.js, então a ação some pro corpo). */
+.widget-inline-toolbar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:10px; gap:8px; flex-wrap:wrap;
+}
+
+/* navegação de mês do widget financas_registros — o "dividido por mês
+   como no protótipo" que estava faltando */
+.month-nav{ display:flex; align-items:center; gap:8px; }
+.month-nav .btn{ padding:2px 9px; font-size:11px; }
+.month-nav .month-label{
+  font-size:11px; color:var(--text-dim); min-width:58px; text-align:center; letter-spacing:0.3px;
+}
+
+/* resumo agora vive dentro de UM widget só (financas_resumo), lado a
+   lado dos dois valores dentro do mesmo card-body — não mais dois
+   blocos separados na largura inteira da página */
+.financas-resumo-widget{ display:flex; gap:10px; flex-wrap:wrap; }
+.financas-resumo-widget .resumo-card{ flex:1; min-width:120px; padding:10px 12px; }
+
+/* ── contenção de altura dos widgets com listas potencialmente longas ────
+ * O card do grid mede sua própria altura via ResizeObserver (grid.js) e
+ * calcula grid-row-end a partir dela — se a lista interna crescesse sem
+ * limite, o card cresceria junto e "sairia da tela" quando o widget
+ * fosse redimensionado pequeno mas o conteúdo fosse grande. A correção
+ * certa é limitar a altura do elemento ROLÁVEL INTERNO (a lista), não
+ * do card: assim o card mede uma altura de conteúdo estável (a do
+ * teto do scroll) e o excesso rola por dentro, sem brigar com o
+ * ResizeObserver nem com o resize manual (⋰).
+ *
+ * `flex:1 1 auto; min-height:0` faz a lista preencher o espaço restante
+ * do card-body (que já é display:flex; flex-direction:column — ver
+ * card-base.css) em vez de só empilhar conteúdo cru. O max-height é o
+ * teto padrão (auto-altura, sem resize manual); quando o card É
+ * redimensionado manualmente (grid.js seta [data-manual="1"] no card),
+ * o teto é removido e a lista passa a ocupar exatamente o espaço que o
+ * usuário definiu — mesmo padrão já usado em log.js/achievements.js
+ * (comentário em grid.js/contentMinHeight()), sem isso o conteúdo ficava
+ * cortado no tamanho antigo em vez de se ajustar ao novo tamanho do card.
+ */
+.wallet-stack,
+.registros-list,
+.subs-list,
+.dividas-list,
+.contas-fixas-list{
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden; /* trava o scroll horizontal — nunca deveria existir
+    aqui; se aparece é sinal de algum item flex filho não encolhendo
+    (ver min-width:0 em .cf-name/.divida-desc abaixo), então isso é só
+    um cinto de segurança, a causa raiz é corrigida lá embaixo. */
+}
+.card[data-manual="1"] .wallet-stack,
+.card[data-manual="1"] .registros-list,
+.card[data-manual="1"] .subs-list,
+.card[data-manual="1"] .dividas-list,
+.card[data-manual="1"] .contas-fixas-list{
+  max-height: none;
+}
+.dividas-list,
+.contas-fixas-list{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── ícone de "dinheiro" (fallback sem logo) ─────────────────────────
+ * Antes caía no mesmo fallback de banco sem ícone ("R$" espremido em 2
+ * caracteres, pensado pra sigla de banco) — ficava ilegível/feio nesse
+ * caso especial. Usa só o cifrão, maior e na cor de destaque, num círculo
+ * sutil pra diferenciar visualmente de um banco "real" sem logo.
+ */
+.ph.cash{
+  font-size: 1.3em;
+  font-weight: 700;
+  color: var(--accent);
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-dim, var(--border-soft));
+}
+
+/* ── espaçamento nos modais de conta (nova/editar) ────────────────────────
+ * checkboxes "possui saldo"/"possui crédito" ficavam coladas nos botões
+ * de ação quando nenhuma delas está marcada (as seções de saldo/crédito,
+ * que dariam esse respiro, ficam escondidas nesse caso).
+ */
+.account-flags{
+  margin-bottom: 14px;
+}
+.am-bank-readonly-value{
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 6px 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+
+/* ── edição de conta (wallet.js) ──────────────────────────────────────────
+ * mesmo tratamento visual do ba-remove (×), só que pro lápis de editar —
+ * fica antes do × na ba-head.
+ */
+.ba-actions{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ba-edit{
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 0 2px;
+}
+.ba-edit:hover{ color: var(--accent); }
+
+/* ── dívidas ─────────────────────────────────────────────────────────────── */
+.divida-row{
+  display:flex; flex-direction:column; gap:4px;
+  padding:8px 10px; border:1px solid var(--border-soft); font-size:11px;
+}
+.divida-row.paga{ opacity:0.55; }
+.divida-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.divida-desc{
+  color:var(--text); font-weight:600; flex:1; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.divida-counterparty{ color:var(--text-faint); font-size:10px; }
+.divida-meta{ display:flex; align-items:center; gap:10px; }
+.divida-valor{ color:var(--text-dim); white-space:nowrap; }
+.divida-due{ color:var(--text-faint); font-size:10px; white-space:nowrap; }
+.divida-status{
+  font-size:10.5px; background:var(--bg); color:var(--text-dim);
+  border:1px solid var(--border-soft); padding:2px 4px; margin-left:auto;
+}
+.divida-remove{ cursor:pointer; color:var(--text-faint); padding:0 2px; flex-shrink:0; }
+.divida-remove:hover{ color:var(--accent); }
+
+/* ── contas fixas ────────────────────────────────────────────────────────── */
+.conta-fixa-row{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 8px; border:1px solid var(--border-soft); font-size:11px;
+}
+.conta-fixa-row.inactive{ opacity:0.5; }
+.cf-name{ flex:1; min-width:0; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cf-valor{ color:var(--text-dim); white-space:nowrap; }
+.cf-dia{ color:var(--text-faint); font-size:10px; white-space:nowrap; }
+.cf-inactive-tag{ color:var(--text-faint); font-size:9.5px; border:1px solid var(--border-soft); padding:0 4px; }
+.cf-remove{ cursor:pointer; color:var(--text-faint); padding:0 2px; }
+.cf-remove:hover{ color:var(--accent); }
+
+.compras-parceladas-list{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compra-parcelada-row{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  font-size: 11px;
+}
+.compra-parcelada-row.quitada{ opacity: 0.55; }
+
+.cp-top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cp-nome{
+  color: var(--text);
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-remove{
+  cursor: pointer;
+  color: var(--text-faint);
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.cp-remove:hover{ color: var(--accent); }
+
+.cp-meta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cp-parcela{
+  font-size: 10.5px;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim, var(--border-soft));
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.compra-parcelada-row.quitada .cp-parcela{
+  color: var(--text-faint);
+  border-color: var(--border-soft);
+}
+.cp-valor{ color: var(--text-dim); white-space: nowrap; }
+.cp-valor-total{ color: var(--text-faint); font-size: 9.5px; }
+
+.cp-conta{
+  font-size: 9.5px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-parcela-adjust{
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cp-adjust-btn{
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--text-faint);
+  font-family: var(--font);
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.cp-adjust-btn:hover{ color: var(--accent); border-color: var(--accent-dim); }
+
+.cp-ajuste-tag{
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-left: 4px;
+}

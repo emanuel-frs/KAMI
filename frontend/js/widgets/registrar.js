@@ -1,4 +1,5 @@
 import { getAttributes, registerAction } from "../api/nucleo.js";
+import { enhanceSelect } from "./custom-select.js";
 
 /** Form pra registrar uma ação — credita xp num atributo (ver app/actions.py). */
 export async function render(el, widget) {
@@ -39,6 +40,7 @@ export async function render(el, widget) {
 
   const descEl = el.querySelector(".reg-desc");
   const catEl = el.querySelector(".reg-cat");
+  enhanceSelect(catEl);
   const xpEl = el.querySelector(".reg-xp");
   const impactEl = el.querySelector(".reg-impact");
   const submitBtn = el.querySelector(".reg-submit");

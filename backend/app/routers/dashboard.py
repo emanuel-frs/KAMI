@@ -27,7 +27,7 @@ router = APIRouter()
 
 # telas conhecidas do sistema — usadas só pra validar o parâmetro de rota;
 # a permissão real de "widget X pode estar na tela Y" vem de screens_for()
-KNOWN_SCREENS = {"perfil", "nucleo"}
+KNOWN_SCREENS = {"perfil", "nucleo", "financas"}
 
 
 class DashboardWidgetIn(BaseModel):

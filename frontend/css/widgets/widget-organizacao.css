@@ -133,3 +133,156 @@
 .vm-row .k { color: var(--text-faint); }
 .vm-row .v { color: var(--text-bright); text-align: right; }
 
+/* ══════════════════════════════════════════════════════════════════════
+ * NOVO — abas (links / github / e-mail), portado do protótipo
+ * (kami_telas_final.html) quase sem alteração; só trocado pra usar as
+ * mesmas CSS vars do app real (que já batem 1:1 com o protótipo).
+ * ══════════════════════════════════════════════════════════════════════ */
+.tabs { display: flex; gap: 2px; margin-bottom: 12px; }
+.tab {
+  font-size: 10.5px;
+  padding: 6px 12px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  background: var(--bg);
+  margin-right: 8px;
+}
+.tab:hover { color: var(--text-dim); border-color: var(--border); }
+.tab.on {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-alt);
+}
+
+/* ── links, agrupados por categoria ───────────────────────────────────── */
+.linkgroup { margin-bottom: 12px; }
+.linkgroup .lg-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.linkrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--border-soft);
+  cursor: pointer;
+}
+.linkrow:last-child { border-bottom: none; }
+.linkrow:hover { background: rgba(255, 255, 255, 0.03); color: var(--text-bright); }
+.favicon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  object-fit: cover;
+}
+.linkrow .lr-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linkrow .lr-go { color: var(--text-faint); flex: 0 0 auto; }
+.linkrow:hover .lr-go { color: var(--accent); }
+.linkrow .lr-delete {
+  color: var(--text-faint);
+  flex: 0 0 auto;
+  font-size: 11px;
+  cursor: pointer;
+}
+.linkrow .lr-delete:hover { color: var(--red); }
+
+/* ── repositórios github ──────────────────────────────────────────────── */
+.repo-card {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  padding: 9px 10px;
+  margin-bottom: 8px;
+}
+.repo-card .rc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.repo-card .rc-head .rc-name { color: var(--text-bright); font-size: 11.5px; }
+.repo-card .rc-head .rc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.repo-card .rc-head .rc-actions .icon-btn {
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 12px;
+}
+.repo-card .rc-head .rc-actions .icon-btn:hover { color: var(--accent); }
+.repo-card .rc-head .rc-actions .icon-btn.danger:hover { color: var(--red); }
+.repo-card .rc-desc {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+.repo-card .rc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.repo-card .rc-stats b { color: var(--text-dim); font-weight: 500; }
+.repo-card .rc-synced {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-soft);
+}
+.repo-card.has-error { border-color: var(--red); }
+.repo-card .rc-error { font-size: 10px; color: var(--red); margin-top: 4px; }
+
+/* ── faixa de status das fontes (github api / imap) ───────────────────── */
+.source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-soft);
+  background: var(--card);
+}
+.source-item { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--text-faint); }
+.source-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--text-faint); }
+.source-dot.ok { background: var(--accent); }
+.source-dot.warn { background: var(--amber); }
+.source-dot.off { background: var(--red); }
+
+#org-search{
+  margin-bottom: 12px;
+}
+
+.gh-token-badge {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-left: 10px;
+}
+.gh-token-badge.on { color: var(--accent); }
+
+.gh-private-tag {
+  color: var(--amber);
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
+.rc-sparkline { margin-top: 6px; }
+.rc-sparkline svg rect { fill: var(--accent); opacity: 0.75; }
+.rc-sparkline svg rect:last-child { opacity: 1; }
+
+.repo-card .rc-stats .rc-star {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--amber);
+}

@@ -89,11 +89,19 @@ select {
   padding-right: 26px;
 }
 
-/* input[type=number] — remove spinner nativo destoante do tema */
+/* input[type=number] — remove o spinner nativo por completo (era só
+   acinzentado antes, mas ainda tinha a cara de controle do SO; +/- e
+   as setas do teclado continuam funcionando normalmente, só a UI
+   desenhada pelo navegador some). -moz-appearance cobre o Firefox,
+   que não tem pseudo-elemento de spin-button pra estilizar. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
-  opacity: 0.5;
-  filter: grayscale(1);
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
 }
 
 /* ── input[type=file] — "Browse..." nativo vira um botão no estilo .btn ──

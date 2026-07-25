@@ -1,0 +1,155 @@
+/*
+ * wallet.css — widget banco→conta (accordion), modal de nova conta,
+ * resumo e registros financeiros. Vive dentro da página Finanças.
+ *
+ * Diferenças propositais em relação ao protótipo (kami_wallet_v4.html):
+ *   - Sem cor customizável por banco: usa --accent do sistema (decisão
+ *     fechada). Não existe --card-color nem estilo inline de cor no
+ *     bank-item/bank-icon.
+ *   - Sem borda ao redor do ícone do banco (decisão fechada) — o
+ *     protótipo tinha border:1px solid var(--border-soft) no .bank-icon,
+ *     removido aqui.
+ *   - Conta agora tem possui_saldo/possui_credito independentes, então
+ *     o card de conta (.bank-account) só renderiza os blocos que a conta
+ *     realmente tem (ver pages/financas.js) — as classes .ba-saldo-row/
+ *     .ba-credito-block cobrem isso.
+ */
+
+/* ==================== RESUMO ==================== */
+.financas-resumo{
+  display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;
+}
+.resumo-card{
+  flex:1; min-width:180px; border:1px solid var(--border-soft); background:var(--card);
+  padding:12px 14px;
+}
+.resumo-card .rc-label{ font-size:10px; color:var(--text-faint); letter-spacing:0.5px; margin-bottom:6px; }
+.resumo-card .rc-value{ font-size:18px; color:var(--text-bright); letter-spacing:0.3px; }
+.resumo-card.possui .rc-value{ color:var(--accent); }
+.resumo-card.a-pagar .rc-value{ color:var(--amber); }
+
+/* ==================== LAYOUT FIXO DA PÁGINA (sem grid — decisão 17) ==================== */
+/* financas.js empilha os .card verticalmente; NÃO usa .widget-grid
+   (isso é exclusivo do dashboard configurável de perfil/núcleo). Os
+   .card/.card-head/.card-body abaixo são as classes globais já usadas
+   em todo o resto do app (ver widgets.css/card-base.css) — não recriar
+   um wrapper próprio aqui, só o conteúdo interno de cada bloco. */
+.financas-stack{ display:flex; flex-direction:column; gap:16px; }
+
+/* ==================== WALLET (accordion banco→conta) ==================== */
+.wallet-stack{ display:flex; flex-direction:column; gap:9px; }
+.wallet-empty{
+  color:var(--text-faint); font-size:11px; padding:20px 8px; text-align:center;
+  border:1px dashed var(--border-soft);
+}
+
+.bank-item{
+  border:1px dashed var(--border-soft); background:var(--bg);
+  transition: border-color .2s ease, background .2s ease;
+}
+.bank-item.expanded{
+  border:1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg) 96%);
+}
+
+.bank-head{ display:flex; align-items:center; gap:10px; padding:11px 12px; cursor:pointer; }
+.bank-icon{
+  width:26px; height:26px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  overflow:hidden; background:#000;
+  /* decisão: sem borda ao redor do ícone */
+}
+.bank-icon pre{ margin:0; white-space:pre; color:#fff; line-height:1; text-align:center; }
+.bank-icon .bank-fallback{ font-size:8px; color:var(--text-bright); font-weight:700; letter-spacing:0.3px; }
+.bank-name{
+  font-size:12px; color:var(--text-bright); letter-spacing:0.3px; flex:1; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.bank-count{ font-size:10px; color:var(--text-faint); border:1px solid var(--border-soft); padding:1px 6px; flex:0 0 auto; }
+.bank-item.expanded .bank-count{ color:var(--accent); border-color:var(--accent-dim); }
+
+.bank-accounts{ overflow-y:auto; border-top:1px dashed var(--border-soft); }
+.bank-account{ padding:10px 14px; position:relative; }
+.bank-account + .bank-account{ border-top:1px dashed var(--border-soft); }
+.ba-head{ display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.ba-name{ font-size:11px; color:var(--text-bright); letter-spacing:0.3px; flex:1; }
+.ba-edit, .ba-remove{ color:var(--text-faint); font-size:12px; cursor:pointer; opacity:0.6; }
+.ba-edit:hover{ color:var(--accent); opacity:1; }
+.ba-remove:hover{ color:var(--red); opacity:1; }
+.ba-row{ display:flex; justify-content:space-between; gap:8px; font-size:9.5px; color:var(--text-dim); margin-bottom:3px; white-space:nowrap; }
+.ba-row b{ color:var(--text-bright); font-weight:600; }
+.ba-credito-block{ margin-top:6px; }
+.ba-limit .bar-track{ height:5px; background:rgba(0,0,0,0.5); border:1px solid var(--border-soft); overflow:hidden; }
+.ba-limit .bar-fill{ height:100%; background:var(--accent); }
+.ba-foot{ display:flex; justify-content:space-between; gap:8px; margin-top:4px; font-size:8.5px; color:var(--text-faint); }
+.ba-empty-flags{ font-size:9.5px; color:var(--text-faint); font-style:italic; }
+
+.wallet-hint{ font-size:10px; color:var(--text-faint); padding:0 12px 12px 12px; }
+.wallet-hint b{ color:var(--text-dim); }
+
+/* ==================== MODAL: banco/conta ==================== */
+.bank-pick-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.bank-pick-item{
+  display:flex; align-items:center; gap:6px; border:1px solid var(--border-soft); background:var(--bg);
+  padding:5px 9px 5px 5px; cursor:pointer; font-size:10.5px; color:var(--text-dim);
+}
+.bank-pick-item .bp-icon{
+  width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+  overflow:hidden; background:#000; flex:0 0 auto;
+  /* mesmo padrão do bank-icon: sem borda */
+}
+.bank-pick-item .bp-icon pre{ margin:0; white-space:pre; color:#fff; line-height:1; font-size:4px; }
+.bank-pick-item .bp-icon .ph{ font-size:7px; color:var(--text-faint); }
+.bank-pick-item.on{ border-color:var(--accent); color:var(--text-bright); }
+.bank-pick-item.new-toggle{ color:var(--accent); border-style:dashed; }
+.bank-pick-item.new-toggle.on{ border-style:solid; }
+.bank-new-fields{ border:1px dashed var(--border-soft); padding:10px; margin-bottom:10px; display:none; }
+.bank-new-fields.show{ display:block; }
+
+/* toggles saldo/crédito da conta */
+.account-flags{ display:flex; gap:14px; margin-bottom:10px; }
+.account-flag{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim); cursor:pointer; }
+.account-flag input[type="checkbox"]{ accent-color:var(--accent); width:13px; height:13px; cursor:pointer; }
+.account-flag.on{ color:var(--text-bright); }
+.account-saldo-fields, .account-credito-fields{ display:none; }
+.account-saldo-fields.show, .account-credito-fields.show{ display:block; }
+
+/* ==================== REGISTROS FINANCEIROS (lista de transações) ==================== */
+.registros-list{ display:flex; flex-direction:column; }
+.registro-row{
+  display:flex; align-items:center; gap:10px; padding:9px 4px;
+  border-bottom:1px dashed var(--border-soft); font-size:11px;
+}
+.registro-row:last-child{ border-bottom:none; }
+.registro-conta-col{ display:flex; align-items:center; gap:6px; flex:0 0 auto; width:150px; min-width:0; }
+.registro-conta-col .r-bank-icon{
+  width:16px; height:16px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  overflow:hidden; background:#000;
+}
+.registro-conta-col .r-bank-icon pre{ margin:0; white-space:pre; color:#fff; line-height:1; font-size:3px; }
+.registro-conta-col .r-bank-icon .ph{ font-size:6px; color:var(--text-faint); }
+.registro-conta-names{ display:flex; flex-direction:column; min-width:0; line-height:1.3; }
+.registro-conta-names .r-bank-name{ font-size:9.5px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-conta-names .r-account-name{ font-size:9px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-desc{ flex:1; min-width:0; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-desc .r-category{ font-size:9px; color:var(--text-faint); margin-left:6px; }
+.registro-valor{ flex:0 0 auto; font-weight:600; letter-spacing:0.2px; }
+.registro-valor.entrada{ color:var(--accent); }
+.registro-valor.saida{ color:var(--red); }
+.registro-valor.transferencia{ color:var(--text-dim); }
+.registro-date{ flex:0 0 auto; font-size:9.5px; color:var(--text-faint); width:64px; text-align:right; }
+
+/* ==================== ASSINATURAS ==================== */
+.subs-list{ display:flex; flex-direction:column; gap:6px; }
+.sub-row{
+  display:flex; align-items:center; gap:10px; padding:8px 10px;
+  border:1px solid var(--border-soft); background:var(--card); font-size:11px;
+}
+.sub-row.paga{ border-color:var(--accent-dim); }
+.sub-name{ flex:1; color:var(--text-bright); }
+.sub-valor{ color:var(--text-dim); }
+.sub-dia{ font-size:9.5px; color:var(--text-faint); width:70px; }
+.sub-toggle{
+  border:1px solid var(--border-soft); background:var(--bg); color:var(--text-faint);
+  font-family:var(--font); font-size:10px; padding:3px 9px; cursor:pointer;
+}
+.sub-toggle.paga{ border-color:var(--accent); color:var(--accent); }

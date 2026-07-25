@@ -8,12 +8,23 @@ Endpoints:
     PUT /income-entries/{id}/revert          desfaz a confirmação
 
   Cadastros simples (CRUD básico):
-    /credit-cards, /fixed-bills, /debts, /subscriptions
+    /fixed-bills, /debts
 
   Transações + visão agregada:
-    GET/POST /transactions?month=YYYY-MM
+    GET/POST /transactions?month=YYYY-MM     toda transação é vinculada a uma
+                                              wallet_account (conta_id obrigatório).
+                                              'entrada' soma em saldo_atual;
+                                              'saida' desconta de saldo_atual OU
+                                              lança em fatura_atual (depende de
+                                              forma_pagamento, exigido só quando a
+                                              conta tem os dois); 'transferencia'
+                                              move saldo entre 2 contas (interna)
+                                              ou só debita a origem (externa).
     GET /summary?month=YYYY-MM               entradas/saídas/saldo, comparação
                                               com mês anterior, categorias
+                                              (transferências não entram nessa soma)
+
+  Bancos/contas/assinaturas da wallet ficam em app/routers/wallet.py.
 """
 import datetime
 import re
@@ -60,17 +71,6 @@ class ConfirmIncomePayload(BaseModel):
     paid_date: str
 
 
-class CreditCardIn(BaseModel):
-    name: str
-    closing_day: int = Field(..., ge=1, le=31)
-    due_day: int = Field(..., ge=1, le=31)
-    card_limit: Optional[float] = None
-
-
-class CreditCardOut(CreditCardIn):
-    id: str
-
-
 class FixedBillIn(BaseModel):
     name: str
     amount: float
@@ -94,30 +94,31 @@ class DebtOut(DebtIn):
     id: str
 
 
-class SubscriptionIn(BaseModel):
-    name: str
-    amount: float
-    billing_day: int = Field(..., ge=1, le=31)
-    installment_current: Optional[int] = None
-    installment_total: Optional[int] = None
-    active: bool = True
-
-
-class SubscriptionOut(SubscriptionIn):
-    id: str
-
-
 class TransactionIn(BaseModel):
     description: str
     amount: float = Field(..., gt=0)
-    type: str = Field(..., pattern="^(entrada|saida)$")
+    type: str = Field(..., pattern="^(entrada|saida|transferencia)$")
     category: str
     date: str  # YYYY-MM-DD
-    card_id: Optional[str] = None
+    conta_id: str
+    forma_pagamento: Optional[str] = Field(
+        None, pattern="^(saldo|credito)$"
+    )  # só usado/obrigatório em 'saida' quando a conta tem saldo E crédito
+    conta_destino_id: Optional[str] = None  # só 'transferencia' interna
+    destino_externo: Optional[str] = None   # só 'transferencia' externa
 
 
-class TransactionOut(TransactionIn):
+class TransactionOut(BaseModel):
     id: str
+    description: str
+    amount: float
+    type: str
+    category: str
+    date: str
+    conta_id: Optional[str] = None
+    forma_pagamento: Optional[str] = None
+    conta_destino_id: Optional[str] = None
+    destino_externo: Optional[str] = None
 
 
 class CategoryTotal(BaseModel):
@@ -252,30 +253,6 @@ def revert_income_entry(entry_id: str, db=Depends(get_db)):
 
 # ==================== cadastros simples (CRUD básico) ====================
 
-@router.get("/credit-cards", response_model=List[CreditCardOut])
-def list_credit_cards(db=Depends(get_db)):
-    rows = db.execute("SELECT * FROM credit_cards ORDER BY name").fetchall()
-    return [dict(r) for r in rows]
-
-
-@router.post("/credit-cards", response_model=CreditCardOut)
-def create_credit_card(payload: CreditCardIn, db=Depends(get_db)):
-    card_id = new_id()
-    db.execute(
-        "INSERT INTO credit_cards (id, name, closing_day, due_day, card_limit) VALUES (?, ?, ?, ?, ?)",
-        (card_id, payload.name, payload.closing_day, payload.due_day, payload.card_limit),
-    )
-    db.commit()
-    return {"id": card_id, **payload.model_dump()}
-
-
-@router.delete("/credit-cards/{card_id}")
-def delete_credit_card(card_id: str, db=Depends(get_db)):
-    db.execute("DELETE FROM credit_cards WHERE id = ?", (card_id,))
-    db.commit()
-    return {"deleted": True}
-
-
 @router.get("/fixed-bills", response_model=List[FixedBillOut])
 def list_fixed_bills(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM fixed_bills ORDER BY name").fetchall()
@@ -338,34 +315,6 @@ def delete_debt(debt_id: str, db=Depends(get_db)):
     return {"deleted": True}
 
 
-@router.get("/subscriptions", response_model=List[SubscriptionOut])
-def list_subscriptions(db=Depends(get_db)):
-    rows = db.execute("SELECT * FROM subscriptions ORDER BY name").fetchall()
-    return [dict(r) | {"active": bool(r["active"])} for r in rows]
-
-
-@router.post("/subscriptions", response_model=SubscriptionOut)
-def create_subscription(payload: SubscriptionIn, db=Depends(get_db)):
-    sub_id = new_id()
-    db.execute(
-        "INSERT INTO subscriptions (id, name, amount, billing_day, installment_current, installment_total, active) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (
-            sub_id, payload.name, payload.amount, payload.billing_day,
-            payload.installment_current, payload.installment_total, int(payload.active),
-        ),
-    )
-    db.commit()
-    return {"id": sub_id, **payload.model_dump()}
-
-
-@router.delete("/subscriptions/{sub_id}")
-def delete_subscription(sub_id: str, db=Depends(get_db)):
-    db.execute("DELETE FROM subscriptions WHERE id = ?", (sub_id,))
-    db.commit()
-    return {"deleted": True}
-
-
 # ==================== transações + resumo ====================
 
 @router.get("/transactions", response_model=List[TransactionOut])
@@ -380,33 +329,129 @@ def list_transactions(month: str, db=Depends(get_db)):
 
 @router.post("/transactions", response_model=TransactionOut)
 def create_transaction(payload: TransactionIn, db=Depends(get_db)):
-    card_id = payload.card_id or None
-    if card_id:
-        card = db.execute("SELECT id FROM credit_cards WHERE id = ?", (card_id,)).fetchone()
-        if not card:
-            raise HTTPException(status_code=422, detail=f"cartão não encontrado: '{card_id}'")
+    conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+    if not conta:
+        raise HTTPException(status_code=422, detail=f"conta não encontrada: '{payload.conta_id}'")
+
+    forma_pagamento = payload.forma_pagamento
+    conta_destino_id = None
+    destino_externo = None
+
+    if payload.type == "entrada":
+        if not conta["possui_saldo"]:
+            raise HTTPException(status_code=422, detail="essa conta não possui saldo pra receber uma entrada")
+        forma_pagamento = None
+        db.execute(
+            "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
+            (payload.amount, conta["id"]),
+        )
+
+    elif payload.type == "saida":
+        if conta["possui_saldo"] and conta["possui_credito"]:
+            if forma_pagamento not in ("saldo", "credito"):
+                raise HTTPException(
+                    status_code=422,
+                    detail="essa conta tem saldo e crédito — informe 'forma_pagamento' ('saldo' ou 'credito')",
+                )
+        elif conta["possui_credito"]:
+            forma_pagamento = "credito"
+        elif conta["possui_saldo"]:
+            forma_pagamento = "saldo"
+        else:
+            raise HTTPException(status_code=422, detail="essa conta não possui saldo nem crédito cadastrado")
+
+        if forma_pagamento == "saldo":
+            saldo_atual = conta["saldo_atual"] or 0
+            if payload.amount > saldo_atual:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"saldo insuficiente: disponível R$ {saldo_atual:.2f}, tentando gastar R$ {payload.amount:.2f}",
+                )
+            db.execute(
+                "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
+                (payload.amount, conta["id"]),
+            )
+        else:
+            if conta["limite_total"] is not None:
+                disponivel = conta["limite_total"] - (conta["fatura_atual"] or 0)
+                if payload.amount > disponivel:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, tentando gastar R$ {payload.amount:.2f}",
+                    )
+            db.execute(
+                "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) + ? WHERE id = ?",
+                (payload.amount, conta["id"]),
+            )
+
+    else:  # transferencia
+        if not conta["possui_saldo"]:
+            raise HTTPException(status_code=422, detail="a conta de origem de uma transferência precisa ter saldo")
+        saldo_atual = conta["saldo_atual"] or 0
+        if payload.amount > saldo_atual:
+            raise HTTPException(
+                status_code=422,
+                detail=f"saldo insuficiente pra essa transferência: disponível R$ {saldo_atual:.2f}, tentando transferir R$ {payload.amount:.2f}",
+            )
+        if bool(payload.conta_destino_id) == bool(payload.destino_externo):
+            raise HTTPException(
+                status_code=422,
+                detail="informe exatamente um destino: 'conta_destino_id' (interna) ou 'destino_externo' (texto livre)",
+            )
+        forma_pagamento = None
+        db.execute(
+            "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
+            (payload.amount, conta["id"]),
+        )
+        if payload.conta_destino_id:
+            destino = db.execute(
+                "SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_destino_id,)
+            ).fetchone()
+            if not destino:
+                raise HTTPException(status_code=422, detail="conta de destino não encontrada")
+            if not destino["possui_saldo"]:
+                raise HTTPException(status_code=422, detail="a conta de destino precisa ter saldo")
+            db.execute(
+                "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
+                (payload.amount, destino["id"]),
+            )
+            conta_destino_id = payload.conta_destino_id
+        else:
+            destino_externo = payload.destino_externo
 
     tx_id = new_id()
     db.execute(
-        "INSERT INTO transactions (id, description, amount, type, category, card_id, date) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (tx_id, payload.description, payload.amount, payload.type, payload.category, card_id, payload.date),
+        "INSERT INTO transactions "
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            tx_id, payload.description, payload.amount, payload.type, payload.category,
+            conta["id"], forma_pagamento, conta_destino_id, destino_externo, payload.date,
+        ),
     )
     db.commit()
 
-    # credita XP em finanças automaticamente (mesmo comportamento do protótipo:
-    # todo lançamento manual conta como uma ação pequena registrada no núcleo)
     register_action(
         db,
-        description=f"lançou {'entrada' if payload.type == 'entrada' else 'gasto'}: {payload.description}",
+        description=f"lançou {payload.type}: {payload.description}",
         categories=["financas"],
         xp=2,
         impact=2,
         source="financas",
     )
 
-    return {"id": tx_id, **{**payload.model_dump(), "card_id": card_id}}
-
+    return {
+        "id": tx_id,
+        "description": payload.description,
+        "amount": payload.amount,
+        "type": payload.type,
+        "category": payload.category,
+        "date": payload.date,
+        "conta_id": conta["id"],
+        "forma_pagamento": forma_pagamento,
+        "conta_destino_id": conta_destino_id,
+        "destino_externo": destino_externo,
+    }
 
 @router.get("/summary", response_model=SummaryOut)
 def get_summary(month: str, db=Depends(get_db)):

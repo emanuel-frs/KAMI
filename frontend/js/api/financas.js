@@ -7,11 +7,6 @@ export const confirmIncomeEntry = (entryId, paidDate) =>
 export const revertIncomeEntry = (entryId) =>
   put(`/api/financas/income-entries/${entryId}/revert`, {});
 
-// cartões
-export const listCreditCards = () => get("/api/financas/credit-cards");
-export const createCreditCard = (data) => post("/api/financas/credit-cards", data);
-export const deleteCreditCard = (cardId) => del(`/api/financas/credit-cards/${cardId}`);
-
 // contas fixas
 export const listFixedBills = () => get("/api/financas/fixed-bills");
 export const createFixedBill = (data) => post("/api/financas/fixed-bills", data);
@@ -23,12 +18,17 @@ export const createDebt = (data) => post("/api/financas/debts", data);
 export const updateDebt = (debtId, data) => put(`/api/financas/debts/${debtId}`, data);
 export const deleteDebt = (debtId) => del(`/api/financas/debts/${debtId}`);
 
-// assinaturas
-export const listSubscriptions = () => get("/api/financas/subscriptions");
-export const createSubscription = (data) => post("/api/financas/subscriptions", data);
-export const deleteSubscription = (subId) => del(`/api/financas/subscriptions/${subId}`);
-
 // transações + resumo
+// payload de createTransaction agora inclui: description, amount, type
+// ('entrada'|'saida'|'transferencia'), category, date, conta_id (obrigatório),
+// forma_pagamento ('saldo'|'credito', só quando a conta tem os dois),
+// conta_destino_id (transferência interna) OU destino_externo (transferência externa)
 export const listTransactions = (month) => get(`/api/financas/transactions?month=${month}`);
 export const createTransaction = (data) => post("/api/financas/transactions", data);
 export const getSummary = (month) => get(`/api/financas/summary?month=${month}`);
+
+// NOTA: listCreditCards/createCreditCard/deleteCreditCard e
+// listSubscriptions/createSubscription/deleteSubscription foram REMOVIDOS
+// daqui — os endpoints /credit-cards e /subscriptions antigos não existem
+// mais em financas.py. A wallet (bancos/contas) e as assinaturas novas
+// (com toggle pago/mês) estão em api/wallet.js.
