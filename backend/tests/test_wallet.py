@@ -4,25 +4,13 @@
 # ==================== bancos e contas ====================
 
 
-def test_list_banks_creates_dinheiro_vivo_automatically(client):
+def test_list_banks_returns_empty_when_none_created(client):
+    """Não existe mais banco fixo/especial ('dinheiro') criado sob demanda
+    (ver docstring de app/routers/wallet.py — coluna is_dinheiro removida
+    via migration). DB novo começa sem nenhum banco."""
     resp = client.get("/api/wallet/banks")
     assert resp.status_code == 200
-    banks = resp.json()
-    dinheiro = next(b for b in banks if b["is_dinheiro"] is True)
-    assert dinheiro["nome"] == "dinheiro"
-    assert len(dinheiro["accounts"]) == 1
-    conta = dinheiro["accounts"][0]
-    assert conta["possui_saldo"] is True
-    assert conta["possui_credito"] is False
-
-
-def test_list_banks_is_idempotent_for_dinheiro_vivo(client):
-    first = client.get("/api/wallet/banks").json()
-    second = client.get("/api/wallet/banks").json()
-    first_dinheiro = next(b for b in first if b["is_dinheiro"])
-    second_dinheiro = next(b for b in second if b["is_dinheiro"])
-    assert first_dinheiro["id"] == second_dinheiro["id"]
-    assert len([b for b in second if b["is_dinheiro"]]) == 1
+    assert resp.json() == []
 
 
 def test_create_bank(client):
@@ -30,7 +18,6 @@ def test_create_bank(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["nome"] == "Nubank"
-    assert body["is_dinheiro"] is False
     assert body["accounts"] == []
 
 
@@ -88,16 +75,6 @@ def test_create_account_duplicate_name_in_same_bank_returns_422(client):
     resp = client.post(
         f"/api/wallet/banks/{bank['id']}/accounts",
         json={"nome": "conta A", "possui_saldo": True, "saldo_atual": 0},
-    )
-    assert resp.status_code == 422
-
-
-def test_create_account_in_dinheiro_vivo_bank_returns_422(client):
-    banks = client.get("/api/wallet/banks").json()
-    dinheiro = next(b for b in banks if b["is_dinheiro"])
-    resp = client.post(
-        f"/api/wallet/banks/{dinheiro['id']}/accounts",
-        json={"nome": "segunda carteira", "possui_saldo": True, "saldo_atual": 0},
     )
     assert resp.status_code == 422
 
@@ -188,18 +165,6 @@ def test_delete_account_keeps_bank_when_others_remain(client):
 
     banks = client.get("/api/wallet/banks").json()
     assert any(b["id"] == bank["id"] for b in banks)
-
-
-def test_delete_dinheiro_vivo_account_returns_422(client):
-    banks = client.get("/api/wallet/banks").json()
-    dinheiro = next(b for b in banks if b["is_dinheiro"])
-    conta = dinheiro["accounts"][0]
-
-    resp = client.delete(f"/api/wallet/accounts/{conta['id']}")
-    assert resp.status_code == 422
-
-    banks_after = client.get("/api/wallet/banks").json()
-    assert any(b["is_dinheiro"] for b in banks_after)
 
 
 def test_delete_account_not_found_returns_404(client):
@@ -355,3 +320,252 @@ def test_pay_period_not_found_returns_404(client):
 def test_unpay_period_not_found_returns_404(client):
     resp = client.put("/api/wallet/subscriptions/periods/id-inexistente/unpay")
     assert resp.status_code == 404
+
+
+# ==================== compras parceladas ====================
+# Sem cobertura até agora — endpoints em app/routers/wallet.py
+# (create/list/delete + ajustar_parcelas).
+
+
+def _create_credito_account(client, nome="conta credito parcelas", fatura_atual=0, limite_total=1000):
+    bank = client.post("/api/wallet/banks", json={"nome": f"banco {nome}"}).json()
+    resp = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={
+            "nome": nome, "possui_saldo": False, "possui_credito": True,
+            "fatura_atual": fatura_atual, "limite_total": limite_total, "dia_vencimento": 10,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_create_compra_parcelada_without_conta(client):
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "presente", "valor_total": 300, "num_parcelas": 3,
+            "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["conta_id"] is None
+    assert body["valor_parcela"] == 100
+    assert body["ajuste_parcelas"] == 0
+
+
+def test_create_compra_parcelada_updates_fatura_atual_da_conta(client):
+    conta = _create_credito_account(client, fatura_atual=200, limite_total=1000)
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "notebook", "valor_total": 600, "num_parcelas": 6,
+            "conta_id": conta["id"], "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["fatura_atual"] == 800
+
+
+def test_create_compra_parcelada_limite_insuficiente_returns_422(client):
+    conta = _create_credito_account(client, fatura_atual=900, limite_total=1000)
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "tv", "valor_total": 200, "num_parcelas": 2,
+            "conta_id": conta["id"], "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 422
+    assert "limite insuficiente" in resp.json()["detail"]
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["fatura_atual"] == 900
+
+
+def test_create_compra_parcelada_valor_exato_do_limite_e_valido(client):
+    conta = _create_credito_account(client, fatura_atual=800, limite_total=1000)
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "tv no limite", "valor_total": 200, "num_parcelas": 2,
+            "conta_id": conta["id"], "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_create_compra_parcelada_conta_sem_credito_returns_422(client):
+    bank = client.post("/api/wallet/banks", json={"nome": "banco so saldo"}).json()
+    conta = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": "conta so saldo", "possui_saldo": True, "saldo_atual": 1000},
+    ).json()
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "compra", "valor_total": 100, "num_parcelas": 1,
+            "conta_id": conta["id"], "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 422
+    assert "precisa ter crédito" in resp.json()["detail"]
+
+
+def test_create_compra_parcelada_conta_inexistente_returns_422(client):
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "compra", "valor_total": 100, "num_parcelas": 1,
+            "conta_id": "conta-inexistente", "mes_primeira_parcela": "2026-03",
+        },
+    )
+    assert resp.status_code == 422
+    assert "conta não encontrada" in resp.json()["detail"]
+
+
+def test_create_compra_parcelada_mes_invalido_returns_422(client):
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "compra", "valor_total": 100, "num_parcelas": 1, "mes_primeira_parcela": "03-2026"},
+    )
+    assert resp.status_code == 422
+    assert "mes_primeira_parcela" in resp.json()["detail"]
+
+
+def test_create_compra_parcelada_valor_zero_returns_422(client):
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "compra", "valor_total": 0, "num_parcelas": 1, "mes_primeira_parcela": "2026-03"},
+    )
+    assert resp.status_code == 422
+
+
+def test_create_compra_parcelada_num_parcelas_zero_returns_422(client):
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "compra", "valor_total": 100, "num_parcelas": 0, "mes_primeira_parcela": "2026-03"},
+    )
+    assert resp.status_code == 422
+
+
+def test_compra_parcelada_parcela_atual_and_quitada_computed_from_calendar(client, monkeypatch):
+    """parcela_atual/quitada são derivados de mes_primeira_parcela + mês
+    'atual' (_current_month_str), não persistidos — mockado pra ser
+    determinístico independente da data real de execução do teste."""
+    resp = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "fone", "valor_total": 300, "num_parcelas": 3,
+            "mes_primeira_parcela": "2026-01",
+        },
+    )
+    compra = resp.json()
+
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-01")
+    body = client.get("/api/wallet/compras-parceladas").json()[0]
+    assert body["parcela_atual"] == 1
+    assert body["quitada"] is False
+
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-03")
+    body = client.get("/api/wallet/compras-parceladas").json()[0]
+    assert body["parcela_atual"] == 3
+    assert body["quitada"] is False
+
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-04")
+    body = client.get("/api/wallet/compras-parceladas").json()[0]
+    assert body["parcela_atual"] == 3  # clampado no máximo de parcelas
+    assert body["quitada"] is True
+
+
+def test_ajustar_parcelas_delta_positivo_avanca_parcela(client, monkeypatch):
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "geladeira", "valor_total": 400, "num_parcelas": 4, "mes_primeira_parcela": "2026-01"},
+    ).json()
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-01")
+
+    resp = client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": 1})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ajuste_parcelas"] == 1
+    assert body["parcela_atual"] == 2  # 1 (calendário) + 1 (ajuste)
+
+
+def test_ajustar_parcelas_delta_negativo_desfaz_ajuste(client, monkeypatch):
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "sofa", "valor_total": 400, "num_parcelas": 4, "mes_primeira_parcela": "2026-01"},
+    ).json()
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-01")
+    client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": 1})
+
+    resp = client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": -1})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ajuste_parcelas"] == 0
+    assert body["parcela_atual"] == 1
+
+
+def test_ajustar_parcelas_not_found_returns_404(client):
+    resp = client.put("/api/wallet/compras-parceladas/inexistente/ajustar", json={"delta": 1})
+    assert resp.status_code == 404
+
+
+def test_delete_compra_parcelada_reverts_fatura_atual(client):
+    conta = _create_credito_account(client, fatura_atual=100, limite_total=1000)
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={
+            "nome": "bike", "valor_total": 500, "num_parcelas": 5,
+            "conta_id": conta["id"], "mes_primeira_parcela": "2026-03",
+        },
+    ).json()
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    assert next(a for a in all_accounts if a["id"] == conta["id"])["fatura_atual"] == 600
+
+    resp = client.delete(f"/api/wallet/compras-parceladas/{compra['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] is True
+
+    banks_after = client.get("/api/wallet/banks").json()
+    all_accounts_after = [a for b in banks_after for a in b["accounts"]]
+    updated = next(a for a in all_accounts_after if a["id"] == conta["id"])
+    assert updated["fatura_atual"] == 100
+
+
+def test_delete_compra_parcelada_without_conta_does_not_error(client):
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "sem conta", "valor_total": 100, "num_parcelas": 1, "mes_primeira_parcela": "2026-03"},
+    ).json()
+    resp = client.delete(f"/api/wallet/compras-parceladas/{compra['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] is True
+
+
+def test_delete_compra_parcelada_not_found_returns_404(client):
+    resp = client.delete("/api/wallet/compras-parceladas/inexistente")
+    assert resp.status_code == 404
+
+
+def test_list_compras_parceladas_ordered_by_mes_primeira_parcela_desc(client):
+    client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "mais antiga", "valor_total": 100, "num_parcelas": 1, "mes_primeira_parcela": "2026-01"},
+    )
+    client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "mais recente", "valor_total": 100, "num_parcelas": 1, "mes_primeira_parcela": "2026-05"},
+    )
+    body = client.get("/api/wallet/compras-parceladas").json()
+    assert [c["nome"] for c in body] == ["mais recente", "mais antiga"]

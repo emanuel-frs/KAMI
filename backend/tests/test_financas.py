@@ -343,6 +343,229 @@ def test_create_transaction_transferencia_requires_exactly_one_destino(client):
     assert resp_ambos.status_code == 422
 
 
+def test_create_transaction_saida_saldo_insuficiente_returns_422(client):
+    conta = _create_account(client, nome="conta saldo pouco", possui_saldo=True, saldo_atual=100)
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "compra cara",
+            "amount": 150,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+        },
+    )
+    assert resp.status_code == 422
+    assert "saldo insuficiente" in resp.json()["detail"]
+
+    # saldo não pode ter sido descontado
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["saldo_atual"] == 100
+
+
+def test_create_transaction_saida_saldo_exato_e_valido(client):
+    """Caso-limite: gastar exatamente o saldo disponível deve ser aceito (não é '>' estrito)."""
+    conta = _create_account(client, nome="conta saldo exato", possui_saldo=True, saldo_atual=100)
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "gastou tudo",
+            "amount": 100,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["saldo_atual"] == 0
+
+
+def test_create_transaction_saida_limite_insuficiente_returns_422(client):
+    conta = _create_account(
+        client, nome="conta limite pouco", possui_saldo=False,
+        possui_credito=True, fatura_atual=900, limite_total=1000, dia_vencimento=10,
+    )
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "compra no crédito",
+            "amount": 150,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+            "forma_pagamento": "credito",
+        },
+    )
+    assert resp.status_code == 422
+    assert "limite insuficiente" in resp.json()["detail"]
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["fatura_atual"] == 900
+
+
+def test_create_transaction_saida_dentro_do_limite_e_valido(client):
+    conta = _create_account(
+        client, nome="conta limite ok", possui_saldo=False,
+        possui_credito=True, fatura_atual=900, limite_total=1000, dia_vencimento=10,
+    )
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "compra no crédito",
+            "amount": 100,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+            "forma_pagamento": "credito",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    updated = next(a for a in all_accounts if a["id"] == conta["id"])
+    assert updated["fatura_atual"] == 1000
+
+
+def test_create_transaction_saida_conta_sem_limite_cadastrado_nao_bloqueia(client):
+    """limite_total é opcional — sem limite, a fatura só acumula sem checagem."""
+    conta = _create_account(
+        client, nome="conta sem limite", possui_saldo=False,
+        possui_credito=True, fatura_atual=0, limite_total=None, dia_vencimento=10,
+    )
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "compra grande",
+            "amount": 999999,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+            "forma_pagamento": "credito",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_create_transaction_saida_conta_sem_saldo_nem_credito_returns_422(client):
+    conta = _create_account(client, nome="conta vazia", possui_saldo=False, possui_credito=False)
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "compra impossível",
+            "amount": 10,
+            "type": "saida",
+            "category": "lazer",
+            "date": "2026-03-10",
+            "conta_id": conta["id"],
+        },
+    )
+    assert resp.status_code == 422
+    assert "não possui saldo nem crédito" in resp.json()["detail"]
+
+
+def test_create_transaction_transferencia_saldo_insuficiente_returns_422(client):
+    origem = _create_account(client, nome="conta origem pouco", possui_saldo=True, saldo_atual=100)
+    destino = _create_account(client, nome="conta destino pouco", possui_saldo=True, saldo_atual=0)
+
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "transferencia grande demais",
+            "amount": 300,
+            "type": "transferencia",
+            "category": "transferencia",
+            "date": "2026-03-10",
+            "conta_id": origem["id"],
+            "conta_destino_id": destino["id"],
+        },
+    )
+    assert resp.status_code == 422
+    assert "saldo insuficiente" in resp.json()["detail"]
+
+    banks = client.get("/api/wallet/banks").json()
+    all_accounts = [a for b in banks for a in b["accounts"]]
+    origem_after = next(a for a in all_accounts if a["id"] == origem["id"])
+    destino_after = next(a for a in all_accounts if a["id"] == destino["id"])
+    assert origem_after["saldo_atual"] == 100
+    assert destino_after["saldo_atual"] == 0
+
+
+def test_create_transaction_transferencia_conta_destino_inexistente_returns_422(client):
+    origem = _create_account(client, nome="conta origem destino invalido", possui_saldo=True, saldo_atual=500)
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "transferencia",
+            "amount": 100,
+            "type": "transferencia",
+            "category": "transferencia",
+            "date": "2026-03-10",
+            "conta_id": origem["id"],
+            "conta_destino_id": "conta-inexistente",
+        },
+    )
+    assert resp.status_code == 422
+    assert "destino não encontrada" in resp.json()["detail"]
+
+
+def test_create_transaction_transferencia_conta_destino_sem_saldo_returns_422(client):
+    origem = _create_account(client, nome="conta origem destino sem saldo", possui_saldo=True, saldo_atual=500)
+    destino_credito = _create_account(
+        client, nome="conta destino so credito", possui_saldo=False,
+        possui_credito=True, fatura_atual=0, limite_total=1000, dia_vencimento=10,
+    )
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "transferencia",
+            "amount": 100,
+            "type": "transferencia",
+            "category": "transferencia",
+            "date": "2026-03-10",
+            "conta_id": origem["id"],
+            "conta_destino_id": destino_credito["id"],
+        },
+    )
+    assert resp.status_code == 422
+    assert "destino precisa ter saldo" in resp.json()["detail"]
+
+
+def test_create_transaction_transferencia_origem_sem_saldo_returns_422(client):
+    origem_credito = _create_account(
+        client, nome="conta origem so credito", possui_saldo=False,
+        possui_credito=True, fatura_atual=0, limite_total=1000, dia_vencimento=10,
+    )
+    destino = _create_account(client, nome="conta destino de origem credito", possui_saldo=True, saldo_atual=0)
+    resp = client.post(
+        "/api/financas/transactions",
+        json={
+            "description": "transferencia",
+            "amount": 100,
+            "type": "transferencia",
+            "category": "transferencia",
+            "date": "2026-03-10",
+            "conta_id": origem_credito["id"],
+            "conta_destino_id": destino["id"],
+        },
+    )
+    assert resp.status_code == 422
+    assert "origem" in resp.json()["detail"]
+
+
 def test_create_transaction_with_invalid_conta_returns_422(client):
     resp = client.post(
         "/api/financas/transactions",
