@@ -1,7 +1,7 @@
 // js/widgets/priorities.js
 import { getAttributes } from "../api/nucleo.js";
 import { listGoals } from "../api/metas.js";
-import { escapeHtml, fmtDateBR } from "./format.js";
+import { escapeHtml, fmtDateBR } from "../components/format.js";
 
 /** "Atenção agora": atributo mais atrasado + meta com prazo mais próximo. */
 export async function render(el, widget) {

@@ -1,5 +1,5 @@
 import * as walletApi from "../api/wallet.js";
-import { escapeHtml } from "./format.js";
+import { escapeHtml } from "../components/format.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

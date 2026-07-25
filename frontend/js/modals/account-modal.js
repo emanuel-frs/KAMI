@@ -1,5 +1,5 @@
-import { imageToAscii, fitAsciiText } from "./ascii.js";
-import { escapeHtml } from "./format.js";
+import { imageToAscii, fitAsciiText } from "../components/ascii.js";
+import { escapeHtml } from "../components/format.js";
 import * as walletApi from "../api/wallet.js";
 import { showErrorModal } from "./err-model.js";
 

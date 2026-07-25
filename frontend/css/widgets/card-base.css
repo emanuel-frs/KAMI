@@ -77,6 +77,11 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
   touch-action: none;
   margin-right: 2px;
   flex-shrink: 0;
+  /* segura um <svg> (ícone "grip", ver icons.js) em vez do glifo unicode
+     ⠿ de antes (item 15.3) — flex centraliza o ícone dentro do handle
+     igual o texto ficava alinhado com o resto do card-head */
+  display: inline-flex;
+  align-items: center;
 }
 .drag-handle:hover { color: var(--accent); }
 
@@ -102,16 +107,18 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
   bottom: 0;
   width: 17px;
   height: 17px;
-  line-height: 14px;
-  text-align: right;
-  padding: 2px 3px 1px 0;
-  font-size: 11px;
+  padding: 1px 2px 2px 0;
   color: var(--text-faint);
   cursor: nwse-resize;
   user-select: none;
   touch-action: none;
   opacity: 0.55;
   z-index: 2;
+  /* segura o <svg> do ícone "resize" (ver icons.js) — troca do glifo ⋰;
+     flex centraliza em vez de depender de line-height/text-align */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .resize-handle:hover { color: var(--accent); opacity: 1; }
 .card.resizing { box-shadow: 0 0 0 1px var(--accent-dim); }
@@ -120,13 +127,16 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
   position: absolute;
   right: 19px;
   bottom: 2px;
-  font-size: 10px;
+  width: 15px;
+  height: 15px;
   color: var(--text-faint);
   cursor: pointer;
   display: none;
+  align-items: center;
+  justify-content: center;
   z-index: 2;
 }
-.card[data-manual="1"] .resize-reset { display: block; }
+.card[data-manual="1"] .resize-reset { display: flex; }
 .resize-reset:hover { color: var(--accent); }
 
 body.kami-resizing,
@@ -177,4 +187,3 @@ body.kami-resizing * { user-select: none !important; cursor: nwse-resize !import
 .pw-avatar-btn:hover {
   border-color: var(--accent-dim);
 }
-

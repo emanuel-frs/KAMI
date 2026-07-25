@@ -1,9 +1,9 @@
 import * as financasApi from "../api/financas.js";
 import * as walletApi from "../api/wallet.js";
-import { escapeHtml } from "./format.js";
-import { fitAsciiText } from "./ascii.js";
-import { openTransactionModal } from "./transaction-modal.js";
-import { openRegistroFilterModal } from "./registro-filter-modal.js";
+import { escapeHtml } from "../components/format.js";
+import { fitAsciiText } from "../components/ascii.js";
+import { openTransactionModal } from "../modals/transaction-modal.js";
+import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
 
 function currentMonthStr() {
   const d = new Date();

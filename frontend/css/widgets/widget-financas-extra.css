@@ -121,8 +121,12 @@
 .ba-edit{
   cursor: pointer;
   color: var(--text-faint);
-  font-size: 11px;
   padding: 0 2px;
+  /* segura o <svg> do ícone "pencil" (ver icons.js) em vez do glifo ✎ —
+     flex centraliza igual o ba-remove (×) já fica centralizado por ser
+     só texto numa linha de altura fixa */
+  display: inline-flex;
+  align-items: center;
 }
 .ba-edit:hover{ color: var(--accent); }
 

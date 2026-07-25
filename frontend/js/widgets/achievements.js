@@ -1,6 +1,7 @@
 // js/widgets/achievements.js
 import { getAchievements } from "../api/nucleo.js";
-import { escapeHtml, fmtRelDate } from "./format.js";
+import { escapeHtml, fmtRelDate } from "../components/format.js";
+import { icon } from "../components/icons.js";
 
 /** Galeria estilo steam — reaproveitada em perfil e núcleo, mesma fonte de dados. */
 export async function render(el, widget) {
@@ -25,7 +26,7 @@ export async function render(el, widget) {
           (a) => `
         <div class="ach${a.unlocked ? " unlocked" : ""}">
           <div class="ach-icon-wrap">
-            <span class="ach-icon">★</span>
+            <span class="ach-icon">${icon("star", { size: 24, fill: true })}</span>
             ${!a.unlocked ? '<span class="ach-lock">[x]</span>' : ""}
           </div>
           <div class="a-title">${escapeHtml(a.title)}</div>

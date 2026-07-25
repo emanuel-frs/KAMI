@@ -1,5 +1,5 @@
 import * as financasApi from "../api/financas.js";
-import { escapeHtml } from "./format.js";
+import { escapeHtml } from "../components/format.js";
 
 function currentMonthStr() {
   const d = new Date();

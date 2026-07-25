@@ -9,7 +9,7 @@ import {
   deleteMilestone,
   reorderMilestones,
 } from "../api/aprendizado.js";
-import { escapeHtml } from "../widgets/format.js";
+import { escapeHtml } from "../components/format.js";
 import { getLog } from "../api/nucleo.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────

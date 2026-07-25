@@ -1,7 +1,7 @@
 // js/widgets/log.js
 import { getLog } from "../api/nucleo.js";
-import { escapeHtml, fmtRelDate } from "./format.js";
-import { enhanceSelect } from "./custom-select.js";
+import { escapeHtml, fmtRelDate } from "../components/format.js";
+import { enhanceSelect } from "../components/custom-select.js";
 
 /** Log cronológico — escuta filtro de attributes.js e refresh de registrar.js. */
 export async function render(el, widget) {

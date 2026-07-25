@@ -1,6 +1,6 @@
 import * as walletApi from "../api/wallet.js";
 import { showErrorModal } from "./err-model.js";
-import { refreshCustomSelect } from "./custom-select.js";
+import { refreshCustomSelect } from "../components/custom-select.js";
 
 /**
  * Modal "nova compra parcelada" — mesmo padrão singleton de

@@ -46,7 +46,16 @@
   position: relative;
   overflow: hidden;
 }
-.ach-icon { font-size: 24px; line-height: 1; filter: grayscale(1) brightness(0.55); opacity: 0.55; }
+/* ícone <svg> "star" (ver icons.js) em vez do glifo unicode ★ com
+   font-size — mesmo peso visual, filter/opacity continuam funcionando
+   normalmente em cima do svg */
+.ach-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: grayscale(1) brightness(0.55);
+  opacity: 0.55;
+}
 .ach.unlocked .ach-icon-wrap {
   border-color: var(--accent-dim);
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 72%);
@@ -75,4 +84,3 @@
   padding-top: 6px;
   border-top: 1px dashed var(--border-soft);
 }
-

@@ -1,11 +1,12 @@
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
 import { getAttributes, getAchievements } from "../api/nucleo.js";
-import { levelFromXp } from "./xp.js";
-import { escapeHtml } from "./format.js";
-import { fitAsciiText } from "./ascii.js";
-import { openAvatarModal } from "./avatar-modal.js";
-import { showErrorModal } from "./err-model.js";
-import { enhanceSelect, destroyCustomSelect } from "./custom-select.js";
+import { levelFromXp } from "../components/xp.js";
+import { escapeHtml } from "../components/format.js";
+import { fitAsciiText } from "../components/ascii.js";
+import { openAvatarModal } from "../modals/avatar-modal.js";
+import { showErrorModal } from "../modals/err-model.js";
+import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -80,7 +81,7 @@ export async function render(el, widget) {
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
-          <button type="button" class="btn sm mode-toggle-btn" data-action="edit">✎ editar nome/cor</button>
+          <button type="button" class="btn sm mode-toggle-btn" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar nome/cor</button>
         </div>
         <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:11px; color:var(--text-dim);">
           <span style="width:11px; height:11px; background:${profile.accent_color}; display:inline-block; border:1px solid var(--border-soft);"></span>
@@ -116,7 +117,7 @@ export async function render(el, widget) {
           <button type="button" class="btn primary" data-action="save">salvar</button>
           <button type="button" class="btn sm" data-action="cancel">cancelar</button>
         </div>
-        <div id="pw-save-msg" style="font-size:10px; color:var(--accent); margin-top:8px; display:none;">salvo ✓</div>
+        <div id="pw-save-msg" style="font-size:10px; color:var(--accent); margin-top:8px; display:none; align-items:center; gap:4px;">salvo ${icon("check", { size: 9 })}</div>
       </div>
     </div>
   `;
@@ -250,7 +251,7 @@ export async function render(el, widget) {
     const tagline = document.getElementById("sidebar-tagline");
     if (tagline) tagline.textContent = newName;
 
-    saveMsg.style.display = "block";
+    saveMsg.style.display = "flex";
     setTimeout(() => {
       cardEl?.classList.remove("editing");
       restoreCardHeight();

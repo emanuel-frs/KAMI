@@ -1,8 +1,8 @@
 import * as walletApi from "../api/wallet.js";
-import { escapeHtml } from "./format.js";
-import { openCompraParceladaModal } from "./compra-parcelada-modal.js";
-import { showErrorModal } from "./err-model.js";
-import { showConfirmModal } from "./confirm-modal.js";
+import { escapeHtml } from "../components/format.js";
+import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
+import { showErrorModal } from "../modals/err-model.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem

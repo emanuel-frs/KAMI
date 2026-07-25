@@ -85,7 +85,27 @@
   border-left: 3px solid var(--accent);
   opacity: 0.9;
 }
-.goal-card.done .card-head::before { content: "✓ "; color: var(--accent); }
+/* ── ícone de "concluída" ──────────────────────────────────────────────
+ * era content:"✓ " — um pseudo-elemento não pode renderizar <svg>, então
+ * a troca por ícone (item 15.3/decisão 24) usa a técnica de máscara: o
+ * pseudo vira um retângulo colorido (background-color: var(--accent),
+ * mesma cor que o glifo já tinha) recortado no formato do check.svg
+ * (mesmo ícone/traço de frontend/assets/icons/check.svg, embutido como
+ * data-uri pra não depender de fetch). content:"" segue obrigatório pra
+ * o pseudo-elemento existir, mas fica vazio — o desenho é só a máscara.
+ * Sobrescreve o "▸ " padrão de .card-head::before (card-base.css).
+ */
+.goal-card.done .card-head::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 5px;
+  background-color: var(--accent);
+  -webkit-mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIuNzUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiPjxwYXRoIGQ9Ik0yMCA2IDkgMTdsLTUtNSIvPjwvc3ZnPg==') no-repeat center / contain;
+  mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIuNzUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiPjxwYXRoIGQ9Ik0yMCA2IDkgMTdsLTUtNSIvPjwvc3ZnPg==') no-repeat center / contain;
+  vertical-align: -1px;
+}
 
 .goal-card .card-body .btn {
   width: 100%;

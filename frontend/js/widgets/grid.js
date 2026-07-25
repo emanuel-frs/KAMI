@@ -13,6 +13,7 @@
  * onLayoutChange ao final de cada operação em vez de só mexer no DOM.
  */
 import { WIDGET_CATALOG, widgetsForScreen } from "./registry.js";
+import { icon } from "../components/icons.js";
 
 const WG_UNITS  = 6;   // "sextos" — mesmo valor do protótipo
 const WG_ROW    = 8;   // grid-auto-rows em px  (widgets.css)
@@ -247,14 +248,14 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
 
   const handle = document.createElement("div");
   handle.className = "resize-handle";
-  handle.innerHTML = "⋰";
+  handle.innerHTML = icon("resize", { size: 12 });
   handle.title =
     "arraste pra redimensionar — largura em frações da linha, altura livre (mínimo garantido)";
   card.appendChild(handle);
 
   const reset = document.createElement("div");
   reset.className = "resize-reset";
-  reset.innerHTML = "↺";
+  reset.innerHTML = icon("undo", { size: 11 });
   reset.title = "voltar ao tamanho automático";
   reset.onclick = () => {
     const cols = currentCols(container);
@@ -346,7 +347,7 @@ function attachDragHandle(card, container, getCommit, pauseObservers, resumeObse
 
   const handle = document.createElement("span");
   handle.className = "drag-handle";
-  handle.innerHTML = "⠿";
+  handle.innerHTML = icon("grip", { size: 12 });
   handle.title = "arraste pra reordenar";
   head.insertBefore(handle, head.firstChild);
 
@@ -527,12 +528,12 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = "span 12";
 
     const removeBtn = def.removable !== false
-      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" title="remover widget">✕</span>`
+      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" title="remover widget">×</span>`
       : "";
 
     card.innerHTML = `
       <div class="card-head">
-        <span class="drag-handle" title="arrastar pra reordenar">⠿</span>
+        <span class="drag-handle" title="arrastar pra reordenar">${icon("grip", { size: 12 })}</span>
         ${def.label}${removeBtn}
       </div>
       <div class="card-body">

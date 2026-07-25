@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
-import { escapeHtml } from "./format.js";
-import { openFixedBillModal } from "./fixed-bill-modal.js";
-import { showConfirmModal } from "./confirm-modal.js";
+import { escapeHtml } from "../components/format.js";
+import { openFixedBillModal } from "../modals/fixed-bill-modal.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 
 /**
  * Widget "contas fixas" — mesmo padrão simples de dividas.js. Lista

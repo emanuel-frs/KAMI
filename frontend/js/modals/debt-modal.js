@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-model.js";
-import { enhanceSelect, refreshCustomSelect } from "./custom-select.js";
+import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 
 /** Modal "nova dívida" — mesmo padrão singleton de subscription-modal.js. */
 

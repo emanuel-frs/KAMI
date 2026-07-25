@@ -1,9 +1,9 @@
 import * as financasApi from "../api/financas.js";
-import { escapeHtml } from "./format.js";
-import { openDebtModal } from "./debt-modal.js";
-import { showErrorModal } from "./err-model.js";
-import { showConfirmModal } from "./confirm-modal.js";
-import { enhanceSelect, destroyCustomSelect } from "./custom-select.js";
+import { escapeHtml } from "../components/format.js";
+import { openDebtModal } from "../modals/debt-modal.js";
+import { showErrorModal } from "../modals/err-model.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
+import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
 
 /**
  * Widget "dívidas" — segue o mesmo padrão simples de financas-resumo.js

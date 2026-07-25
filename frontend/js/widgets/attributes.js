@@ -1,6 +1,6 @@
 // js/widgets/attributes.js
 import { getAttributes } from "../api/nucleo.js";
-import { escapeHtml } from "./format.js";
+import { escapeHtml } from "../components/format.js";
 
 /** Barras de nível por atributo — clicar filtra o widget log.js (evento global). */
 export async function render(el, widget) {

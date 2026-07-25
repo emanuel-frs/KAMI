@@ -146,7 +146,7 @@ export const WIDGET_CATALOG = {
     min_span: 2,
     max_span: 6,
     default_span: 4,
-    component: "./financas-grafico-fluxo.js",
+    component: "../charts/financas-grafico-fluxo.js",
   },
   financas_grafico_categorias: {
     label: "gráfico — gastos por categoria",
@@ -155,7 +155,7 @@ export const WIDGET_CATALOG = {
     min_span: 2,
     max_span: 4,
     default_span: 3,
-    component: "./financas-grafico-categorias.js",
+    component: "../charts/financas-grafico-categorias.js",
   },
   financas_grafico_evolucao: {
     label: "gráfico — evolução do saldo",
@@ -164,7 +164,7 @@ export const WIDGET_CATALOG = {
     min_span: 2,
     max_span: 6,
     default_span: 4,
-    component: "./financas-grafico-evolucao.js",
+    component: "../charts/financas-grafico-evolucao.js",
   },
   financas_grafico_limites: {
     label: "gráfico — uso de limite",
@@ -173,7 +173,7 @@ export const WIDGET_CATALOG = {
     min_span: 2,
     max_span: 4,
     default_span: 3,
-    component: "./financas-grafico-limites.js",
+    component: "../charts/financas-grafico-limites.js",
   },
 };
 

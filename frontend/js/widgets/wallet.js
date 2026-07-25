@@ -1,7 +1,8 @@
 import * as walletApi from "../api/wallet.js";
-import { fitAsciiText } from "./ascii.js";
-import { escapeHtml } from "./format.js";
-import { openAccountModal } from "./account-modal.js";
+import { fitAsciiText } from "../components/ascii.js";
+import { escapeHtml } from "../components/format.js";
+import { openAccountModal } from "../modals/account-modal.js";
+import { icon } from "../components/icons.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,7 +17,7 @@ function bankIconInner(bank) {
   return `<span class="ph">${fallback}</span>`;
 }
 function accountCardHtml(bank, a) {
-  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" title="editar conta">✎</span>`;
+  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" title="editar conta">${icon("pencil", { size: 11 })}</span>`;
   const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" title="remover conta">×</span>`;
   let saldoBlock = "";
   if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>saldo atual</span><b>${brl(a.saldo_atual)}</b></div>`;

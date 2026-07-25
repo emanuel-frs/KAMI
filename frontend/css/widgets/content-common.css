@@ -28,3 +28,13 @@
 }
 .bar-fill.alt { background: var(--accent); }
 
+/* ── ícones inline (icons.js, item 15.3/decisão 24) ────────────────────
+ * Regra base pra qualquer <svg class="icon"> embutido junto de texto
+ * (ex: botão "editar nome/cor", "salvar como meu avatar") — sem isso o
+ * svg fica alinhado pela baseline "crua" e sobra um desnível visual em
+ * relação ao texto ao lado.
+ */
+.icon {
+  vertical-align: -2px;
+  flex-shrink: 0;
+}

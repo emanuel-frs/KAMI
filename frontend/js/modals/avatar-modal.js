@@ -1,6 +1,7 @@
-import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "./ascii.js";
+import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
 import { showErrorModal } from "./err-model.js";
-import { enhanceSelect } from "./custom-select.js";
+import { enhanceSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Modal "avatar pessoal" (decisão 18 — modais são o padrão de
@@ -35,7 +36,7 @@ function buildModal() {
     <div class="modal wide">
       <div class="modal-head">
         avatar pessoal
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">×</span>
       </div>
       <div class="modal-tabs">
         <div class="modal-tab" data-tab="ver">ver</div>
@@ -70,7 +71,7 @@ function buildModal() {
                   <input type="checkbox" id="av-invert" style="accent-color:var(--accent);"><span>inverter tons</span>
                 </label>
                 <p class="al-hint">arraste uma imagem sobre este painel ou use o campo acima. tudo roda local, via &lt;canvas&gt; — nada sai da máquina.</p>
-                <button type="button" class="btn" style="margin-top:8px; width:100%;" data-action="save">✓ salvar como meu avatar</button>
+                <button type="button" class="btn" style="margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;" data-action="save">${icon("check", { size: 13 })} salvar como meu avatar</button>
               </div>
             </div>
             <div>

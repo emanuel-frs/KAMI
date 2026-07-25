@@ -1,7 +1,7 @@
 import { getProfile } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
-import { fitAsciiText } from "./widgets/ascii.js";
+import { fitAsciiText } from "./components/ascii.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
@@ -47,33 +47,36 @@ async function loadProfile() {
     const profile = await getProfile();
     store.set("profile", profile);
     document.documentElement.style.setProperty("--accent", profile.accent_color);
-    document.getElementById("sidebar-tagline").textContent = profile.display_name;
+
+    const usernameEl = document.getElementById("sidebar-username");
+    if (usernameEl) {
+      usernameEl.textContent = profile.display_name || "usuário";
+    }
+
     if (profile.avatar_ascii) {
       const sidebarAvatarEl = document.getElementById("sidebar-avatar");
-      sidebarAvatarEl.textContent = profile.avatar_ascii;
-      // o avatar é gerado no modal com cols=70 (ver avatar-modal.js) — bem
-      // mais largo que a sidebar (230px). Sem isso, o <pre> ignora o
-      // font-size:9px fixo do .mini-avatar (não há CSS que force wrap
-      // num <pre> sem quebrar a arte) e estoura a largura da sidebar
-      // inteira. fitAsciiText calcula um font-size que realmente cabe.
-      try {
-        fitAsciiText(sidebarAvatarEl, profile.avatar_ascii, {
-          container: sidebarAvatarEl.parentElement, // .sidebar-footer
-          maxHeight: 90,
-          maxFont: 9, // nunca passa do tamanho "de design" do .mini-avatar
-          minFont: 1.2,
-          paddingX: 8,
-          paddingY: 8,
-        });
-      } catch (err) {
-        console.error("fitAsciiText falhou no avatar da sidebar:", err);
+      if (sidebarAvatarEl) {
+        sidebarAvatarEl.textContent = profile.avatar_ascii;
+        try {
+          fitAsciiText(sidebarAvatarEl, profile.avatar_ascii, {
+            container: sidebarAvatarEl.parentElement,
+            maxHeight: 25,
+            maxFont: 3,
+            minFont: 1,
+            paddingX: 8,
+            paddingY: 4,
+          });
+        } catch (err) {
+          console.error("fitAsciiText falhou no avatar da sidebar:", err);
+        }
       }
     }
   } catch (err) {
-    // backend ainda subindo ou fora do ar — não trava o boot do app,
-    // só avisa no lugar onde o nome/avatar apareceriam.
-    document.getElementById("sidebar-tagline").textContent =
-      err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
+    const usernameEl = document.getElementById("sidebar-username");
+    if (usernameEl) {
+      usernameEl.textContent = err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
+    }
+    console.warn("loadProfile falhou, mas continuamos:", err);
   }
 }
 

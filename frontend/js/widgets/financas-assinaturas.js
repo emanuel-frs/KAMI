@@ -1,7 +1,7 @@
 import * as walletApi from "../api/wallet.js";
-import { escapeHtml } from "./format.js";
-import { openSubscriptionModal } from "./subscription-modal.js";
-import { openAssinaturaFilterModal } from "./assinatura-filter-modal.js";
+import { escapeHtml } from "../components/format.js";
+import { openSubscriptionModal } from "../modals/subscription-modal.js";
+import { openAssinaturaFilterModal } from "../modals/assinatura-filter-modal.js";
 
 function currentMonthStr() {
   const d = new Date();

@@ -5,7 +5,7 @@ import {
   deleteGoal,
   contributeGoal,
 } from "../api/metas.js";
-import { escapeHtml, fmtDateBR, fmtMoney } from "../widgets/format.js";
+import { escapeHtml, fmtDateBR, fmtMoney } from "../components/format.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
