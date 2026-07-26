@@ -44,6 +44,22 @@ function accentLabel(hex) {
   return ACCENT_OPTIONS.find((o) => o.value === hex)?.label ?? hex;
 }
 
+function _applySidebarAvatar(ascii) {
+  const el = document.getElementById("sidebar-avatar");
+  if (!el) return;
+  el.textContent = ascii;
+  try {
+    fitAsciiText(el, ascii, {
+      container: el.parentElement,
+      maxHeight: 25,
+      maxFont: 3,
+      minFont: 1,
+      paddingX: 8,
+      paddingY: 4,
+    });
+  } catch (_) {}
+}
+
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando perfil…</div>';
 
@@ -144,6 +160,7 @@ export async function render(el, widget) {
         currentAscii: profile.avatar_ascii,
         onSave: async (ascii) => {
           await updateAvatar(ascii);
+          _applySidebarAvatar(ascii);
           render(el, widget);
         },
       });
