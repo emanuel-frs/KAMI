@@ -9,13 +9,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
+from app.version import KAMI_VERSION
 from app.routers import perfil, nucleo, financas, wallet
 from app.routers import aprendizado
 from app.routers import metas
 from app.routers import organizacao
 from app.routers import dashboard
 
-app = FastAPI(title="Kami API", version="0.1.0")
+app = FastAPI(title="Kami API", version=KAMI_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +33,7 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": KAMI_VERSION}
 
 
 app.include_router(perfil.router, prefix="/api/perfil", tags=["perfil"])

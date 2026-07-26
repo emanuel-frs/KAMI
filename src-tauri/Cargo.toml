@@ -1,0 +1,29 @@
+[package]
+name = "kami"
+version = "1.0.0"
+description = "Kami — sistema pessoal de organização gamificada, 100% local"
+edition = "2021"
+
+# Versões maiores fixadas em "2" (decisão 20: Tauri v2). Rode
+# `cargo update` na sua máquina pra travar os patches exatos — não
+# fiz isso aqui por não ter acesso a crates.io neste ambiente.
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "kami"
+path = "src/main.rs"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -1,0 +1,36 @@
+# ── Tauri (src-tauri/) ────────────────────────────────────────────
+# Só o que é regenerado automaticamente entra aqui. Tudo que você
+# escreve à mão (capabilities/, icons/, src/, build.rs, Cargo.toml,
+# Cargo.lock, tauri.conf.json) continua versionado normalmente.
+
+# build do Rust — recriado via `cargo build` / `cargo tauri build`
+/src-tauri/target/
+
+# schemas de ACL/capabilities/desktop/linux gerados sozinhos na
+# primeira execução do Tauri (cargo tauri dev/build)
+/src-tauri/gen/
+
+# sidecar do backend (PyInstaller), copiado aqui pelo build.sh a cada
+# build (ver capabilities/default.json: shell:allow-execute espera
+# esse binário nesse lugar) — mas o binário em si não deve ir pro
+# versionamento, só o marcador de pasta
+/src-tauri/binaries/*
+!/src-tauri/binaries/.gitkeep
+
+# ── build.sh ──────────────────────────────────────────────────────
+# instaladores finais renomeados (kami-<versão>.<ext>)
+/dist/
+
+# logs e estimativas de tempo do build.sh (build/logs/, build/.build_times)
+/build/
+
+# ── editor / SO ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── frontend (caso alguma ferramenta de dev entre no futuro) ───────
+node_modules/

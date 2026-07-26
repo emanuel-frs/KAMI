@@ -8,12 +8,15 @@ dicts em vez de tuplas.
 import sqlite3
 import uuid
 import datetime
-from pathlib import Path
 from app.widgets import WIDGET_CATALOG
+from app.paths import APP_DIR, get_data_dir
 
-APP_DIR = Path(__file__).parent
-BACKEND_DIR = APP_DIR.parent
-DB_PATH = BACKEND_DIR / "kami.db"
+# kami.db mora na pasta de dados do usuário (get_data_dir), não mais
+# fixo em "ao lado do código" — ver app/paths.py pro motivo (fase
+# 15.8, sidecar/PyInstaller). schema.sql continua relativo ao próprio
+# módulo: é um arquivo empacotado junto do binário (read-only), não
+# dado do usuário, então pode seguir __file__ normalmente.
+DB_PATH = get_data_dir() / "kami.db"
 SCHEMA_PATH = APP_DIR / "schema.sql"
 
 # atributos finais e fechados (decisão 13) — carreira fica is_active=1

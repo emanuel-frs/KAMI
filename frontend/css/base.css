@@ -11,7 +11,20 @@ body {
   line-height: 1.6;
   position: relative;
 }
-/* textura sutil de scanline, decisão de design (seção 11 do projeto) */
+/* textura sutil de scanline, decisão de design (seção 11 do projeto)
+ *
+ * Era um repeating-linear-gradient com stops de 1px, que renderiza
+ * bonito no Chrome/Firefox mas fica com linhas grossas e borradas no
+ * WebKitGTK (compositor do Tauri no Linux) — o motor não trata os
+ * stops sub-pixel do gradient do mesmo jeito, e o resultado
+ * "engorda" as linhas em vez de manter 1px nítido.
+ *
+ * Troquei pra uma imagem SVG tile (1x3px, mesmo padrão 1px
+ * "aceso"/2px transparente e a mesma opacidade 0.018 de antes) com
+ * background-size batendo exatamente 1:1 com o tamanho nativo do
+ * SVG — sem nenhuma escala envolvida, então não tem o que o
+ * WebKitGTK possa interpretar diferente/borrar.
+ */
 body::before {
   content: "";
   position: fixed;
@@ -19,13 +32,9 @@ body::before {
   right: 0;
   bottom: 0;
   left: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.018) 0px,
-    rgba(255, 255, 255, 0.018) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxJyBoZWlnaHQ9JzMnIHNoYXBlLXJlbmRlcmluZz0nY3Jpc3BFZGdlcyc+PHJlY3Qgd2lkdGg9JzEnIGhlaWdodD0nMScgZmlsbD0nI2ZmZmZmZicgZmlsbC1vcGFjaXR5PScwLjAxOCcvPjwvc3ZnPg==");
+  background-repeat: repeat;
+  background-size: 1px 3px;
   pointer-events: none;
   z-index: 999;
 }

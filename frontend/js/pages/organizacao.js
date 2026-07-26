@@ -25,6 +25,7 @@
  *     registrado como próxima melhoria, não implementado agora
  */
 import * as api from "../api/organizacao.js";
+import { openExternal } from "../components/open-external.js";
 
 const state = {
   tab: "links",
@@ -230,7 +231,7 @@ function bindEvents(container) {
     if (action === "delete-github-token") handleDeleteGithubToken();
 
     const openLink = e.target.closest("[data-open-link]")?.dataset.openLink;
-    if (openLink) window.open(openLink, "_blank");
+    if (openLink) openExternal(openLink);
 
     const linkId = e.target.closest("[data-delete-link]")?.dataset.deleteLink;
     if (linkId) handleDeleteLink(linkId);
@@ -274,7 +275,7 @@ function orgSearchOpen() {
   const input = rootEl.querySelector("#org-search");
   const v = input.value.trim();
   if (!v) return;
-  window.open("https://duckduckgo.com/?q=" + encodeURIComponent(v), "_blank");
+  openExternal("https://duckduckgo.com/?q=" + encodeURIComponent(v));
 }
 
 /* ==================== links ==================== */

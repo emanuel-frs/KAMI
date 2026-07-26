@@ -10,12 +10,16 @@ projeto: app single-user, 100% local, sem exposição externa).
 
 .secret_key deve entrar no .gitignore junto com kami.db.
 """
-from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
+from app.paths import get_data_dir
 
-APP_DIR = Path(__file__).parent
-BACKEND_DIR = APP_DIR.parent
-KEY_PATH = BACKEND_DIR / ".secret_key"
+# .secret_key mora na pasta de dados do usuário (get_data_dir), não
+# mais fixo em "ao lado do código" — mesmo motivo do DB_PATH em
+# database.py (fase 15.8, sidecar/PyInstaller): o diretório do
+# executável --onefile é temporário e é apagado a cada saída. Se a
+# chave "resetasse" a cada abertura do app, toda senha de e-mail já
+# criptografada ficaria irrecuperável (InvalidToken pra sempre).
+KEY_PATH = get_data_dir() / ".secret_key"
 
 
 def _load_or_create_key() -> bytes:
