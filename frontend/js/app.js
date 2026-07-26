@@ -3,6 +3,7 @@ import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
+import { openSetupModal } from "./modals/setup-modal.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
@@ -84,14 +85,21 @@ async function loadProfile() {
 async function boot() {
   wireNav();
   await loadProfile();
-  await showPage("perfil"); // tela inicial
+  await showPage("núcleo"); // tela inicial
 
-  // item 15.6 (decisão 25): abre sozinho só na primeira vez — depois de
-  // fechado (qualquer forma), profile.js marca onboarding_completed=true
-  // no backend e o app para de mostrar isso automaticamente. Reaberto
-  // manualmente depois via "ver tutorial novamente" no widget de perfil.
   const profile = store.get("profile");
-  if (profile && !profile.onboarding_completed) {
+  if (!profile) return;
+
+  const isFirstRun =
+    !profile.onboarding_completed &&
+    (!profile.display_name || profile.display_name === "usuário") &&
+    !profile.avatar_ascii;
+
+  if (isFirstRun) {
+    openSetupModal(() => {
+      openOnboardingModal();
+    });
+  } else if (!profile.onboarding_completed) {
     openOnboardingModal();
   }
 }
