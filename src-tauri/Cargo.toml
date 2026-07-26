@@ -1,6 +1,6 @@
 [package]
 name = "kami"
-version = "1.0.0"
+version = "1.1.0"
 description = "Kami — sistema pessoal de organização gamificada, 100% local"
 edition = "2021"
 
