@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { escapeHtml } from "../components/format.js";
 import { openDebtModal } from "../modals/debt-modal.js";
-import { showErrorModal } from "../modals/err-model.js";
+import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
 

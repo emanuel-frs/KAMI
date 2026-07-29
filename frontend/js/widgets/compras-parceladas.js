@@ -1,7 +1,7 @@
 import * as walletApi from "../api/wallet.js";
 import { escapeHtml } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
-import { showErrorModal } from "../modals/err-model.js";
+import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 
 /**

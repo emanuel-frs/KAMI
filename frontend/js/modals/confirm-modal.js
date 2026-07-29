@@ -1,7 +1,7 @@
 /**
  * Modal genérico de confirmação — substitui confirm(...) nos fluxos de
  * remoção/ações destrutivas. Mesmo padrão singleton dos outros modais
- * (ver err-model.js): DOM construído uma vez, reaproveitado depois.
+ * (ver err-modal.js): DOM construído uma vez, reaproveitado depois.
  *
  * Diferente dos outros modais, esse devolve uma Promise<boolean> —
  * resolve `true` se o usuário confirmar, `false` se cancelar/fechar.

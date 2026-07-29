@@ -5,7 +5,7 @@ import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
 import { openOnboardingModal } from "../modals/onboarding-modal.js";
-import { showErrorModal } from "../modals/err-model.js";
+import { showErrorModal } from "../modals/err-modal.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 

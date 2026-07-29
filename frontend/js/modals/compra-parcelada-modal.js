@@ -1,5 +1,5 @@
 import * as walletApi from "../api/wallet.js";
-import { showErrorModal } from "./err-model.js";
+import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 
 /**

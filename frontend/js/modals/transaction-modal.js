@@ -1,5 +1,5 @@
 import * as financasApi from "../api/financas.js";
-import { showErrorModal } from "./err-model.js";
+import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 
 /**
