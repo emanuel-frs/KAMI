@@ -9,6 +9,21 @@ nível até sobrar o resto que ainda não fechou o próximo nível.
 """
 import math
 
+# ---------------------------------------------------------------------------
+# PONTO DE EXTENSÃO (pós-mvp, deliberadamente adiado): decadência de XP por
+# atributo, pra atributos "esquecidos" perderem XP com o tempo em vez de só
+# acumular pra sempre.
+#
+# Quando for implementar, a atividade por atributo já é rastreável sem
+# migração: junte attributes -> action_log_attributes -> action_logs.created_at
+# (ver actions.py) pra achar a última ação de cada atributo, em vez de
+# adicionar uma coluna `last_activity_at` redundante em `attributes`. A
+# decadência entraria como uma função pura aqui (tipo `decay_xp(current_xp,
+# days_inactive) -> int`), chamada sob demanda no GET do atributo (ou num job
+# de manutenção no startup) — nunca recalculando o histórico de action_logs
+# já gravado.
+# ---------------------------------------------------------------------------
+
 
 def xp_for_level(level: int) -> int:
     return round(100 * math.pow(level, 1.3))

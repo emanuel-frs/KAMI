@@ -1,5 +1,5 @@
 import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
-import { showErrorModal } from "./err-model.js";
+import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 

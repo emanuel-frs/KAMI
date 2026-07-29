@@ -1,7 +1,7 @@
 import { imageToAscii, fitAsciiText } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
 import * as walletApi from "../api/wallet.js";
-import { showErrorModal } from "./err-model.js";
+import { showErrorModal } from "./err-modal.js";
 
 /**
  * Modal "nova conta" / "editar conta" (decisão 18 — modais são o padrão
