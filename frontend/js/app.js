@@ -2,8 +2,10 @@ import { getProfile } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
+import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openSetupModal } from "./modals/setup-modal.js";
+import { openSettingsModal } from "./modals/settings-modal.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
@@ -42,6 +44,13 @@ function wireNav() {
     if (el.classList.contains("disabled")) return; // pós-mvp
     el.addEventListener("click", () => showPage(el.dataset.page));
   });
+}
+
+function wireSettingsButton() {
+  const btn = document.getElementById("btn-open-settings");
+  if (!btn) return;
+  btn.innerHTML = icon("settings", { size: 14 });
+  btn.addEventListener("click", () => openSettingsModal());
 }
 
 async function loadProfile() {
@@ -84,8 +93,9 @@ async function loadProfile() {
 
 async function boot() {
   wireNav();
+  wireSettingsButton();
   await loadProfile();
-  await showPage("núcleo"); // tela inicial
+  await showPage("nucleo"); // tela inicial
 
   const profile = store.get("profile");
   if (!profile) return;

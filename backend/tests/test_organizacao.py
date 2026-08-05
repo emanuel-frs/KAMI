@@ -394,3 +394,124 @@ def test_list_email_cache_filters_by_is_read(client, isolated_fernet_key, mock_i
     unread = client.get("/api/organizacao/email-cache", params={"is_read": False}).json()
     assert len(unread) == 1
     assert unread[0]["subject"] == "não lido"
+
+
+# ==================== busca (tavily) ====================
+# reaproveita mock_github_urlopen: ele mocka
+# app.routers.organizacao.urllib.request.urlopen, que é exatamente o
+# que _tavily_request usa também — não precisa de um fixture próprio.
+
+
+def test_search_key_status_defaults_to_not_configured(client):
+    resp = client.get("/api/organizacao/search-key")
+    assert resp.status_code == 200
+    assert resp.json() == {"configured": False}
+
+
+def test_save_search_key_validates_against_api_before_saving(
+    client, isolated_fernet_key, mock_github_urlopen
+):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    resp = client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+    assert resp.status_code == 200
+    assert resp.json() == {"configured": True}
+    assert client.get("/api/organizacao/search-key").json() == {"configured": True}
+
+
+def test_save_search_key_invalid_key_returns_422_and_does_not_save(
+    client, isolated_fernet_key, mock_github_urlopen
+):
+    mock_github_urlopen(http_error_code=401)
+    resp = client.put("/api/organizacao/search-key", json={"api_key": "chave-ruim"})
+    assert resp.status_code == 422
+    assert client.get("/api/organizacao/search-key").json() == {"configured": False}
+
+
+def test_save_search_key_empty_returns_422(client):
+    resp = client.put("/api/organizacao/search-key", json={"api_key": "   "})
+    assert resp.status_code == 422
+
+
+def test_delete_search_key(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+    resp = client.delete("/api/organizacao/search-key")
+    assert resp.status_code == 204
+    assert client.get("/api/organizacao/search-key").json() == {"configured": False}
+
+
+def test_search_without_key_configured_returns_422(client):
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 422
+
+
+def test_search_returns_answer_and_results(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})  # validação da chave
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    mock_github_urlopen(
+        json_body={
+            "answer": "python é uma linguagem de programação.",
+            "results": [
+                {"title": "Python", "url": "https://python.org", "content": "site oficial"},
+                {"title": "", "url": "https://exemplo.com/py", "content": None},
+            ],
+        }
+    )
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["query"] == "python"
+    assert body["answer"] == "python é uma linguagem de programação."
+    assert len(body["results"]) == 2
+    assert body["results"][0] == {
+        "title": "Python", "url": "https://python.org", "snippet": "site oficial",
+    }
+    # sem título vindo da api: cai pra própria url
+    assert body["results"][1]["title"] == "https://exemplo.com/py"
+
+
+def test_search_empty_query_returns_422(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    resp = client.get("/api/organizacao/search", params={"q": "   "})
+    assert resp.status_code == 422
+
+
+def test_search_invalid_key_returns_422(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    mock_github_urlopen(http_error_code=401)
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 422
+
+
+def test_search_rate_limited_returns_422(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    mock_github_urlopen(http_error_code=432)
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 422
+
+
+def test_search_network_failure_returns_502(client, isolated_fernet_key, mock_github_urlopen):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    mock_github_urlopen(url_error=True)
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 502
+
+
+def test_search_corrupted_key_returns_422(client, isolated_fernet_key, mock_github_urlopen, db_conn):
+    mock_github_urlopen(json_body={"answer": "ok", "results": []})
+    client.put("/api/organizacao/search-key", json={"api_key": "tvly-abc123"})
+
+    db_conn.execute("UPDATE search_settings SET api_key_enc = 'lixo-corrompido'")
+    db_conn.commit()
+
+    resp = client.get("/api/organizacao/search", params={"q": "python"})
+    assert resp.status_code == 422

@@ -5,6 +5,8 @@ export const listTracks = () => get("/api/aprendizado/tracks");
 export const createTrack = (data) => post("/api/aprendizado/tracks", data);
 export const updateTrack = (trackId, data) => put(`/api/aprendizado/tracks/${trackId}`, data);
 export const deleteTrack = (trackId) => del(`/api/aprendizado/tracks/${trackId}`);
+export const reorderTracks = (trackIds) =>
+  put(`/api/aprendizado/tracks/reorder`, { track_ids: trackIds });
 
 // marcos (milestones) de uma trilha
 export const listMilestones = (trackId) => get(`/api/aprendizado/tracks/${trackId}/milestones`);

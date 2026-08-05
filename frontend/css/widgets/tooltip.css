@@ -19,13 +19,27 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s, transform .12s;
-  z-index: 50;
+  /* acima de qualquer camada da sidebar (avatar, scanline de fundo
+     etc.) — a sidebar em si não cria stacking context, mas isso
+     garante a prioridade mesmo se algo ali ganhar position/opacity/
+     transform no futuro (o que criaria um) */
+  z-index: 1000;
 }
 [data-tooltip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* o botão de configurações fica no canto inferior direito da sidebar
+   (ver .sidebar-footer em base.css) — um tooltip centralizado nele
+   estouraria a borda direita e seria cortado pelo overflow-x: hidden
+   da sidebar. Ancora pela direita em vez de centralizar. */
+#btn-open-settings::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+#btn-open-settings:hover::after { transform: translateY(0); }
 
 .icon-btn-square {
   width: 26px; height: 26px;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0; font-size: 12px;
 }
-

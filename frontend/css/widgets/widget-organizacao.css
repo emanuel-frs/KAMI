@@ -259,9 +259,67 @@
 .source-dot.warn { background: var(--amber); }
 .source-dot.off { background: var(--red); }
 
-#org-search{
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
+.search-row input { flex: 1 1 auto; min-width: 0; }
+
+/* ── busca inline (org-search, ALINHAMENTO.md 4.1) ──────────────────────── */
+.search-panel {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-soft);
+  background: var(--card);
+}
+.search-loading { color: var(--text-faint); font-size: 11px; }
+.search-answer {
+  font-size: 13px;
+  color: var(--text-bright);
+  line-height: 1.55;
+  font-weight: 500;
+  padding: 2px 0 12px 10px;
+  margin-bottom: 12px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 1px dashed var(--border-soft);
+}
+.search-results-list { display: flex; flex-direction: column; opacity: 0.9; }
+.search-result-item {
+  padding: 6px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+  cursor: pointer;
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover .search-result-title { color: var(--accent); }
+.search-result-title { font-size: 10.5px; color: var(--text-dim); font-weight: 500; }
+.search-result-snippet {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-result-url {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 1px;
+  opacity: 0.6;
+}
+.search-fallback {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-soft);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.search-error-panel .search-error-msg { color: var(--red); font-size: 11px; margin-bottom: 4px; }
+.link-btn { color: var(--accent); cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
 
 .gh-token-badge {
   font-size: 9.5px;

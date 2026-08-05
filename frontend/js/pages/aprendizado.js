@@ -3,6 +3,7 @@ import {
   createTrack,
   updateTrack,
   deleteTrack,
+  reorderTracks,
   listMilestones,
   createMilestone,
   updateMilestone,
@@ -40,7 +41,21 @@ function computeVisualStates(list) {
 
 function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
   if (!list.length) {
-    return `<div class="empty-state" style="margin-top:12px;">nenhum módulo definido.</div>`;
+    // Mesmo canvas com altura limitada do estado populado (em vez de um
+    // texto solto que deixa um vão preto sem fim abaixo dele) — com um
+    // card tracejado no lugar de um módulo, convidando a adicionar um.
+    return `
+      <div class="roadmap-canvas" id="${listId}-canvas">
+        <div class="roadmap-canvas-scroll" id="${listId}-scroll">
+          <div class="roadmap-timeline roadmap-timeline-empty" id="${listId}">
+            <div class="roadmap-add-placeholder" id="${listId}-add-placeholder">
+              <span class="roadmap-add-plus">+</span>
+              <span>adicionar módulo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
   const states = computeVisualStates(list);
   let inner = '';
@@ -584,35 +599,44 @@ function renderTracks() {
     listEl.innerHTML = `<div class="empty-state">nenhuma trilha criada.</div>`;
     return;
   }
-  const sorted = [...tracks].sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = [...tracks].sort((a, b) => a.position - b.position);
   listEl.innerHTML = sorted.map(track => {
     const pct = track.progress_pct ?? 0;
     const isSelected = selectedTrackId === track.id;
     return `
       <div class="apr-track-item${isSelected ? " selected" : ""}" data-track-id="${track.id}">
-        <div class="apr-track-info">
-          <span class="apr-track-name">${escapeHtml(track.name)}</span>
-          <span class="apr-track-pct">${Math.round(pct)}%</span>
-        </div>
-        <div class="bar-track">
-          <div class="bar-fill" style="width:${pct}%;"></div>
+        <span class="apr-track-drag-dot" data-tooltip="arrastar">⠿</span>
+        <div class="apr-track-item-body">
+          <div class="apr-track-info">
+            <span class="apr-track-name">${escapeHtml(track.name)}</span>
+            <span class="apr-track-pct">${Math.round(pct)}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill alt" style="width:${pct}%;"></div>
+          </div>
         </div>
       </div>
     `;
   }).join("");
+  setupTracksDragAndDrop();
   if (selectedTrackId) {
     renderMilestones();
   } else {
     const header = containerEl.querySelector("#apr-detail-header");
     const body = containerEl.querySelector("#apr-detail-body");
-    if (header) header.innerHTML = '';
-    if (body) body.innerHTML = `<div class="empty-state">comece uma trilha de aprendizado</div>`;
+    // #apr-detail-header sempre desenha a própria borda mesmo vazio (sobra
+    // como uma barra sem conteúdo); escondendo de vez enquanto não há
+    // trilha selecionada, e sem a caixa tracejada do empty-state — só o
+    // texto solto, sem moldura nenhuma.
+    if (header) { header.innerHTML = ''; header.style.display = 'none'; }
+    if (body) body.innerHTML = `<div class="empty-state" style="border:none;">comece uma trilha de aprendizado</div>`;
   }
 }
 
 async function renderMilestones() {
   const headerEl = containerEl.querySelector("#apr-detail-header");
   const bodyEl = containerEl.querySelector("#apr-detail-body");
+  if (headerEl) headerEl.style.display = '';
   if (!selectedTrackId) {
     if (headerEl) headerEl.innerHTML = '';
     if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">selecione uma trilha</div>`;
@@ -653,6 +677,19 @@ async function renderMilestones() {
   bodyEl.innerHTML = html;
   enableCanvasPan(bodyEl.querySelector('#milestone-list-canvas'), bodyEl.querySelector('#milestone-list-scroll'));
 
+  const addPlaceholder = bodyEl.querySelector('#milestone-list-add-placeholder');
+  if (addPlaceholder) {
+    addPlaceholder.addEventListener('click', () => {
+      editingTrack = true;
+      renderMilestones();
+      const left = containerEl.querySelector('.apr-left');
+      if (left) left.style.display = 'none';
+      const grid = containerEl.querySelector('.apr-grid');
+      if (grid) grid.style.gridTemplateColumns = '1fr';
+      openNewMilestoneModal();
+    });
+  }
+
   bodyEl.querySelectorAll('#milestone-list .ms-checkbox').forEach(cb => {
     cb.addEventListener('change', async () => {
       const id = cb.dataset.id;
@@ -683,6 +720,7 @@ function renderTrackEditMode() {
   const bodyEl = containerEl.querySelector("#apr-detail-body");
   const track = getTrack(selectedTrackId);
   if (!track) return;
+  headerEl.style.display = '';
 
   // Cabeçalho do modo edição (sem botão expandir)
   headerEl.innerHTML = `
@@ -741,6 +779,14 @@ function renderTrackEditMode() {
   });
   bodyEl.innerHTML = html;
   enableCanvasPan(bodyEl.querySelector('#edit-milestone-list-canvas'), bodyEl.querySelector('#edit-milestone-list-scroll'));
+
+  const editAddPlaceholder = bodyEl.querySelector('#edit-milestone-list-add-placeholder');
+  if (editAddPlaceholder) {
+    editAddPlaceholder.addEventListener('click', () => {
+      expandedMilestoneId = null;
+      openNewMilestoneModal();
+    });
+  }
 
   // Eventos dos checkboxes
   bodyEl.querySelectorAll('#edit-milestone-list .ms-checkbox').forEach(cb => {
@@ -949,6 +995,97 @@ function setupDragAndDropEdit() {
       }
     });
   });
+}
+
+// Drag manual via mouse (não usa a API nativa de HTML5 drag-and-drop):
+// o WebKitGTK, engine usada pelo Tauri no Linux, tem suporte instável a
+// dragstart/dragover/drop — o item "levanta" mas o "drop" não dispara de
+// forma confiável, então a reordenação nunca chega a ser persistida.
+// Rastreando o mouse manualmente (mousedown no grip → mousemove no
+// window → mouseup) contornamos isso por completo, sem depender do
+// motor de drag nativo do WebView.
+function setupTracksDragAndDrop() {
+  const list = containerEl.querySelector('#apr-tracks-list');
+  if (!list) return;
+  list.querySelectorAll('.apr-track-drag-dot').forEach(dot => {
+    dot.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const item = dot.closest('.apr-track-item');
+      if (item) startTrackDrag(item, e);
+    });
+  });
+}
+
+// Mesmo padrão visual do drag de widgets (attachDragHandle em
+// js/widgets/grid.js): o item vira position:fixed e segue o cursor, e um
+// placeholder tracejado (.apr-track-placeholder, espelha .wg-placeholder)
+// ocupa o lugar vazio até soltar — em vez de só trocar o item de lugar
+// na lista sem indicar visualmente o espaço de destino.
+function startTrackDrag(item, startEvent) {
+  const list = containerEl.querySelector('#apr-tracks-list');
+  if (!list) return;
+
+  const rect = item.getBoundingClientRect();
+  const offsetX = startEvent.clientX - rect.left;
+  const offsetY = startEvent.clientY - rect.top;
+
+  const placeholder = document.createElement('div');
+  placeholder.className = 'apr-track-placeholder';
+  placeholder.style.height = `${rect.height}px`;
+  item.after(placeholder);
+
+  document.body.classList.add('kami-dragging');
+  item.classList.add('dragging');
+  item.style.position = 'fixed';
+  item.style.top = `${rect.top}px`;
+  item.style.left = `${rect.left}px`;
+  item.style.width = `${rect.width}px`;
+  item.style.zIndex = 1000;
+  item.style.pointerEvents = 'none';
+  document.body.appendChild(item);
+
+  const onMouseMove = (e) => {
+    item.style.top = `${e.clientY - offsetY}px`;
+    item.style.left = `${e.clientX - offsetX}px`;
+
+    const siblings = [...list.querySelectorAll('.apr-track-item')];
+    const after = siblings.find(el => {
+      const r = el.getBoundingClientRect();
+      return e.clientY < r.top + r.height / 2;
+    });
+    if (after) {
+      list.insertBefore(placeholder, after);
+    } else {
+      list.appendChild(placeholder);
+    }
+  };
+
+  const onMouseUp = async () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    document.body.classList.remove('kami-dragging');
+
+    item.style.position = '';
+    item.style.top = '';
+    item.style.left = '';
+    item.style.width = '';
+    item.style.zIndex = '';
+    item.style.pointerEvents = '';
+    item.classList.remove('dragging');
+    placeholder.replaceWith(item);
+
+    const ids = [...list.querySelectorAll('.apr-track-item')].map(el => el.dataset.trackId);
+    try {
+      tracks = await reorderTracks(ids);
+      renderTracks();
+    } catch (err) {
+      alert(`Erro ao reordenar trilhas: ${err.message}`);
+      renderTracks();
+    }
+  };
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
 }
 
 // ─── Carregar dados ──────────────────────────────────────────────────────
@@ -1279,7 +1416,7 @@ export async function mount(container) {
   setupListEvents();
 
   if (!selectedTrackId && tracks.length > 0) {
-    const sorted = [...tracks].sort((a, b) => a.name.localeCompare(b.name));
+    const sorted = [...tracks].sort((a, b) => a.position - b.position);
     selectedTrackId = sorted[0].id;
     await refreshMilestones();
     renderTracks();

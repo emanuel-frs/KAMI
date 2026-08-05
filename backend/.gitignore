@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 kami.db
 .secret_key
+build/
+dist/
