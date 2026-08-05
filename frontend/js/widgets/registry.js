@@ -1,181 +1,70 @@
 /**
- * Espelha app/widgets.py (backend) — é o mesmo catálogo fixo,
- * decisão 17 (agora com financas como 3ª tela configurável). Precisa
- * ficar em sync manualmente com o backend; o backend é sempre a fonte
- * de verdade pra validação (o frontend só usa isso pra render/clamp
- * otimista antes do round-trip da API e pra montar o popover de
- * "+ adicionar widget").
+ * Catálogo de widgets (decisão 17) — ALINHAMENTO.md 2.6.
  *
- * `component` é o caminho do módulo que sabe renderizar aquele
- * widget — carregado sob demanda (import dinâmico) por
- * js/widgets/grid.js, não importado tudo de uma vez aqui.
+ * Até aqui isso era uma cópia manual de app/widgets.py (backend), com
+ * o comentário admitindo "precisa ficar em sync manualmente com o
+ * backend". Agora os dados (label/screens/min_span/max_span/
+ * default_span/removable/cross_module) vêm de GET /api/widgets/catalog
+ * — o backend continua sendo a única fonte de verdade, inclusive pra
+ * validação (esse endpoint só espelha o que o backend já valida).
+ *
+ * `component` continua só aqui: é o caminho do módulo JS que sabe
+ * renderizar cada widget, carregado sob demanda (import dinâmico) por
+ * js/widgets/grid.js — não é algo que o backend tem como saber, então
+ * não faz sentido esse pedaço vir da API.
+ *
+ * WIDGET_CATALOG é exportado como o MESMO objeto sempre (nunca
+ * reatribuído) — loadWidgetCatalog() só preenche as chaves dele in
+ * place. Isso significa que quem importa `{ WIDGET_CATALOG }` (grid.js,
+ * dashboard.js) não precisa mudar nada: o binding do ES module já
+ * aponta pro objeto certo, só precisa estar vazio na primeira leitura
+ * síncrona (por isso createDashboardPage.mount() dá `await
+ * loadWidgetCatalog()` antes de qualquer coisa usar o catálogo).
  */
-export const WIDGET_CATALOG = {
-  profile: {
-    label: "widget de perfil (nome, cor, avatar)",
-    screens: ["perfil"],
-    removable: false,
-    min_span: 3,
-    max_span: 6,
-    default_span: 4,
-    component: "./profile.js",
-  },
-  attributes: {
-    label: "atributos — nível por área",
-    screens: ["nucleo", "perfil"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 2,
-    component: "./attributes.js",
-  },
-  priorities: {
-    label: "prioridades da semana",
-    screens: ["nucleo"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 2,
-    component: "./priorities.js",
-  },
-  log: {
-    label: "log recente",
-    screens: ["nucleo"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "./log.js",
-  },
-  registrar: {
-    label: "registrar ação",
-    screens: ["nucleo"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "./registrar.js",
-  },
-  achievements: {
-    label: "conquistas — galeria",
-    screens: ["nucleo", "perfil"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "./achievements.js",
-  },
-  org_notifications: {
-    label: "notificações — organização (não lidos)",
-    screens: ["nucleo", "perfil"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 2,
-    cross_module: true,
-    component: "./org-notifications.js",
-  },
-  // ---------------- financas / wallet ----------------
-  wallet: {
-    label: "wallet — bancos e contas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "./wallet.js",
-  },
-  financas_resumo: {
-    label: "resumo financeiro",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 4,
-    default_span: 2,
-    component: "./financas-resumo.js",
-  },
-  financas_registros: {
-    label: "registros financeiros",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "./financas-registros.js",
-  },
-  financas_assinaturas: {
-    label: "assinaturas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 1,
-    max_span: 4,
-    default_span: 3,
-    component: "./financas-assinaturas.js",
-  },
-  dividas: {
-    label: "dívidas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 1,
-    max_span: 4,
-    default_span: 2,
-    component: "./dividas.js",
-  },
-  contas_fixas: {
-    label: "contas fixas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 1,
-    max_span: 4,
-    default_span: 2,
-    component: "./contas-fixas.js",
-  },
-  compras_parceladas: {
-    label: "compras parceladas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 1,
-    max_span: 4,
-    default_span: 3,
-    component: "./compras-parceladas.js",
-  },
-  financas_grafico_fluxo: {
-    label: "gráfico — entradas vs saídas",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "../charts/financas-grafico-fluxo.js",
-  },
-  financas_grafico_categorias: {
-    label: "gráfico — gastos por categoria",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 4,
-    default_span: 3,
-    component: "../charts/financas-grafico-categorias.js",
-  },
-  financas_grafico_evolucao: {
-    label: "gráfico — evolução do saldo",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 6,
-    default_span: 4,
-    component: "../charts/financas-grafico-evolucao.js",
-  },
-  financas_grafico_limites: {
-    label: "gráfico — uso de limite",
-    screens: ["financas"],
-    removable: true,
-    min_span: 2,
-    max_span: 4,
-    default_span: 3,
-    component: "../charts/financas-grafico-limites.js",
-  },
+import { getCatalog } from "../api/widgets.js";
+
+const COMPONENT_PATHS = {
+  profile: "./profile.js",
+  attributes: "./attributes.js",
+  priorities: "./priorities.js",
+  log: "./log.js",
+  registrar: "./registrar.js",
+  achievements: "./achievements.js",
+  org_notifications: "./org-notifications.js",
+  wallet: "./wallet.js",
+  financas_resumo: "./financas-resumo.js",
+  financas_registros: "./financas-registros.js",
+  financas_assinaturas: "./financas-assinaturas.js",
+  dividas: "./dividas.js",
+  contas_fixas: "./contas-fixas.js",
+  compras_parceladas: "./compras-parceladas.js",
+  financas_grafico_fluxo: "../charts/financas-grafico-fluxo.js",
+  financas_grafico_categorias: "../charts/financas-grafico-categorias.js",
+  financas_grafico_evolucao: "../charts/financas-grafico-evolucao.js",
+  financas_grafico_limites: "../charts/financas-grafico-limites.js",
 };
+
+export const WIDGET_CATALOG = {};
+
+let _loadPromise = null;
+
+/**
+ * Busca o catálogo uma única vez por sessão (cacheado) e popula
+ * WIDGET_CATALOG in place. Chamadas subsequentes (ex: navegar entre
+ * perfil/núcleo/finanças, que compartilham createDashboardPage)
+ * reaproveitam a mesma promise em vez de refazer a requisição.
+ */
+export function loadWidgetCatalog() {
+  if (!_loadPromise) {
+    _loadPromise = getCatalog().then((backendCatalog) => {
+      for (const [type, def] of Object.entries(backendCatalog)) {
+        WIDGET_CATALOG[type] = { ...def, component: COMPONENT_PATHS[type] };
+      }
+      return WIDGET_CATALOG;
+    });
+  }
+  return _loadPromise;
+}
 
 export function isValidWidgetType(widgetType) {
   return widgetType in WIDGET_CATALOG;
