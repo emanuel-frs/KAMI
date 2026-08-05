@@ -112,6 +112,55 @@ def _migrate_user_profile_onboarding(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_tracks_position(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de `position` existir em tracks
+    (item 3.2, ordenação manual das trilhas na sidebar). Backfilla a partir
+    da ordem alfabética por nome — mesma ordem que a listagem já usava antes
+    desta mudança (`ORDER BY name`) — pra ninguém ver a sidebar embaralhar
+    na primeira abertura depois do update; a partir daí, a ordem vira 100%
+    manual (drag-and-drop).
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()]
+    if "position" in cols:
+        return
+    conn.execute("ALTER TABLE tracks ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+    rows = conn.execute("SELECT id FROM tracks ORDER BY name").fetchall()
+    for i, r in enumerate(rows):
+        conn.execute("UPDATE tracks SET position = ? WHERE id = ?", (i, r["id"]))
+    conn.commit()
+
+
+def _migrate_goals_v2(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes da v2 de Metas (peso, unit_label,
+    vínculo com conta/trilha). Bancos antigos ganham `weight='medio'`
+    (multiplicador 1x — não muda o xp de nenhuma meta já existente) e o
+    resto NULL, mesmo comportamento de hoje até o usuário editar/criar algo
+    novo. `CREATE TABLE IF NOT EXISTS` não altera uma tabela que já existe,
+    daí o ALTER TABLE manual de sempre.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(goals)").fetchall()]
+    if "weight" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN weight TEXT NOT NULL DEFAULT 'medio'")
+    if "unit_label" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN unit_label TEXT")
+    if "linked_conta_id" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN linked_conta_id TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL")
+    if "linked_track_id" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN linked_track_id TEXT REFERENCES tracks(id) ON DELETE SET NULL")
+    conn.commit()
+
+    gc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(goal_contributions)").fetchall()]
+    if "origem" not in gc_cols:
+        conn.execute("ALTER TABLE goal_contributions ADD COLUMN origem TEXT")
+    if "transaction_id" not in gc_cols:
+        conn.execute("ALTER TABLE goal_contributions ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL")
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -122,6 +171,8 @@ def init_db() -> None:
     _migrate_email_cache_body_preview(conn)
     _migrate_milestones_fields(conn)
     _migrate_user_profile_onboarding(conn)
+    _migrate_tracks_position(conn)
+    _migrate_goals_v2(conn)
 
     _seed_defaults(conn)
 

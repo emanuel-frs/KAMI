@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     name         TEXT NOT NULL,
     general_goal TEXT,
     status       TEXT NOT NULL DEFAULT 'ativa',  -- 'ativa' | 'pausada' | 'parada'
+    position     INTEGER NOT NULL DEFAULT 0,     -- ordem manual na sidebar (drag-and-drop, item 3.2)
     created_at   TEXT NOT NULL
 );
 
@@ -227,30 +228,44 @@ CREATE TABLE IF NOT EXISTS email_cache (
                                        -- o corpo original/HTML bruto, por segurança (XSS/tracking)
 );
 
--- ---------------- METAS PESSOAIS ----------------
+-- ---------------- METAS PESSOAIS (v2 — tipos, peso, financas+aprendizado) ----------------
 CREATE TABLE IF NOT EXISTS goals (
-    id             TEXT PRIMARY KEY,
-    title          TEXT NOT NULL,
-    type           TEXT NOT NULL,       -- 'financeira' | 'livre' ('academica' entra com Carreira, pós-mvp)
-    current_value  REAL NOT NULL DEFAULT 0,
-    target_value   REAL NOT NULL,
-    unit           TEXT NOT NULL DEFAULT 'count',  -- 'money' | 'count'
-    deadline       TEXT,
-    status         TEXT NOT NULL DEFAULT 'ativa'   -- 'ativa' | 'concluida'
+    id               TEXT PRIMARY KEY,
+    title            TEXT NOT NULL,
+    type             TEXT NOT NULL,       -- 'financeira' | 'livre' | 'saude' | 'leitura' | 'habito' |
+                                           -- 'aprendizado' ('academica' entra com Carreira, pós-mvp)
+    current_value    REAL NOT NULL DEFAULT 0,
+    target_value     REAL NOT NULL,
+    unit             TEXT NOT NULL DEFAULT 'count',  -- 'money' | 'count'
+    unit_label       TEXT,                 -- rótulo livre pro 'count' ("kg", "páginas", "vezes"...)
+    deadline         TEXT,
+    status           TEXT NOT NULL DEFAULT 'ativa',  -- 'ativa' | 'concluida'
+    weight           TEXT NOT NULL DEFAULT 'medio',  -- 'baixo' | 'medio' | 'alto' | 'epico' — multiplica o xp
+    linked_conta_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- só 'financeira' (conta padrão)
+    linked_track_id  TEXT REFERENCES tracks(id) ON DELETE SET NULL           -- só 'aprendizado'
 );
 
 CREATE TABLE IF NOT EXISTS goal_contributions (
-    id       TEXT PRIMARY KEY,
-    goal_id  TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
-    amount   REAL NOT NULL,
-    note     TEXT,
-    date     TEXT NOT NULL
+    id             TEXT PRIMARY KEY,
+    goal_id        TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    amount         REAL NOT NULL,
+    note           TEXT,
+    date           TEXT NOT NULL,
+    origem         TEXT,     -- 'conta' | 'externo' | NULL (metas não-financeiras não usam)
+    transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL  -- só quando origem = 'conta'
 );
 
 -- ---------------- CONFIGURAÇÃO GITHUB (token pessoal, opcional) ----------------
 CREATE TABLE IF NOT EXISTS github_settings (
     id         TEXT PRIMARY KEY,   -- linha única (mesmo padrão de user_profile)
     token_enc  TEXT,               -- fine-grained PAT, criptografado (mesmo esquema do IMAP)
+    updated_at TEXT
+);
+
+-- ---------------- CONFIGURAÇÃO BUSCA (chave da Tavily, obrigatória pra 4.1) ----------------
+CREATE TABLE IF NOT EXISTS search_settings (
+    id         TEXT PRIMARY KEY,   -- linha única (mesmo padrão de github_settings)
+    api_key_enc TEXT,              -- chave da Tavily, criptografada (mesmo esquema do IMAP/github)
     updated_at TEXT
 );
 
