@@ -80,9 +80,14 @@ Substitua os placeholders pelas tags de imagem reais, por exemplo:
   favicon público como ícone, projetos do GitHub via API pública, e
   e-mail via IMAP de verdade (múltiplas contas, sincronização sob
   demanda, texto puro sem HTML de terceiros por segurança).
-- **Metas Pessoais** — metas financeiras (vinculadas a um valor
-  alvo) e metas livres/personalizadas (contador simples), com
-  histórico de contribuições e XP bônus ao concluir.
+- **Metas Pessoais** — seis tipos de meta (financeira, livre, saúde,
+  leitura, hábito e aprendizado), cada uma com peso configurável
+  (baixo/médio/alto/épico) que multiplica o XP ganho; metas
+  financeiras podem contribuir a partir de uma conta real do Wallet
+  (gerando uma transação de saída de verdade) ou como contribuição
+  externa; metas do tipo aprendizado ficam vinculadas a uma trilha e
+  progridem sozinhas conforme os módulos são concluídos; histórico de
+  contribuições com gráfico de progresso.
 - **Onboarding** — tour interativo em modais sequenciais na
   primeira execução, com mini-ilustrações estáticas por conceito do
   sistema; pode ser reaberto a qualquer momento pelas configurações.
@@ -188,7 +193,8 @@ kami/
 │   │   ├── widgets.py         # catálogo de widgets do dashboard
 │   │   ├── schema.sql
 │   │   └── routers/           # perfil, nucleo, financas, wallet,
-│   │                          # aprendizado, organizacao, metas, dashboard
+│   │                          # aprendizado, organizacao, metas,
+│   │                          # dashboard, system
 │   ├── tests/
 │   ├── run_server.py          # entrypoint do backend empacotado (sidecar)
 │   ├── kami-backend.spec      # spec do PyInstaller

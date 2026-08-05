@@ -66,14 +66,6 @@ export function loadWidgetCatalog() {
   return _loadPromise;
 }
 
-export function isValidWidgetType(widgetType) {
-  return widgetType in WIDGET_CATALOG;
-}
-
-export function screensFor(widgetType) {
-  return WIDGET_CATALOG[widgetType]?.screens ?? [];
-}
-
 /** Widgets do catálogo permitidos numa tela específica (pro popover de "+ adicionar"). */
 export function widgetsForScreen(screen) {
   return Object.entries(WIDGET_CATALOG)
