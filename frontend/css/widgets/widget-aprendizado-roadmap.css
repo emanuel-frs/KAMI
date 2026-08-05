@@ -89,21 +89,78 @@
 
 /* Estilo dos itens da lista (mantido) */
 .apr-track-item {
-  padding: 8px 4px;
-  border-bottom: 1px dashed var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--border-soft);
+  background: var(--bg-alt);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: border-color 0.15s, background 0.1s;
 }
 .apr-track-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 .apr-track-item:hover {
+  border-color: var(--accent-dim);
+  border-left-color: var(--accent-dim);
   background: rgba(255, 255, 255, 0.04);
 }
 .apr-track-item.selected {
-  background: rgba(255, 255, 255, 0.08);
-  border-left: 3px solid var(--accent);
-  padding-left: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--accent-dim);
+  border-left-color: var(--accent);
+}
+
+.apr-track-drag-dot {
+  color: var(--text-faint);
+  cursor: grab;
+  flex-shrink: 0;
+  font-size: 12px;
+  user-select: none;
+}
+.apr-track-drag-dot:hover {
+  color: var(--accent);
+}
+/* .apr-left tem overflow-y: auto, o que implicitamente vira
+   overflow-x: auto também — um tooltip centralizado no drag-dot (que
+   fica coladinho na borda esquerda do item) estoura o painel e é
+   cortado. Mesmo problema/solução do #btn-open-settings em
+   tooltip.css: ancora pela esquerda em vez de centralizar. */
+.apr-track-drag-dot::after {
+  left: 0;
+  transform: translateY(4px);
+}
+.apr-track-drag-dot:hover::after {
+  transform: translateY(0);
+}
+
+/* item "flutuante" durante o drag — mesmo visual do .card.dragging-card
+   (card-base.css) usado no grid de widgets */
+.apr-track-item.dragging {
+  background: var(--card);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .5);
+  border-color: var(--accent-dim);
+  opacity: .96;
+}
+.apr-track-item.dragging .apr-track-drag-dot {
+  cursor: grabbing;
+}
+
+/* espaço vazio tracejado que marca onde a trilha vai cair — espelha
+   .wg-placeholder (css/widgets/grid.css) usado no drag dos widgets */
+.apr-track-placeholder {
+  border: 1px dashed var(--accent-dim);
+  background: var(--bg-alt);
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.apr-track-item-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .apr-track-info {
@@ -113,7 +170,8 @@
   margin-bottom: 2px;
 }
 .apr-track-name {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-dim);
 }
 .apr-track-item.selected .apr-track-name {
@@ -285,6 +343,34 @@ textarea {
   align-items: center;   /* centraliza os blocos, não estica mais full-width */
   padding: 36px 20px 56px;
   min-height: 100%;
+}
+
+/* canvas vazio (sem módulos): centraliza o card de "adicionar" no meio
+   da mesma área que os módulos populados ocupam, em vez de deixar o
+   texto colado no topo com um vão vazio embaixo */
+.roadmap-timeline-empty {
+  justify-content: center;
+  padding: 20px;
+}
+
+.roadmap-add-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border: 1px dashed var(--border-soft);
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.roadmap-add-placeholder:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.roadmap-add-plus {
+  font-size: 14px;
+  line-height: 1;
 }
 
 .roadmap-node {
@@ -559,4 +645,3 @@ textarea {
   white-space: nowrap;
   max-width: 100%;
 }
-

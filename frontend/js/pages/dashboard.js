@@ -1,6 +1,6 @@
 import { getLayout, saveLayout } from "../api/dashboard.js";
 import { initGrid, availableToAdd } from "../widgets/grid.js";
-import { WIDGET_CATALOG } from "../widgets/registry.js";
+import { WIDGET_CATALOG, loadWidgetCatalog } from "../widgets/registry.js";
 
 /**
  * Perfil e Núcleo são as duas únicas telas com dashboard configurável
@@ -68,6 +68,12 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   async function mount(container) {
+    // precisa estar resolvido antes de qualquer leitura de WIDGET_CATALOG
+    // abaixo (withRequiredWidgets, initGrid, popover) — cacheado em
+    // registry.js, então navegar entre perfil/núcleo/finanças não refaz
+    // a requisição depois da primeira vez
+    await loadWidgetCatalog();
+
     const headHtml = title
       ? `
         <div class="page-head">
