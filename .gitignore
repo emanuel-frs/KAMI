@@ -34,3 +34,5 @@ Thumbs.db
 
 # ── frontend (caso alguma ferramenta de dev entre no futuro) ───────
 node_modules/
+backend/build/
+backend/dist/
