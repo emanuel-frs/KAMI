@@ -29,6 +29,11 @@
  */
 import * as api from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
+import { icon } from "../components/icons.js";
+import { store } from "../state/store.js";
+import { maybeStartOrganizacaoTips, replayOrganizacaoTips } from "./organizacao-tips.js";
+import { cancelActiveTipSequence } from "../components/tip-sequence.js";
+import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 const state = {
   tab: "links",
@@ -47,6 +52,9 @@ const state = {
 
 let rootEl = null;
 let clickHandler = null;
+// dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/finanças/metas
+let unsubscribeProfile = null;
+let currentReplayFn = null;
 
 export async function mount(container) {
   rootEl = container;
@@ -65,9 +73,21 @@ export async function mount(container) {
   renderEmails();
   renderGithubTokenBadge();
   renderSearchKeyBadge();
+
+  maybeStartOrganizacaoTips();
+  unsubscribeProfile = store.subscribe("profile", () => maybeStartOrganizacaoTips());
+
+  // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
+  currentReplayFn = () => replayOrganizacaoTips();
+  registerScreenTipsReplay(currentReplayFn);
 }
 
 export function unmount() {
+  cancelActiveTipSequence();
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+  if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
+  currentReplayFn = null;
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
@@ -86,7 +106,8 @@ function template() {
     <div class="search-row">
       <input type="text" id="org-search" placeholder="buscar na web...">
       <button class="btn sm" data-action="org-search">buscar</button>
-      <span id="org-search-key-badge" class="gh-token-badge" style="cursor:pointer;" data-action="open-search-key-modal" title="configurar chave de busca">⚙</span>
+      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca">${icon("x", { size: 13 })}</button>
+      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca">${icon("key", { size: 13 })}</button>
     </div>
     <div id="org-search-results"></div>
 
@@ -248,6 +269,7 @@ function bindEvents(container) {
   clickHandler = (e) => {
     const action = e.target.closest("[data-action]")?.dataset.action;
     if (action === "org-search") orgSearchRun();
+    if (action === "org-search-clear") orgSearchClear();
     if (action === "open-link-modal") openLinkModal();
     if (action === "close-link-modal") closeLinkModal();
     if (action === "save-link") handleAddLink();
@@ -293,7 +315,7 @@ function bindEvents(container) {
   container.addEventListener("click", clickHandler);
 }
 
-function switchTab(tab) {
+export function switchTab(tab) {
   state.tab = tab;
   rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
   rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
@@ -361,6 +383,20 @@ async function handleDeleteSearchKey() {
 
 function orgSearchDuckDuckGoUrl(q) {
   return "https://duckduckgo.com/?q=" + encodeURIComponent(q);
+}
+
+// botão "✕" ao lado de "buscar" — limpa o texto digitado e qualquer
+// resultado/erro já exibido, sem esperar uma nova busca. Reaproveita
+// renderSearchResults() (mesma função usada após uma busca) já que
+// zerar os três campos de estado (searchResult/searchError/searching)
+// faz ela cair no ramo `if (!state.searchResult) wrap.innerHTML = ""`.
+function orgSearchClear() {
+  const input = rootEl.querySelector("#org-search");
+  if (input) input.value = "";
+  state.searching = false;
+  state.searchResult = null;
+  state.searchError = null;
+  renderSearchResults();
 }
 
 async function orgSearchRun() {

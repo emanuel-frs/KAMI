@@ -142,6 +142,12 @@ a { color: var(--text-bright); }
   justify-content: space-between;
   gap: 10px;
 }
+.sidebar-footer-actions {
+  position: relative; /* âncora do popover do botão de ajuda — ver help-menu.css */
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
 .mini-avatar {
   font-family: var(--font); font-size: 7px; line-height: 1.1; color: var(--accent);
   white-space: pre; margin: 0;

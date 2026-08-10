@@ -14,6 +14,10 @@ import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { renderProgressChart } from "../charts/metas-grafico-progresso.js";
+import { store } from "../state/store.js";
+import { maybeStartMetasTips, replayMetasTips } from "./metas-tips.js";
+import { cancelActiveTipSequence } from "../components/tip-sequence.js";
+import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
@@ -47,6 +51,12 @@ let goals = [];
 // sobreviver a re-renders (ex: depois de uma contribuição), senão o
 // painel fecharia sozinho toda vez que a lista é atualizada
 let openProgressGoalIds = new Set();
+// dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/finanças:
+// unsubscribeProfile cobre a corrida do primeiro boot (tela pode montar
+// antes do onboarding geral terminar), currentReplayFn é o que fica
+// registrado pro botão de ajuda global chamar via "rever dicas desta tela".
+let unsubscribeProfile = null;
+let currentReplayFn = null;
 
 // ─── helpers de formatação ─────────────────────────────────────────────────
 function fmtDeadline(iso) {
@@ -626,19 +636,31 @@ export async function mount(container) {
       <button type="button" class="btn sm push" id="goals-add-btn">+ nova meta</button>
     </div>
 
-    <div class="goals-section-label">ativas</div>
+    <div class="goals-section-label" id="goals-section-active">ativas</div>
     <div class="goals-grid" id="goals-grid-active"><div class="empty-state">carregando…</div></div>
 
-    <div class="goals-section-label">histórico — metas concluídas</div>
+    <div class="goals-section-label" id="goals-section-done">histórico — metas concluídas</div>
     <div class="goals-grid" id="goals-grid-done"></div>
   `;
 
   container.querySelector("#goals-add-btn").addEventListener("click", openCreateGoalModal);
 
   await refreshGoals();
+
+  maybeStartMetasTips();
+  unsubscribeProfile = store.subscribe("profile", () => maybeStartMetasTips());
+
+  // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
+  currentReplayFn = () => replayMetasTips();
+  registerScreenTipsReplay(currentReplayFn);
 }
 
 export function unmount() {
+  cancelActiveTipSequence();
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+  if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
+  currentReplayFn = null;
   closeGoalModal();
   closeContributeModal();
   containerEl = null;

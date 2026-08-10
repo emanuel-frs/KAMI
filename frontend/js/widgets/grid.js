@@ -654,7 +654,22 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     }
   }
 
-  return { destroy, setWidgets };
+  /**
+   * Trava/destrava drag, resize e remoção de widgets — usado pela
+   * sequência de dicas contextuais (etapa 5) enquanto ela aponta pra um
+   * card específico, pra evitar que o usuário mexa no grid no meio do
+   * tour. Só CSS (ver .wg-tips-locked em card-base.css): não interfere
+   * na lógica de drag/resize já existente, só bloqueia o ponto de
+   * entrada (pointerdown nos handles).
+   */
+  function lockForTips() {
+    container.classList.add("wg-tips-locked");
+  }
+  function unlockForTips() {
+    container.classList.remove("wg-tips-locked");
+  }
+
+  return { destroy, setWidgets, lockForTips, unlockForTips };
 }
 
 /**

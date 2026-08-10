@@ -2,10 +2,14 @@ import { getProfile } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
+import { playBootSplash } from "./components/boot-splash.js";
 import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
-import { openSetupModal } from "./modals/setup-modal.js";
+import { openKamiIntro } from "./modals/kami-intro.js";
 import { openSettingsModal } from "./modals/settings-modal.js";
+import { wireHelpButton } from "./modals/help-menu.js";
+import { maybeShowBackupReminder } from "./components/backup-reminder.js";
+import { wireModalEscapeClose } from "./components/modal-escape.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
@@ -92,10 +96,18 @@ async function loadProfile() {
 }
 
 async function boot() {
+  // splash roda em todo boot (assinatura visual, não é gate de primeira
+  // vez) — dispara em paralelo com o carregamento real, pra tela já
+  // estar pronta por baixo quando ela terminar/for pulada.
+  const splashDone = playBootSplash();
+
   wireNav();
   wireSettingsButton();
+  wireHelpButton();
+  wireModalEscapeClose();
   await loadProfile();
   await showPage("nucleo"); // tela inicial
+  await splashDone;
 
   const profile = store.get("profile");
   if (!profile) return;
@@ -106,11 +118,16 @@ async function boot() {
     !profile.avatar_ascii;
 
   if (isFirstRun) {
-    openSetupModal(() => {
+    openKamiIntro(() => {
       openOnboardingModal();
     });
   } else if (!profile.onboarding_completed) {
     openOnboardingModal();
+  } else {
+    // só considera lembrar de backup fora do primeiro boot — ver
+    // components/backup-reminder.js pro critério (nunca fez export,
+    // ou já faz tempo desde o último).
+    maybeShowBackupReminder(profile);
   }
 }
 

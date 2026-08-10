@@ -1,0 +1,66 @@
+/* Sequência de dicas contextuais (etapa 5, plano-onboarding-kami.md).
+   Reutiliza .btn de forms.css e os tokens de cor padrão — não é um
+   estilo à parte, só a mecânica de spotlight (ver tip-sequence.js). */
+
+.tip-seq-root {
+  position: fixed;
+  inset: 0;
+  z-index: 260; /* acima de .modal-backdrop (200), abaixo de kami-intro (300) */
+  pointer-events: none; /* só os filhos com pointer-events:auto bloqueiam */
+}
+
+.tip-shade {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.72);
+  pointer-events: auto;
+}
+
+.tip-highlight {
+  position: fixed;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  pointer-events: none;
+}
+
+.tip-balloon {
+  position: fixed;
+  pointer-events: auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  padding: 12px 14px;
+}
+.tip-balloon-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tip-step-label {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.tip-skip {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.tip-skip:hover { color: var(--red); }
+
+.tip-text {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.tip-balloon-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.tip-interact-hint {
+  font-size: 10.5px;
+  color: var(--accent);
+  font-style: italic;
+}

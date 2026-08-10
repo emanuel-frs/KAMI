@@ -22,6 +22,7 @@ class ProfileOut(BaseModel):
     accent_color: str
     avatar_ascii: Optional[str] = None
     onboarding_completed: bool
+    last_backup_at: Optional[str] = None
     updated_at: str
 
 
@@ -36,6 +37,10 @@ class AvatarUpdate(BaseModel):
 
 class OnboardingUpdate(BaseModel):
     completed: bool
+
+
+class ScreenTipsOut(BaseModel):
+    seen: list[str]
 
 
 def _get_profile_row(db):
@@ -91,3 +96,34 @@ def update_onboarding(payload: OnboardingUpdate, db=Depends(get_db)):
     )
     db.commit()
     return dict(_get_profile_row(db))
+
+
+@router.get("/tips", response_model=ScreenTipsOut)
+def get_screen_tips_seen(db=Depends(get_db)):
+    """
+    Etapa 5 (plano-onboarding-kami.md): granularidade por tela, separada
+    do onboarding_completed acima (que é só o tour geral). Devolve as
+    telas cuja sequência de dicas contextuais já foi vista ou pulada —
+    o frontend usa isso pra decidir se dispara a sequência automática
+    ao entrar numa tela pela primeira vez.
+    """
+    rows = db.execute("SELECT screen FROM screen_tips_seen").fetchall()
+    return {"seen": [r["screen"] for r in rows]}
+
+
+@router.put("/tips/{screen}", response_model=ScreenTipsOut)
+def mark_screen_tips_seen(screen: str, db=Depends(get_db)):
+    """
+    Marca uma tela como vista (idempotente — INSERT OR REPLACE). Chamado
+    ao concluir ou pular a sequência de dicas contextuais dessa tela.
+    Reabrir manualmente via botão de ajuda ("rever dicas desta tela",
+    etapa 6) NÃO chama isso de novo — mesma lógica do onboarding geral:
+    reabrir por vontade própria não deve alterar o que já foi marcado.
+    """
+    db.execute(
+        "INSERT OR REPLACE INTO screen_tips_seen (screen, seen_at) VALUES (?, ?)",
+        (screen, now_iso()),
+    )
+    db.commit()
+    rows = db.execute("SELECT screen FROM screen_tips_seen").fetchall()
+    return {"seen": [r["screen"] for r in rows]}

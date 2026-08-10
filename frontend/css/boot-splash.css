@@ -1,0 +1,39 @@
+/* ---------- boot splash (plano-onboarding-kami.md, etapa 1) ----------
+   Tela cheia preta com "kami" em ASCII, tocada em todo boot do app.
+   z-index abaixo da textura de scanline do body (999, base.css) pra
+   receber o mesmo tratamento visual do resto do app; acima de tudo o
+   mais (titlebar, sidebar, modais). */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+.boot-splash.open { opacity: 1; }
+.boot-splash.closing { opacity: 0; }
+
+.boot-splash-art {
+  margin: 0;
+  font-family: var(--font);
+  font-size: clamp(12px, 2.1vw, 22px);
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: pre;
+  color: var(--accent);
+  user-select: none;
+}
+
+.boot-char {
+  color: var(--text-faint);
+  transition: color 120ms ease;
+}
+.boot-char--on { color: var(--text-dim); }
+.boot-char--settled { color: var(--accent); }

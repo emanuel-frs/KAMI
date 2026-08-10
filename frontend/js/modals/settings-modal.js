@@ -52,6 +52,7 @@ function buildModal() {
         <div class="settings-section settings-warning">
           <h4>importar dados</h4>
           <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
+          <p class="settings-note">nota: senha de e-mail, token do github e chave de busca são salvos criptografados com uma chave que fica só nesta instalação. se este backup for de <strong>outra máquina</strong>, esses três campos não vêm junto — o resto dos dados restaura normalmente, mas você vai precisar reconfigurar essas credenciais em organização.</p>
           <div class="field">
             <label>arquivo de backup (.json)</label>
             <input type="file" id="sm-import-file" accept="application/json,.json">

@@ -264,8 +264,47 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+  /* input define a altura de referência da linha — botão "buscar" e os
+     dois quadrados (limpar/chave) acompanham via essa variável, em vez
+     de depender por acaso do padding/font-size batendo igual (foi por
+     isso que "buscar" ficava mais baixo que o input: .btn.sm tem
+     padding vertical menor que o do input). */
+  --search-row-h: 30px;
 }
-.search-row input { flex: 1 1 auto; min-width: 0; }
+.search-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--search-row-h);
+  box-sizing: border-box;
+}
+.search-row .btn.sm {
+  height: var(--search-row-h);
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+/* .icon-btn-square (tooltip.css) é 26x26 fixo — pensado pra ficar ao
+   lado de texto solto na sidebar, não ao lado de um input de 30px.
+   Sobrescreve só dentro do search-row pra acompanhar --search-row-h,
+   sem mexer no tamanho usado em ajuda/configurações ou no header do
+   modo edição de Aprendizado. */
+.search-row .icon-btn-square {
+  width: var(--search-row-h);
+  height: var(--search-row-h);
+}
+/* badge da chave: estava com margin-left próprio (pensado pra ficar
+   colado em texto dentro de um card-head) — aqui o gap do flex já
+   cuida do espaçamento. .on continua marcando "chave configurada". */
+#org-search-key-badge { margin-left: 0; }
+/* tooltip da chave cortava na borda direita da tela — mesmo problema
+   e mesma solução de #btn-open-help/#btn-open-settings (tooltip.css):
+   ancora pela direita do próprio botão em vez de centralizar. */
+#org-search-key-badge::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+#org-search-key-badge:hover::after { transform: translateY(0); }
 
 /* ── busca inline (org-search, ALINHAMENTO.md 4.1) ──────────────────────── */
 .search-panel {

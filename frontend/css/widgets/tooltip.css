@@ -27,15 +27,18 @@
 }
 [data-tooltip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* o botão de configurações fica no canto inferior direito da sidebar
-   (ver .sidebar-footer em base.css) — um tooltip centralizado nele
-   estouraria a borda direita e seria cortado pelo overflow-x: hidden
-   da sidebar. Ancora pela direita em vez de centralizar. */
+/* os botões de ajuda/configurações ficam no canto inferior direito da
+   sidebar, lado a lado (ver .sidebar-footer-actions em base.css) — um
+   tooltip centralizado neles estouraria a borda direita e seria
+   cortado pelo overflow-x: hidden da sidebar. Ancora pela direita em
+   vez de centralizar, pros dois. */
+#btn-open-help::after,
 #btn-open-settings::after {
   left: auto;
   right: 0;
   transform: translateY(4px);
 }
+#btn-open-help:hover::after,
 #btn-open-settings:hover::after { transform: translateY(0); }
 
 .icon-btn-square {

@@ -12,6 +12,10 @@ import {
 } from "../api/aprendizado.js";
 import { escapeHtml } from "../components/format.js";
 import { getLog } from "../api/nucleo.js";
+import { store } from "../state/store.js";
+import { maybeStartAprendizadoTips, replayAprendizadoTips } from "./aprendizado-tips.js";
+import { cancelActiveTipSequence } from "../components/tip-sequence.js";
+import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -24,6 +28,9 @@ let selectedNodeId = null;
 let expandedMilestoneId = null;
 let confirmModalEl = null;
 let confirmModalCallback = null;
+// dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/financas/metas/organizacao
+let unsubscribeProfile = null;
+let currentReplayFn = null;
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 function getTrack(id) { return tracks.find(t => t.id === id); }
@@ -1423,9 +1430,21 @@ export async function mount(container) {
   }
 
   await renderAprHeatmap();
+
+  maybeStartAprendizadoTips();
+  unsubscribeProfile = store.subscribe("profile", () => maybeStartAprendizadoTips());
+
+  // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
+  currentReplayFn = () => replayAprendizadoTips();
+  registerScreenTipsReplay(currentReplayFn);
 }
 
 export function unmount() {
+  cancelActiveTipSequence();
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+  if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
+  currentReplayFn = null;
   containerEl = null;
   closeTrackModal();
   closeMilestoneModal();

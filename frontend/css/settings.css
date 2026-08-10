@@ -4,6 +4,18 @@
    .modal-backdrop / .modal / .btn / .field / .form-actions de
    base.css/forms.css. */
 
+#settings-modal .modal {
+  width: min(540px, 92vw);
+  max-height: min(600px, 75vh);
+  display: flex;
+  flex-direction: column;
+}
+#settings-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 .settings-section {
   padding: 12px 0;
 }
@@ -25,6 +37,23 @@
   color: var(--text-dim);
   line-height: 1.6;
   margin: 0 0 10px;
+}
+
+/* nota informativa dentro de uma seção — mais discreta que
+   .settings-desc (fonte menor, cor mais apagada), pra avisos
+   complementares que não são o foco principal do parágrafo acima
+   (ex: limite de portabilidade das credenciais criptografadas ao
+   importar um backup de outra máquina — ver system.py, docstring de
+   /api/system/import). Fica sempre logo abaixo do .settings-desc da
+   seção, nunca sozinha. */
+.settings-note {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin: -4px 0 10px;
+}
+.settings-note strong {
+  color: var(--text-dim);
 }
 
 .settings-status {
