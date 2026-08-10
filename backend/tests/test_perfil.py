@@ -79,6 +79,35 @@ def test_update_onboarding_requires_field(client):
     assert resp.status_code == 422
 
 
+def test_screen_tips_seen_starts_empty(client):
+    resp = client.get("/api/perfil/tips")
+    assert resp.status_code == 200
+    assert resp.json()["seen"] == []
+
+
+def test_mark_screen_tips_seen(client):
+    resp = client.put("/api/perfil/tips/nucleo")
+    assert resp.status_code == 200
+    assert resp.json()["seen"] == ["nucleo"]
+
+    # confirma persistência
+    resp2 = client.get("/api/perfil/tips")
+    assert resp2.json()["seen"] == ["nucleo"]
+
+
+def test_mark_screen_tips_seen_is_idempotent(client):
+    client.put("/api/perfil/tips/nucleo")
+    resp = client.put("/api/perfil/tips/nucleo")
+    assert resp.status_code == 200
+    assert resp.json()["seen"] == ["nucleo"]
+
+
+def test_mark_screen_tips_seen_multiple_screens(client):
+    client.put("/api/perfil/tips/nucleo")
+    resp = client.put("/api/perfil/tips/financas")
+    assert sorted(resp.json()["seen"]) == ["financas", "nucleo"]
+
+
 def test_update_onboarding_bumps_updated_at(client):
     before = client.get("/api/perfil").json()["updated_at"]
     resp = client.put("/api/perfil/onboarding", json={"completed": True})

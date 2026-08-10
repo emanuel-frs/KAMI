@@ -259,9 +259,106 @@
 .source-dot.warn { background: var(--amber); }
 .source-dot.off { background: var(--red); }
 
-#org-search{
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
+  /* input define a altura de referência da linha — botão "buscar" e os
+     dois quadrados (limpar/chave) acompanham via essa variável, em vez
+     de depender por acaso do padding/font-size batendo igual (foi por
+     isso que "buscar" ficava mais baixo que o input: .btn.sm tem
+     padding vertical menor que o do input). */
+  --search-row-h: 30px;
 }
+.search-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--search-row-h);
+  box-sizing: border-box;
+}
+.search-row .btn.sm {
+  height: var(--search-row-h);
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+/* .icon-btn-square (tooltip.css) é 26x26 fixo — pensado pra ficar ao
+   lado de texto solto na sidebar, não ao lado de um input de 30px.
+   Sobrescreve só dentro do search-row pra acompanhar --search-row-h,
+   sem mexer no tamanho usado em ajuda/configurações ou no header do
+   modo edição de Aprendizado. */
+.search-row .icon-btn-square {
+  width: var(--search-row-h);
+  height: var(--search-row-h);
+}
+/* badge da chave: estava com margin-left próprio (pensado pra ficar
+   colado em texto dentro de um card-head) — aqui o gap do flex já
+   cuida do espaçamento. .on continua marcando "chave configurada". */
+#org-search-key-badge { margin-left: 0; }
+/* tooltip da chave cortava na borda direita da tela — mesmo problema
+   e mesma solução de #btn-open-help/#btn-open-settings (tooltip.css):
+   ancora pela direita do próprio botão em vez de centralizar. */
+#org-search-key-badge::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+#org-search-key-badge:hover::after { transform: translateY(0); }
+
+/* ── busca inline (org-search, ALINHAMENTO.md 4.1) ──────────────────────── */
+.search-panel {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-soft);
+  background: var(--card);
+}
+.search-loading { color: var(--text-faint); font-size: 11px; }
+.search-answer {
+  font-size: 13px;
+  color: var(--text-bright);
+  line-height: 1.55;
+  font-weight: 500;
+  padding: 2px 0 12px 10px;
+  margin-bottom: 12px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 1px dashed var(--border-soft);
+}
+.search-results-list { display: flex; flex-direction: column; opacity: 0.9; }
+.search-result-item {
+  padding: 6px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+  cursor: pointer;
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover .search-result-title { color: var(--accent); }
+.search-result-title { font-size: 10.5px; color: var(--text-dim); font-weight: 500; }
+.search-result-snippet {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-result-url {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 1px;
+  opacity: 0.6;
+}
+.search-fallback {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-soft);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.search-error-panel .search-error-msg { color: var(--red); font-size: 11px; margin-bottom: 4px; }
+.link-btn { color: var(--accent); cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
 
 .gh-token-badge {
   font-size: 9.5px;

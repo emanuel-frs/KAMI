@@ -1,0 +1,214 @@
+/* ---------- diálogo do kami (plano-onboarding-kami.md, etapas 2 e 3) ----------
+   Caixa de diálogo RPG no rodapé da tela: apresentação + criação de
+   personagem (nome, cor, avatar) como uma conversa única, no lugar do
+   antigo modal de setup com formulário de 3 passos. Prefixo ki- em tudo. */
+
+.ki-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.72);
+  display: none;
+}
+.ki-backdrop.open { display: block; }
+.ki-backdrop.ki-saving { pointer-events: none; opacity: 0.7; transition: opacity 200ms ease; }
+
+.ki-stage {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 34px;
+  cursor: pointer;
+}
+
+.ki-box {
+  width: min(620px, 94vw);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  cursor: default;
+}
+
+.ki-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.ki-speaker {
+  font-size: 11px;
+  color: var(--accent);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+}
+.ki-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 11px;
+  background: var(--accent);
+  margin-left: 5px;
+  vertical-align: -1px;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+.ki-btn-skip {
+  font-size: 10px;
+  color: var(--text-faint);
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.ki-btn-skip:hover { color: var(--text-dim); }
+
+.ki-box-body {
+  padding: 16px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 78px;
+}
+
+.ki-question {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-bright);
+  min-height: 42px;
+}
+
+.ki-controls { display: none; }
+
+.ki-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 16px;
+}
+
+.ki-btn-back {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.ki-btn-back:hover { color: var(--text-bright); }
+
+.ki-advance-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.03em;
+  animation: ki-hint-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ki-hint-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* ── passo nome ───────────────────────────────────────────────────────── */
+.ki-inline-field {
+  display: flex;
+  gap: 8px;
+}
+.ki-inline-field input[type="text"] {
+  flex: 1;
+  font-size: 12.5px;
+}
+
+/* ── passo cor ────────────────────────────────────────────────────────── */
+.ki-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ki-swatch {
+  width: 26px;
+  height: 26px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.1s, transform 0.1s;
+  outline: none;
+}
+.ki-swatch:hover { transform: scale(1.12); }
+.ki-swatch--sel { border-color: var(--text); }
+
+/* ── passo avatar ─────────────────────────────────────────────────────── */
+.ki-avatar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+@media (max-width: 480px) {
+  .ki-avatar-grid { grid-template-columns: 1fr; }
+}
+.ki-avatar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  transition: border-color 0.1s;
+}
+.ki-avatar-controls.ki-drag-over { border-color: var(--accent); }
+.ki-av-col-field label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.ki-av-col-field b { color: var(--text-bright); font-weight: normal; }
+.ki-av-col-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.ki-av-hint {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin: 0;
+}
+.ki-avatar-preview {
+  border: 1px solid var(--border-soft);
+  min-height: 120px;
+  max-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--bg-alt);
+  overflow: hidden;
+}
+.ki-av-placeholder { font-size: 10px; color: var(--text-faint); }
+.ki-av-pre {
+  font-size: 4px;
+  line-height: 1;
+  color: var(--accent);
+  margin: 0;
+  white-space: pre;
+  user-select: none;
+}
+.ki-avatar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.ki-btn-ghost {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.ki-btn-ghost:hover { color: var(--text-dim); }

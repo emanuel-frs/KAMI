@@ -3,10 +3,12 @@ Módulo Aprendizado (v1).
 
 Endpoints:
   Trilhas:
-    GET    /api/aprendizado/tracks              lista todas as trilhas com progresso calculado
-    POST   /api/aprendizado/tracks              cria uma trilha nova
+    GET    /api/aprendizado/tracks              lista todas as trilhas em ordem manual (position)
+    POST   /api/aprendizado/tracks              cria uma trilha nova (vai pro fim da lista)
     PUT    /api/aprendizado/tracks/{id}         atualiza nome/meta/status de uma trilha
     DELETE /api/aprendizado/tracks/{id}         remove trilha e seus marcos (CASCADE)
+    PUT    /api/aprendizado/tracks/reorder      substitui a ordem das trilhas na sidebar (replace
+                                                 completo, mesmo padrão do reorder de marcos abaixo)
 
   Marcos:
     GET    /api/aprendizado/tracks/{id}/milestones          lista marcos de uma trilha, em ordem (position)
@@ -36,6 +38,8 @@ Regras de negócio:
   - status de marco:  'pendente' | 'concluido' | 'esquecido'
   - reordenar exige a lista COMPLETA de ids da trilha (mesmo conjunto, nova
     ordem) — rejeita com 422 se faltar ou sobrar algum id
+  - mesma regra vale pro reorder de trilhas: lista completa de ids, replace
+    total (não é patch incremental por item)
 """
 import datetime
 from typing import List, Optional
@@ -46,6 +50,7 @@ from pydantic import BaseModel
 from app.database import get_db, new_id, now_iso
 from app.actions import register_action
 from app.xp import level_from_xp
+from app.routers.metas import sync_learning_goals
 
 router = APIRouter()
 
@@ -108,10 +113,15 @@ class TrackOut(BaseModel):
     name: str
     general_goal: Optional[str] = None
     status: str
+    position: int
     created_at: str
     total_milestones: int
     completed_milestones: int
     progress_pct: int               # 0-100
+
+
+class TrackReorderIn(BaseModel):
+    track_ids: List[str]  # ordem completa e final das trilhas na sidebar
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -200,6 +210,7 @@ def _track_row_to_out(db, row) -> dict:
         "name":                row["name"],
         "general_goal":        row["general_goal"],
         "status":              row["status"],
+        "position":            row["position"],
         "created_at":          row["created_at"],
         "total_milestones":    prog["total"],
         "completed_milestones": prog["done"],
@@ -225,13 +236,13 @@ def _get_milestone_or_404(db, milestone_id: str):
 
 @router.get("/tracks", response_model=List[TrackOut])
 def list_tracks(db=Depends(get_db)):
-    rows = db.execute("SELECT * FROM tracks ORDER BY name").fetchall()
+    rows = db.execute("SELECT * FROM tracks ORDER BY position").fetchall()
     # aplica laziness de staleness para todas as trilhas ativas
     for r in rows:
         if r["status"] == "ativa":
             _apply_staleness(db, r["id"])
     # re-busca depois do UPDATE para refletir possíveis mudanças de status
-    rows = db.execute("SELECT * FROM tracks ORDER BY name").fetchall()
+    rows = db.execute("SELECT * FROM tracks ORDER BY position").fetchall()
     return [_track_row_to_out(db, r) for r in rows]
 
 
@@ -243,13 +254,45 @@ def create_track(payload: TrackIn, db=Depends(get_db)):
             detail=f"status inválido; valores aceitos: {sorted(TRACK_STATUSES)}",
         )
     track_id = new_id()
+    next_position = db.execute(
+        "SELECT COALESCE(MAX(position), -1) + 1 AS pos FROM tracks",
+    ).fetchone()["pos"]
     db.execute(
-        "INSERT INTO tracks (id, name, general_goal, status, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (track_id, payload.name, payload.general_goal, payload.status, now_iso()),
+        "INSERT INTO tracks (id, name, general_goal, status, position, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (track_id, payload.name, payload.general_goal, payload.status, next_position, now_iso()),
     )
     db.commit()
     return _track_row_to_out(db, db.execute("SELECT * FROM tracks WHERE id = ?", (track_id,)).fetchone())
+
+
+@router.put("/tracks/reorder", response_model=List[TrackOut])
+def reorder_tracks(payload: TrackReorderIn, db=Depends(get_db)):
+    """
+    Replace completo da ordem das trilhas na sidebar (mesmo padrão do
+    reorder de marcos abaixo, e de PUT /api/dashboard/{screen}): o
+    frontend manda a lista inteira de ids na nova ordem depois de um
+    drag-and-drop, não patches incrementais por item.
+
+    Registrado ANTES de PUT /tracks/{track_id} de propósito — como
+    FastAPI casa rotas na ordem em que são declaradas, se o reorder
+    viesse depois, "/tracks/reorder" seria capturado por
+    "/tracks/{track_id}" (com track_id="reorder") e nunca chegaria aqui.
+    """
+    existing_ids = {r["id"] for r in db.execute("SELECT id FROM tracks").fetchall()}
+    payload_ids = set(payload.track_ids)
+    if payload_ids != existing_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="a lista precisa conter exatamente as trilhas atuais, sem faltar nem sobrar nenhuma",
+        )
+
+    for position, track_id in enumerate(payload.track_ids):
+        db.execute("UPDATE tracks SET position = ? WHERE id = ?", (position, track_id))
+    db.commit()
+
+    rows = db.execute("SELECT * FROM tracks ORDER BY position").fetchall()
+    return [_track_row_to_out(db, r) for r in rows]
 
 
 @router.put("/tracks/{track_id}", response_model=TrackOut)
@@ -382,6 +425,12 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
         ),
     )
     db.commit()
+
+    # meta 3.6 (metas v2): metas tipo 'aprendizado' vinculadas a essa trilha
+    # progridem sozinhas junto com os marcos — recalcula sempre que o status
+    # de um marco muda (concluir OU reabrir), nunca em GET /metas.
+    sync_learning_goals(db, row["track_id"])
+
     return _milestone_row_to_out(db.execute("SELECT * FROM milestones WHERE id = ?", (milestone_id,)).fetchone())
 
 
@@ -422,6 +471,10 @@ def reorder_milestones(track_id: str, payload: MilestoneReorderIn, db=Depends(ge
 
 @router.delete("/milestones/{milestone_id}", status_code=204)
 def delete_milestone(milestone_id: str, db=Depends(get_db)):
-    _get_milestone_or_404(db, milestone_id)
+    row = _get_milestone_or_404(db, milestone_id)
     db.execute("DELETE FROM milestones WHERE id = ?", (milestone_id,))
     db.commit()
+    # remover um marco concluído também pode derrubar a contagem que uma
+    # meta 'aprendizado' estava usando — recalcula por segurança (não
+    # desfaz uma meta já concluída, ver docstring de sync_learning_goals)
+    sync_learning_goals(db, row["track_id"])

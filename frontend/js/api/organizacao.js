@@ -30,3 +30,9 @@ export const getGithubTokenStatus = () => get("/api/organizacao/github-token");
 export const saveGithubToken = (token) => put("/api/organizacao/github-token", { token });
 export const deleteGithubToken = () => del("/api/organizacao/github-token");
 export const getCommitActivity = (repoId) => get(`/api/organizacao/github-repos/${repoId}/commit-activity`);
+
+// busca (v2 — resumo inline via tavily, ver ALINHAMENTO.md 4.1)
+export const getSearchKeyStatus = () => get("/api/organizacao/search-key");
+export const saveSearchKey = (apiKey) => put("/api/organizacao/search-key", { api_key: apiKey });
+export const deleteSearchKey = () => del("/api/organizacao/search-key");
+export const searchWeb = (q) => get(`/api/organizacao/search?q=${encodeURIComponent(q)}`);

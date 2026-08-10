@@ -54,6 +54,22 @@
   flex-shrink: 0;
 }
 
+/* ── tag de peso (v2 — multiplicador de xp por meta) ─────────────────────
+ * mesma forma da tag de tipo, cor sobe de intensidade conforme o peso pra
+ * dar destaque visual rápido a metas "épicas" sem precisar ler o número */
+.goal-weight-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--border-soft);
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+.goal-weight-baixo { color: var(--text-faint); }
+.goal-weight-medio { color: var(--text-dim); }
+.goal-weight-alto { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 40%, var(--border-soft)); }
+.goal-weight-epico { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft)); }
+
 .goal-card-icons {
   display: flex;
   gap: 8px;
@@ -63,6 +79,8 @@
   color: var(--text-faint);
   cursor: pointer;
   font-size: 11px;
+  display: inline-flex;
+  align-items: center;
 }
 .goal-card-icons .icon-btn:hover { color: var(--accent); }
 .goal-card-icons .icon-btn.danger:hover { color: var(--red); }
@@ -109,4 +127,36 @@
 
 .goal-card .card-body .btn {
   width: 100%;
+}
+
+/* ── painel de gráfico de progresso (item 3.3) ───────────────────────────
+ * fica fechado por padrão, abre com o toggle "📈" no card-head; o SVG em
+ * si reaproveita .chart-svg/.chart-area/.chart-line/.chart-dot/
+ * .chart-fluxo-labels de widget-financas-extra-graficos.css — só a altura
+ * fixa (menor que os widgets de Finanças, card é bem mais estreito) e o
+ * empty-state ficam aqui. */
+.goal-progress-panel {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-soft);
+}
+.goal-progress-panel.open {
+  display: block;
+}
+.chart-progresso {
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+}
+.chart-progresso .chart-svg {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.goal-progress-empty {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 14px 4px;
+  line-height: 1.5;
 }

@@ -1,0 +1,68 @@
+/*
+ * Toast de lembrete de backup (ver components/backup-reminder.js).
+ * Mesma linguagem visual do popover de ajuda (.help-menu-pop): borda +
+ * sombra dura + fundo --panel, sem cantos arredondados. Ancorado no
+ * canto inferior direito, acima da sidebar/rodapé, abaixo de qualquer
+ * modal (.modal-backdrop é 200; este fica em 150 de propósito, pra
+ * nunca competir visualmente com um modal aberto por cima).
+ */
+
+.backup-reminder-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  color: var(--text-dim);
+
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.backup-reminder-toast.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.backup-reminder-toast > .icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.backup-reminder-text {
+  flex: 1 1 auto;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.backup-reminder-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: var(--font);
+}
+.backup-reminder-close:hover { color: var(--text-bright); }
+
+@media (max-width: 520px) {
+  .backup-reminder-toast {
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}

@@ -1,6 +1,6 @@
 import { getLayout, saveLayout } from "../api/dashboard.js";
 import { initGrid, availableToAdd } from "../widgets/grid.js";
-import { WIDGET_CATALOG } from "../widgets/registry.js";
+import { WIDGET_CATALOG, loadWidgetCatalog } from "../widgets/registry.js";
 
 /**
  * Perfil e Núcleo são as duas únicas telas com dashboard configurável
@@ -15,7 +15,7 @@ import { WIDGET_CATALOG } from "../widgets/registry.js";
  * fica só com a toolbar + grid, sem cabeçalho nenhum.
  */
 export function createDashboardPage(screen, options = {}) {
-  const { title, tag = "v1", description } = options;
+  const { title, tag = "v1", description, onReady } = options;
   let grid = null;
   let currentWidgets = [];
   let onDocClick = null;
@@ -68,6 +68,12 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   async function mount(container) {
+    // precisa estar resolvido antes de qualquer leitura de WIDGET_CATALOG
+    // abaixo (withRequiredWidgets, initGrid, popover) — cacheado em
+    // registry.js, então navegar entre perfil/núcleo/finanças não refaz
+    // a requisição depois da primeira vez
+    await loadWidgetCatalog();
+
     const headHtml = title
       ? `
         <div class="page-head">
@@ -144,6 +150,11 @@ export function createDashboardPage(screen, options = {}) {
       if (!e.target.closest(".wg-toolbar")) pop.classList.remove("open");
     };
     document.addEventListener("click", onDocClick);
+
+    // hook opcional pra quem envolve createDashboardPage e precisa do
+    // grid já montado (hoje só nucleo.js, pra etapa 5 do onboarding —
+    // dicas contextuais); perfil.js não passa isso e nada muda pra ele
+    onReady?.(grid, container);
   }
 
   function unmount() {

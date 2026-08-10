@@ -219,3 +219,58 @@ def test_reorder_track_not_found_returns_404(client):
         json={"milestone_ids": []},
     )
     assert resp.status_code == 404
+
+
+def test_new_tracks_are_listed_in_creation_order(client):
+    t1 = _create_track(client, "Rust")
+    t2 = _create_track(client, "Elixir")
+    t3 = _create_track(client, "Zig")
+
+    listed = client.get("/api/aprendizado/tracks").json()
+    assert [t["name"] for t in listed] == ["Rust", "Elixir", "Zig"]
+    assert [t["position"] for t in listed] == [0, 1, 2]
+    assert t1["position"] == 0 and t2["position"] == 1 and t3["position"] == 2
+
+
+def test_reorder_tracks_persists_new_position(client):
+    t1 = _create_track(client, "Rust")
+    t2 = _create_track(client, "Elixir")
+    t3 = _create_track(client, "Zig")
+
+    resp = client.put(
+        "/api/aprendizado/tracks/reorder",
+        json={"track_ids": [t3["id"], t1["id"], t2["id"]]},
+    )
+    assert resp.status_code == 200
+    assert [t["name"] for t in resp.json()] == ["Zig", "Rust", "Elixir"]
+
+    listed = client.get("/api/aprendizado/tracks").json()
+    assert [t["name"] for t in listed] == ["Zig", "Rust", "Elixir"]
+    assert [t["position"] for t in listed] == [0, 1, 2]
+
+
+def test_reorder_tracks_rejects_mismatched_set(client):
+    t1 = _create_track(client, "Rust")
+    _create_track(client, "Elixir")
+
+    # manda só uma das duas trilhas — conjunto incompleto
+    resp = client.put(
+        "/api/aprendizado/tracks/reorder",
+        json={"track_ids": [t1["id"]]},
+    )
+    assert resp.status_code == 422
+
+
+def test_reorder_tracks_rejects_unknown_id(client):
+    t1 = _create_track(client, "Rust")
+    t2 = _create_track(client, "Elixir")
+
+    resp = client.put(
+        "/api/aprendizado/tracks/reorder",
+        json={"track_ids": [t1["id"], t2["id"], "inexistente"]},
+    )
+    assert resp.status_code == 422
+
+    # nada deve ter sido alterado por uma tentativa rejeitada
+    listed = client.get("/api/aprendizado/tracks").json()
+    assert [t["name"] for t in listed] == ["Rust", "Elixir"]

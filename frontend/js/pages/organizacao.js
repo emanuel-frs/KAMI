@@ -16,16 +16,24 @@
  * duplica" nesse arquivo).
  *
  * V1 NÃO inclui (ver kami_projeto.txt, seção 0.1):
- *   - preview de busca estilizado — o campo de busca só abre o
- *     DuckDuckGo em nova aba (fica registrado como próxima melhoria,
- *     não implementado agora)
  *   - resumo de e-mail por IA — o corpo mostrado é sempre o
  *     body_preview em texto puro que já vem do backend
- *   - token pessoal de github pra mais acesso/rate limit — fica
- *     registrado como próxima melhoria, não implementado agora
+ *
+ * Busca (ver ALINHAMENTO.md 4.1): resumo inline via tavily
+ * (GET /api/organizacao/search), com chave pessoal opcional-mas-
+ * obrigatória-pra-funcionar (mesmo padrão do token do github —
+ * configurada no modal de "⚙ chave de busca"). Sem chave configurada
+ * ou em caso de erro, o painel de resultado mostra um link pra
+ * configurar a chave (ou pra abrir a busca direto no DuckDuckGo, que
+ * continua disponível como fallback sem precisar de nenhuma chave).
  */
 import * as api from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
+import { icon } from "../components/icons.js";
+import { store } from "../state/store.js";
+import { maybeStartOrganizacaoTips, replayOrganizacaoTips } from "./organizacao-tips.js";
+import { cancelActiveTipSequence } from "../components/tip-sequence.js";
+import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 const state = {
   tab: "links",
@@ -36,10 +44,17 @@ const state = {
   emails: [],
   githubTokenConfigured: false,
   commitActivity: {},
+  searchKeyConfigured: false,
+  searching: false,
+  searchResult: null,   // { query, answer, results } da última busca com sucesso
+  searchError: null,    // { message, query } da última tentativa com erro
 };
 
 let rootEl = null;
 let clickHandler = null;
+// dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/finanças/metas
+let unsubscribeProfile = null;
+let currentReplayFn = null;
 
 export async function mount(container) {
   rootEl = container;
@@ -51,21 +66,37 @@ export async function mount(container) {
   container.innerHTML = template();
   bindEvents(container);
 
-  await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus()]);
+  await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus()]);
   renderLinks();
   renderRepos();
   renderAccounts();
   renderEmails();
   renderGithubTokenBadge();
+  renderSearchKeyBadge();
+
+  maybeStartOrganizacaoTips();
+  unsubscribeProfile = store.subscribe("profile", () => maybeStartOrganizacaoTips());
+
+  // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
+  currentReplayFn = () => replayOrganizacaoTips();
+  registerScreenTipsReplay(currentReplayFn);
 }
 
 export function unmount() {
+  cancelActiveTipSequence();
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+  if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
+  currentReplayFn = null;
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
   state.tab = "links";
   state.selectedAccountId = null;
   state.emails = [];
+  state.searching = false;
+  state.searchResult = null;
+  state.searchError = null;
 }
 
 /* ==================== template ==================== */
@@ -74,8 +105,11 @@ function template() {
   return `
     <div class="search-row">
       <input type="text" id="org-search" placeholder="buscar na web...">
-      <button class="btn sm" data-action="org-search">buscar ↗</button>
+      <button class="btn sm" data-action="org-search">buscar</button>
+      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca">${icon("x", { size: 13 })}</button>
+      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca">${icon("key", { size: 13 })}</button>
     </div>
+    <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
       <div class="tab on" data-tab="links">links</div>
@@ -171,6 +205,26 @@ function template() {
       </div>
     </div>
 
+    <!-- MODAL: chave de busca (tavily) -->
+      <div class="modal-backdrop" id="search-key-modal">
+        <div class="modal">
+          <div class="modal-head">chave de busca <span class="close" data-action="close-search-key-modal">✕</span></div>
+          <div class="modal-body">
+            <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
+              necessária pro resumo inline de busca (item 4.1). crie uma
+              conta gratuita em <span data-open-link="https://tavily.com" style="color:var(--accent); cursor:pointer; text-decoration:underline;">tavily.com</span>
+              (free tier: 1000 buscas/mês, sem cartão) e cole a chave aqui.
+              sem chave configurada, o botão "buscar" mostra um link pra
+              abrir a busca no duckduckgo em vez do resumo.
+            </div>
+            <div class="field"><label>chave</label><input type="password" id="search-key-input" placeholder="tvly-..."></div>
+            <div id="search-key-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
+            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-search-key">salvar chave</button>
+            <button class="btn sm" style="width:100%;" data-action="delete-search-key">remover chave</button>
+          </div>
+        </div>
+      </div>
+
     <!-- MODAL: token github -->
       <div class="modal-backdrop" id="github-token-modal">
         <div class="modal">
@@ -209,12 +263,13 @@ function bindEvents(container) {
   });
 
   container.querySelector("#org-search").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") orgSearchOpen();
+    if (e.key === "Enter") orgSearchRun();
   });
 
   clickHandler = (e) => {
     const action = e.target.closest("[data-action]")?.dataset.action;
-    if (action === "org-search") orgSearchOpen();
+    if (action === "org-search") orgSearchRun();
+    if (action === "org-search-clear") orgSearchClear();
     if (action === "open-link-modal") openLinkModal();
     if (action === "close-link-modal") closeLinkModal();
     if (action === "save-link") handleAddLink();
@@ -229,6 +284,10 @@ function bindEvents(container) {
     if (action === "close-github-token-modal") closeGithubTokenModal();
     if (action === "save-github-token") handleSaveGithubToken();
     if (action === "delete-github-token") handleDeleteGithubToken();
+    if (action === "open-search-key-modal") openSearchKeyModal();
+    if (action === "close-search-key-modal") closeSearchKeyModal();
+    if (action === "save-search-key") handleSaveSearchKey();
+    if (action === "delete-search-key") handleDeleteSearchKey();
 
     const openLink = e.target.closest("[data-open-link]")?.dataset.openLink;
     if (openLink) openExternal(openLink);
@@ -256,7 +315,7 @@ function bindEvents(container) {
   container.addEventListener("click", clickHandler);
 }
 
-function switchTab(tab) {
+export function switchTab(tab) {
   state.tab = tab;
   rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
   rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
@@ -264,18 +323,150 @@ function switchTab(tab) {
   rootEl.querySelector("#org-panel-email").style.display = tab === "email" ? "block" : "none";
 }
 
-/* ==================== busca (v1 — só abre em nova aba) ====================
- * Próxima melhoria registrada (ponto 6 do feedback): trocar por um
- * resumo inline da busca em vez de só abrir o google/duckduckgo numa
- * aba nova. Não implementado ainda — combinado deixar pra depois dos
- * outros pontos.
+/* ==================== busca (tavily, ver ALINHAMENTO.md 4.1) ====================
+ * Resumo inline via GET /api/organizacao/search (backend, chave da
+ * tavily). Sem chave configurada (ou qualquer erro), cai pro
+ * fallback de sempre: abrir a busca direto no duckduckgo numa aba
+ * nova — por isso o link de fallback aparece no próprio painel de
+ * erro, não só no modal de configurar chave.
  */
 
-function orgSearchOpen() {
+async function loadSearchKeyStatus() {
+  const r = await api.getSearchKeyStatus();
+  state.searchKeyConfigured = r.configured;
+}
+
+function renderSearchKeyBadge() {
+  const badge = rootEl.querySelector("#org-search-key-badge");
+  if (!badge) return;
+  badge.classList.toggle("on", state.searchKeyConfigured);
+}
+
+function openSearchKeyModal() {
+  rootEl.querySelector("#search-key-input").value = "";
+  const err = rootEl.querySelector("#search-key-error");
+  err.style.display = "none";
+  err.textContent = "";
+  rootEl.querySelector("#search-key-modal").classList.add("open");
+}
+function closeSearchKeyModal() {
+  rootEl.querySelector("#search-key-modal").classList.remove("open");
+}
+
+async function handleSaveSearchKey() {
+  const input = rootEl.querySelector("#search-key-input");
+  const err = rootEl.querySelector("#search-key-error");
+  const key = input.value.trim();
+  if (!key) {
+    err.textContent = "cole uma chave.";
+    err.style.display = "block";
+    return;
+  }
+  try {
+    await api.saveSearchKey(key);
+  } catch (e) {
+    err.textContent = e?.message || "chave inválida ou sem permissão.";
+    err.style.display = "block";
+    return;
+  }
+  state.searchKeyConfigured = true;
+  renderSearchKeyBadge();
+  closeSearchKeyModal();
+}
+
+async function handleDeleteSearchKey() {
+  await api.deleteSearchKey();
+  state.searchKeyConfigured = false;
+  renderSearchKeyBadge();
+  closeSearchKeyModal();
+}
+
+function orgSearchDuckDuckGoUrl(q) {
+  return "https://duckduckgo.com/?q=" + encodeURIComponent(q);
+}
+
+// botão "✕" ao lado de "buscar" — limpa o texto digitado e qualquer
+// resultado/erro já exibido, sem esperar uma nova busca. Reaproveita
+// renderSearchResults() (mesma função usada após uma busca) já que
+// zerar os três campos de estado (searchResult/searchError/searching)
+// faz ela cair no ramo `if (!state.searchResult) wrap.innerHTML = ""`.
+function orgSearchClear() {
   const input = rootEl.querySelector("#org-search");
-  const v = input.value.trim();
-  if (!v) return;
-  openExternal("https://duckduckgo.com/?q=" + encodeURIComponent(v));
+  if (input) input.value = "";
+  state.searching = false;
+  state.searchResult = null;
+  state.searchError = null;
+  renderSearchResults();
+}
+
+async function orgSearchRun() {
+  if (state.searching) return; // evita disparar buscas em paralelo no double-enter/double-click
+  const input = rootEl.querySelector("#org-search");
+  const q = input.value.trim();
+  if (!q) return;
+
+  state.searching = true;
+  state.searchResult = null;
+  state.searchError = null;
+  renderSearchResults();
+
+  try {
+    state.searchResult = await api.searchWeb(q);
+  } catch (e) {
+    state.searchError = { message: e?.message || "erro ao buscar.", query: q };
+  }
+  state.searching = false;
+  renderSearchResults();
+}
+
+function renderSearchResults() {
+  const wrap = rootEl.querySelector("#org-search-results");
+  if (!wrap) return;
+
+  if (state.searching) {
+    wrap.innerHTML = `<div class="search-panel search-loading">buscando...</div>`;
+    return;
+  }
+
+  if (state.searchError) {
+    const { message, query } = state.searchError;
+    wrap.innerHTML = `
+      <div class="search-panel search-error-panel">
+        <div class="search-error-msg">${escapeHtml(message)}</div>
+        <div class="search-fallback">
+          ${state.searchKeyConfigured ? "" : `<span class="link-btn" data-action="open-search-key-modal">configurar chave de busca</span> · `}
+          <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">abrir busca no duckduckgo ↗</span>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (!state.searchResult) {
+    wrap.innerHTML = "";
+    return;
+  }
+
+  const { query, answer, results } = state.searchResult;
+  const answerHtml = answer
+    ? `<div class="search-answer">${escapeHtml(answer)}</div>`
+    : "";
+  const resultsHtml = results.length
+    ? results.map((r) => `
+        <div class="search-result-item" data-open-link="${escapeAttr(r.url)}">
+          <div class="search-result-title">${escapeHtml(r.title)}</div>
+          ${r.snippet ? `<div class="search-result-snippet">${escapeHtml(r.snippet)}</div>` : ""}
+          <div class="search-result-url">${escapeHtml(r.url)}</div>
+        </div>`).join("")
+    : `<div class="empty-state">nenhum resultado.</div>`;
+
+  wrap.innerHTML = `
+    <div class="search-panel">
+      ${answerHtml}
+      <div class="search-results-list">${resultsHtml}</div>
+      <div class="search-fallback">
+        <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">ver mais no duckduckgo ↗</span>
+      </div>
+    </div>`;
 }
 
 /* ==================== links ==================== */

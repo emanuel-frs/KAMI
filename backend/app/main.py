@@ -15,6 +15,8 @@ from app.routers import aprendizado
 from app.routers import metas
 from app.routers import organizacao
 from app.routers import dashboard
+from app.routers import system
+from app.routers import widgets
 
 app = FastAPI(title="Kami API", version=KAMI_VERSION)
 
@@ -44,3 +46,5 @@ app.include_router(aprendizado.router, prefix="/api/aprendizado", tags=["aprendi
 app.include_router(metas.router, prefix="/api/metas", tags=["metas"])
 app.include_router(organizacao.router, prefix="/api/organizacao", tags=["organizacao"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(system.router, prefix="/api/system", tags=["system"])
+app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])

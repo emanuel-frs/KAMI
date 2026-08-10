@@ -13,24 +13,33 @@ Pontos que DIVERGEM de uma primeira versao deste arquivo de teste (rascunho
 anterior, nunca commitado — descartado a favor do contrato real do router):
   - rotas sao /api/metas, nao /api/metas/goals
   - "unit" nao e' campo de entrada — e' sempre DERIVADO do "type"
-    (financeira -> money, livre -> count)
+    (financeira -> money, todo o resto -> count)
   - contribuicao nao aceita "date" manual (o servidor carimba o timestamp)
     nem tem endpoint de exclusao individual de contribuicao
-  - XP de conclusao e' XP_GOAL_COMPLETED_BONUS = 30 (nao 50)
+  - XP de conclusao e' XP_GOAL_COMPLETED_BONUS = 30 (nao 50), multiplicado
+    pelo peso (GOAL_WEIGHTS) — 30 na maioria dos testes aqui porque o peso
+    default e' 'medio' (1x)
   - PUT de meta nao aceita "status" diretamente, e mudar o alvo (target_value)
     NAO recalcula/dispara conclusao automatica — status so muda via /contribute
   - GET /api/metas nao tem filtros de query (?type=/?status=) — a separacao
     ativas/concluidas e' feita no frontend (pages/metas.js), o backend so
     devolve tudo já ordenado (ativas primeiro, por prazo)
+
+v2 — tipos novos, peso, vínculo com Finanças/Aprendizado (ver docstring do
+router pro contrato completo). O default de `_create_goal` mudou de
+'financeira' pra 'livre': testes genéricos de contribuição não precisam mais
+lidar com a exigência de `origem` que só se aplica a metas financeiras — os
+testes que testam especificamente 'financeira' continuam passando o tipo
+explícito.
 """
 
 
-def _create_goal(client, title="viagem", type_="financeira", target_value=100, deadline=None):
-    payload = {"title": title, "type": type_, "target_value": target_value}
+def _create_goal(client, title="viagem", type_="livre", target_value=100, deadline=None, **extra):
+    payload = {"title": title, "type": type_, "target_value": target_value, **extra}
     if deadline is not None:
         payload["deadline"] = deadline
     resp = client.post("/api/metas", json=payload)
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     return resp.json()
 
 
@@ -42,6 +51,35 @@ def _get_goal(client, goal_id):
 def _metas_xp(client):
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
     return attrs["metas"]["current_xp"]
+
+
+def _create_account(client, nome="conta teste", saldo_atual=100):
+    """Cria um banco novo + uma conta com saldo, pros testes de conexão com Finanças."""
+    bank = client.post("/api/wallet/banks", json={"nome": f"banco {nome}"}).json()
+    resp = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": nome, "possui_saldo": True, "saldo_atual": saldo_atual, "possui_credito": False},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def _create_track(client, name="Rust"):
+    resp = client.post("/api/aprendizado/tracks", json={"name": name})
+    assert resp.status_code == 201
+    return resp.json()
+
+
+def _create_milestone(client, track_id, title="ler o livro"):
+    resp = client.post(f"/api/aprendizado/tracks/{track_id}/milestones", json={"title": title})
+    assert resp.status_code == 201
+    return resp.json()
+
+
+def _complete_milestone(client, milestone_id):
+    resp = client.put(f"/api/aprendizado/milestones/{milestone_id}", json={"status": "concluido"})
+    assert resp.status_code == 200
+    return resp.json()
 
 
 # ── criação ──────────────────────────────────────────────────────────────────
@@ -293,3 +331,201 @@ def test_completing_first_goal_unlocks_quest_achievement(client):
     achievements = client.get("/api/nucleo/achievements").json()
     quest = next(a for a in achievements if a["title"] == "quest concluída")
     assert quest["unlocked_at"] is not None
+
+
+# ── tipos novos (v2) ─────────────────────────────────────────────────────────
+
+def test_create_goal_accepts_new_types_with_unit_label(client):
+    for type_ in ("saude", "leitura", "habito"):
+        goal = _create_goal(client, title=type_, type_=type_, target_value=10, unit_label="unidades")
+        assert goal["unit"] == "count"
+        assert goal["unit_label"] == "unidades"
+
+
+def test_financeira_ignores_unit_label(client):
+    goal = _create_goal(client, type_="financeira", target_value=100, unit_label="kg")
+    assert goal["unit_label"] is None
+
+
+def test_new_type_contribution_works_like_livre(client):
+    goal = _create_goal(client, type_="habito", target_value=3, unit_label="vezes")
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 1})
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 2})
+    updated = _get_goal(client, goal["id"])
+    assert updated["current_value"] == 3
+    assert updated["status"] == "concluida"
+
+
+# ── peso / multiplicador de xp (v2) ─────────────────────────────────────────
+
+def test_create_goal_defaults_to_medio_weight(client):
+    goal = _create_goal(client)
+    assert goal["weight"] == "medio"
+
+
+def test_create_goal_rejects_invalid_weight(client):
+    resp = client.post(
+        "/api/metas", json={"title": "x", "type": "livre", "target_value": 1, "weight": "invalido"}
+    )
+    assert resp.status_code == 422
+
+
+def test_weight_multiplies_contribution_and_completion_xp(client):
+    goal = _create_goal(client, target_value=100, weight="epico")  # 3x
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 40})  # 3 * 3 = 9
+    assert _metas_xp(client) == 9
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 60})  # completa: 30 * 3 = 90
+    assert _metas_xp(client) == 99
+
+
+def test_low_weight_rounds_xp(client):
+    goal = _create_goal(client, target_value=10, weight="baixo")  # 0.5x
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 10})  # completa: round(30*0.5) = 15
+    assert _metas_xp(client) == 15
+
+
+# ── conexão com Finanças (v2) ────────────────────────────────────────────────
+
+def test_financeira_contribute_requires_origem(client):
+    goal = _create_goal(client, type_="financeira", target_value=100)
+    resp = client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 10})
+    assert resp.status_code == 422
+
+
+def test_financeira_contribute_externo_does_not_touch_account(client):
+    account = _create_account(client, saldo_atual=500)
+    goal = _create_goal(client, type_="financeira", target_value=100, linked_conta_id=account["id"])
+    resp = client.post(
+        f"/api/metas/{goal['id']}/contribute", json={"amount": 50, "origem": "externo"}
+    )
+    assert resp.status_code == 200
+
+    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    assert account_after["saldo_atual"] == 500  # não mexeu
+
+    contributions = client.get(f"/api/metas/{goal['id']}/contributions").json()
+    assert contributions[0]["origem"] == "externo"
+    assert contributions[0]["transaction_id"] is None
+
+
+def test_financeira_contribute_conta_creates_real_transaction(client):
+    account = _create_account(client, saldo_atual=500)
+    goal = _create_goal(client, type_="financeira", target_value=100)
+    resp = client.post(
+        f"/api/metas/{goal['id']}/contribute",
+        json={"amount": 50, "origem": "conta", "conta_id": account["id"]},
+    )
+    assert resp.status_code == 200
+
+    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    assert account_after["saldo_atual"] == 450  # debitou
+
+    contributions = client.get(f"/api/metas/{goal['id']}/contributions").json()
+    assert contributions[0]["origem"] == "conta"
+    assert contributions[0]["transaction_id"] is not None
+
+    month = contributions[0]["date"][:7]
+    transactions = client.get(f"/api/financas/transactions?month={month}").json()
+    tx = next(t for t in transactions if t["id"] == contributions[0]["transaction_id"])
+    assert tx["type"] == "saida"
+    assert tx["category"] == "metas"
+    assert tx["conta_id"] == account["id"]
+
+
+def test_financeira_contribute_conta_falls_back_to_linked_conta(client):
+    account = _create_account(client, saldo_atual=500)
+    goal = _create_goal(client, type_="financeira", target_value=100, linked_conta_id=account["id"])
+    resp = client.post(
+        f"/api/metas/{goal['id']}/contribute", json={"amount": 50, "origem": "conta"}
+    )
+    assert resp.status_code == 200
+    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    assert account_after["saldo_atual"] == 450
+
+
+def test_financeira_contribute_conta_rejects_insufficient_balance(client):
+    account = _create_account(client, saldo_atual=10)
+    goal = _create_goal(client, type_="financeira", target_value=100)
+    resp = client.post(
+        f"/api/metas/{goal['id']}/contribute",
+        json={"amount": 50, "origem": "conta", "conta_id": account["id"]},
+    )
+    assert resp.status_code == 422
+
+
+def test_financeira_contribute_conta_without_any_account_returns_422(client):
+    goal = _create_goal(client, type_="financeira", target_value=100)
+    resp = client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 10, "origem": "conta"})
+    assert resp.status_code == 422
+
+
+def test_deleting_goal_keeps_real_transaction_in_financas(client):
+    account = _create_account(client, saldo_atual=500)
+    goal = _create_goal(client, type_="financeira", target_value=100)
+    client.post(
+        f"/api/metas/{goal['id']}/contribute",
+        json={"amount": 50, "origem": "conta", "conta_id": account["id"]},
+    )
+    month = __import__("datetime").date.today().isoformat()[:7]
+    tx_before = client.get(f"/api/financas/transactions?month={month}").json()
+    assert len(tx_before) == 1
+
+    client.delete(f"/api/metas/{goal['id']}")
+
+    tx_after = client.get(f"/api/financas/transactions?month={month}").json()
+    assert len(tx_after) == 1  # a transação real continua existindo
+
+
+# ── conexão com Aprendizado (v2) ─────────────────────────────────────────────
+
+def test_aprendizado_goal_requires_linked_track(client):
+    resp = client.post(
+        "/api/metas", json={"title": "terminar rust", "type": "aprendizado", "target_value": 3}
+    )
+    assert resp.status_code == 422
+
+
+def test_aprendizado_goal_backfills_progress_from_existing_milestones(client):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+    _create_milestone(client, track["id"], title="segundo marco")
+    _complete_milestone(client, m1["id"])
+
+    goal = _create_goal(client, type_="aprendizado", target_value=2, linked_track_id=track["id"])
+    assert goal["current_value"] == 1
+    assert goal["status"] == "ativa"
+
+
+def test_aprendizado_goal_progresses_automatically_and_completes(client):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+    m2 = _create_milestone(client, track["id"], title="segundo marco")
+    goal = _create_goal(client, type_="aprendizado", target_value=2, linked_track_id=track["id"])
+
+    _complete_milestone(client, m1["id"])
+    assert _get_goal(client, goal["id"])["current_value"] == 1
+    assert _get_goal(client, goal["id"])["status"] == "ativa"
+
+    _complete_milestone(client, m2["id"])
+    updated = _get_goal(client, goal["id"])
+    assert updated["current_value"] == 2
+    assert updated["status"] == "concluida"
+    assert _metas_xp(client) == 30  # bônus de conclusão, peso medio
+
+
+def test_aprendizado_goal_does_not_uncomplete_when_milestone_reopened(client):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+    goal = _create_goal(client, type_="aprendizado", target_value=1, linked_track_id=track["id"])
+    _complete_milestone(client, m1["id"])
+    assert _get_goal(client, goal["id"])["status"] == "concluida"
+
+    client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "pendente"})
+    assert _get_goal(client, goal["id"])["status"] == "concluida"
+
+
+def test_aprendizado_goal_rejects_manual_contribution(client):
+    track = _create_track(client)
+    goal = _create_goal(client, type_="aprendizado", target_value=1, linked_track_id=track["id"])
+    resp = client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 1})
+    assert resp.status_code == 422

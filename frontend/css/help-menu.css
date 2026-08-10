@@ -1,0 +1,47 @@
+/*
+ * Popover do botão de ajuda (etapa 6, plano-onboarding-kami.md, seção 7).
+ * Mesma linguagem visual do popover de catálogo de widgets
+ * (.wg-catalog-pop em grid.css: borda + sombra dura + fundo --panel),
+ * só que ancorado pra CIMA e pela DIREITA — o botão vive no rodapé da
+ * sidebar, então abrir pra baixo estouraria a janela.
+ */
+
+.help-menu-pop {
+  position: absolute;
+  bottom: 100%;
+  right: -10px;
+  margin-bottom: 6px;
+  width: 220px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  z-index: 60;
+  display: none;
+}
+.help-menu-pop.open { display: block; }
+
+.help-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--border-soft);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.help-menu-item:last-child { border-bottom: none; }
+.help-menu-item:hover:not(:disabled) {
+  color: var(--text-bright);
+  background: var(--bg-alt);
+}
+.help-menu-item:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+.help-menu-item .icon { flex: 0 0 auto; }

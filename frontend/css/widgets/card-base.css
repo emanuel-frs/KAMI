@@ -139,6 +139,17 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 .card[data-manual="1"] .resize-reset { display: flex; }
 .resize-reset:hover { color: var(--accent); }
 
+/* Bloqueio durante a sequência de dicas contextuais (etapa 5,
+   plano-onboarding-kami.md) — o card em destaque fica exposto pelo
+   spotlight (ver tip-sequence.css), mas não pode ser arrastado,
+   redimensionado ou removido enquanto o tour roda por cima dele. */
+.widget-grid.wg-tips-locked .drag-handle,
+.widget-grid.wg-tips-locked .resize-handle,
+.widget-grid.wg-tips-locked .resize-reset,
+.widget-grid.wg-tips-locked .widget-remove-btn {
+  pointer-events: none;
+}
+
 body.kami-resizing,
 body.kami-resizing * { user-select: none !important; cursor: nwse-resize !important; }
 

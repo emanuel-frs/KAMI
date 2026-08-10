@@ -24,6 +24,29 @@
 }
 .btn.primary:hover { opacity: 0.85; color: var(--bg); }
 
+/* antes só .icon-btn.danger existia (widget-organizacao.css/widget-metas.css);
+   confirm-modal.js já fazia confirmBtn.classList.toggle("danger", ...) num
+   .btn sem que isso tivesse efeito nenhum — esta regra fecha esse buraco
+   e também é usada pelo botão "limpar todos os dados" do modal de
+   configurações. */
+.btn.danger {
+  background: var(--bg);
+  color: var(--red);
+  border-color: var(--red);
+}
+.btn.danger:hover { background: var(--red); color: var(--bg); }
+
+/* usado em ações que alertam/sobrescrevem mas não são a etapa final e
+   irreversível (essa continua com .btn.danger/vermelho) — ex.: botão
+   "importar e sobrescrever" do modal de configurações, cuja confirmação
+   final ainda aparece em vermelho no confirm-modal. */
+.btn.warn {
+  background: var(--bg);
+  color: var(--amber);
+  border-color: var(--amber);
+}
+.btn.warn:hover { background: var(--amber); color: var(--bg); }
+
 .btn:disabled             { opacity: 0.4; cursor: default; }
 .btn:disabled:hover       { border-color: var(--border); color: var(--text); }
 
