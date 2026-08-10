@@ -1,6 +1,17 @@
 """Testes do router app/routers/system.py (ALINHAMENTO.md 4.3/4.4)."""
 
 
+def test_export_sets_last_backup_at_on_profile(client):
+    """Exportar um backup de verdade deve registrar quando foi (usado pelo
+    lembrete discreto do frontend), tanto no dump devolvido quanto no
+    perfil persistido."""
+    assert client.get("/api/perfil").json()["last_backup_at"] is None
+
+    body = client.get("/api/system/export").json()
+    assert body["tables"]["user_profile"][0]["last_backup_at"] == body["exported_at"]
+    assert client.get("/api/perfil").json()["last_backup_at"] == body["exported_at"]
+
+
 def test_export_includes_known_tables_and_metadata(client):
     resp = client.get("/api/system/export")
     assert resp.status_code == 200
@@ -154,3 +165,34 @@ def test_reset_after_profile_edit_restores_default_name(client):
     profile_rows = client.get("/api/system/export").json()["tables"]["user_profile"]
     assert profile_rows[0]["display_name"] == "usuário"
     assert profile_rows[0]["accent_color"] == "#8fbf8f"
+
+
+def test_reset_clears_screen_tips_seen(client):
+    """screen_tips_seen precisa fazer parte do 'estado de instalação nova' —
+    senão o reset devolve o tour geral do zero mas deixa as dicas por tela
+    marcadas como já vistas, o que é inconsistente."""
+    client.put("/api/perfil/tips/nucleo")
+    assert client.get("/api/perfil/tips").json()["seen"] == ["nucleo"]
+
+    client.post("/api/system/reset", json={"confirmation": "excluir"})
+
+    assert client.get("/api/perfil/tips").json()["seen"] == []
+
+
+def test_export_import_roundtrip_preserves_screen_tips_seen(client):
+    """Um backup restaurado deve trazer de volta quais dicas por tela já
+    tinham sido vistas, não só os dados 'principais'."""
+    client.put("/api/perfil/tips/nucleo")
+    client.put("/api/perfil/tips/financas")
+    backup = client.get("/api/system/export").json()
+
+    client.post("/api/system/reset", json={"confirmation": "excluir"})
+    assert client.get("/api/perfil/tips").json()["seen"] == []
+
+    resp = client.post(
+        "/api/system/import",
+        json={"confirmation": "importar", "tables": backup["tables"]},
+    )
+    assert resp.status_code == 200
+
+    assert set(client.get("/api/perfil/tips").json()["seen"]) == {"nucleo", "financas"}

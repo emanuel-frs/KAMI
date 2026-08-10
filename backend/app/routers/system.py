@@ -18,12 +18,15 @@ saem criptografados com a chave local da máquina (app/crypto.py +
 conseguir descriptografar essas credenciais, só o resto dos dados.
 """
 import datetime
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.database import get_db, _seed_defaults
 from app.version import KAMI_VERSION
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,6 +38,7 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # (defesa em profundidade — get_connection() já liga isso, mas um
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
+    "screen_tips_seen",
     "action_log_attributes",
     "action_logs",
     "income_entries",
@@ -102,9 +106,23 @@ def export_data(db=Depends(get_db)):
         rows = db.execute(f"SELECT * FROM {name}").fetchall()  # nomes vêm do próprio sqlite_master, não de input externo
         tables[name] = [dict(r) for r in rows]
 
+    exported_at = datetime.datetime.utcnow().isoformat()
+
+    # registra que um backup de verdade acabou de ser feito — usado pelo
+    # lembrete discreto do frontend ("faz tempo que você não exporta um
+    # backup"). Só o GET /export conta como backup real; import/reset não
+    # mexem nisso, cada um cuida da própria semântica.
+    if "user_profile" in tables and tables["user_profile"]:
+        db.execute(
+            "UPDATE user_profile SET last_backup_at = ? WHERE id = ?",
+            (exported_at, tables["user_profile"][0]["id"]),
+        )
+        db.commit()
+        tables["user_profile"][0]["last_backup_at"] = exported_at
+
     return {
         "kami_version": KAMI_VERSION,
-        "exported_at": datetime.datetime.utcnow().isoformat(),
+        "exported_at": exported_at,
         "tables": tables,
     }
 
@@ -123,9 +141,20 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
     dentro de cada uma, só colunas que de fato existem no schema atual
     (via PRAGMA table_info) — protege contra um arquivo adulterado ou
     de uma versão incompatível do Kami injetar nomes de tabela/coluna
-    arbitrários na query. Tudo roda numa única transação: se qualquer
-    linha falhar (ex.: FK apontando pra um id que não veio no arquivo),
-    a operação inteira é desfeita e os dados atuais permanecem intactos.
+    arbitrários na query.
+
+    Roda com `PRAGMA foreign_keys = OFF` durante a troca inteira — a
+    ordem de delete/insert (_TABLES_DELETE_ORDER/_TABLES_IMPORT_ORDER)
+    parou de garantir isso sozinha assim que metas ganhou colunas de FK
+    cruzando pra tracks/wallet_accounts/transactions (migração v2, ver
+    _migrate_goals_v2) sem que a lista de ordem fosse atualizada junto.
+    Manter uma lista de ordem manual em dia a cada FK nova que aparecer
+    é frágil demais pra confiar — desligar a checagem durante a troca
+    (delete + insert de TODAS as tabelas na mesma transação) e validar
+    o resultado final com `PRAGMA foreign_key_check` antes de comitar
+    resolve isso de vez, pra qualquer dependência futura. Um backup com
+    uma referência de verdade quebrada (não só fora de ordem) ainda é
+    rejeitado — só que agora apontando a tabela/linha exata.
     """
     if payload.confirmation != IMPORT_CONFIRMATION_WORD:
         raise HTTPException(
@@ -140,10 +169,32 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         )
 
     try:
+        # tabelas que de fato existem neste banco — se o schema.sql do
+        # código for mais novo que este kami.db (ex.: sidecar compilado
+        # antes de uma tabela nova ser adicionada), a tabela nova ainda
+        # não existe aqui e um DELETE incondicional quebraria o import
+        # inteiro por causa de uma tabela que nem tem dado pra apagar.
+        existing_tables = {
+            r["name"]
+            for r in db.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+        }
+
+        # ver docstring — desligado durante toda a troca porque a ordem
+        # de delete/insert não é mais suficiente sozinha pra cobrir as
+        # FKs cruzadas de metas v2. PRAGMA só pode mudar fora de uma
+        # transação pendente, por isso vem antes do primeiro DELETE.
+        db.execute("PRAGMA foreign_keys = OFF")
+
         for table in _TABLES_DELETE_ORDER:
+            if table not in existing_tables:
+                continue
             db.execute(f"DELETE FROM {table}")  # nomes vêm da whitelist fixa, não do arquivo importado
 
         for table in _TABLES_IMPORT_ORDER:
+            if table not in existing_tables:
+                continue
             rows = payload.tables.get(table)
             if not rows:
                 continue
@@ -157,13 +208,31 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
                 values = [row[c] for c in cols]
                 db.execute(f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})", values)
 
+        # com a checagem desligada durante os inserts, uma referência
+        # de verdade quebrada (não só fora de ordem) só aparece aqui —
+        # confere antes de comitar, senão o import "funcionaria" e
+        # deixaria o banco com uma FK pendurada em nada.
+        violations = db.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            detail = "; ".join(f"{v['table']} (linha {v['rowid']} → {v['parent']})" for v in violations[:5])
+            raise ValueError(f"referências quebradas no backup: {detail}")
+
         db.commit()
     except Exception as exc:
         db.rollback()
+        # antes essa exceção era totalmente engolida — só sobrava "400
+        # Bad Request" no log, sem pista nenhuma do motivo real.
+        logger.exception("falha ao importar backup")
         raise HTTPException(
             status_code=400,
-            detail="falha ao importar o backup — arquivo corrompido, incompatível, ou dados inconsistentes; nenhuma alteração foi feita",
+            detail=f"falha ao importar o backup — arquivo corrompido, incompatível, ou dados inconsistentes; nenhuma alteração foi feita ({exc})",
         ) from exc
+    finally:
+        # religa sempre — get_connection() liga por padrão, mas cada
+        # request tem sua própria conexão (get_db()), então isso é só
+        # devolver esta conexão específica pro estado padrão antes dela
+        # ser fechada/reciclada, sucesso ou falha.
+        db.execute("PRAGMA foreign_keys = ON")
 
     return {"status": "ok"}
 
@@ -184,7 +253,15 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
             detail=f"confirmação inválida; envie confirmation='{RESET_CONFIRMATION_WORD}' pra prosseguir",
         )
 
+    existing_tables = {
+        r["name"]
+        for r in db.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+    }
     for table in _TABLES_DELETE_ORDER:
+        if table not in existing_tables:
+            continue
         db.execute(f"DELETE FROM {table}")  # _TABLES_DELETE_ORDER é uma constante fixa do código, não input externo
     db.commit()
 

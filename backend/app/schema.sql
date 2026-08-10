@@ -16,7 +16,17 @@ CREATE TABLE IF NOT EXISTS user_profile (
     accent_color          TEXT NOT NULL DEFAULT '#8fbf8f',
     avatar_ascii          TEXT,               -- NULL = sem avatar ainda
     onboarding_completed  INTEGER NOT NULL DEFAULT 0,  -- decisão 25 (seção 15.6)
+    last_backup_at        TEXT,               -- NULL = nunca exportou um backup
     updated_at            TEXT NOT NULL
+);
+
+-- ---------------- DICAS CONTEXTUAIS POR TELA (etapa 5, plano-onboarding-kami.md) ----------------
+-- Granularidade por tela, separada de user_profile.onboarding_completed
+-- (que é só o tour geral de 7 telas). Uma linha por tela já vista =
+-- sequência de dicas contextuais concluída ou pulada nessa tela.
+CREATE TABLE IF NOT EXISTS screen_tips_seen (
+    screen    TEXT PRIMARY KEY,   -- 'nucleo' | 'perfil' | 'financas' | 'aprendizado' | 'organizacao' | 'metas'
+    seen_at   TEXT NOT NULL
 );
 
 -- ---------------- DASHBOARDS / WIDGETS (decisão 17) ----------------

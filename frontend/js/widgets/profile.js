@@ -4,10 +4,10 @@ import { levelFromXp } from "../components/xp.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
-import { openOnboardingModal } from "../modals/onboarding-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -27,22 +27,6 @@ import { icon } from "../components/icons.js";
  * (posição 1/1) e não arrastável, já que não faz sentido reordenar o
  * único widget de identidade da tela.
  */
-
-const ACCENT_OPTIONS = [
-  { value: "#8fbf8f", label: "verde fósforo (padrão)" },
-  { value: "#b3a06a", label: "âmbar" },
-  { value: "#8fa8bf", label: "azul acinzentado" },
-  { value: "#b06060", label: "vermelho fosco" },
-  { value: "#c9c9c9", label: "cinza claro (mono puro)" },
-  { value: "#c9a0dc", label: "lilás" },
-  { value: "#e0c15a", label: "dourado" },
-  { value: "#5ac8c8", label: "turquesa" },
-  { value: "#e08fa0", label: "coral" },
-];
-
-function accentLabel(hex) {
-  return ACCENT_OPTIONS.find((o) => o.value === hex)?.label ?? hex;
-}
 
 function _applySidebarAvatar(ascii) {
   const el = document.getElementById("sidebar-avatar");
@@ -99,7 +83,6 @@ export async function render(el, widget) {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
           <div style="display:flex; gap:6px;">
-            <button type="button" class="btn sm" data-action="tutorial" style="display:flex; align-items:center; gap:5px;">${icon("undo", { size: 11 })} ver tutorial novamente</button>
             <button type="button" class="btn sm mode-toggle-btn" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar nome/cor</button>
           </div>
         </div>
@@ -219,10 +202,6 @@ export async function render(el, widget) {
     if (originalHeight !== null) cardEl.style.height = originalHeight;
     else cardEl.style.removeProperty("height");
   }
-
-  el.querySelector('[data-action="tutorial"]')?.addEventListener("click", () => {
-    openOnboardingModal();
-  });
 
   // ── toggle view/edit (nome/cor) ──────────────────────────────────────
   el.querySelector('[data-action="edit"]')?.addEventListener("click", () => {

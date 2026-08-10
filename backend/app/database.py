@@ -112,6 +112,19 @@ def _migrate_user_profile_onboarding(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_user_profile_last_backup(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de last_backup_at existir
+    (lembrete de backup). NULL = nunca exportou — mesmo default do
+    schema.sql, feito manualmente via ALTER TABLE pelo mesmo motivo de
+    sempre (`CREATE TABLE IF NOT EXISTS` não altera tabela existente).
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()]
+    if "last_backup_at" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN last_backup_at TEXT")
+        conn.commit()
+
+
 def _migrate_tracks_position(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra bancos criados antes de `position` existir em tracks
@@ -171,6 +184,7 @@ def init_db() -> None:
     _migrate_email_cache_body_preview(conn)
     _migrate_milestones_fields(conn)
     _migrate_user_profile_onboarding(conn)
+    _migrate_user_profile_last_backup(conn)
     _migrate_tracks_position(conn)
     _migrate_goals_v2(conn)
 
