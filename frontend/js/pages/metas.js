@@ -13,6 +13,7 @@ import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 import { renderProgressChart } from "../charts/metas-grafico-progresso.js";
 import { store } from "../state/store.js";
 import { maybeStartMetasTips, replayMetasTips } from "./metas-tips.js";
@@ -546,6 +547,9 @@ function render() {
       openProgressGoalIds.delete(goalId);
     }
   });
+
+  const focusId = consumePendingFocus("meta");
+  if (focusId) focusRow(containerEl.querySelector(`.goal-card[data-goal-id="${focusId}"]`), "meta");
 }
 
 async function loadProgressPanel(goalId) {

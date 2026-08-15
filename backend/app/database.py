@@ -174,6 +174,41 @@ def _migrate_goals_v2(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_recorrentes_conta_transacao(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de fixed_bills/wallet_subscriptions
+    ganharem geração OPCIONAL de transação real ao marcar como pago (item 6
+    do mapa de problemas, resolvido junto com a unificação do item 1):
+      - fixed_bills ganha conta_id (vínculo, igual wallet_subscriptions já
+        tinha) e categoria (usada na transação gerada).
+      - wallet_subscriptions ganha categoria (conta_id já existia).
+      - fixed_bill_periods/wallet_subscription_periods ganham transaction_id,
+        apontando pra transação real gerada (NULL se foi marcada só como
+        lembrete) — mesmo padrão de goal_contributions.transaction_id acima.
+    `CREATE TABLE IF NOT EXISTS` não altera tabela já existente, daí o
+    ALTER TABLE manual de sempre.
+    """
+    fb_cols = [r["name"] for r in conn.execute("PRAGMA table_info(fixed_bills)").fetchall()]
+    if "conta_id" not in fb_cols:
+        conn.execute("ALTER TABLE fixed_bills ADD COLUMN conta_id TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL")
+    if "categoria" not in fb_cols:
+        conn.execute("ALTER TABLE fixed_bills ADD COLUMN categoria TEXT")
+
+    ws_cols = [r["name"] for r in conn.execute("PRAGMA table_info(wallet_subscriptions)").fetchall()]
+    if "categoria" not in ws_cols:
+        conn.execute("ALTER TABLE wallet_subscriptions ADD COLUMN categoria TEXT")
+
+    fbp_cols = [r["name"] for r in conn.execute("PRAGMA table_info(fixed_bill_periods)").fetchall()]
+    if "transaction_id" not in fbp_cols:
+        conn.execute("ALTER TABLE fixed_bill_periods ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL")
+
+    wsp_cols = [r["name"] for r in conn.execute("PRAGMA table_info(wallet_subscription_periods)").fetchall()]
+    if "transaction_id" not in wsp_cols:
+        conn.execute("ALTER TABLE wallet_subscription_periods ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL")
+
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -187,6 +222,7 @@ def init_db() -> None:
     _migrate_user_profile_last_backup(conn)
     _migrate_tracks_position(conn)
     _migrate_goals_v2(conn)
+    _migrate_recorrentes_conta_transacao(conn)
 
     _seed_defaults(conn)
 

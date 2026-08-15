@@ -40,7 +40,7 @@
 .card-head .push { margin-left: auto; font-size: 10px; }
 
 .card-body {
-  padding: 12px 14px;
+  padding: 12px 14px 22px;
   flex: 1 1 auto;
   min-height: 0; /* crucial pro flex-fill: permite o filho (lista) crescer/encolher
                     de verdade em vez de sempre manter a altura do conteúdo bruto —
@@ -101,7 +101,13 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 }
 .card.resizing .wg-size-badge { opacity: 1; }
 
-.resize-handle {
+/* seletor .card > pra ganhar de [data-tooltip] { position: relative }
+   (tooltip.css) em especificidade — sem isso, como as duas regras têm
+   o mesmo peso (uma classe) e tooltip.css carrega depois no index.html,
+   o position:relative genérico vencia e derrubava o position:absolute
+   daqui, tirando o handle do canto do card e jogando ele pro fluxo
+   normal do flex-column (aparecia fora da borda, embaixo à esquerda). */
+.card > .resize-handle {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -123,7 +129,7 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 .resize-handle:hover { color: var(--accent); opacity: 1; }
 .card.resizing { box-shadow: 0 0 0 1px var(--accent-dim); }
 
-.resize-reset {
+.card > .resize-reset {
   position: absolute;
   right: 19px;
   bottom: 2px;

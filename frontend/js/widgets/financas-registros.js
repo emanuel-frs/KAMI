@@ -94,16 +94,20 @@ export async function render(el, widget) {
           const sinal = t.type === "entrada" ? "+" : t.type === "saida" ? "-" : "→";
           return `
             <div class="registro-row">
-              <div class="registro-conta-col">
-                <div class="r-bank-icon">${bankIcon}</div>
-                <div class="registro-conta-names">
-                  <span class="r-bank-name">${bankName}</span>
-                  <span class="r-account-name">${accountName}</span>
-                </div>
+              <div class="r-top">
+                <div class="registro-desc">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
+                <div class="registro-valor ${t.type}">${sinal} ${brl(t.amount)}</div>
               </div>
-              <div class="registro-desc">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
-              <div class="registro-valor ${t.type}">${sinal} ${brl(t.amount)}</div>
-              <div class="registro-date">${formatDate(t.date)}</div>
+              <div class="r-meta">
+                <div class="registro-conta-col">
+                  <div class="r-bank-icon">${bankIcon}</div>
+                  <div class="registro-conta-names">
+                    <span class="r-bank-name">${bankName}</span>
+                    <span class="r-account-name">${accountName}</span>
+                  </div>
+                </div>
+                <div class="registro-date">${formatDate(t.date)}</div>
+              </div>
             </div>`;
         }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? "nenhum lançamento bate com o filtro." : `nenhum lançamento em ${monthLabel(month)}.`}</div>`}
       </div>
@@ -111,7 +115,7 @@ export async function render(el, widget) {
 
     // fit dos ícones ascii — sem isso vira bloco preto (mesmo bug corrigido antes)
     el.querySelectorAll(".r-bank-icon pre").forEach((pre) => {
-      fitAsciiText(pre, pre.textContent, { container: pre.parentElement, maxHeight: 16, maxFont: 4, minFont: 0.3, paddingX: 2, paddingY: 2 });
+      fitAsciiText(pre, pre.textContent, { container: pre.parentElement, maxHeight: 14, maxFont: 4, minFont: 0.3, paddingX: 2, paddingY: 2 });
     });
 
     el.querySelector('[data-action="prev-month"]').addEventListener("click", () => { month = shiftMonth(month, -1); reload(); });

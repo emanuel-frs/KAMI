@@ -34,6 +34,8 @@ import { store } from "../state/store.js";
 import { maybeStartOrganizacaoTips, replayOrganizacaoTips } from "./organizacao-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
+import { showErrorModal } from "../modals/err-modal.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 
 const state = {
   tab: "links",
@@ -522,7 +524,7 @@ async function handleAddLink() {
   const url = rootEl.querySelector("#link-url").value.trim();
   const category = rootEl.querySelector("#link-cat").value.trim() || "geral";
   if (!title || !url) {
-    alert("preencha título e url.");
+    showErrorModal("preencha título e url.", "atenção");
     return;
   }
   await api.createLink({ title, url, category });
@@ -609,8 +611,8 @@ function repoCardHtml(r) {
       <div class="rc-head">
         <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
         <span class="rc-actions">
-          <span class="icon-btn" title="ressincronizar" data-sync-repo="${r.id}">↻</span>
-          <span class="icon-btn danger" title="remover" data-delete-repo="${r.id}">✕</span>
+          <span class="icon-btn" data-tooltip="ressincronizar" data-sync-repo="${r.id}">↻</span>
+          <span class="icon-btn danger" data-tooltip="remover" data-delete-repo="${r.id}">✕</span>
         </span>
       </div>
       ${stats}
@@ -633,7 +635,7 @@ function sparklineHtml(activity) {
     })
     .join("");
   const width = weeks.length * (barW + gap);
-  return `<div class="rc-sparkline" title="commits nas últimas ${weeks.length} semanas">
+  return `<div class="rc-sparkline" data-tooltip="commits nas últimas ${weeks.length} semanas">
     <svg viewBox="0 0 ${width} ${h}" width="${width}" height="${h}">${bars}</svg>
   </div>`;
 }
@@ -677,7 +679,7 @@ async function handleAddRepo() {
     // mas avisa na hora que a sincronização inicial falhou — sem isso é
     // o ponto 5 do feedback: nada acontece e vira um card fantasma.
     closeRepoModal();
-    alert("repositório conectado, mas a sincronização inicial falhou: " + result.sync_error);
+    showErrorModal(result.sync_error, "repositório conectado, mas a sincronização inicial falhou");
   } else {
     closeRepoModal();
   }
@@ -688,7 +690,7 @@ async function handleSyncRepo(repoId) {
   await loadRepos();
   renderRepos();
   if (result?.sync_error) {
-    alert("falha ao sincronizar: " + result.sync_error);
+    showErrorModal(result.sync_error, "falha ao sincronizar");
   }
 }
 
@@ -773,9 +775,9 @@ function renderAccounts() {
           <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}</span>
         </div>
         <div class="org-account-actions">
-          <span class="icon-btn" title="sincronizar" data-sync-account="${a.id}">↻</span>
-          <span class="icon-btn" title="editar" data-edit-account="${a.id}">✎</span>
-          <span class="icon-btn" title="remover" data-delete-account="${a.id}">✕</span>
+          <span class="icon-btn" data-tooltip="sincronizar" data-sync-account="${a.id}">↻</span>
+          <span class="icon-btn" data-tooltip="editar" data-edit-account="${a.id}">✎</span>
+          <span class="icon-btn" data-tooltip="remover" data-delete-account="${a.id}">✕</span>
         </div>
       </div>`
     )
@@ -816,7 +818,7 @@ async function handleSaveAccount() {
   const app_password = rootEl.querySelector("#acc-password").value;
 
   if (!label || !imap_host || !username || (!editId && !app_password)) {
-    alert("preencha apelido, host, usuário e senha de app.");
+    showErrorModal("preencha apelido, host, usuário e senha de app.", "atenção");
     return;
   }
 
@@ -833,7 +835,12 @@ async function handleSaveAccount() {
 }
 
 async function handleDeleteAccount(accountId) {
-  if (!confirm("remover esta conta? o cache de e-mails dela também será apagado.")) return;
+  const ok = await showConfirmModal("remover esta conta? o cache de e-mails dela também será apagado.", {
+    title: "remover conta",
+    confirmText: "remover",
+    danger: true,
+  });
+  if (!ok) return;
   await api.deleteEmailAccount(accountId);
   if (state.selectedAccountId === accountId) {
     state.selectedAccountId = null;
@@ -848,7 +855,7 @@ async function handleSyncAccount(accountId) {
   try {
     await api.syncEmailAccount(accountId);
   } catch (err) {
-    alert(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.");
+    showErrorModal(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.", "falha ao sincronizar");
     return;
   }
   if (state.selectedAccountId !== accountId) {

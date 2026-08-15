@@ -16,6 +16,7 @@ import { store } from "../state/store.js";
 import { maybeStartAprendizadoTips, replayAprendizadoTips } from "./aprendizado-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
+import { showErrorModal } from "../modals/err-modal.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -408,7 +409,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
         if (found) found.notes = notes;
         renderMilestones();
       } catch (err) {
-        alert(`Erro ao salvar notas: ${err.message}`);
+        showErrorModal(err.message, "erro ao salvar notas");
       }
     });
     body.querySelector('[data-action="edit-milestone"]').addEventListener("click", () => {
@@ -435,7 +436,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
     body.querySelector('[data-action="save-edit"]').addEventListener("click", async () => {
       const name = body.querySelector("#ms-edit-name").value.trim();
       const description = body.querySelector("#ms-edit-desc").value.trim() || null;
-      if (!name) { alert("Nome é obrigatório."); return; }
+      if (!name) { showErrorModal("Nome é obrigatório.", "atenção"); return; }
       try {
         await updateMilestone(ms.id, { title: name, description });
         const found = milestones.find(m => m.id === ms.id);
@@ -444,7 +445,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
         renderMilestones();
         await refreshTracks();
       } catch (err) {
-        alert(`Erro ao salvar: ${err.message}`);
+        showErrorModal(err.message, "erro ao salvar");
       }
     });
     body.querySelector('[data-action="cancel-edit"]').addEventListener("click", () => {
@@ -458,7 +459,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
           await refreshTracks();
           await refreshMilestones();
         } catch (err) {
-          alert(`Erro ao excluir: ${err.message}`);
+          showErrorModal(err.message, "erro ao excluir");
         }
       });
     });
@@ -513,14 +514,14 @@ function wireNewMilestoneModal(wrap) {
   wrap.querySelector('[data-action="create"]').addEventListener("click", async () => {
     const name = wrap.querySelector("#new-ms-name").value.trim();
     const description = wrap.querySelector("#new-ms-desc").value.trim() || null;
-    if (!name) { alert("Digite um nome."); return; }
+    if (!name) { showErrorModal("Digite um nome.", "atenção"); return; }
     try {
       await createMilestone(selectedTrackId, { title: name, description });
       closeNewMilestoneModal();
       await refreshMilestones();
       await refreshTracks();
     } catch (err) {
-      alert(`Erro ao criar módulo: ${err.message}`);
+      showErrorModal(err.message, "erro ao criar módulo");
     }
   });
 }
@@ -586,7 +587,7 @@ function openExpandModal() {
         await renderAprHeatmap();
         openExpandModal();
       } catch (err) {
-        alert(`Erro ao atualizar: ${err.message}`);
+        showErrorModal(err.message, "erro ao atualizar");
         cb.checked = !cb.checked;
       }
     });
@@ -666,7 +667,7 @@ async function renderMilestones() {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
       <div style="min-width:0;flex:1;">
         <div style="font-size:12px;font-weight:500;color:var(--text-dim);">${escapeHtml(track.name)}</div>
-        ${track.general_goal ? `<div class="track-goal-subtitle" title="${escapeHtml(track.general_goal)}">${escapeHtml(track.general_goal)}</div>` : ''}
+        ${track.general_goal ? `<div class="track-goal-subtitle" data-tooltip="${escapeHtml(track.general_goal)}">${escapeHtml(track.general_goal)}</div>` : ''}
       </div>
       <button type="button" class="btn sm" id="btn-edit-track">editar</button>
     </div>
@@ -705,8 +706,10 @@ async function renderMilestones() {
         await updateMilestone(id, { status: newStatus });
         await refreshMilestones();
         await refreshTracks();
+        heatmapEntries = null;
+        await renderAprHeatmap();
       } catch (err) {
-        alert(`Erro ao atualizar: ${err.message}`);
+        showErrorModal(err.message, "erro ao atualizar");
         cb.checked = !cb.checked;
       }
     });
@@ -768,7 +771,7 @@ function renderTrackEditMode() {
         const grid = containerEl.querySelector('.apr-grid');
         if (grid) grid.style.gridTemplateColumns = '40% 1fr';
       } catch (err) {
-        alert(`Erro ao deletar: ${err.message}`);
+        showErrorModal(err.message, "erro ao deletar");
       }
     });
   });
@@ -804,8 +807,10 @@ function renderTrackEditMode() {
         await updateMilestone(id, { status: newStatus });
         await refreshMilestones();
         await refreshTracks();
+        heatmapEntries = null;
+        await renderAprHeatmap();
       } catch (err) {
-        alert(`Erro: ${err.message}`);
+        showErrorModal(err.message, "erro ao atualizar");
         cb.checked = !cb.checked;
       }
     });
@@ -835,7 +840,7 @@ function renderTrackEditMode() {
           await refreshMilestones();
           await refreshTracks();
         } catch (err) {
-          alert(`Erro: ${err.message}`);
+          showErrorModal(err.message, "erro ao excluir");
         }
       });
     });
@@ -865,7 +870,7 @@ function renderTrackEditMode() {
         expandedMilestoneId = id;
         renderMilestones();
       } catch (err) {
-        alert(`Erro ao salvar notas: ${err.message}`);
+        showErrorModal(err.message, "erro ao salvar notas");
       }
     });
   });
@@ -915,7 +920,7 @@ function startTrackGoalEdit(displayEl, track) {
         track.general_goal = newGoal || null;
         await refreshTracks();
       } catch (err) {
-        alert(`Erro ao salvar descrição: ${err.message}`);
+        showErrorModal(err.message, "erro ao salvar descrição");
       }
     }
     renderTrackEditMode();
@@ -962,7 +967,7 @@ function setupDragAndDrop() {
         renderMilestones();
         await refreshTracks();
       } catch (err) {
-        alert(`Erro ao reordenar: ${err.message}`);
+        showErrorModal(err.message, "erro ao reordenar");
       }
     });
   });
@@ -998,7 +1003,7 @@ function setupDragAndDropEdit() {
         renderMilestones();
         await refreshTracks();
       } catch (err) {
-        alert(`Erro ao reordenar: ${err.message}`);
+        showErrorModal(err.message, "erro ao reordenar");
       }
     });
   });
@@ -1086,7 +1091,7 @@ function startTrackDrag(item, startEvent) {
       tracks = await reorderTracks(ids);
       renderTracks();
     } catch (err) {
-      alert(`Erro ao reordenar trilhas: ${err.message}`);
+      showErrorModal(err.message, "erro ao reordenar trilhas");
       renderTracks();
     }
   };
@@ -1116,6 +1121,8 @@ function fmtDateShort(isoDate) {
 
 let heatmapEntries = null;
 let heatmapYear = new Date().getFullYear();
+let heatmapResizeObserver = null;
+let heatmapResizeTimer = null;
 
 const MONTH_NAMES_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
@@ -1188,8 +1195,22 @@ async function renderAprHeatmap() {
 
   const { weeks, jan1, dec31 } = buildYearWeeks(heatmapYear);
 
-  gridEl.style.gridTemplateColumns = `repeat(${weeks.length}, 13px)`;
-  monthsEl.style.gridTemplateColumns = `repeat(${weeks.length}, 13px)`;
+  // tamanho de célula calculado pra caber exatamente o ano inteiro no
+  // espaço disponível, sem precisar de scroll horizontal (o scroll
+  // "escondido" via CSS não é confiável no WebKitGTK empacotado —
+  // melhor não depender de overflow em primeiro lugar).
+  const mainEl = containerEl.querySelector('.apr-heatmap-main');
+  const GAP = 3;
+  const WEEKDAY_COL = 26; // width da .apr-heatmap-weekdays (20px) + gap da .apr-heatmap-body (6px)
+  const available = (mainEl?.clientWidth || 0) - WEEKDAY_COL;
+  const rawCell = available > 0
+    ? Math.floor((available - (weeks.length - 1) * GAP) / weeks.length)
+    : 13;
+  const cellSize = Math.max(6, Math.min(13, rawCell));
+  mainEl?.style.setProperty('--hm-cell', `${cellSize}px`);
+
+  gridEl.style.gridTemplateColumns = `repeat(${weeks.length}, var(--hm-cell, 13px))`;
+  monthsEl.style.gridTemplateColumns = `repeat(${weeks.length}, var(--hm-cell, 13px))`;
 
   let cellsHtml = '';
   weeks.forEach(week => {
@@ -1206,7 +1227,7 @@ async function renderAprHeatmap() {
       const tip = `${dd}/${m}/${y}`
         + (c ? ` · ${c} registro${c > 1 ? 's' : ''} em aprendizado` : ' · sem registro')
         + (isMilestone ? ` · marco concluído: ${milestoneByDay[key].join('; ')}` : '');
-      cellsHtml += `<div class="hm-cell lvl-${lvl}${isMilestone ? ' milestone' : ''}" title="${escapeHtml(tip)}"></div>`;
+      cellsHtml += `<div class="hm-cell lvl-${lvl}${isMilestone ? ' milestone' : ''}" data-tooltip="${escapeHtml(tip)}"></div>`;
     });
   });
   gridEl.innerHTML = cellsHtml;
@@ -1311,7 +1332,7 @@ function startInlineEdit(titleEl, id) {
         await updateMilestone(id, { title: newTitle });
         ms.title = newTitle;
       } catch (err) {
-        alert(`Erro ao renomear: ${err.message}`);
+        showErrorModal(err.message, "erro ao renomear");
       }
     }
     selectedNodeId = null;
@@ -1346,7 +1367,7 @@ function startTrackNameEdit(displayEl, track) {
         track.name = newName;
         await refreshTracks();
       } catch (err) {
-        alert(`Erro ao renomear trilha: ${err.message}`);
+        showErrorModal(err.message, "erro ao renomear trilha");
       }
     }
     renderTrackEditMode();
@@ -1431,6 +1452,18 @@ export async function mount(container) {
 
   await renderAprHeatmap();
 
+  // recalcula o tamanho da célula do heatmap quando o card muda de
+  // largura (janela redimensionada, sidebar recolhida etc.) — sem
+  // isso o cálculo feito no primeiro render() ficaria desatualizado.
+  const heatmapMainEl = container.querySelector('.apr-heatmap-main');
+  if (heatmapMainEl && window.ResizeObserver) {
+    heatmapResizeObserver = new ResizeObserver(() => {
+      clearTimeout(heatmapResizeTimer);
+      heatmapResizeTimer = setTimeout(() => renderAprHeatmap(), 120);
+    });
+    heatmapResizeObserver.observe(heatmapMainEl);
+  }
+
   maybeStartAprendizadoTips();
   unsubscribeProfile = store.subscribe("profile", () => maybeStartAprendizadoTips());
 
@@ -1443,6 +1476,9 @@ export function unmount() {
   cancelActiveTipSequence();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
+  heatmapResizeObserver?.disconnect();
+  heatmapResizeObserver = null;
+  clearTimeout(heatmapResizeTimer);
   if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
   currentReplayFn = null;
   containerEl = null;

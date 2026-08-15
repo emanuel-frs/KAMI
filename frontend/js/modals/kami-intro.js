@@ -242,7 +242,7 @@ function confirmName(value) {
 function buildColorControls(container, hintEl) {
   const swatches = ACCENT_OPTIONS.map((c) => {
     const sel = c.value === draft.accent_color ? " ki-swatch--sel" : "";
-    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" title="${c.label}" style="background:${c.value};" aria-label="${c.label}"></button>`;
+    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="background:${c.value};" aria-label="${c.label}"></button>`;
   }).join("");
 
   container.innerHTML = `<div class="ki-swatches">${swatches}</div>`;

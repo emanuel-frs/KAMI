@@ -645,3 +645,14 @@ textarea {
   white-space: nowrap;
   max-width: 100%;
 }
+/* o texto truncado pode ser uma frase inteira — o tooltip genérico de
+   tooltip.css vem com nowrap (pensado pra rótulos curtos de botão),
+   então aqui sobrescreve só o necessário pra quebrar linha em vez de
+   virar uma barra horizontal gigante. */
+.track-goal-subtitle[data-tooltip]::after {
+  white-space: normal;
+  max-width: 240px;
+  width: max-content;
+  text-align: left;
+  line-height: 1.4;
+}

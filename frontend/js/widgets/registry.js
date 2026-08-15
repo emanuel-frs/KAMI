@@ -33,6 +33,7 @@ const COMPONENT_PATHS = {
   org_notifications: "./org-notifications.js",
   wallet: "./wallet.js",
   financas_resumo: "./financas-resumo.js",
+  financas_renda: "./financas-renda.js",
   financas_registros: "./financas-registros.js",
   financas_assinaturas: "./financas-assinaturas.js",
   dividas: "./dividas.js",

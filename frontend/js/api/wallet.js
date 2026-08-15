@@ -13,13 +13,15 @@ export const deleteAccount = (accountId) => del(`/api/wallet/accounts/${accountI
 // resumo
 export const getWalletSummary = () => get("/api/wallet/summary");
 
-// assinaturas
+// assinaturas — marcar como paga pode gerar uma transação real (item 6
+// do mapa de problemas): `payload` aceita { valor_pago?, forma_pagamento?,
+// gerar_transacao? } — ver modals/pay-period-modal.js.
 export const listSubscriptions = () => get("/api/wallet/subscriptions");
 export const createSubscription = (data) => post("/api/wallet/subscriptions", data);
 export const listSubscriptionPeriods = (month) =>
   get(`/api/wallet/subscriptions/periods?month=${month}`);
-export const paySubscriptionPeriod = (periodId, valorPago) =>
-  put(`/api/wallet/subscriptions/periods/${periodId}/pay`, valorPago != null ? { valor_pago: valorPago } : {});
+export const paySubscriptionPeriod = (periodId, payload) =>
+  put(`/api/wallet/subscriptions/periods/${periodId}/pay`, payload || {});
 export const unpaySubscriptionPeriod = (periodId) =>
   put(`/api/wallet/subscriptions/periods/${periodId}/unpay`, {});
 

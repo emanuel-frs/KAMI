@@ -90,12 +90,42 @@ CREATE TABLE IF NOT EXISTS income_entries (
     status            TEXT NOT NULL DEFAULT 'previsto'  -- 'previsto' | 'pago'
 );
 
+-- Cadastro da conta fixa em si (nome/valor/dia de vencimento). Assim como
+-- wallet_subscriptions, marcar uma instância mensal (fixed_bill_periods)
+-- como paga é OPCIONALMENTE real: se `conta_id` está preenchida E o
+-- usuário confirma na hora de marcar como paga (ver
+-- app/routers/financas.py::pay_fixed_bill_period), gera uma transação
+-- 'saida' de verdade e desconta saldo/fatura da conta vinculada — mesmo
+-- comportamento de um app de finanças "de verdade" (YNAB/Mobills: marcar
+-- uma conta recorrente como paga lança a despesa). Sem conta_id, ou se o
+-- usuário recusar, continua sendo só lembrete (decisão do item 6 do mapa
+-- de problemas, resolvida como opcional por registro).
 CREATE TABLE IF NOT EXISTS fixed_bills (
-    id      TEXT PRIMARY KEY,
-    name    TEXT NOT NULL,
-    amount  REAL NOT NULL,
-    due_day INTEGER NOT NULL,
-    active  INTEGER NOT NULL DEFAULT 1
+    id        TEXT PRIMARY KEY,
+    name      TEXT NOT NULL,
+    amount    REAL NOT NULL,
+    due_day   INTEGER NOT NULL,
+    active    INTEGER NOT NULL DEFAULT 1,
+    conta_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+    categoria TEXT   -- usada na transação gerada quando marcada paga; cai
+                      -- pra um default ("contas fixas") se ficar em branco
+);
+
+-- Um registro por (conta fixa, mês) — nasce "não paga" quando o mês é
+-- consultado pela primeira vez. Mesmo padrão sob-demanda de
+-- wallet_subscription_periods/income_entries, unificando os 3 conceitos de
+-- "coisa que se repete todo mês" (item 1 do mapa de problemas).
+-- transaction_id aponta pra a transação real gerada ao marcar como paga
+-- (NULL se foi marcada só como lembrete, sem gerar transação) — permite
+-- reverter de forma limpa quando o usuário desfaz o pagamento.
+CREATE TABLE IF NOT EXISTS fixed_bill_periods (
+    id             TEXT PRIMARY KEY,
+    fixed_bill_id  TEXT NOT NULL REFERENCES fixed_bills(id) ON DELETE CASCADE,
+    mes_ano        TEXT NOT NULL,   -- 'YYYY-MM'
+    paga           INTEGER NOT NULL DEFAULT 0,
+    valor_pago     REAL,            -- override, só se pago com valor diferente do esperado
+    transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL,
+    UNIQUE(fixed_bill_id, mes_ano)
 );
 
 CREATE TABLE IF NOT EXISTS debts (
@@ -132,25 +162,32 @@ CREATE TABLE IF NOT EXISTS wallet_accounts (
     UNIQUE(bank_id, nome)
 );
 
--- Assinaturas são só lembrete informativo (não afetam saldo/fatura
--- automaticamente) — a conta vinculada é referência visual apenas.
+-- Assinaturas: marcar uma instância mensal (wallet_subscription_periods)
+-- como paga é OPCIONALMENTE real — mesmo mecanismo de fixed_bills acima
+-- (item 6 do mapa de problemas): com conta_id preenchida e confirmação do
+-- usuário no momento de marcar como paga, gera uma transação 'saida' de
+-- verdade. `categoria` alimenta essa transação (default "assinaturas" se
+-- vazia). Sem conta_id, continua sendo só lembrete.
 CREATE TABLE IF NOT EXISTS wallet_subscriptions (
     id             TEXT PRIMARY KEY,
     nome           TEXT NOT NULL,
     valor_esperado REAL NOT NULL,
     dia_cobranca   INTEGER NOT NULL,
     conta_id       TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
-    active         INTEGER NOT NULL DEFAULT 1
+    active         INTEGER NOT NULL DEFAULT 1,
+    categoria      TEXT
 );
 
 -- Um registro por (assinatura, mês) — nasce "não paga" quando o mês é
 -- consultado pela primeira vez (mesmo padrão sob-demanda de income_entries).
+-- transaction_id: ver comentário equivalente em fixed_bill_periods.
 CREATE TABLE IF NOT EXISTS wallet_subscription_periods (
     id               TEXT PRIMARY KEY,
     subscription_id  TEXT NOT NULL REFERENCES wallet_subscriptions(id) ON DELETE CASCADE,
     mes_ano          TEXT NOT NULL,   -- 'YYYY-MM'
     paga             INTEGER NOT NULL DEFAULT 0,
     valor_pago       REAL,            -- override, só se pago com valor diferente do esperado
+    transaction_id   TEXT REFERENCES transactions(id) ON DELETE SET NULL,
     UNIQUE(subscription_id, mes_ano)
 );
 

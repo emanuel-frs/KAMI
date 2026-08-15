@@ -12,8 +12,9 @@ import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
-// Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
-// pós-mvp ficam na sidebar como link desabilitado (ver index.html).
+// Telas do v1 (seção 0.1 do projeto) + calendário (primeira tela
+// pós-mvp a sair do estado "em breve", ver index.html). As demais
+// pós-mvp (carreira, assistente kami) continuam como link desabilitado.
 const PAGES = {
   perfil: () => import("./pages/perfil.js"),
   nucleo: () => import("./pages/nucleo.js"),
@@ -21,6 +22,7 @@ const PAGES = {
   aprendizado: () => import("./pages/aprendizado.js"),
   organizacao: () => import("./pages/organizacao.js"),
   metas: () => import("./pages/metas.js"),
+  calendario: () => import("./pages/calendario.js"),
 };
 
 const pageRoot = document.getElementById("page-root");

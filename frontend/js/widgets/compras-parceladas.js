@@ -3,6 +3,7 @@ import { escapeHtml } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem
@@ -44,6 +45,7 @@ export async function render(el, widget) {
   }
 
   function draw() {
+    const focusId = consumePendingFocus("parcela");
     const lookup = accountLookup();
     el.innerHTML = `
       <div class="widget-inline-toolbar">
@@ -55,7 +57,7 @@ export async function render(el, widget) {
           const contaLabel = found ? `${escapeHtml(found.bank.nome)} — ${escapeHtml(found.account.nome)}` : "sem conta vinculada";
           const ajusteTag = c.ajuste_parcelas ? `<span class="cp-ajuste-tag" data-tooltip="ajuste manual">${c.ajuste_parcelas > 0 ? "+" : ""}${c.ajuste_parcelas}</span>` : "";
           return `
-            <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}">
+            <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}" data-parcela-id="${c.id}">
               <div class="cp-top">
                 <span class="cp-nome">${escapeHtml(c.nome)}</span>
                 <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)">×</span>
@@ -109,6 +111,8 @@ export async function render(el, widget) {
         },
       });
     });
+
+    if (focusId) focusRow(el.querySelector(`[data-parcela-id="${focusId}"]`), "parcela");
   }
 
   await reload();

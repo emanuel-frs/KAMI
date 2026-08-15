@@ -82,6 +82,14 @@ WIDGET_CATALOG = {
         "max_span": 4,
         "default_span": 2,
     },
+    "financas_renda": {
+        "label": "renda recorrente",
+        "screens": ["financas"],
+        "removable": True,
+        "min_span": 1,
+        "max_span": 4,
+        "default_span": 2,
+    },
     "financas_registros": {
         "label": "registros financeiros",
         "screens": ["financas"],

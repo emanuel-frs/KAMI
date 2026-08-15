@@ -148,6 +148,7 @@
   height: 90px;
   display: flex;
   flex-direction: column;
+  position: relative; /* ancora o .chart-tooltip (ver chart-tooltip.js) */
 }
 .chart-progresso .chart-svg {
   flex: 1 1 auto;

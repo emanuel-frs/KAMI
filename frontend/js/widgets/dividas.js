@@ -4,6 +4,7 @@ import { openDebtModal } from "../modals/debt-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /**
  * Widget "dívidas" — segue o mesmo padrão simples de financas-resumo.js
@@ -43,13 +44,15 @@ export async function render(el, widget) {
     // ou ficaria uma lista invisível órfã acumulando a cada reload().
     el.querySelectorAll("[data-status-for]").forEach((sel) => destroyCustomSelect(sel));
 
+    const focusId = consumePendingFocus("divida");
+
     el.innerHTML = `
       <div class="widget-inline-toolbar">
         <button type="button" class="btn sm" data-action="add-debt">+ dívida</button>
       </div>
       <div class="dividas-list">
         ${debts.length ? debts.map((d) => `
-          <div class="divida-row${d.status === "paga" ? " paga" : ""}">
+          <div class="divida-row${d.status === "paga" ? " paga" : ""}" data-divida-id="${d.id}">
             <div class="divida-top">
               <span class="divida-desc">${escapeHtml(d.description)}</span>
               <span class="divida-remove" data-remove-debt="${d.id}" data-tooltip="remover dívida">×</span>
@@ -93,6 +96,8 @@ export async function render(el, widget) {
     el.querySelector('[data-action="add-debt"]').addEventListener("click", () => {
       openDebtModal({ onSaved: reload });
     });
+
+    if (focusId) focusRow(el.querySelector(`[data-divida-id="${focusId}"]`), "divida");
   }
 
   await reload();

@@ -14,6 +14,8 @@
 // fica em cima (y=0) — a linha "cai" da base até o topo conforme a meta
 // avança, ilustrando literalmente a queda de "quanto falta".
 
+import { attachChartTooltip } from "./chart-tooltip.js";
+
 function fmtDateShort(iso) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -24,6 +26,9 @@ function fmtRemaining(v, unit) {
     return "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+function escapeAttr(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 const W = 400;
@@ -67,9 +72,14 @@ export function renderProgressChart(el, goal, contributions) {
   const linePath = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H} L0,${H} Z`;
 
-  const dots = coords.map(([x, y], i) =>
-    `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" class="chart-dot"><title>${points[i].label}: falta ${fmtRemaining(points[i].remaining, goal.unit)}</title></circle>`
-  ).join("");
+  const dots = coords.map(([x, y], i) => {
+    const tip = escapeAttr(`${points[i].label}: falta ${fmtRemaining(points[i].remaining, goal.unit)}`);
+    // círculo invisível maior por cima, mesmo esquema dos gráficos de
+    // Finanças (chart-tooltip.js) — o raio de 2.5 do ponto visível é
+    // pequeno demais pra acertar o mouse com o card estreito.
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" class="chart-dot" data-tip="${tip}"></circle>` +
+      `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" class="chart-dot-hit" data-tip="${tip}"></circle>`;
+  }).join("");
 
   const labelsHtml = points.map((p) => `<span>${p.label}</span>`).join("");
 
@@ -83,4 +93,5 @@ export function renderProgressChart(el, goal, contributions) {
       <div class="chart-fluxo-labels">${labelsHtml}</div>
     </div>
   `;
+  attachChartTooltip(el.querySelector(".chart-progresso"));
 }

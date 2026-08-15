@@ -41,6 +41,31 @@
 #btn-open-help:hover::after,
 #btn-open-settings:hover::after { transform: translateY(0); }
 
+/* mesmo problema/solução acima, agora pros controles do grid de widgets
+   (grid.js): drag-handle fica coladinho na borda esquerda do card-head,
+   resize-handle/resize-reset ficam no canto inferior direito do card —
+   nas colunas extremas da grade, um tooltip centralizado estoura
+   main.page. Como main.page só declara overflow-y:auto, o eixo x
+   computa pra "auto" também (mesmo caso do overflow-x implícito do
+   .apr-left), então esse estouro virava um scroll horizontal permanente
+   sem nada visível pra rolar até (o tooltip só aparece no hover). */
+.drag-handle::after {
+  left: 0;
+  transform: translateY(4px);
+}
+.drag-handle:hover::after { transform: translateY(0); }
+
+.resize-handle::after,
+.resize-reset::after,
+.widget-remove-btn::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+.resize-handle:hover::after,
+.resize-reset:hover::after,
+.widget-remove-btn:hover::after { transform: translateY(0); }
+
 .icon-btn-square {
   width: 26px; height: 26px;
   display: inline-flex; align-items: center; justify-content: center;

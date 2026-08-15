@@ -9,8 +9,13 @@ aplica:
     caso particular (is_dinheiro), removido porque a mesma coisa é
     representável como um banco normal sem crédito (com ou sem saldo).
     Coluna is_dinheiro removida da tabela wallet_banks via migration.
-  - Assinaturas NÃO afetam saldo/fatura — são lembrete + toggle
-    pago/não-pago por mês (mesmo padrão sob-demanda de income_entries).
+  - Assinaturas afetam saldo/fatura OPCIONALMENTE: se a assinatura tem
+    conta_id vinculada e o usuário confirma no momento de marcar como
+    paga, gera uma transação 'saida' real (ver app/finance_utils.py) —
+    mesmo mecanismo de fixed_bills em financas.py (item 6 do mapa de
+    problemas, resolvido junto com a unificação do item 1). Sem conta
+    vinculada, continua sendo só lembrete + toggle pago/não-pago por mês
+    (mesmo padrão sob-demanda de income_entries).
 
 Endpoints:
   GET    /banks                            lista bancos com contas aninhadas
@@ -24,8 +29,8 @@ Endpoints:
   GET    /subscriptions
   POST   /subscriptions
   GET    /subscriptions/periods?month=YYYY-MM
-  PUT    /subscriptions/periods/{id}/pay
-  PUT    /subscriptions/periods/{id}/unpay
+  PUT    /subscriptions/periods/{id}/pay    gerar_transacao opcional (default True se tiver conta_id)
+  PUT    /subscriptions/periods/{id}/unpay  reverte a transação se houver
 """
 import re
 import datetime
@@ -35,6 +40,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
+from app.finance_utils import create_saida_transaction, revert_saida_transaction
 
 router = APIRouter()
 
@@ -96,8 +102,9 @@ class SubscriptionIn(BaseModel):
     nome: str
     valor_esperado: float
     dia_cobranca: int = Field(..., ge=1, le=31)
-    conta_id: Optional[str] = None
+    conta_id: Optional[str] = None   # vínculo opcional — habilita gerar transação real ao pagar
     active: bool = True
+    categoria: Optional[str] = None  # usada na transação gerada; cai pra "assinaturas" se vazia
 
 
 class SubscriptionOut(SubscriptionIn):
@@ -110,10 +117,13 @@ class PeriodOut(BaseModel):
     mes_ano: str
     paga: bool
     valor_pago: Optional[float] = None
+    gerou_transacao: bool = False  # True quando 'paga' veio de uma transação real (não só lembrete)
 
 
 class PayPeriodPayload(BaseModel):
     valor_pago: Optional[float] = None
+    forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # obrigatório só se a conta tiver os dois
+    gerar_transacao: bool = True  # se False, comporta-se como antes: só marca como lembrete
 
 
 # ==================== helpers de saída ====================
@@ -151,6 +161,7 @@ def _period_out(row) -> dict:
         "mes_ano": row["mes_ano"],
         "paga": bool(row["paga"]),
         "valor_pago": row["valor_pago"],
+        "gerou_transacao": row["transaction_id"] is not None,
     }
 
 
@@ -280,9 +291,10 @@ def create_subscription(payload: SubscriptionIn, db=Depends(get_db)):
             raise HTTPException(status_code=422, detail="conta não encontrada")
     sub_id = new_id()
     db.execute(
-        "INSERT INTO wallet_subscriptions (id, nome, valor_esperado, dia_cobranca, conta_id, active) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (sub_id, payload.nome, payload.valor_esperado, payload.dia_cobranca, payload.conta_id, int(payload.active)),
+        "INSERT INTO wallet_subscriptions (id, nome, valor_esperado, dia_cobranca, conta_id, active, categoria) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (sub_id, payload.nome, payload.valor_esperado, payload.dia_cobranca, payload.conta_id,
+         int(payload.active), payload.categoria),
     )
     db.commit()
     return {"id": sub_id, **payload.model_dump()}
@@ -313,14 +325,39 @@ def list_subscription_periods(month: str, db=Depends(get_db)):
     return [_period_out(r) for r in rows]
 
 
+DEFAULT_SUBSCRIPTION_CATEGORY = "assinaturas"
+
+
 @router.put("/subscriptions/periods/{period_id}/pay", response_model=PeriodOut)
 def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="período não encontrado")
+    sub = db.execute("SELECT * FROM wallet_subscriptions WHERE id = ?", (row["subscription_id"],)).fetchone()
+    if not sub:
+        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+
+    amount = payload.valor_pago if payload.valor_pago is not None else sub["valor_esperado"]
+    transaction_id = None
+
+    # só gera transação real se a assinatura tem conta_id vinculada E o
+    # usuário não recusou explicitamente (payload.gerar_transacao) — sem
+    # conta vinculada não tem como saber de onde descontar, então cai
+    # pro comportamento de sempre (só lembrete).
+    if sub["conta_id"] and payload.gerar_transacao:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (sub["conta_id"],)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta vinculada à assinatura não existe mais")
+        transaction_id = create_saida_transaction(
+            db, conta, amount,
+            category=sub["categoria"] or DEFAULT_SUBSCRIPTION_CATEGORY,
+            description=f"assinatura: {sub['nome']}",
+            forma_pagamento=payload.forma_pagamento,
+        )
+
     db.execute(
-        "UPDATE wallet_subscription_periods SET paga = 1, valor_pago = ? WHERE id = ?",
-        (payload.valor_pago, period_id),
+        "UPDATE wallet_subscription_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
+        (payload.valor_pago, transaction_id, period_id),
     )
     db.commit()
     updated = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
@@ -332,8 +369,12 @@ def unpay_period(period_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="período não encontrado")
+    # se essa marcação tinha gerado uma transação real, desfaz o efeito no
+    # saldo/fatura e remove a transação antes de voltar pra "não paga"
+    # (motivo original do item 6: evitar desconto fantasma no saldo).
+    revert_saida_transaction(db, row["transaction_id"])
     db.execute(
-        "UPDATE wallet_subscription_periods SET paga = 0, valor_pago = NULL WHERE id = ?",
+        "UPDATE wallet_subscription_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),
     )
     db.commit()

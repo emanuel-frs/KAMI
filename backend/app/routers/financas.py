@@ -10,6 +10,17 @@ Endpoints:
   Cadastros simples (CRUD básico):
     /fixed-bills, /debts
 
+  Contas fixas — instância mensal (mesmo padrão de wallet_subscriptions,
+  ver app/routers/wallet.py — unifica os dois conceitos, item 1 do mapa
+  de problemas). Marcar como paga é OPCIONALMENTE real (item 6): se a
+  conta fixa tem conta_id vinculada E o usuário confirma no momento de
+  marcar como paga, gera uma transação 'saida' de verdade e desconta
+  saldo/fatura — igual um app de finanças de verdade faria. Sem conta
+  vinculada, ou se o usuário recusar, continua só lembrete:
+    GET /fixed-bills/periods?month=YYYY-MM   garante e devolve as instâncias do mês
+    PUT /fixed-bills/periods/{id}/pay        marca como paga (gerar_transacao opcional)
+    PUT /fixed-bills/periods/{id}/unpay      desfaz (reverte a transação se houver)
+
   Transações + visão agregada:
     GET/POST /transactions?month=YYYY-MM     toda transação é vinculada a uma
                                               wallet_account (conta_id obrigatório).
@@ -36,6 +47,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db, new_id
 from app.business_days import nth_business_day_of_month, add_business_days
 from app.actions import register_action
+from app.finance_utils import create_saida_transaction, revert_saida_transaction
 
 router = APIRouter()
 
@@ -76,10 +88,27 @@ class FixedBillIn(BaseModel):
     amount: float
     due_day: int = Field(..., ge=1, le=31)
     active: bool = True
+    conta_id: Optional[str] = None   # vínculo opcional — habilita gerar transação real ao pagar
+    categoria: Optional[str] = None  # usada na transação gerada; cai pra "contas fixas" se vazia
 
 
 class FixedBillOut(FixedBillIn):
     id: str
+
+
+class FixedBillPeriodOut(BaseModel):
+    id: str
+    fixed_bill_id: str
+    mes_ano: str
+    paga: bool
+    valor_pago: Optional[float] = None
+    gerou_transacao: bool = False  # True quando 'paga' veio de uma transação real (não só lembrete)
+
+
+class PayFixedBillPeriodPayload(BaseModel):
+    valor_pago: Optional[float] = None
+    forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # obrigatório só se a conta tiver os dois
+    gerar_transacao: bool = True  # se False, comporta-se como antes: só marca como lembrete
 
 
 class DebtIn(BaseModel):
@@ -261,10 +290,34 @@ def list_fixed_bills(db=Depends(get_db)):
 
 @router.post("/fixed-bills", response_model=FixedBillOut)
 def create_fixed_bill(payload: FixedBillIn, db=Depends(get_db)):
+    if payload.conta_id:
+        conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta não encontrada")
     bill_id = new_id()
     db.execute(
-        "INSERT INTO fixed_bills (id, name, amount, due_day, active) VALUES (?, ?, ?, ?, ?)",
-        (bill_id, payload.name, payload.amount, payload.due_day, int(payload.active)),
+        "INSERT INTO fixed_bills (id, name, amount, due_day, active, conta_id, categoria) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (bill_id, payload.name, payload.amount, payload.due_day, int(payload.active),
+         payload.conta_id, payload.categoria),
+    )
+    db.commit()
+    return {"id": bill_id, **payload.model_dump()}
+
+
+@router.put("/fixed-bills/{bill_id}", response_model=FixedBillOut)
+def update_fixed_bill(bill_id: str, payload: FixedBillIn, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM fixed_bills WHERE id = ?", (bill_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+    if payload.conta_id:
+        conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta não encontrada")
+    db.execute(
+        "UPDATE fixed_bills SET name=?, amount=?, due_day=?, active=?, conta_id=?, categoria=? WHERE id=?",
+        (payload.name, payload.amount, payload.due_day, int(payload.active),
+         payload.conta_id, payload.categoria, bill_id),
     )
     db.commit()
     return {"id": bill_id, **payload.model_dump()}
@@ -275,6 +328,105 @@ def delete_fixed_bill(bill_id: str, db=Depends(get_db)):
     db.execute("DELETE FROM fixed_bills WHERE id = ?", (bill_id,))
     db.commit()
     return {"deleted": True}
+
+
+# ==================== contas fixas — instância mensal ====================
+# Mesmo padrão sob-demanda de app/routers/wallet.py::list_subscription_periods
+# (unificação do item 1 do mapa de problemas). Marcar como paga gera uma
+# transação real OPCIONALMENTE — ver docstring de app/finance_utils.py.
+
+DEFAULT_FIXED_BILL_CATEGORY = "contas fixas"
+
+
+def _period_out(row) -> dict:
+    return {
+        "id": row["id"],
+        "fixed_bill_id": row["fixed_bill_id"],
+        "mes_ano": row["mes_ano"],
+        "paga": bool(row["paga"]),
+        "valor_pago": row["valor_pago"],
+        "gerou_transacao": row["transaction_id"] is not None,
+    }
+
+
+@router.get("/fixed-bills/periods", response_model=List[FixedBillPeriodOut])
+def list_fixed_bill_periods(month: str, db=Depends(get_db)):
+    _validate_month(month)
+    bills = db.execute("SELECT id FROM fixed_bills WHERE active = 1").fetchall()
+    for b in bills:
+        existing = db.execute(
+            "SELECT id FROM fixed_bill_periods WHERE fixed_bill_id = ? AND mes_ano = ?",
+            (b["id"], month),
+        ).fetchone()
+        if not existing:
+            db.execute(
+                "INSERT INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
+                "VALUES (?, ?, ?, 0, NULL)",
+                (new_id(), b["id"], month),
+            )
+    db.commit()
+    rows = db.execute(
+        "SELECT p.* FROM fixed_bill_periods p "
+        "JOIN fixed_bills b ON b.id = p.fixed_bill_id "
+        "WHERE p.mes_ano = ? AND b.active = 1 ORDER BY b.name",
+        (month,),
+    ).fetchall()
+    return [_period_out(r) for r in rows]
+
+
+@router.put("/fixed-bills/periods/{period_id}/pay", response_model=FixedBillPeriodOut)
+def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="instância de conta fixa não encontrada")
+    bill = db.execute("SELECT * FROM fixed_bills WHERE id = ?", (row["fixed_bill_id"],)).fetchone()
+    if not bill:
+        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+
+    amount = payload.valor_pago if payload.valor_pago is not None else bill["amount"]
+    transaction_id = None
+
+    # só gera transação real se a conta fixa tem conta_id vinculada E o
+    # usuário não recusou explicitamente (payload.gerar_transacao) — sem
+    # conta vinculada não tem como saber de onde descontar, então cai
+    # pro comportamento de sempre (só lembrete).
+    if bill["conta_id"] and payload.gerar_transacao:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (bill["conta_id"],)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta vinculada à conta fixa não existe mais")
+        transaction_id = create_saida_transaction(
+            db, conta, amount,
+            category=bill["categoria"] or DEFAULT_FIXED_BILL_CATEGORY,
+            description=f"conta fixa: {bill['name']}",
+            forma_pagamento=payload.forma_pagamento,
+        )
+
+    db.execute(
+        "UPDATE fixed_bill_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
+        (payload.valor_pago, transaction_id, period_id),
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
+    return _period_out(updated)
+
+
+@router.put("/fixed-bills/periods/{period_id}/unpay", response_model=FixedBillPeriodOut)
+def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="instância de conta fixa não encontrada")
+    # se essa marcação tinha gerado uma transação real, desfaz o efeito no
+    # saldo/fatura e remove a transação antes de voltar pra "não paga" —
+    # sem isso o saldo ficaria com um desconto fantasma que o usuário não
+    # consegue mais explicar (motivo original do item 6).
+    revert_saida_transaction(db, row["transaction_id"])
+    db.execute(
+        "UPDATE fixed_bill_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
+        (period_id,),
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
+    return _period_out(updated)
 
 
 @router.get("/debts", response_model=List[DebtOut])

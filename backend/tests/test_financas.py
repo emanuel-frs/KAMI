@@ -137,6 +137,23 @@ def test_fixed_bill_crud(client):
     bill = resp.json()
     assert bill["active"] is True
 
+    resp_upd = client.put(
+        f"/api/financas/fixed-bills/{bill['id']}",
+        json={"name": "Aluguel novo", "amount": 1600, "due_day": 10, "active": False},
+    )
+    assert resp_upd.status_code == 200
+    updated = resp_upd.json()
+    assert updated["name"] == "Aluguel novo"
+    assert updated["amount"] == 1600
+    assert updated["due_day"] == 10
+    assert updated["active"] is False
+
+    resp_404 = client.put(
+        "/api/financas/fixed-bills/inexistente",
+        json={"name": "x", "amount": 1, "due_day": 1},
+    )
+    assert resp_404.status_code == 404
+
     resp_del = client.delete(f"/api/financas/fixed-bills/{bill['id']}")
     assert resp_del.status_code == 200
 

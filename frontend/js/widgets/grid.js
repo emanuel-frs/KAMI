@@ -248,15 +248,15 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
 
   const handle = document.createElement("div");
   handle.className = "resize-handle";
-  handle.innerHTML = icon("resize", { size: 12 });
-  handle.title =
-    "arraste pra redimensionar — largura em frações da linha, altura livre (mínimo garantido)";
+  handle.dataset.tooltip =
+    "arraste pra redimensionar";
+  handle.innerHTML = icon("resize", { size: 12, title: "redimensionar widget" });
   card.appendChild(handle);
 
   const reset = document.createElement("div");
   reset.className = "resize-reset";
-  reset.innerHTML = icon("undo", { size: 11 });
-  reset.title = "voltar ao tamanho automático";
+  reset.dataset.tooltip = "voltar ao tamanho automático";
+  reset.innerHTML = icon("undo", { size: 11, title: "voltar ao tamanho automático" });
   reset.onclick = () => {
     const cols = currentCols(container);
     card.style.height = "";
@@ -347,8 +347,8 @@ function attachDragHandle(card, container, getCommit, pauseObservers, resumeObse
 
   const handle = document.createElement("span");
   handle.className = "drag-handle";
-  handle.innerHTML = icon("grip", { size: 12 });
-  handle.title = "arraste pra reordenar";
+  handle.dataset.tooltip = "arraste pra reordenar";
+  handle.innerHTML = icon("grip", { size: 12, title: "arraste pra reordenar" });
   head.insertBefore(handle, head.firstChild);
 
   handle.addEventListener("pointerdown", (e) => {
@@ -528,19 +528,17 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = "span 12";
 
     const removeBtn = def.removable !== false
-      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" title="remover widget">×</span>`
+      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget">×</span>`
       : "";
 
     card.innerHTML = `
       <div class="card-head">
-        <span class="drag-handle" title="arrastar pra reordenar">${icon("grip", { size: 12 })}</span>
         ${def.label}${removeBtn}
       </div>
       <div class="card-body">
         <span style="color:var(--text-faint);font-size:10px;">carregando…</span>
       </div>
     `;
-    card.querySelector(":scope > .card-head > .drag-handle")?.remove();
 
     if (!observedCards.has(card)) {
       observedCards.add(card);

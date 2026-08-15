@@ -115,41 +115,71 @@
 
 /* ==================== REGISTROS FINANCEIROS (lista de transações) ==================== */
 .registros-list{ display:flex; flex-direction:column; }
+/* era uma linha só (ícone+banco / descrição / valor / data lado a lado)
+ * — numa coluna estreita isso sobra espaço pra tudo, MENOS pra descrição
+ * (a única parte de largura variável), que virava uma letra + reticências.
+ * min-width:0/ellipsis por si só não resolve quando o resto da linha já
+ * é fixo o bastante pra não sobrar nada; a correção real é dar um andar
+ * próprio pra descrição+valor (o que a pessoa realmente lê num extrato)
+ * e jogar banco/conta/data — informação de apoio — pra uma segunda linha
+ * menor, que agora tem a largura toda do card só pra si. */
 .registro-row{
-  display:flex; align-items:center; gap:10px; padding:9px 4px;
+  display:flex; flex-direction:column; gap:5px; padding:9px 4px;
   border-bottom:1px dashed var(--border-soft); font-size:11px;
 }
 .registro-row:last-child{ border-bottom:none; }
-.registro-conta-col{ display:flex; align-items:center; gap:6px; flex:0 0 auto; width:150px; min-width:0; }
+.r-top{ display:flex; align-items:baseline; gap:10px; }
+.registro-desc{ flex:1; min-width:0; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-desc .r-category{ font-size:9px; color:var(--text-faint); margin-left:6px; }
+.registro-valor{ flex:0 0 auto; font-weight:600; letter-spacing:0.2px; white-space:nowrap; }
+.registro-valor.entrada{ color:var(--accent); }
+.registro-valor.saida{ color:var(--red); }
+.registro-valor.transferencia{ color:var(--text-dim); }
+.r-meta{ display:flex; align-items:center; gap:8px; }
+.registro-conta-col{ display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
 .registro-conta-col .r-bank-icon{
-  width:16px; height:16px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  width:14px; height:14px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
   overflow:hidden; background:#000;
 }
 .registro-conta-col .r-bank-icon pre{ margin:0; white-space:pre; color:#fff; line-height:1; font-size:3px; }
 .registro-conta-col .r-bank-icon .ph{ font-size:6px; color:var(--text-faint); }
-.registro-conta-names{ display:flex; flex-direction:column; min-width:0; line-height:1.3; }
-.registro-conta-names .r-bank-name{ font-size:9.5px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.registro-conta-names .r-account-name{ font-size:9px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.registro-desc{ flex:1; min-width:0; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.registro-desc .r-category{ font-size:9px; color:var(--text-faint); margin-left:6px; }
-.registro-valor{ flex:0 0 auto; font-weight:600; letter-spacing:0.2px; }
-.registro-valor.entrada{ color:var(--accent); }
-.registro-valor.saida{ color:var(--red); }
-.registro-valor.transferencia{ color:var(--text-dim); }
-.registro-date{ flex:0 0 auto; font-size:9.5px; color:var(--text-faint); width:64px; text-align:right; }
+.registro-conta-names{ display:flex; align-items:center; gap:4px; min-width:0; }
+.registro-conta-names .r-bank-name{ font-size:9.5px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-conta-names .r-account-name{ font-size:9px; color:var(--text-faint); opacity:0.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-date{ flex:0 0 auto; font-size:9.5px; color:var(--text-faint); }
+
+
 
 /* ==================== ASSINATURAS ==================== */
 .subs-list{ display:flex; flex-direction:column; gap:6px; }
+/* mesmo padrão de duas linhas de .divida-row (widget-financas-extra.css) —
+   .sub-name nem tinha min-width:0/ellipsis, então numa linha só com
+   valor+dia+tag+toggle o card de assinaturas também forçava largura
+   mínima maior que o span configurado (mesmo bug do widget de renda). */
 .sub-row{
-  display:flex; align-items:center; gap:10px; padding:8px 10px;
+  display:flex; flex-direction:column; gap:4px; padding:8px 10px;
   border:1px solid var(--border-soft); background:var(--card); font-size:11px;
 }
 .sub-row.paga{ border-color:var(--accent-dim); }
-.sub-name{ flex:1; color:var(--text-bright); }
-.sub-valor{ color:var(--text-dim); }
-.sub-dia{ font-size:9.5px; color:var(--text-faint); width:70px; }
+.sub-top{ display:flex; align-items:center; gap:8px; }
+.sub-name{
+  flex:1; min-width:0; color:var(--text-bright);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.sub-meta{ display:flex; align-items:center; gap:8px; }
+.sub-valor{ color:var(--text-dim); white-space:nowrap; }
+.sub-dia{ font-size:9.5px; color:var(--text-faint); white-space:nowrap; }
 .sub-toggle{
   border:1px solid var(--border-soft); background:var(--bg); color:var(--text-faint);
   font-family:var(--font); font-size:10px; padding:3px 9px; cursor:pointer;
+  flex-shrink:0; margin-left:auto;
 }
 .sub-toggle.paga{ border-color:var(--accent); color:var(--accent); }
+
+/* tag "gerou transação real" — item 6 do mapa de problemas: aparece só
+   quando marcar como paga de fato descontou de uma conta vinculada, em
+   vez de só marcar o lembrete. */
+.sub-tx-tag{
+  font-size:9px; color:var(--accent); border:1px solid var(--accent-dim);
+  padding:1px 4px; flex-shrink:0; cursor:default;
+}

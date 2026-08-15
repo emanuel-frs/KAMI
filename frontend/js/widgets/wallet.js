@@ -3,6 +3,7 @@ import { fitAsciiText } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
 import { openAccountModal } from "../modals/account-modal.js";
 import { icon } from "../components/icons.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -17,8 +18,8 @@ function bankIconInner(bank) {
   return `<span class="ph">${fallback}</span>`;
 }
 function accountCardHtml(bank, a) {
-  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" title="editar conta">${icon("pencil", { size: 11 })}</span>`;
-  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" title="remover conta">×</span>`;
+  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="editar conta">${icon("pencil", { size: 11 })}</span>`;
+  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta">×</span>`;
   let saldoBlock = "";
   if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>saldo atual</span><b>${brl(a.saldo_atual)}</b></div>`;
   let creditoBlock = "";
@@ -107,7 +108,8 @@ export async function render(el, widget) {
     el.querySelectorAll("[data-remove-account]").forEach((node) => {
       node.addEventListener("click", async (ev) => {
         ev.stopPropagation();
-        if (!confirm("remover essa conta?")) return;
+        const ok = await showConfirmModal("remover essa conta?", { title: "remover conta", confirmText: "remover", danger: true });
+        if (!ok) return;
         await walletApi.deleteAccount(node.getAttribute("data-remove-account"));
         await reload();
         window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
