@@ -23,18 +23,22 @@ enquanto)
 A ordem final é por data.
 """
 import calendar
+import datetime
 import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.database import get_db
+from app.database import get_db, new_id, now_iso
 from app.routers.wallet import _months_between
 
 router = APIRouter()
 
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+RECURRENCES = {"none", "daily", "weekly", "monthly", "yearly"}
 
 
 def _validate_month(month: str) -> tuple:
@@ -54,6 +58,38 @@ class CalendarEvent(BaseModel):
     status: Optional[str] = None
     xp: Optional[int] = None
     categories: Optional[List[str]] = None
+    time: Optional[str] = None
+    notes: Optional[str] = None
+    recurrence: Optional[str] = None
+    recurrence_end: Optional[str] = None
+    reminder_minutes_before: Optional[int] = None
+    color: Optional[str] = None
+
+
+class EventoIn(BaseModel):
+    title: str
+    date: str
+    time: Optional[str] = None
+    notes: Optional[str] = None
+    recurrence: str = "none"
+    recurrence_end: Optional[str] = None
+    reminder_minutes_before: Optional[int] = None
+    color: Optional[str] = None
+
+
+def _validate_evento(payload: EventoIn) -> None:
+    if not payload.title.strip():
+        raise HTTPException(status_code=422, detail="título é obrigatório")
+    if not DATE_RE.match(payload.date):
+        raise HTTPException(status_code=422, detail="'date' deve ser 'YYYY-MM-DD'")
+    if payload.time and not TIME_RE.match(payload.time):
+        raise HTTPException(status_code=422, detail="'time' deve ser 'HH:MM'")
+    if payload.recurrence not in RECURRENCES:
+        raise HTTPException(status_code=422, detail=f"'recurrence' deve ser um de {sorted(RECURRENCES)}")
+    if payload.recurrence_end and not DATE_RE.match(payload.recurrence_end):
+        raise HTTPException(status_code=422, detail="'recurrence_end' deve ser 'YYYY-MM-DD'")
+    if payload.reminder_minutes_before is not None and payload.reminder_minutes_before < 0:
+        raise HTTPException(status_code=422, detail="'reminder_minutes_before' não pode ser negativo")
 
 
 # ==================== fontes de evento ====================
@@ -220,6 +256,78 @@ def _meta_events(db, month_str: str) -> List[dict]:
     ]
 
 
+def _evento_events(db, year: int, month: int, month_str: str) -> List[dict]:
+    """
+    Único tipo com tabela própria (calendar_events) — expande recorrência
+    ('daily'|'weekly'|'monthly'|'yearly') em ocorrências dentro do mês
+    pedido. Cada ocorrência recebe um id `evento:{id}:{data}` (o mês
+    sozinho não basta pra ser único aqui, já que 'daily'/'weekly' podem
+    gerar várias ocorrências no mesmo mês) — o id real do registro
+    continua sendo o 2º pedaço, igual conta_fixa/assinatura já fazem.
+    """
+    first_day = datetime.date(year, month, 1)
+    last_day = datetime.date(year, month, calendar.monthrange(year, month)[1])
+
+    rows = db.execute(
+        "SELECT * FROM calendar_events WHERE date <= ? "
+        "AND (recurrence_end IS NULL OR recurrence_end >= ?)",
+        (last_day.isoformat(), first_day.isoformat()),
+    ).fetchall()
+
+    events: List[dict] = []
+    for r in rows:
+        start = datetime.date.fromisoformat(r["date"])
+        end_cap = datetime.date.fromisoformat(r["recurrence_end"]) if r["recurrence_end"] else None
+        occurrences: List[datetime.date] = []
+
+        if r["recurrence"] == "none":
+            if first_day <= start <= last_day:
+                occurrences.append(start)
+        elif r["recurrence"] == "daily":
+            d = max(start, first_day)
+            while d <= last_day and (end_cap is None or d <= end_cap):
+                occurrences.append(d)
+                d += datetime.timedelta(days=1)
+        elif r["recurrence"] == "weekly":
+            d = start
+            while d < first_day:
+                d += datetime.timedelta(days=7)
+            while d <= last_day and (end_cap is None or d <= end_cap):
+                occurrences.append(d)
+                d += datetime.timedelta(days=7)
+        elif r["recurrence"] == "monthly":
+            months_in = (year - start.year) * 12 + (month - start.month)
+            if months_in >= 0:
+                day = min(start.day, calendar.monthrange(year, month)[1])
+                candidate = datetime.date(year, month, day)
+                if end_cap is None or candidate <= end_cap:
+                    occurrences.append(candidate)
+        elif r["recurrence"] == "yearly":
+            if month == start.month and year >= start.year:
+                day = min(start.day, calendar.monthrange(year, month)[1])
+                candidate = datetime.date(year, month, day)
+                if end_cap is None or candidate <= end_cap:
+                    occurrences.append(candidate)
+
+        for occ in occurrences:
+            events.append({
+                "id": f"evento:{r['id']}:{occ.isoformat()}",
+                "date": occ.isoformat(),
+                "type": "evento",
+                "title": r["title"],
+                "module": "calendario",
+                "amount": None,
+                "status": None,
+                "time": r["time"],
+                "notes": r["notes"],
+                "recurrence": r["recurrence"],
+                "recurrence_end": r["recurrence_end"],
+                "reminder_minutes_before": r["reminder_minutes_before"],
+                "color": r["color"],
+            })
+    return events
+
+
 # ==================== endpoint ====================
 
 @router.get("/events", response_model=List[CalendarEvent])
@@ -233,6 +341,73 @@ def get_events(month: str, db=Depends(get_db)):
     events += _parcela_events(db, month)
     events += _meta_events(db, month)
     events += _acao_events(db, month)
+    events += _evento_events(db, year, mo, month)
 
-    events.sort(key=lambda e: e["date"])
+    events.sort(key=lambda e: (e["date"], e.get("time") or ""))
     return events
+
+
+# ==================== CRUD de eventos manuais ====================
+# Único tipo do calendário com tabela própria — os demais são só leitura
+# (pertencem a outros módulos, ver comentário do topo do arquivo).
+
+@router.post("/events/evento", response_model=dict, status_code=201)
+def create_evento(payload: EventoIn, db=Depends(get_db)):
+    _validate_evento(payload)
+    eid = new_id()
+    ts = now_iso()
+    db.execute(
+        "INSERT INTO calendar_events "
+        "(id, title, date, time, notes, recurrence, recurrence_end, reminder_minutes_before, color, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (eid, payload.title.strip(), payload.date, payload.time, payload.notes,
+         payload.recurrence, payload.recurrence_end, payload.reminder_minutes_before,
+         payload.color, ts, ts),
+    )
+    db.commit()
+    return {"id": eid}
+
+
+@router.put("/events/evento/{event_id}", response_model=dict)
+def update_evento(event_id: str, payload: EventoIn, db=Depends(get_db)):
+    _validate_evento(payload)
+    existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="evento não encontrado")
+    db.execute(
+        "UPDATE calendar_events SET title=?, date=?, time=?, notes=?, recurrence=?, "
+        "recurrence_end=?, reminder_minutes_before=?, color=?, updated_at=? WHERE id=?",
+        (payload.title.strip(), payload.date, payload.time, payload.notes, payload.recurrence,
+         payload.recurrence_end, payload.reminder_minutes_before, payload.color, now_iso(), event_id),
+    )
+    db.commit()
+    return {"id": event_id}
+
+
+class EventoDateIn(BaseModel):
+    date: str
+
+
+@router.patch("/events/evento/{event_id}/date", response_model=dict)
+def reschedule_evento(event_id: str, payload: EventoDateIn, db=Depends(get_db)):
+    """Só a data (drag-and-drop na grade) — sem tocar no resto do evento."""
+    if not DATE_RE.match(payload.date):
+        raise HTTPException(status_code=422, detail="'date' deve ser 'YYYY-MM-DD'")
+    existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="evento não encontrado")
+    db.execute(
+        "UPDATE calendar_events SET date=?, updated_at=? WHERE id=?",
+        (payload.date, now_iso(), event_id),
+    )
+    db.commit()
+    return {"id": event_id}
+
+
+@router.delete("/events/evento/{event_id}", status_code=204)
+def delete_evento(event_id: str, db=Depends(get_db)):
+    existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="evento não encontrado")
+    db.execute("DELETE FROM calendar_events WHERE id = ?", (event_id,))
+    db.commit()

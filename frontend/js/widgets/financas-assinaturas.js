@@ -5,7 +5,9 @@ import { openAssinaturaFilterModal } from "../modals/assinatura-filter-modal.js"
 import { showPromptModal } from "../modals/prompt-modal.js";
 import { openPayPeriodModal } from "../modals/pay-period-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Widget "assinaturas". Marcar como paga pode gerar uma transação real
@@ -13,6 +15,12 @@ import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
  * vinculada — nesse caso abre pay-period-modal.js pra confirmar valor/
  * conta/forma de pagamento. Sem conta vinculada, continua sendo só
  * lembrete (prompt simples de valor, sem afetar saldo).
+ *
+ * Nome clicável = editar, ícone x = remover (padrão de contas-fixas.js — item
+ * 5 do mapa de problemas). Assinaturas INATIVAS continuam listadas (com
+ * tag "inativa" no lugar do toggle de pagar, igual contas-fixas.js) em
+ * vez de somem da lista — senão reativar uma assinatura desativada via
+ * edição ficaria impossível (não teria mais onde clicar).
  */
 
 function currentMonthStr() {
@@ -33,6 +41,9 @@ export async function render(el, widget) {
 
   function hasActiveFilter() {
     return !!(filter.contaId || filter.status);
+  }
+  function flatAccounts() {
+    return banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
   }
 
   async function reload() {
@@ -58,7 +69,7 @@ export async function render(el, widget) {
 
     const periodBySub = {};
     periods.forEach((p) => { periodBySub[p.subscription_id] = p; });
-    const active = subscriptions.filter((s) => s.active).filter((s) => {
+    const visible = subscriptions.filter((s) => {
       if (filter.contaId && s.conta_id !== filter.contaId) return false;
       if (filter.status) {
         const paga = periodBySub[s.id] ? periodBySub[s.id].paga : false;
@@ -70,35 +81,54 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">filtro${hasActiveFilter() ? " •" : ""}</button>
+        <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">filtro${hasActiveFilter() ? ` <span class="filter-dot"></span>` : ""}</button>
         <button type="button" class="btn sm" data-action="add-sub">+ assinatura</button>
       </div>
       <div class="subs-list">
-        ${active.length ? active.map((s) => {
-          const period = periodBySub[s.id];
+        ${visible.length ? visible.map((s) => {
+          const period = s.active ? periodBySub[s.id] : null;
           const paga = period ? period.paga : false;
           const valor = period && period.valor_pago != null ? period.valor_pago : s.valor_esperado;
           const tooltip = s.conta_id
             ? "tem conta vinculada — pode gerar uma transação real ao confirmar"
             : "lembrete — sem conta vinculada, não afeta saldo/fatura";
           return `
-            <div class="sub-row${paga ? " paga" : ""}" data-assinatura-id="${s.id}">
+            <div class="sub-row${s.active ? (paga ? " paga" : "") : " inactive"}" data-assinatura-id="${s.id}">
               <div class="sub-top">
-                <span class="sub-name">${escapeHtml(s.nome)}</span>
+                <span class="sub-name" data-edit-sub="${s.id}">${escapeHtml(s.nome)}</span>
+                <span class="sub-remove" data-remove-sub="${s.id}" data-tooltip="remover assinatura">${icon("x", { size: 11 })}</span>
               </div>
               <div class="sub-meta">
                 <span class="sub-valor">${brl(valor)}</span>
                 <span class="sub-dia">dia ${s.dia_cobranca}</span>
                 ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="gerou uma transação real, descontada da conta">R$</span>` : ""}
-                <button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"
-                  data-tooltip="${tooltip}">
-                  ${paga ? "pago" : "marcar pago"}
-                </button>
+                ${s.active
+                  ? `<button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"
+                      data-tooltip="${tooltip}">
+                      ${paga ? "pago" : "marcar pago"}
+                    </button>`
+                  : `<span class="cf-inactive-tag">inativa</span>`}
               </div>
             </div>`;
         }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? "nenhuma assinatura bate com o filtro." : "nenhuma assinatura cadastrada."}</div>`}
       </div>
     `;
+
+    el.querySelectorAll("[data-edit-sub]").forEach((el2) => {
+      el2.addEventListener("click", () => {
+        const id = el2.getAttribute("data-edit-sub");
+        const subscription = subscriptions.find((s) => s.id === id);
+        if (subscription) openSubscriptionModal({ subscription, accounts: flatAccounts(), onSaved: reload });
+      });
+    });
+
+    el.querySelectorAll("[data-remove-sub]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!(await showConfirmModal("remover essa assinatura?", { title: "remover assinatura", confirmText: "remover", danger: true }))) return;
+        await walletApi.deleteSubscription(btn.getAttribute("data-remove-sub"));
+        await reload();
+      });
+    });
 
     el.querySelectorAll("[data-toggle-period]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -109,7 +139,7 @@ export async function render(el, widget) {
           await walletApi.unpaySubscriptionPeriod(periodId);
         } else {
           const sub = subscriptions.find((s) => s.id === btn.getAttribute("data-sub-id"));
-          const accounts = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
+          const accounts = flatAccounts();
           const conta = sub?.conta_id ? accounts.find((a) => a.id === sub.conta_id) : null;
 
           let payload;
@@ -137,12 +167,10 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-sub"]').addEventListener("click", () => {
-      const accounts = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
-      openSubscriptionModal({ accounts, onSaved: reload });
+      openSubscriptionModal({ accounts: flatAccounts(), onSaved: reload });
     });
     el.querySelector('[data-action="filter"]').addEventListener("click", () => {
-      const accounts = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
-      openAssinaturaFilterModal({ accounts, current: filter, onApply: (newFilter) => { filter = newFilter; draw(); } });
+      openAssinaturaFilterModal({ accounts: flatAccounts(), current: filter, onApply: (newFilter) => { filter = newFilter; draw(); } });
     });
 
     if (focusId) focusRow(el.querySelector(`[data-assinatura-id="${focusId}"]`), "assinatura");

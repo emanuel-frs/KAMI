@@ -1,5 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { escapeHtml } from "../components/format.js";
+import { icon } from "../components/icons.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -39,9 +40,9 @@ export async function render(el, widget) {
     el.innerHTML = `
       <div class="widget-inline-toolbar">
         <div class="month-nav">
-          <button type="button" class="btn sm" data-action="prev-month">‹</button>
+          <button type="button" class="btn sm" data-action="prev-month">${icon("arrow-left", { size: 11 })}</button>
           <span class="month-label">${monthLabel(month)}</span>
-          <button type="button" class="btn sm" data-action="next-month">›</button>
+          <button type="button" class="btn sm" data-action="next-month">${icon("arrow-right", { size: 11 })}</button>
         </div>
       </div>
       <div class="chart-categorias-list">

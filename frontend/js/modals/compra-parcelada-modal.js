@@ -1,15 +1,24 @@
 import * as walletApi from "../api/wallet.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
- * Modal "nova compra parcelada" — mesmo padrão singleton de
- * debt-modal.js/subscription-modal.js. Conta é opcional (referência
- * visual + destino da aplicação automática na fatura, se preenchida).
+ * Modal "nova compra parcelada" / "editar compra parcelada" — mesmo
+ * padrão dual singleton de fixed-bill-modal.js/subscription-modal.js:
+ * passar `compra` faz o modal virar edição (PUT em vez de POST),
+ * pré-preenchido com os dados da compra. A reconciliação da reserva no
+ * limite (desfazer o valor antigo antes de aplicar o novo) é feita
+ * inteira no backend (ver update_compra_parcelada em wallet.py) — o
+ * modal só manda os dados novos.
+ *
+ * Conta é opcional (referência visual + destino da aplicação automática
+ * na fatura, se preenchida).
  */
 
 let modalEl = null;
 let onSavedCb = null;
+let editingCompra = null;
 
 function currentMonthStr() {
   const d = new Date();
@@ -22,7 +31,7 @@ function buildModal() {
   wrap.id = "compra-parcelada-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">nova compra parcelada <span class="close" data-action="close">×</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova compra parcelada</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field"><label>nome</label><input type="text" id="cpm-nome" placeholder="ex: notebook, geladeira..."></div>
         <div class="field-row">
@@ -60,16 +69,22 @@ async function submitCompraParcelada(wrap) {
   }
   const contaId = wrap.querySelector("#cpm-conta").value || null;
 
+  const payload = {
+    nome,
+    valor_total: valorTotal,
+    num_parcelas: numParcelas,
+    conta_id: contaId,
+    mes_primeira_parcela: mes,
+  };
+
   try {
-    await walletApi.createCompraParcelada({
-      nome,
-      valor_total: valorTotal,
-      num_parcelas: numParcelas,
-      conta_id: contaId,
-      mes_primeira_parcela: mes,
-    });
+    if (editingCompra) {
+      await walletApi.updateCompraParcelada(editingCompra.id, payload);
+    } else {
+      await walletApi.createCompraParcelada(payload);
+    }
   } catch (err) {
-    showErrorModal(err.message, "erro ao criar compra parcelada");
+    showErrorModal(err.message, editingCompra ? "erro ao salvar compra parcelada" : "erro ao criar compra parcelada");
     return;
   }
   closeCompraParceladaModal();
@@ -83,18 +98,31 @@ function wireModal(wrap) {
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitCompraParcelada(wrap));
 }
 
-/** @param {{ accounts: Array, onSaved: () => Promise<void>|void }} opts */
-export function openCompraParceladaModal({ accounts, onSaved } = {}) {
+/**
+ * @param {{ compra?: object, accounts?: Array, onSaved: () => Promise<void>|void }} opts
+ *   `compra` — se informado, o modal abre em modo edição (PUT em vez de
+ *   POST) pré-preenchido com os dados da compra parcelada. Note que
+ *   `ajuste_parcelas` NÃO é editável aqui — isso continua sendo só pelos
+ *   botões de ajuste (setas) do widget (ver compras-parceladas.js/item 7).
+ */
+export function openCompraParceladaModal({ compra = null, accounts = [], onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
+  editingCompra = compra || null;
 
-  modalEl.querySelector("#cpm-nome").value = "";
-  modalEl.querySelector("#cpm-valor").value = "";
-  modalEl.querySelector("#cpm-parcelas").value = "";
-  modalEl.querySelector("#cpm-mes").value = currentMonthStr();
+  const titleEl = modalEl.querySelector(".modal-head-title");
+  const saveBtn = modalEl.querySelector('[data-action="save"]');
+  titleEl.textContent = editingCompra ? "editar compra parcelada" : "nova compra parcelada";
+  saveBtn.textContent = editingCompra ? "salvar alterações" : "+ adicionar";
+
+  modalEl.querySelector("#cpm-nome").value = editingCompra?.nome || "";
+  modalEl.querySelector("#cpm-valor").value = editingCompra?.valor_total ?? "";
+  modalEl.querySelector("#cpm-parcelas").value = editingCompra?.num_parcelas ?? "";
+  modalEl.querySelector("#cpm-mes").value = editingCompra?.mes_primeira_parcela || currentMonthStr();
   modalEl.querySelector("#cpm-conta").innerHTML =
     `<option value="">— nenhuma —</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+  modalEl.querySelector("#cpm-conta").value = editingCompra?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#cpm-conta"));
   modalEl.classList.add("open");
 }

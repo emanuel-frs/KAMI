@@ -2,10 +2,15 @@
 Módulo Finanças (v1).
 
 Endpoints:
-  Renda recorrente (decisão 06 — dia útil real via workalendar):
-    GET /income-entries?month=YYYY-MM        garante e devolve as entradas do mês
-    PUT /income-entries/{id}/confirm         marca como paga (recalcula parte 2)
-    PUT /income-entries/{id}/revert          desfaz a confirmação
+  Renda recorrente (v2 — CRUD completo de fontes + encadeamento, ver
+  redesenho no topo de app/database.py::_migrate_income_v2 e schema.sql):
+    GET/POST/PUT/DELETE /income-sources      cadastro das fontes de renda
+    GET /income-entries?month=YYYY-MM        garante e devolve as ocorrências do mês
+    PUT /income-entries/{id}/pay             marca como paga (gera transação real
+                                              se a fonte tem conta_id, ver
+                                              app/finance_utils.py)
+    PUT /income-entries/{id}/unpay           desfaz o pagamento (reverte a
+                                              transação se houver)
 
   Cadastros simples (CRUD básico):
     /fixed-bills, /debts
@@ -37,6 +42,7 @@ Endpoints:
 
   Bancos/contas/assinaturas da wallet ficam em app/routers/wallet.py.
 """
+import calendar
 import datetime
 import re
 from typing import List, Optional
@@ -47,7 +53,12 @@ from pydantic import BaseModel, Field
 from app.database import get_db, new_id
 from app.business_days import nth_business_day_of_month, add_business_days
 from app.actions import register_action
-from app.finance_utils import create_saida_transaction, revert_saida_transaction
+from app.finance_utils import (
+    create_saida_transaction,
+    revert_saida_transaction,
+    create_entrada_transaction,
+    revert_entrada_transaction,
+)
 
 router = APIRouter()
 
@@ -69,6 +80,28 @@ def _prev_month(year: int, month: int) -> tuple:
 
 # ==================== schemas ====================
 
+class IncomeSourceIn(BaseModel):
+    nome: str
+    valor: float
+    conta_id: Optional[str] = None    # vínculo opcional — habilita gerar transação real ao pagar
+    categoria: Optional[str] = None   # usada na transação gerada; cai pra "renda" se vazia
+    frequencia: str = Field(..., pattern="^(mensal|quinzenal|semanal|avulsa)$")
+    tipo_data: Optional[str] = Field(None, pattern="^(dia_fixo|dia_util|intervalo_dias|offset_fonte)$")
+    dia_mes: Optional[int] = Field(None, ge=1, le=31)          # tipo_data='dia_fixo'
+    nth_dia_util: Optional[int] = Field(None, ge=1)            # tipo_data='dia_util'
+    intervalo_dias: Optional[int] = Field(None, ge=1)          # tipo_data='intervalo_dias'
+    data_base: Optional[str] = None                            # tipo_data='intervalo_dias'
+    fonte_referencia_id: Optional[str] = None                  # tipo_data='offset_fonte'
+    offset_dias_uteis: Optional[int] = None                    # tipo_data='offset_fonte'
+    data_avulsa: Optional[str] = None                           # frequencia='avulsa'
+    active: bool = True
+
+
+class IncomeSourceOut(IncomeSourceIn):
+    id: str
+    unica: bool = False  # True quando frequencia='avulsa' — não gera novas ocorrências
+
+
 class IncomeEntryOut(BaseModel):
     id: str
     income_source_id: str
@@ -77,10 +110,13 @@ class IncomeEntryOut(BaseModel):
     expected_date: str
     paid_date: Optional[str] = None
     status: str
+    gerou_transacao: bool = False  # True quando 'pago' veio de uma transação real (não só lembrete)
 
 
-class ConfirmIncomePayload(BaseModel):
-    paid_date: str
+class PayIncomePayload(BaseModel):
+    valor_recebido: Optional[float] = None   # se omitido, usa o valor esperado da entrada
+    paid_date: Optional[str] = None          # se omitido, usa a data de hoje
+    atualizar_valor_fonte: bool = False      # se True, propaga valor_recebido pra income_sources.valor
 
 
 class FixedBillIn(BaseModel):
@@ -165,69 +201,177 @@ class SummaryOut(BaseModel):
     top_categories: List[CategoryTotal]
 
 
-# ==================== renda recorrente ====================
+# ==================== renda recorrente (v2) ====================
+# Cadastro genérico de fontes (income_sources) com CRUD completo +
+# geração sob-demanda de ocorrências (income_entries), mesmo padrão
+# sob-demanda de fixed_bill_periods/wallet_subscription_periods. Marcar
+# como paga gera uma transação 'entrada' real OPCIONALMENTE — mesma
+# lógica de fixed_bills/wallet_subscriptions (item 6 do mapa de
+# problemas antigo), agora replicada aqui via app/finance_utils.py.
 
-def _ensure_income_entries_for_month(db, year: int, month: int) -> None:
-    sources = {r["label"]: r for r in db.execute("SELECT * FROM income_sources").fetchall()}
-    p1 = sources.get("parte 1")
-    p2 = sources.get("parte 2")
-    if not p1 or not p2:
-        return  # schema sem os defaults esperados — nada a gerar
+DEFAULT_INCOME_CATEGORY = "renda"
+
+
+def _last_day_of_month(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[1]
+
+
+def _month_bounds(year: int, month: int):
+    first = datetime.date(year, month, 1)
+    last = datetime.date(year, month, _last_day_of_month(year, month))
+    return first, last
+
+
+def _upsert_single_month_entry(db, source, month_prefix: str, expected_date: datetime.date):
+    """Garante a única ocorrência de `source` no mês `month_prefix`,
+    recalculando a data se ela mudou (e a ocorrência ainda não foi paga)
+    — mesmo comportamento que a parte 2 sempre teve em relação à parte 1
+    antes desta v2, só que genérico pra qualquer fonte com uma ocorrência
+    por mês (dia_fixo/dia_util/offset_fonte)."""
+    existing = db.execute(
+        "SELECT * FROM income_entries WHERE income_source_id = ? AND substr(expected_date,1,7) = ? "
+        "ORDER BY expected_date LIMIT 1",
+        (source["id"], month_prefix),
+    ).fetchone()
+    if existing:
+        if existing["status"] != "pago" and existing["expected_date"] != expected_date.isoformat():
+            db.execute(
+                "UPDATE income_entries SET expected_date = ? WHERE id = ?",
+                (expected_date.isoformat(), existing["id"]),
+            )
+            db.commit()
+            existing = db.execute("SELECT * FROM income_entries WHERE id = ?", (existing["id"],)).fetchone()
+        return existing
+
+    # já pode existir uma entrada pra essa data exata gerada quando outro
+    # mês foi consultado (ex: offset que cai no mês seguinte) — evita duplicar
+    existing_exact = db.execute(
+        "SELECT * FROM income_entries WHERE income_source_id = ? AND expected_date = ?",
+        (source["id"], expected_date.isoformat()),
+    ).fetchone()
+    if existing_exact:
+        return existing_exact
+
+    db.execute(
+        "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
+        "VALUES (?, ?, ?, NULL, ?, 'previsto')",
+        (new_id(), source["id"], expected_date.isoformat(), source["valor"]),
+    )
+    db.commit()
+    return db.execute(
+        "SELECT * FROM income_entries WHERE income_source_id = ? AND expected_date = ?",
+        (source["id"], expected_date.isoformat()),
+    ).fetchone()
+
+
+def _upsert_interval_entries(db, source, year: int, month: int) -> list:
+    """tipo_data='intervalo_dias' pode gerar mais de uma ocorrência por
+    mês (ex: semanal). Enumera todas as datas de data_base + k*intervalo
+    que caem dentro do mês pedido e garante uma income_entry pra cada."""
+    first, last = _month_bounds(year, month)
+    base = datetime.date.fromisoformat(source["data_base"])
+    step = source["intervalo_dias"]
+    if base > last:
+        return []
+
+    if base >= first:
+        current = base
+    else:
+        steps = (first - base).days // step
+        current = base + datetime.timedelta(days=steps * step)
+        while current < first:
+            current += datetime.timedelta(days=step)
+
+    entries = []
+    while current <= last:
+        existing = db.execute(
+            "SELECT * FROM income_entries WHERE income_source_id = ? AND expected_date = ?",
+            (source["id"], current.isoformat()),
+        ).fetchone()
+        if not existing:
+            db.execute(
+                "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
+                "VALUES (?, ?, ?, NULL, ?, 'previsto')",
+                (new_id(), source["id"], current.isoformat(), source["valor"]),
+            )
+            db.commit()
+            existing = db.execute(
+                "SELECT * FROM income_entries WHERE income_source_id = ? AND expected_date = ?",
+                (source["id"], current.isoformat()),
+            ).fetchone()
+        entries.append(existing)
+        current += datetime.timedelta(days=step)
+    return entries
+
+
+def _resolve_source_entries_for_month(db, source, year: int, month: int, sources_by_id: dict, cache: dict) -> list:
+    """Garante e devolve as income_entries de `source` pro (year, month)
+    dado, resolvendo a cadeia de offset_fonte recursivamente. `cache`
+    evita reprocessar a mesma fonte mais de uma vez dentro da mesma
+    chamada de _ensure_income_entries_for_month (encadeamento pode
+    ramificar em mais de uma fonte dependente)."""
+    if source["id"] in cache:
+        return cache[source["id"]]
 
     month_prefix = f"{year:04d}-{month:02d}"
 
-    p1_entry = db.execute(
-        "SELECT * FROM income_entries WHERE income_source_id = ? AND substr(expected_date,1,7) = ?",
-        (p1["id"], month_prefix),
-    ).fetchone()
-    if not p1_entry:
-        expected = nth_business_day_of_month(year, month, 5)
-        db.execute(
-            "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
-            "VALUES (?, ?, ?, NULL, ?, 'previsto')",
-            (new_id(), p1["id"], expected.isoformat(), p1["amount"]),
-        )
-        db.commit()
-        p1_entry = db.execute(
-            "SELECT * FROM income_entries WHERE income_source_id = ? AND substr(expected_date,1,7) = ?",
-            (p1["id"], month_prefix),
-        ).fetchone()
+    if source["unica"]:
+        # avulsa: a única entrada já foi criada na criação da fonte (ver
+        # create_income_source) — nada a gerar aqui, só devolve o que existe.
+        entries = db.execute(
+            "SELECT * FROM income_entries WHERE income_source_id = ?", (source["id"],)
+        ).fetchall()
 
-    # parte 2 é sempre derivada da parte 1 (paga, se já confirmada; senão prevista)
-    p2_entry = db.execute(
-        "SELECT * FROM income_entries WHERE income_source_id = ? AND substr(expected_date,1,7) = ?",
-        (p2["id"], month_prefix),
-    ).fetchone()
-    base_date_str = p1_entry["paid_date"] or p1_entry["expected_date"]
-    base_date = datetime.date.fromisoformat(base_date_str)
-    p2_expected = add_business_days(base_date, 15)
+    elif source["tipo_data"] == "dia_util":
+        expected = nth_business_day_of_month(year, month, source["nth_dia_util"])
+        entries = [_upsert_single_month_entry(db, source, month_prefix, expected)]
 
-    if not p2_entry:
-        db.execute(
-            "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
-            "VALUES (?, ?, ?, NULL, ?, 'previsto')",
-            (new_id(), p2["id"], p2_expected.isoformat(), p2["amount"]),
-        )
-        db.commit()
-    elif p2_entry["status"] != "pago" and p2_entry["expected_date"] != p2_expected.isoformat():
-        # parte 1 mudou de data depois que a parte 2 já tinha sido gerada — recalcula
-        db.execute(
-            "UPDATE income_entries SET expected_date = ? WHERE id = ?",
-            (p2_expected.isoformat(), p2_entry["id"]),
-        )
-        db.commit()
+    elif source["tipo_data"] == "dia_fixo":
+        dia = min(source["dia_mes"], _last_day_of_month(year, month))
+        expected = datetime.date(year, month, dia)
+        entries = [_upsert_single_month_entry(db, source, month_prefix, expected)]
+
+    elif source["tipo_data"] == "intervalo_dias":
+        entries = _upsert_interval_entries(db, source, year, month)
+
+    elif source["tipo_data"] == "offset_fonte":
+        ref = sources_by_id.get(source["fonte_referencia_id"])
+        if not ref:
+            entries = []  # fonte de referência inativa/removida — nada a gerar
+        else:
+            ref_entries = _resolve_source_entries_for_month(db, ref, year, month, sources_by_id, cache)
+            entries = []
+            for ref_entry in ref_entries:
+                base_str = ref_entry["paid_date"] or ref_entry["expected_date"]
+                base_date = datetime.date.fromisoformat(base_str)
+                expected = add_business_days(base_date, source["offset_dias_uteis"])
+                entries.append(_upsert_single_month_entry(db, source, month_prefix, expected))
+    else:
+        entries = []
+
+    cache[source["id"]] = entries
+    return entries
+
+
+def _ensure_income_entries_for_month(db, year: int, month: int) -> None:
+    rows = db.execute("SELECT * FROM income_sources WHERE active = 1").fetchall()
+    sources_by_id = {r["id"]: r for r in rows}
+    cache: dict = {}
+    for source in rows:
+        _resolve_source_entries_for_month(db, source, year, month, sources_by_id, cache)
 
 
 def _income_entry_out(db, row) -> dict:
-    source = db.execute("SELECT label FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
+    source = db.execute("SELECT nome FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
     return {
         "id": row["id"],
         "income_source_id": row["income_source_id"],
-        "label": source["label"] if source else "—",
+        "label": source["nome"] if source else "—",
         "amount": row["amount"],
         "expected_date": row["expected_date"],
         "paid_date": row["paid_date"],
         "status": row["status"],
+        "gerou_transacao": row["transaction_id"] is not None,
     }
 
 
@@ -237,24 +381,54 @@ def get_income_entries(month: str, db=Depends(get_db)):
     _ensure_income_entries_for_month(db, year, mo)
     rows = db.execute(
         "SELECT ie.* FROM income_entries ie JOIN income_sources s ON s.id = ie.income_source_id "
-        "WHERE substr(ie.expected_date,1,7) = ? ORDER BY s.label",
+        "WHERE substr(ie.expected_date,1,7) = ? AND s.active = 1 ORDER BY ie.expected_date",
         (month,),
     ).fetchall()
     return [_income_entry_out(db, r) for r in rows]
 
 
-@router.put("/income-entries/{entry_id}/confirm", response_model=IncomeEntryOut)
-def confirm_income_entry(entry_id: str, payload: ConfirmIncomePayload, db=Depends(get_db)):
+@router.put("/income-entries/{entry_id}/pay", response_model=IncomeEntryOut)
+def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM income_entries WHERE id = ?", (entry_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="entrada de renda não encontrada")
+    source = db.execute("SELECT * FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
+    if not source:
+        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
+
+    amount = payload.valor_recebido if payload.valor_recebido is not None else row["amount"]
+    paid_date = payload.paid_date or datetime.date.today().isoformat()
+    transaction_id = None
+
+    # só gera transação real se a fonte tem conta_id vinculada — sem
+    # conta vinculada não tem como saber onde creditar, então cai pro
+    # comportamento de sempre (só lembrete), igual contas fixas/assinaturas.
+    if source["conta_id"]:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (source["conta_id"],)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta vinculada à fonte de renda não existe mais")
+        transaction_id = create_entrada_transaction(
+            db, conta, amount,
+            category=source["categoria"] or DEFAULT_INCOME_CATEGORY,
+            description=f"renda: {source['nome']}",
+            date=paid_date,
+        )
+
+    # se o valor recebido for diferente do cadastrado, o usuário pode ter
+    # pedido pra atualizar o valor da fonte pra frente (ver
+    # pay-income-modal.js no frontend) — a entrada em si sempre reflete o
+    # que foi de fato recebido.
+    if payload.atualizar_valor_fonte and payload.valor_recebido is not None:
+        db.execute("UPDATE income_sources SET valor = ? WHERE id = ?", (payload.valor_recebido, source["id"]))
+
     db.execute(
-        "UPDATE income_entries SET paid_date = ?, status = 'pago' WHERE id = ?",
-        (payload.paid_date, entry_id),
+        "UPDATE income_entries SET paid_date = ?, amount = ?, status = 'pago', transaction_id = ? WHERE id = ?",
+        (paid_date, amount, transaction_id, entry_id),
     )
     db.commit()
 
-    # se essa era a parte 1, recalcula a data prevista da parte 2 do mesmo mês
+    # se essa entrada alimenta outra por encadeamento (offset_fonte),
+    # recalcula a(s) dependente(s) do mesmo mês
     year, mo = (int(x) for x in row["expected_date"][:7].split("-"))
     _ensure_income_entries_for_month(db, year, mo)
 
@@ -262,14 +436,21 @@ def confirm_income_entry(entry_id: str, payload: ConfirmIncomePayload, db=Depend
     return _income_entry_out(db, updated)
 
 
-@router.put("/income-entries/{entry_id}/revert", response_model=IncomeEntryOut)
-def revert_income_entry(entry_id: str, db=Depends(get_db)):
+@router.put("/income-entries/{entry_id}/unpay", response_model=IncomeEntryOut)
+def unpay_income_entry(entry_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM income_entries WHERE id = ?", (entry_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="entrada de renda não encontrada")
+    source = db.execute("SELECT * FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
+
+    # desfaz o efeito de saldo se essa marcação tinha gerado uma
+    # transação real, antes de voltar pra "previsto" — mesmo motivo de
+    # unpay_fixed_bill_period (sem isso o saldo fica com um crédito
+    # fantasma que o usuário não consegue mais explicar).
+    revert_entrada_transaction(db, row["transaction_id"])
     db.execute(
-        "UPDATE income_entries SET paid_date = NULL, status = 'previsto' WHERE id = ?",
-        (entry_id,),
+        "UPDATE income_entries SET paid_date = NULL, amount = ?, status = 'previsto', transaction_id = NULL WHERE id = ?",
+        (source["valor"] if source else row["amount"], entry_id),
     )
     db.commit()
 
@@ -279,6 +460,165 @@ def revert_income_entry(entry_id: str, db=Depends(get_db)):
     updated = db.execute("SELECT * FROM income_entries WHERE id = ?", (entry_id,)).fetchone()
     return _income_entry_out(db, updated)
 
+
+# ==================== renda recorrente — cadastro das fontes ====================
+
+def _income_source_out(row) -> dict:
+    return {
+        "id": row["id"],
+        "nome": row["nome"],
+        "valor": row["valor"],
+        "conta_id": row["conta_id"],
+        "categoria": row["categoria"],
+        "frequencia": row["frequencia"],
+        "tipo_data": row["tipo_data"],
+        "dia_mes": row["dia_mes"],
+        "nth_dia_util": row["nth_dia_util"],
+        "intervalo_dias": row["intervalo_dias"],
+        "data_base": row["data_base"],
+        "fonte_referencia_id": row["fonte_referencia_id"],
+        "offset_dias_uteis": row["offset_dias_uteis"],
+        "data_avulsa": row["data_avulsa"],
+        "active": bool(row["active"]),
+        "unica": bool(row["unica"]),
+    }
+
+
+def _would_create_cycle(db, source_id: str, referencia_id: str) -> bool:
+    """Percorre a cadeia de fonte_referencia_id a partir de `referencia_id`
+    e rejeita se ela volta pro próprio `source_id` — mesma checagem simples
+    que qualquer cadeia linear pede."""
+    current = referencia_id
+    seen = set()
+    while current:
+        if current == source_id:
+            return True
+        if current in seen:
+            break  # ciclo pré-existente alheio a essa edição — não trava aqui
+        seen.add(current)
+        row = db.execute("SELECT fonte_referencia_id FROM income_sources WHERE id = ?", (current,)).fetchone()
+        current = row["fonte_referencia_id"] if row else None
+    return False
+
+
+def _validate_income_source_payload(db, payload: IncomeSourceIn, source_id: Optional[str] = None) -> None:
+    if payload.conta_id:
+        conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta não encontrada")
+
+    if payload.frequencia == "avulsa":
+        if not payload.data_avulsa:
+            raise HTTPException(status_code=422, detail="fonte avulsa precisa de 'data_avulsa'")
+        return
+
+    if not payload.tipo_data:
+        raise HTTPException(status_code=422, detail="informe 'tipo_data' pra uma fonte não avulsa")
+
+    if payload.tipo_data in ("dia_fixo", "dia_util") and payload.frequencia != "mensal":
+        raise HTTPException(status_code=422, detail=f"'{payload.tipo_data}' só faz sentido com frequencia='mensal'")
+
+    if payload.tipo_data == "dia_fixo" and not payload.dia_mes:
+        raise HTTPException(status_code=422, detail="informe 'dia_mes' pra tipo_data='dia_fixo'")
+
+    if payload.tipo_data == "dia_util" and not payload.nth_dia_util:
+        raise HTTPException(status_code=422, detail="informe 'nth_dia_util' pra tipo_data='dia_util'")
+
+    if payload.tipo_data == "intervalo_dias" and (not payload.intervalo_dias or not payload.data_base):
+        raise HTTPException(
+            status_code=422,
+            detail="informe 'intervalo_dias' e 'data_base' pra tipo_data='intervalo_dias'",
+        )
+
+    if payload.tipo_data == "offset_fonte":
+        if not payload.fonte_referencia_id or payload.offset_dias_uteis is None:
+            raise HTTPException(
+                status_code=422,
+                detail="informe 'fonte_referencia_id' e 'offset_dias_uteis' pra tipo_data='offset_fonte'",
+            )
+        if source_id and payload.fonte_referencia_id == source_id:
+            raise HTTPException(status_code=422, detail="uma fonte não pode depender de si mesma")
+        ref = db.execute("SELECT id FROM income_sources WHERE id = ?", (payload.fonte_referencia_id,)).fetchone()
+        if not ref:
+            raise HTTPException(status_code=422, detail="fonte de referência não encontrada")
+        if source_id and _would_create_cycle(db, source_id, payload.fonte_referencia_id):
+            raise HTTPException(status_code=422, detail="esse encadeamento formaria um ciclo")
+
+
+@router.get("/income-sources", response_model=List[IncomeSourceOut])
+def list_income_sources(db=Depends(get_db)):
+    rows = db.execute("SELECT * FROM income_sources ORDER BY nome").fetchall()
+    return [_income_source_out(r) for r in rows]
+
+
+@router.post("/income-sources", response_model=IncomeSourceOut)
+def create_income_source(payload: IncomeSourceIn, db=Depends(get_db)):
+    _validate_income_source_payload(db, payload)
+    source_id = new_id()
+    unica = 1 if payload.frequencia == "avulsa" else 0
+    db.execute(
+        "INSERT INTO income_sources "
+        "(id, nome, valor, conta_id, categoria, frequencia, tipo_data, dia_mes, nth_dia_util, "
+        "intervalo_dias, data_base, fonte_referencia_id, offset_dias_uteis, data_avulsa, active, unica) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            source_id, payload.nome, payload.valor, payload.conta_id, payload.categoria, payload.frequencia,
+            payload.tipo_data, payload.dia_mes, payload.nth_dia_util, payload.intervalo_dias, payload.data_base,
+            payload.fonte_referencia_id, payload.offset_dias_uteis, payload.data_avulsa, int(payload.active), unica,
+        ),
+    )
+    db.commit()
+
+    if payload.frequencia == "avulsa":
+        # entrada única, criada de uma vez só — unica=1 impede
+        # _ensure_income_entries_for_month de gerar qualquer outra.
+        db.execute(
+            "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
+            "VALUES (?, ?, ?, NULL, ?, 'previsto')",
+            (new_id(), source_id, payload.data_avulsa, payload.valor),
+        )
+        db.commit()
+
+    row = db.execute("SELECT * FROM income_sources WHERE id = ?", (source_id,)).fetchone()
+    return _income_source_out(row)
+
+
+@router.put("/income-sources/{source_id}", response_model=IncomeSourceOut)
+def update_income_source(source_id: str, payload: IncomeSourceIn, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM income_sources WHERE id = ?", (source_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
+    _validate_income_source_payload(db, payload, source_id=source_id)
+    unica = 1 if payload.frequencia == "avulsa" else 0
+    db.execute(
+        "UPDATE income_sources SET nome=?, valor=?, conta_id=?, categoria=?, frequencia=?, tipo_data=?, "
+        "dia_mes=?, nth_dia_util=?, intervalo_dias=?, data_base=?, fonte_referencia_id=?, offset_dias_uteis=?, "
+        "data_avulsa=?, active=?, unica=? WHERE id=?",
+        (
+            payload.nome, payload.valor, payload.conta_id, payload.categoria, payload.frequencia, payload.tipo_data,
+            payload.dia_mes, payload.nth_dia_util, payload.intervalo_dias, payload.data_base,
+            payload.fonte_referencia_id, payload.offset_dias_uteis, payload.data_avulsa, int(payload.active), unica,
+            source_id,
+        ),
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM income_sources WHERE id = ?", (source_id,)).fetchone()
+    return _income_source_out(updated)
+
+
+@router.delete("/income-sources/{source_id}")
+def delete_income_source(source_id: str, db=Depends(get_db)):
+    dependents = db.execute(
+        "SELECT id FROM income_sources WHERE fonte_referencia_id = ?", (source_id,)
+    ).fetchall()
+    if dependents:
+        raise HTTPException(
+            status_code=422,
+            detail="não é possível remover: existe(m) fonte(s) que dependem desta (encadeamento).",
+        )
+    db.execute("DELETE FROM income_sources WHERE id = ?", (source_id,))
+    db.commit()
+    return {"deleted": True}
 
 # ==================== cadastros simples (CRUD básico) ====================
 

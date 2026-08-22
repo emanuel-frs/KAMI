@@ -84,6 +84,49 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
     return tx_id
 
 
+def create_entrada_transaction(db, conta, amount: float, category: str, description: str,
+                                date: str = None) -> str:
+    """Cria uma transação 'entrada' pra `conta`, credita saldo_atual, e
+    devolve o id da transação criada. Espelha create_saida_transaction
+    (mesmo módulo) e o branch 'entrada' de financas.py::create_transaction
+    — usada quando uma fonte de renda com conta_id vinculada é marcada
+    como paga (ver financas.py::pay_income_entry). Levanta HTTPException
+    422 se a conta não tiver saldo pra receber (mesma regra de
+    POST /financas/transactions)."""
+    if not conta["possui_saldo"]:
+        raise HTTPException(status_code=422, detail="essa conta não possui saldo pra receber uma entrada")
+    db.execute(
+        "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
+        (amount, conta["id"]),
+    )
+    tx_id = new_id()
+    db.execute(
+        "INSERT INTO transactions "
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
+        "VALUES (?, ?, ?, 'entrada', ?, ?, NULL, NULL, NULL, ?)",
+        (tx_id, description, amount, category, conta["id"], date or datetime.date.today().isoformat()),
+    )
+    return tx_id
+
+
+def revert_entrada_transaction(db, transaction_id: str) -> None:
+    """Desfaz o efeito de saldo de uma transação 'entrada' criada por
+    create_entrada_transaction e a remove — chamado quando o usuário
+    desfaz o pagamento de uma renda (unpay). Mesmo espírito de
+    revert_saida_transaction: só deve receber ids vindos de
+    income_entries.transaction_id."""
+    if not transaction_id:
+        return
+    tx = db.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    if not tx:
+        return
+    db.execute(
+        "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
+        (tx["amount"], tx["conta_id"]),
+    )
+    db.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+
+
 def revert_saida_transaction(db, transaction_id: str) -> None:
     """Desfaz o efeito de saldo/fatura de uma transação 'saida' criada por
     create_saida_transaction e a remove — chamado quando o usuário desfaz

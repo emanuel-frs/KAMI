@@ -19,7 +19,7 @@ function bankIconInner(bank) {
 }
 function accountCardHtml(bank, a) {
   const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="editar conta">${icon("pencil", { size: 11 })}</span>`;
-  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta">×</span>`;
+  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta">${icon("x", { size: 11 })}</span>`;
   let saldoBlock = "";
   if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>saldo atual</span><b>${brl(a.saldo_atual)}</b></div>`;
   let creditoBlock = "";

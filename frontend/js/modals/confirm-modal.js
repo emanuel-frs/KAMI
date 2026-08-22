@@ -1,3 +1,5 @@
+import { icon } from "../components/icons.js";
+
 /**
  * Modal genérico de confirmação — substitui confirm(...) nos fluxos de
  * remoção/ações destrutivas. Mesmo padrão singleton dos outros modais
@@ -26,7 +28,7 @@ function buildModal() {
   wrap.id = "confirm-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="cm-title">confirmar</span> <span class="close" data-action="cancel">×</span></div>
+      <div class="modal-head"><span id="cm-title">confirmar</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
       <div class="modal-body">
         <p id="cm-message" class="em-message"></p>
         <div class="form-actions">

@@ -1,3 +1,5 @@
+import { icon } from "../components/icons.js";
+
 /**
  * Modal "filtrar registros" — mesmo padrão singleton dos outros modais
  * (ver transaction-modal.js). Filtro é só client-side sobre os dados já
@@ -15,7 +17,7 @@ function buildModal() {
   wrap.id = "registro-filter-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">filtrar registros <span class="close" data-action="close">×</span></div>
+      <div class="modal-head">filtrar registros <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
           <label>conta</label>

@@ -22,7 +22,8 @@
  * Busca (ver ALINHAMENTO.md 4.1): resumo inline via tavily
  * (GET /api/organizacao/search), com chave pessoal opcional-mas-
  * obrigatória-pra-funcionar (mesmo padrão do token do github —
- * configurada no modal de "⚙ chave de busca"). Sem chave configurada
+ * configurada no modal de "ícone de engrenagem (chave de busca)"). Sem
+ * chave configurada
  * ou em caso de erro, o painel de resultado mostra um link pra
  * configurar a chave (ou pra abrir a busca direto no DuckDuckGo, que
  * continua disponível como fallback sem precisar de nenhuma chave).
@@ -132,7 +133,7 @@ function template() {
           repositórios
           <span id="org-github-token-badge" class="gh-token-badge"></span>
           <span class="push"></span>
-          <button class="btn sm" data-action="open-github-token-modal">⚙ token</button>
+          <button class="btn sm" data-action="open-github-token-modal">${icon("settings", { size: 12 })} token</button>
           <button class="btn sm" data-action="open-repo-modal">+ conectar repositório</button>
         </div>
         <div class="card-body" id="org-repos"></div>
@@ -155,7 +156,7 @@ function template() {
     <!-- MODAL: novo link -->
     <div class="modal-backdrop" id="link-modal">
       <div class="modal">
-        <div class="modal-head">novo link <span class="close" data-action="close-link-modal">✕</span></div>
+        <div class="modal-head">novo link <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
         <div class="modal-body">
           <div class="field"><label>título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
           <div class="field"><label>url</label><input type="text" id="link-url" placeholder="https://..."></div>
@@ -168,7 +169,7 @@ function template() {
     <!-- MODAL: novo repositório -->
     <div class="modal-backdrop" id="repo-modal">
       <div class="modal">
-        <div class="modal-head">conectar repositório <span class="close" data-action="close-repo-modal">✕</span></div>
+        <div class="modal-head">conectar repositório <span class="close" data-action="close-repo-modal">${icon("x")}</span></div>
         <div class="modal-body">
           <div class="field">
             <label>repositório</label>
@@ -184,7 +185,7 @@ function template() {
     <!-- MODAL: nova/editar conta de e-mail -->
     <div class="modal-backdrop" id="account-modal">
       <div class="modal">
-        <div class="modal-head">conta de e-mail <span class="close" data-action="close-account-modal">✕</span></div>
+        <div class="modal-head">conta de e-mail <span class="close" data-action="close-account-modal">${icon("x")}</span></div>
         <div class="modal-body">
           <input type="hidden" id="acc-edit-id">
           <div class="field"><label>apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
@@ -202,7 +203,7 @@ function template() {
     <!-- MODAL: detalhe de e-mail -->
     <div class="modal-backdrop" id="email-modal">
       <div class="modal">
-        <div class="modal-head">e-mail <span class="close" data-action="close-email-modal">✕</span></div>
+        <div class="modal-head">e-mail <span class="close" data-action="close-email-modal">${icon("x")}</span></div>
         <div class="modal-body" id="email-modal-body"></div>
       </div>
     </div>
@@ -210,7 +211,7 @@ function template() {
     <!-- MODAL: chave de busca (tavily) -->
       <div class="modal-backdrop" id="search-key-modal">
         <div class="modal">
-          <div class="modal-head">chave de busca <span class="close" data-action="close-search-key-modal">✕</span></div>
+          <div class="modal-head">chave de busca <span class="close" data-action="close-search-key-modal">${icon("x")}</span></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
               necessária pro resumo inline de busca (item 4.1). crie uma
@@ -230,7 +231,7 @@ function template() {
     <!-- MODAL: token github -->
       <div class="modal-backdrop" id="github-token-modal">
         <div class="modal">
-          <div class="modal-head">token do github <span class="close" data-action="close-github-token-modal">✕</span></div>
+          <div class="modal-head">token do github <span class="close" data-action="close-github-token-modal">${icon("x")}</span></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
               opcional — sem token, só repositórios públicos e 60 req/h. com um
@@ -387,7 +388,7 @@ function orgSearchDuckDuckGoUrl(q) {
   return "https://duckduckgo.com/?q=" + encodeURIComponent(q);
 }
 
-// botão "✕" ao lado de "buscar" — limpa o texto digitado e qualquer
+// botão de limpar (ícone "x") ao lado de "buscar" — limpa o texto digitado e qualquer
 // resultado/erro já exibido, sem esperar uma nova busca. Reaproveita
 // renderSearchResults() (mesma função usada após uma busca) já que
 // zerar os três campos de estado (searchResult/searchError/searching)
@@ -437,7 +438,7 @@ function renderSearchResults() {
         <div class="search-error-msg">${escapeHtml(message)}</div>
         <div class="search-fallback">
           ${state.searchKeyConfigured ? "" : `<span class="link-btn" data-action="open-search-key-modal">configurar chave de busca</span> · `}
-          <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">abrir busca no duckduckgo ↗</span>
+          <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">abrir busca no duckduckgo ${icon("external-link", { size: 11 })}</span>
         </div>
       </div>`;
     return;
@@ -466,7 +467,7 @@ function renderSearchResults() {
       ${answerHtml}
       <div class="search-results-list">${resultsHtml}</div>
       <div class="search-fallback">
-        <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">ver mais no duckduckgo ↗</span>
+        <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">ver mais no duckduckgo ${icon("external-link", { size: 11 })}</span>
       </div>
     </div>`;
 }
@@ -501,8 +502,8 @@ function renderLinks() {
             <div class="linkrow">
               <img class="favicon" src="https://www.google.com/s2/favicons?domain=${escapeAttr(domain)}" alt="">
               <span class="lr-title" data-open-link="${escapeAttr(l.url)}">${escapeHtml(l.title)}</span>
-              <span class="lr-go" data-open-link="${escapeAttr(l.url)}">↗</span>
-              <span class="lr-delete" data-delete-link="${l.id}">✕</span>
+              <span class="lr-go" data-open-link="${escapeAttr(l.url)}">${icon("external-link", { size: 11 })}</span>
+              <span class="lr-delete" data-delete-link="${l.id}">${icon("x")}</span>
             </div>`;
         })
         .join("");
@@ -583,7 +584,7 @@ function repoCardHtml(r) {
   const neverSynced = !s && !r.last_synced_at;
   const stats = s
     ? `<div class="rc-stats">
-         <span><span class="rc-star">★</span> <b>${s.stargazers_count ?? "—"}</b></span>
+         <span><span class="rc-star">${icon("star", { size: 13, fill: "currentColor" })}</span> <b>${s.stargazers_count ?? "—"}</b></span>
          <span>issues <b>${s.open_issues_count ?? "—"}</b></span>
          <span>branch <b>${escapeHtml(s.default_branch ?? "—")}</b></span>
          ${s.language ? `<span>lang <b>${escapeHtml(s.language)}</b></span>` : ""}
@@ -595,7 +596,7 @@ function repoCardHtml(r) {
     ? `<div class="rc-synced">última sincronização: ${fmtDateTimeBR(r.last_synced_at)}</div>`
     : "";
   const error = neverSynced
-    ? `<div class="rc-error">sem dados do github — repositório pode não existir, estar privado (sem token com acesso), ou o nome pode estar incorreto. tente ↻ pra sincronizar de novo.</div>`
+    ? `<div class="rc-error">sem dados do github — repositório pode não existir, estar privado (sem token com acesso), ou o nome pode estar incorreto. tente ressincronizar (${icon("refresh-cw", { size: 10 })} acima) de novo.</div>`
     : "";
 
   // se já tem a atividade em memória (visita anterior nesta sessão),
@@ -611,8 +612,8 @@ function repoCardHtml(r) {
       <div class="rc-head">
         <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
         <span class="rc-actions">
-          <span class="icon-btn" data-tooltip="ressincronizar" data-sync-repo="${r.id}">↻</span>
-          <span class="icon-btn danger" data-tooltip="remover" data-delete-repo="${r.id}">✕</span>
+          <span class="icon-btn" data-tooltip="ressincronizar" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
+          <span class="icon-btn danger" data-tooltip="remover" data-delete-repo="${r.id}">${icon("x")}</span>
         </span>
       </div>
       ${stats}
@@ -717,7 +718,9 @@ async function loadGithubTokenStatus() {
 function renderGithubTokenBadge() {
   const badge = rootEl.querySelector("#org-github-token-badge");
   if (!badge) return;
-  badge.textContent = state.githubTokenConfigured ? "● token ativo" : "○ sem token";
+  badge.innerHTML = state.githubTokenConfigured
+    ? `<span class="status-dot"></span> token ativo`
+    : `<span class="status-dot"></span> sem token`;
   badge.classList.toggle("on", state.githubTokenConfigured);
 }
 
@@ -771,13 +774,13 @@ function renderAccounts() {
       (a) => `
       <div class="org-account">
         <div class="org-account-info" data-select-account="${a.id}" style="cursor:pointer;">
-          <b>${escapeHtml(a.label)}${a.id === state.selectedAccountId ? " ▸" : ""}</b>
+          <b>${escapeHtml(a.label)}${a.id === state.selectedAccountId ? ` ${icon("chevron-right", { size: 11 })}` : ""}</b>
           <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}</span>
         </div>
         <div class="org-account-actions">
-          <span class="icon-btn" data-tooltip="sincronizar" data-sync-account="${a.id}">↻</span>
-          <span class="icon-btn" data-tooltip="editar" data-edit-account="${a.id}">✎</span>
-          <span class="icon-btn" data-tooltip="remover" data-delete-account="${a.id}">✕</span>
+          <span class="icon-btn" data-tooltip="sincronizar" data-sync-account="${a.id}">${icon("refresh-cw", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="editar" data-edit-account="${a.id}">${icon("pencil", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="remover" data-delete-account="${a.id}">${icon("x")}</span>
         </div>
       </div>`
     )
@@ -891,7 +894,7 @@ function renderEmails() {
     return;
   }
   if (!state.emails.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhum e-mail em cache — clique em ↻ pra sincronizar.</div>';
+    wrap.innerHTML = `<div class="empty-state">nenhum e-mail em cache — clique em ${icon("refresh-cw", { size: 10 })} pra sincronizar.</div>`;
     return;
   }
   wrap.innerHTML = state.emails

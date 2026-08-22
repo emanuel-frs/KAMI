@@ -2,6 +2,7 @@ import { updateProfile, updateAvatar } from "../api/perfil.js";
 import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
 import { store } from "../state/store.js";
 import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Diálogo de boas-vindas + criação de personagem (plano-onboarding-kami.md,
@@ -101,8 +102,8 @@ function buildOverlay() {
           <p class="ki-question" id="ki-question"></p>
           <div class="ki-controls" id="ki-controls"></div>
           <div class="ki-footer-row">
-            <button type="button" class="ki-btn-back" id="ki-btn-back" style="display:none">← voltar</button>
-            <span class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">toque para continuar ▸</span>
+            <button type="button" class="ki-btn-back" id="ki-btn-back" style="display:none">${icon("arrow-left", { size: 11 })} voltar</button>
+            <span class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">toque para continuar ${icon("chevron-right", { size: 11 })}</span>
           </div>
         </div>
       </div>
@@ -189,7 +190,7 @@ function onBeatTextRevealed(beat, controlsEl, hintEl) {
   if (beat.type === "say-end") {
     canTapAdvance = true;
     hintEl.style.visibility = "visible";
-    hintEl.textContent = "toque para começar ▸";
+    hintEl.innerHTML = `toque para começar ${icon("chevron-right", { size: 11 })}`;
     return;
   }
   controlsEl.style.display = "block";
@@ -210,7 +211,7 @@ function buildNameControls(container) {
         autocomplete="off"
         spellcheck="false"
       >
-      <button type="button" class="btn primary sm" id="ki-btn-nome-ok" disabled>confirmar →</button>
+      <button type="button" class="btn primary sm" id="ki-btn-nome-ok" disabled>confirmar ${icon("arrow-right", { size: 11 })}</button>
     </div>`;
 
   const input = container.querySelector("#ki-input-nome");
@@ -256,7 +257,7 @@ function buildColorControls(container, hintEl) {
       );
       document.documentElement.style.setProperty("--accent", draft.accent_color);
       canTapAdvance = true;
-      hintEl.textContent = "toque para continuar ▸";
+      hintEl.innerHTML = `toque para continuar ${icon("chevron-right", { size: 11 })}`;
       hintEl.style.visibility = "visible";
     });
   });
@@ -280,7 +281,7 @@ function buildAvatarControls(container) {
     </div>
     <div class="ki-avatar-actions">
       <button type="button" class="ki-btn-ghost" id="ki-btn-av-skip">pular esse passo</button>
-      <button type="button" class="btn primary sm" id="ki-btn-av-ok" disabled>usar esse avatar →</button>
+      <button type="button" class="btn primary sm" id="ki-btn-av-ok" disabled>usar esse avatar ${icon("arrow-right", { size: 11 })}</button>
     </div>`;
 
   const fileInput = container.querySelector("#ki-av-file");

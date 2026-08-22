@@ -16,8 +16,18 @@
  *   core:window:allow-start-dragging   (drag da titlebar em Linux/X11
  *     às vezes precisa disso além do data-tauri-drag-region no HTML)
  */
+import { icon } from "./components/icons.js";
 
 const isTauri = Boolean(window.__TAURI__);
+
+// index.html deixa os 3 botões sem conteúdo (só title="" pra tooltip/
+// acessibilidade) — os ícones (minus/square/x, ver icons.js) entram
+// aqui via innerHTML em vez de ficar embutidos como glifo unicode cru
+// (—, □, ✕) direto no HTML estático, seguindo o mesmo padrão do resto
+// do app (item "sem emoji/glifo cru").
+document.getElementById("win-minimize")?.insertAdjacentHTML("beforeend", icon("minus", { size: 12 }));
+document.getElementById("win-maximize")?.insertAdjacentHTML("beforeend", icon("square", { size: 11 }));
+document.getElementById("win-close")?.insertAdjacentHTML("beforeend", icon("x", { size: 12 }));
 
 // Fora do Tauri (rodando no navegador durante o dev/teste) a titlebar
 // custom não faz sentido — é só referência visual de como vai ficar

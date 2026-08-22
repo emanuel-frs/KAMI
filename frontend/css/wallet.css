@@ -161,11 +161,16 @@
   border:1px solid var(--border-soft); background:var(--card); font-size:11px;
 }
 .sub-row.paga{ border-color:var(--accent-dim); }
+.sub-row.inactive{ opacity:0.5; }
 .sub-top{ display:flex; align-items:center; gap:8px; }
 .sub-name{
   flex:1; min-width:0; color:var(--text-bright);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  cursor:pointer;
 }
+.sub-name:hover{ color:var(--accent); text-decoration:underline; }
+.sub-remove{ cursor:pointer; color:var(--text-faint); padding:0 2px; flex-shrink:0; }
+.sub-remove:hover{ color:var(--accent); }
 .sub-meta{ display:flex; align-items:center; gap:8px; }
 .sub-valor{ color:var(--text-dim); white-space:nowrap; }
 .sub-dia{ font-size:9.5px; color:var(--text-faint); white-space:nowrap; }

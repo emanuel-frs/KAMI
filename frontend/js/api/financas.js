@@ -1,14 +1,22 @@
 import { get, post, put, del } from "./client.js";
 
-// renda recorrente — consumida pelo widget financas_renda
-// (widgets/financas-renda.js). Antes era código morto no frontend
-// (backend pronto, nenhuma tela chamava isso) — ver item 2 do mapa de
-// problemas.
+// renda recorrente (v2) — cadastro de fontes com CRUD completo +
+// ocorrências mensais (widgets/financas-renda.js). Antes o backend só
+// tinha 2 fontes fixas hardcoded, sem CRUD nenhum (item 2 do mapa de
+// problemas antigo) — agora é um cadastro genérico com encadeamento.
+export const listIncomeSources = () => get("/api/financas/income-sources");
+export const createIncomeSource = (data) => post("/api/financas/income-sources", data);
+export const updateIncomeSource = (sourceId, data) => put(`/api/financas/income-sources/${sourceId}`, data);
+export const deleteIncomeSource = (sourceId) => del(`/api/financas/income-sources/${sourceId}`);
+
 export const getIncomeEntries = (month) => get(`/api/financas/income-entries?month=${month}`);
-export const confirmIncomeEntry = (entryId, paidDate) =>
-  put(`/api/financas/income-entries/${entryId}/confirm`, { paid_date: paidDate });
-export const revertIncomeEntry = (entryId) =>
-  put(`/api/financas/income-entries/${entryId}/revert`, {});
+// payload: { valor_recebido?, paid_date?, atualizar_valor_fonte? } — ver
+// modals/pay-income-modal.js pra como montar isso a partir da UI. Se a
+// fonte tem conta_id vinculada, gera uma transação 'entrada' real.
+export const payIncomeEntry = (entryId, payload) =>
+  put(`/api/financas/income-entries/${entryId}/pay`, payload || {});
+export const unpayIncomeEntry = (entryId) =>
+  put(`/api/financas/income-entries/${entryId}/unpay`, {});
 
 // contas fixas — cadastro
 export const listFixedBills = () => get("/api/financas/fixed-bills");

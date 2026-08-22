@@ -4,14 +4,39 @@ import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem
- * calculada do backend (calendário + ajuste manual). Os botões ‹ ›
+ * calculada do backend (calendário + ajuste manual). Os botões de seta
  * chamam walletApi.ajustarParcelasCompra pra adiantar/desfazer um
  * adiantamento — não mexe em fatura/saldo, só no rótulo de progresso
  * (a reserva no limite já foi feita inteira na criação da compra).
+ *
+ * Segunda seção "fatura do mês" (item 3 do plano de ajustes): lista,
+ * pro mês navegável selecionado, uma linha por compra ativa naquele
+ * mês no formato "nome (parcela X/N) — R$ valor", como um item de
+ * fatura de banco de verdade — calculada on the fly no backend
+ * (GET /compras-parceladas/mes), sem mexer em saldo/fatura de novo
+ * (já foi reservado na criação) e sem depender do estado de
+ * ajuste_parcelas mostrado na primeira seção (são visões diferentes:
+ * "progresso atual" vs "o que cai em cada mês").
  */
+
+function currentMonthStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function shiftMonth(monthStr, delta) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(monthStr) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  return `${nomes[m - 1]} ${y}`;
+}
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,6 +46,8 @@ export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando compras parceladas…</div>';
   let compras = [];
   let banks = [];
+  let faturaMes = currentMonthStr();
+  let faturaItens = [];
 
   function accountLookup() {
     const map = {};
@@ -41,6 +68,15 @@ export async function render(el, widget) {
       el.innerHTML = `<div class="empty-state">erro ao carregar compras parceladas: ${err.message}</div>`;
       return;
     }
+    await reloadFatura();
+  }
+
+  async function reloadFatura() {
+    try {
+      faturaItens = await walletApi.listComprasParceladasMes(faturaMes);
+    } catch (err) {
+      faturaItens = [];
+    }
     draw();
   }
 
@@ -59,22 +95,60 @@ export async function render(el, widget) {
           return `
             <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}" data-parcela-id="${c.id}">
               <div class="cp-top">
-                <span class="cp-nome">${escapeHtml(c.nome)}</span>
-                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)">×</span>
+                <span class="cp-nome" data-edit-compra="${c.id}">${escapeHtml(c.nome)}</span>
+                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-meta">
                 <div class="cp-parcela-adjust">
-                  <button type="button" class="cp-adjust-btn" data-adjust="-1" data-compra="${c.id}" data-tooltip="desfazer um adiantamento">‹</button>
+                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
                   <span class="cp-parcela">${c.parcela_atual}/${c.num_parcelas}${ajusteTag}${c.quitada ? " · quitada" : ""}</span>
-                  <button type="button" class="cp-adjust-btn" data-adjust="1" data-compra="${c.id}" data-tooltip="adiantar uma parcela">›</button>
+                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
                 </div>
-                <span class="cp-valor">${brl(c.valor_parcela)}<span class="cp-valor-total"> de ${brl(c.valor_total)}</span></span>
+                <div class="cp-valor-stack">
+                  <span class="cp-valor">${brl(c.valor_parcela)}</span>
+                  <span class="cp-valor-total">de ${brl(c.valor_total)}</span>
+                </div>
               </div>
               <div class="cp-conta">${contaLabel}</div>
             </div>`;
         }).join("") : `<div class="wallet-empty">nenhuma compra parcelada cadastrada.</div>`}
       </div>
+
+      <div class="cp-fatura-section">
+        <div class="widget-inline-toolbar">
+          <div class="month-nav">
+            <button type="button" class="btn sm" data-action="fatura-prev-month">${icon("arrow-left", { size: 11 })}</button>
+            <span class="month-label">${monthLabel(faturaMes)}</span>
+            <button type="button" class="btn sm" data-action="fatura-next-month">${icon("arrow-right", { size: 11 })}</button>
+          </div>
+          <span class="cp-fatura-title">fatura do mês</span>
+        </div>
+        <div class="cp-fatura-list">
+          ${faturaItens.length ? faturaItens.map((f) => `
+            <div class="cp-fatura-row">
+              <span class="cp-fatura-nome">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
+              <span class="cp-fatura-valor">${brl(f.valor_parcela)}</span>
+            </div>`).join("") : `<div class="wallet-empty">nenhuma compra parcelada ativa em ${monthLabel(faturaMes)}.</div>`}
+        </div>
+      </div>
     `;
+
+    el.querySelectorAll("[data-edit-compra]").forEach((el2) => {
+      el2.addEventListener("click", () => {
+        const id = el2.getAttribute("data-edit-compra");
+        const compra = compras.find((c) => c.id === id);
+        if (compra) {
+          openCompraParceladaModal({
+            compra,
+            accounts: accountsFlat(),
+            onSaved: async () => {
+              await reload();
+              window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
+            },
+          });
+        }
+      });
+    });
 
     el.querySelectorAll("[data-remove-compra]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -110,6 +184,15 @@ export async function render(el, widget) {
           window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
         },
       });
+    });
+
+    el.querySelector('[data-action="fatura-prev-month"]').addEventListener("click", () => {
+      faturaMes = shiftMonth(faturaMes, -1);
+      reloadFatura();
+    });
+    el.querySelector('[data-action="fatura-next-month"]').addEventListener("click", () => {
+      faturaMes = shiftMonth(faturaMes, 1);
+      reloadFatura();
     });
 
     if (focusId) focusRow(el.querySelector(`[data-parcela-id="${focusId}"]`), "parcela");

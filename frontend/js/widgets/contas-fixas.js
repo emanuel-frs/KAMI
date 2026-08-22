@@ -7,6 +7,7 @@ import { showPromptModal } from "../modals/prompt-modal.js";
 import { openPayPeriodModal } from "../modals/pay-period-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Widget "contas fixas". Cadastro (nome/valor/dia/conta/categoria)
@@ -80,7 +81,7 @@ export async function render(el, widget) {
             <div class="conta-fixa-row${b.active ? (paga ? " paga" : "") : " inactive"}" data-conta-fixa-id="${b.id}">
               <div class="cf-top">
                 <span class="cf-name" data-edit-bill="${b.id}">${escapeHtml(b.name)}</span>
-                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa">×</span>
+                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cf-meta">
                 <span class="cf-valor">${brl(valor)}</span>

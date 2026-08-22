@@ -31,6 +31,16 @@ Endpoints:
   GET    /subscriptions/periods?month=YYYY-MM
   PUT    /subscriptions/periods/{id}/pay    gerar_transacao opcional (default True se tiver conta_id)
   PUT    /subscriptions/periods/{id}/unpay  reverte a transação se houver
+
+  GET    /compras-parceladas
+  POST   /compras-parceladas
+  PUT    /compras-parceladas/{id}
+  DELETE /compras-parceladas/{id}
+  PUT    /compras-parceladas/{id}/ajustar    delta manual (+1 adianta, -1 desfaz)
+  GET    /compras-parceladas/mes?mes=YYYY-MM fatura do mês: 1 linha por compra ativa
+                                              naquele mês, com o nº da parcela
+                                              correspondente àquele mês específico
+                                              (não "hoje") — calculado on the fly
 """
 import re
 import datetime
@@ -300,6 +310,33 @@ def create_subscription(payload: SubscriptionIn, db=Depends(get_db)):
     return {"id": sub_id, **payload.model_dump()}
 
 
+@router.put("/subscriptions/{sub_id}", response_model=SubscriptionOut)
+def update_subscription(sub_id: str, payload: SubscriptionIn, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM wallet_subscriptions WHERE id = ?", (sub_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+    if payload.conta_id:
+        conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail="conta não encontrada")
+    db.execute(
+        "UPDATE wallet_subscriptions SET nome=?, valor_esperado=?, dia_cobranca=?, conta_id=?, active=?, categoria=? WHERE id=?",
+        (payload.nome, payload.valor_esperado, payload.dia_cobranca, payload.conta_id,
+         int(payload.active), payload.categoria, sub_id),
+    )
+    db.commit()
+    return {"id": sub_id, **payload.model_dump()}
+
+
+@router.delete("/subscriptions/{sub_id}")
+def delete_subscription(sub_id: str, db=Depends(get_db)):
+    # cascade em wallet_subscription_periods via ON DELETE CASCADE (schema.sql),
+    # mesmo padrão de delete_fixed_bill em financas.py.
+    db.execute("DELETE FROM wallet_subscriptions WHERE id = ?", (sub_id,))
+    db.commit()
+    return {"deleted": True}
+
+
 @router.get("/subscriptions/periods", response_model=List[PeriodOut])
 def list_subscription_periods(month: str, db=Depends(get_db)):
     _validate_month(month)
@@ -396,6 +433,23 @@ def _current_month_str() -> str:
     return datetime.date.today().strftime("%Y-%m")
 
 
+def _parcela_no_mes(row, mes: str) -> Optional[int]:
+    """Número da parcela (1-indexed) correspondente a um mês específico
+    — mesma fórmula de _compra_parcelada_out, mas parametrizada pelo mês
+    consultado em vez de sempre "hoje". Devolve None se a compra não
+    está ativa naquele mês (antes da 1ª parcela ou já quitada,
+    considerando ajuste_parcelas). Usada tanto por _compra_parcelada_out
+    (com mes=hoje) quanto pelo endpoint /compras-parceladas/mes (item 3
+    do plano de ajustes — fatura mês a mês, calculada on the fly, sem
+    persistir nada em `compra_parcelada_aplicacoes`, que foi removida
+    por nunca ter sido usada de verdade)."""
+    elapsed = _months_between(row["mes_primeira_parcela"], mes)
+    raw_parcela = elapsed + 1 + row["ajuste_parcelas"]
+    if raw_parcela < 1 or raw_parcela > row["num_parcelas"]:
+        return None
+    return raw_parcela
+
+
 def _compra_parcelada_out(row) -> dict:
     """Calcula os campos de EXIBIÇÃO (parcela atual, quitada) a partir
     do calendário + do ajuste manual (ajuste_parcelas) — não escreve
@@ -441,6 +495,19 @@ class CompraParceladaOut(BaseModel):
     quitada: bool
 
 
+class CompraParceladaMesOut(BaseModel):
+    """Uma linha de 'fatura' pra um mês específico — item 3 do plano de
+    ajustes. Só as compras ativas naquele mês aparecem (ver
+    _parcela_no_mes); o resto (id/nome/conta_id) é o mesmo de sempre,
+    só o número da parcela muda conforme o mês consultado."""
+    id: str
+    nome: str
+    parcela_numero: int
+    num_parcelas: int
+    valor_parcela: float
+    conta_id: Optional[str] = None
+
+
 class AjustarParcelasPayload(BaseModel):
     delta: int  # +1 avança uma parcela, -1 desfaz um adiantamento por engano
 
@@ -451,6 +518,41 @@ def list_compras_parceladas(db=Depends(get_db)):
         "SELECT * FROM compras_parceladas ORDER BY mes_primeira_parcela DESC, nome"
     ).fetchall()
     return [_compra_parcelada_out(r) for r in rows]
+
+
+@router.get("/compras-parceladas/mes", response_model=List[CompraParceladaMesOut])
+def list_compras_parceladas_mes(mes: str, db=Depends(get_db)):
+    """Fatura mês a mês (item 3 do plano de ajustes): uma linha por
+    compra parcelada ativa no `mes` consultado, no formato "nome
+    (parcela X/N) — R$ valor_parcela", como um item de fatura de banco
+    de verdade — mesmo sem ser uma `transaction` real, já que a reserva
+    no limite foi feita inteira na criação (ver create_compra_parcelada)
+    e não muda de novo aqui. Calculado on the fly a partir de
+    mes_primeira_parcela + ajuste_parcelas (_parcela_no_mes), sem
+    persistir nada — não usa/precisa da tabela `compra_parcelada_
+    aplicacoes` (removida por nunca ter sido usada de verdade).
+    Rota declarada antes de qualquer /compras-parceladas/{compra_id}
+    pra "mes" não ser capturado como id — não há conflito hoje (só
+    PUT/DELETE usam {compra_id}), mas define a ordem seguindo o mesmo
+    cuidado que rotas com path param costumam pedir."""
+    _validate_month(mes)
+    rows = db.execute(
+        "SELECT * FROM compras_parceladas ORDER BY mes_primeira_parcela, nome"
+    ).fetchall()
+    out = []
+    for row in rows:
+        parcela_numero = _parcela_no_mes(row, mes)
+        if parcela_numero is None:
+            continue
+        out.append({
+            "id": row["id"],
+            "nome": row["nome"],
+            "parcela_numero": parcela_numero,
+            "num_parcelas": row["num_parcelas"],
+            "valor_parcela": row["valor_total"] / row["num_parcelas"],
+            "conta_id": row["conta_id"],
+        })
+    return out
 
 
 @router.post("/compras-parceladas", response_model=CompraParceladaOut)
@@ -493,11 +595,80 @@ def create_compra_parcelada(payload: CompraParceladaIn, db=Depends(get_db)):
     return _compra_parcelada_out(row)
 
 
+@router.put("/compras-parceladas/{compra_id}", response_model=CompraParceladaOut)
+def update_compra_parcelada(compra_id: str, payload: CompraParceladaIn, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="compra parcelada não encontrada")
+    if not MONTH_RE.match(payload.mes_primeira_parcela):
+        raise HTTPException(status_code=422, detail="mes_primeira_parcela deve ser 'YYYY-MM'")
+
+    # Desfaz a reserva antiga antes de validar/aplicar a nova — mesma lógica
+    # de "desfaz e refaz" que delete_compra_parcelada já usa, só que aqui
+    # tanto desfazendo quanto refazendo dentro do mesmo request.
+    if row["conta_id"]:
+        db.execute(
+            "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) - ? WHERE id = ?",
+            (row["valor_total"], row["conta_id"]),
+        )
+
+    if payload.conta_id:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
+        if not conta:
+            db.rollback()
+            raise HTTPException(status_code=422, detail="conta não encontrada")
+        if not conta["possui_credito"]:
+            db.rollback()
+            raise HTTPException(status_code=422, detail="a conta vinculada precisa ter crédito cadastrado")
+        if conta["limite_total"] is not None:
+            # essa SELECT já reflete o UPDATE de subtração acima (mesma
+            # conexão/transação) mesmo se payload.conta_id == row["conta_id"],
+            # então fatura_atual aqui já está sem a reserva antiga.
+            fatura_atual = conta["fatura_atual"] or 0
+            disponivel = conta["limite_total"] - fatura_atual
+            if payload.valor_total > disponivel:
+                db.rollback()
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, compra de R$ {payload.valor_total:.2f}",
+                )
+        db.execute(
+            "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) + ? WHERE id = ?",
+            (payload.valor_total, payload.conta_id),
+        )
+
+    db.execute(
+        "UPDATE compras_parceladas SET nome=?, valor_total=?, num_parcelas=?, conta_id=?, mes_primeira_parcela=? "
+        "WHERE id=?",
+        (payload.nome, payload.valor_total, payload.num_parcelas, payload.conta_id,
+         payload.mes_primeira_parcela, compra_id),
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
+    return _compra_parcelada_out(updated)
+
+
 @router.put("/compras-parceladas/{compra_id}/ajustar", response_model=CompraParceladaOut)
 def ajustar_parcelas_compra(compra_id: str, payload: AjustarParcelasPayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="compra parcelada não encontrada")
+
+    # Mesma fórmula de _compra_parcelada_out, mas SEM clamping — precisa do
+    # raw_parcela "de verdade" pra saber se esse delta levaria o estado pra
+    # fora de [0, num_parcelas] antes de aplicar (não confiar só no clamp de
+    # exibição, que mascara ajuste_parcelas indo pra além do limite útil).
+    today_month = _current_month_str()
+    elapsed = _months_between(row["mes_primeira_parcela"], today_month)
+    novo_ajuste = row["ajuste_parcelas"] + payload.delta
+    raw_parcela = elapsed + 1 + novo_ajuste
+    if raw_parcela < 0 or raw_parcela > row["num_parcelas"]:
+        raise HTTPException(
+            status_code=422,
+            detail="ajuste inválido: não há adiantamento pra desfazer" if payload.delta < 0
+            else "ajuste inválido: a compra já está quitada",
+        )
+
     db.execute(
         "UPDATE compras_parceladas SET ajuste_parcelas = ajuste_parcelas + ? WHERE id = ?",
         (payload.delta, compra_id),

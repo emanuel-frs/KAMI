@@ -1,6 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Modal "nova conta fixa" / "editar conta fixa" — mesmo padrão singleton
@@ -24,7 +25,7 @@ function buildModal() {
   wrap.id = "fixed-bill-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conta fixa</span> <span class="close" data-action="close">×</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova conta fixa</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field"><label>nome</label><input type="text" id="fbm-name" placeholder="ex: aluguel, internet..."></div>
         <div class="field-row">

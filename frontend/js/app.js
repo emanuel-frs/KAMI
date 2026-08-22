@@ -10,6 +10,8 @@ import { openSettingsModal } from "./modals/settings-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
+import { wireTooltips } from "./components/tooltip.js";
+import { startCalendarNotifications } from "./components/calendar-notifications.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário (primeira tela
@@ -107,6 +109,8 @@ async function boot() {
   wireSettingsButton();
   wireHelpButton();
   wireModalEscapeClose();
+  wireTooltips();
+  startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   await showPage("nucleo"); // tela inicial
   await splashDone;

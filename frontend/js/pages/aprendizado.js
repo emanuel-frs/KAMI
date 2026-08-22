@@ -11,6 +11,7 @@ import {
   reorderMilestones,
 } from "../api/aprendizado.js";
 import { escapeHtml } from "../components/format.js";
+import { icon } from "../components/icons.js";
 import { getLog } from "../api/nucleo.js";
 import { store } from "../state/store.js";
 import { maybeStartAprendizadoTips, replayAprendizadoTips } from "./aprendizado-tips.js";
@@ -75,12 +76,12 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
       <div class="roadmap-node" data-visual="${visual}" data-milestone-id="${m.id}" draggable="true">
         <div class="roadmap-connector"></div>
         <div class="roadmap-box">
-          ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">⠿</span>` : ''}
+          ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
           <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}">
           <span class="roadmap-title" data-id="${m.id}">${escapeHtml(m.title)}</span>
           ${editable
-            ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">▼</span>`
-            : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">›</span>`
+            ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
+            : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">${icon("chevron-right", { size: 14 })}</span>`
           }
           ${isExpanded ? `
             <div class="roadmap-expanded">
@@ -116,7 +117,7 @@ function buildConfirmModal() {
     <div class="modal" style="max-width:400px;">
       <div class="modal-head">
         <span id="confirm-modal-title">confirmar</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body">
         <div id="confirm-modal-text" style="font-size:12px;color:var(--text-dim);line-height:1.5;margin-bottom:16px;"></div>
@@ -189,7 +190,7 @@ function buildTrackModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="track-modal-title">nova trilha</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -353,7 +354,7 @@ function buildMilestoneModal() {
     <div class="modal" style="max-width:520px;">
       <div class="modal-head">
         <span id="ms-modal-title">módulo</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body" id="ms-modal-body">
         <!-- dynamic content -->
@@ -432,7 +433,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
         <button type="button" class="btn" data-action="delete-milestone" style="color:var(--red);margin-left:auto;">excluir</button>
       </div>
     `;
-    wrap.querySelector("#ms-modal-title").textContent = `✎ editar ${escapeHtml(ms.title)}`;
+    wrap.querySelector("#ms-modal-title").innerHTML = `${icon("pencil", { size: 13 })} editar ${escapeHtml(ms.title)}`;
     body.querySelector('[data-action="save-edit"]').addEventListener("click", async () => {
       const name = body.querySelector("#ms-edit-name").value.trim();
       const description = body.querySelector("#ms-edit-desc").value.trim() || null;
@@ -482,7 +483,7 @@ function buildNewMilestoneModal() {
     <div class="modal" style="max-width:480px;">
       <div class="modal-head">
         <span>novo módulo</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -549,7 +550,7 @@ function buildExpandModal() {
     <div class="modal" style="max-width:800px;max-height:80vh;">
       <div class="modal-head">
         <span>mapa completo</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body" id="expand-body" style="overflow-y:auto;"></div>
     </div>
@@ -613,7 +614,7 @@ function renderTracks() {
     const isSelected = selectedTrackId === track.id;
     return `
       <div class="apr-track-item${isSelected ? " selected" : ""}" data-track-id="${track.id}">
-        <span class="apr-track-drag-dot" data-tooltip="arrastar">⠿</span>
+        <span class="apr-track-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>
         <div class="apr-track-item-body">
           <div class="apr-track-info">
             <span class="apr-track-name">${escapeHtml(track.name)}</span>
@@ -735,12 +736,12 @@ function renderTrackEditMode() {
   // Cabeçalho do modo edição (sem botão expandir)
   headerEl.innerHTML = `
     <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
-      <button type="button" class="btn sm icon-btn-square" id="btn-back-from-edit" data-tooltip="voltar">‹</button>
+      <button type="button" class="btn sm icon-btn-square" id="btn-back-from-edit" data-tooltip="voltar">${icon("arrow-left", { size: 13 })}</button>
       <div style="flex:1;min-width:0;">
         <span class="track-name-display" style="font-size:12px;font-weight:500;color:var(--text-dim); cursor:pointer;">${escapeHtml(track.name)}</span>
         <div class="track-goal-display" style="font-size:10px;color:var(--text-faint);margin-top:2px;cursor:pointer;">${track.general_goal ? escapeHtml(track.general_goal) : '<span style="opacity:0.5;">(sem descrição — clique 2x para adicionar)</span>'}</div>
       </div>
-      <button type="button" class="btn sm icon-btn-square" id="btn-delete-track" data-tooltip="deletar trilha">🗑</button>
+      <button type="button" class="btn sm icon-btn-square" id="btn-delete-track" data-tooltip="deletar trilha">${icon("trash-2", { size: 13 })}</button>
       <button type="button" class="btn sm icon-btn-square" id="btn-add-module" data-tooltip="adicionar módulo">+</button>
     </div>
   `;
@@ -846,7 +847,7 @@ function renderTrackEditMode() {
     });
   });
 
-  // Expansão ao clicar na seta ▼
+  // Expansão ao clicar no ícone de seta (chevron-down, ver icons.js)
   bodyEl.querySelectorAll('#edit-milestone-list .roadmap-expand-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -904,8 +905,8 @@ function startTrackGoalEdit(displayEl, track) {
   wrap.innerHTML = `
     <textarea rows="2" style="width:100%;font-size:11px;">${escapeHtml(track.general_goal || '')}</textarea>
     <div style="display:flex;gap:6px;margin-top:4px;">
-      <span class="icon-btn confirm" data-tooltip="salvar">✓</span>
-      <span class="icon-btn cancel" data-tooltip="cancelar">✕</span>
+      <span class="icon-btn confirm" data-tooltip="salvar">${icon("check")}</span>
+      <span class="icon-btn cancel" data-tooltip="cancelar">${icon("x")}</span>
     </div>
   `;
   displayEl.replaceWith(wrap);
@@ -1351,8 +1352,8 @@ function startTrackNameEdit(displayEl, track) {
   wrap.style.flex = '1';
   wrap.innerHTML = `
     <input type="text" value="${escapeHtml(track.name)}">
-    <span class="icon-btn confirm" data-tooltip="salvar">✓</span>
-    <span class="icon-btn cancel" data-tooltip="cancelar">✕</span>
+    <span class="icon-btn confirm" data-tooltip="salvar">${icon("check")}</span>
+    <span class="icon-btn cancel" data-tooltip="cancelar">${icon("x")}</span>
   `;
   displayEl.replaceWith(wrap);
   const input = wrap.querySelector('input');

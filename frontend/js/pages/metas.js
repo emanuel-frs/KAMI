@@ -97,7 +97,7 @@ function buildGoalModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="goal-modal-title">nova meta</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -346,7 +346,7 @@ function buildContributeModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="goal-contribute-title">contribuir</span>
-        <span class="close" data-action="close">✕</span>
+        <span class="close" data-action="close">${icon("x")}</span>
       </div>
       <div class="modal-body">
         <div class="field" id="goal-contribute-origem-field">
@@ -489,7 +489,7 @@ function goalCardHtml(goal) {
         <span class="push goal-card-icons">
           ${isLearning ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
           <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
-          <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">🗑</span>
+          <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">${icon("trash-2", { size: 15 })}</span>
         </span>
       </div>
       <div class="card-body">
@@ -505,9 +505,9 @@ function goalCardHtml(goal) {
         }
         ${isDone
           ? `<div class="goal-meta">concluída${goal.completed_at ? " em " + fmtDeadline(goal.completed_at) : ""} · +${xpBonusFor(goal.weight)} xp bônus</div>
-             <button type="button" class="btn sm" disabled>meta concluída ✓</button>`
+             <button type="button" class="btn sm" disabled>meta concluída ${icon("check", { size: 12 })}</button>`
           : isLearning
-            ? `<button type="button" class="btn sm" data-action="ver-trilha">ver trilha →</button>`
+            ? `<button type="button" class="btn sm" data-action="ver-trilha">ver trilha ${icon("arrow-right", { size: 11 })}</button>`
             : `<button type="button" class="btn sm primary" data-action="contribute-goal">+ contribuir</button>`
         }
         ${isLearning ? "" : `

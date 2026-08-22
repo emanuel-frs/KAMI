@@ -1,5 +1,6 @@
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Modal "marcar como paga/pago" — usado por widgets/contas-fixas.js e
@@ -32,7 +33,7 @@ function buildModal() {
   wrap.id = "pay-period-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <span class="close" data-action="cancel">×</span></div>
+      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field"><label>valor pago</label><input type="number" id="ppm-valor" placeholder="0.00"></div>
         <p class="ppm-conta-info" id="ppm-conta-info"></p>

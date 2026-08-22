@@ -1,9 +1,11 @@
-import { listEvents } from "../api/calendario.js";
+import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js";
 import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { setPendingFocus } from "../components/pending-focus.js";
-import { TYPE_META } from "../components/event-types.js";
+import { TYPE_META, isPendingAlertEvent } from "../components/event-types.js";
 import { openCalendarAlertsModal } from "../modals/calendar-alerts-modal.js";
+import { openCalendarEventModal } from "../modals/calendar-event-modal.js";
+import { showErrorModal } from "../modals/err-modal.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -31,6 +33,32 @@ function milestoneName(e) {
   return e.title.slice(MILESTONE_PREFIX.length).trim();
 }
 
+// eventos manuais ("evento") têm id agregado "evento:{id_real}:{data}"
+// (ver _evento_events em app/routers/calendario.py — o mês sozinho não
+// basta pra ser único quando a recorrência gera várias ocorrências no
+// mesmo mês). O objeto cru esperado pelo modal (calendar-event-modal.js)
+// usa o id real, sem o pedaço de data.
+function isEventoEvent(e) {
+  return e.type === "evento";
+}
+
+function eventoRecordId(e) {
+  return e.id.split(":")[1] || "";
+}
+
+function toEventoRecord(e) {
+  return {
+    id: eventoRecordId(e),
+    title: e.title,
+    date: e.date,
+    time: e.time,
+    notes: e.notes,
+    recurrence: e.recurrence,
+    recurrence_end: e.recurrence_end,
+    reminder_minutes_before: e.reminder_minutes_before,
+  };
+}
+
 const STATUS_LABELS = {
   aberta: "aberta",
   pendente: "pendente",
@@ -47,24 +75,9 @@ const MONTH_LABELS = [
 
 // ─── alertas "vencendo em breve" ────────────────────────────────────────
 // janela de antecedência pra considerar algo "vencendo em breve" (dias).
+// isPendingAlertEvent agora mora em components/event-types.js (também
+// usado por components/calendar-notifications.js pro resumo diário).
 const ALERT_WINDOW_DAYS = 7;
-
-// só entram no alerta os tipos com um estado "em aberto" reconhecível.
-// conta_fixa agora segue o mesmo padrão de instância mensal + status
-// pendente/paga que assinatura já tinha (item 1 do mapa de problemas).
-function isPendingAlertEvent(e) {
-  switch (e.type) {
-    case "divida":
-      return e.status !== "paga";
-    case "assinatura":
-    case "conta_fixa":
-      return e.status === "pendente";
-    case "meta":
-      return e.status !== "concluida";
-    default:
-      return false;
-  }
-}
 
 // ─── estado ──────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -183,6 +196,40 @@ function handleAlertsBtnClick() {
   });
 }
 
+// ─── eventos manuais: criar/editar ────────────────────────────────────────
+function handleNewEventClick() {
+  openCalendarEventModal({
+    date: selectedDate || undefined,
+    onSaved: async () => {
+      await Promise.all([loadMonth(), loadAlerts()]);
+    },
+  });
+}
+
+function handleEditEventoClick(evtRow) {
+  openCalendarEventModal({
+    event: toEventoRecord(evtRow),
+    onSaved: async () => {
+      await Promise.all([loadMonth(), loadAlerts()]);
+    },
+    onDeleted: async () => {
+      await Promise.all([loadMonth(), loadAlerts()]);
+    },
+  });
+}
+
+// ─── eventos manuais: reagendar via drag-and-drop ─────────────────────────
+async function handleEventoDrop(eventoId, newDate) {
+  if (!eventoId) return;
+  try {
+    await rescheduleEvento(eventoId, newDate);
+  } catch (err) {
+    showErrorModal(err.message, "erro ao reagendar evento");
+    return;
+  }
+  await Promise.all([loadMonth(), loadAlerts()]);
+}
+
 // ─── render: grade do mês ───────────────────────────────────────────────
 function renderGrid() {
   const gridEl = containerEl.querySelector("#cal-grid");
@@ -232,8 +279,11 @@ function renderGrid() {
           )}">${icon(MILESTONE_META.icon, { size: 9 })}</span>`
         : "");
 
+    const dow = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
+    const isWeekend = dow === 0 || dow === 6;
+
     html += `
-      <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}" data-date="${dateStr}">
+      <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateStr}">
         <div class="cal-day-num">${day}</div>
         <div class="cal-day-chips">${chips}</div>
       </div>
@@ -254,6 +304,23 @@ function renderGrid() {
       activeFilters.clear();
       renderGrid();
       renderDayPanel();
+    });
+
+    // alvo de drop pra reagendar um evento manual arrastado do painel
+    // do dia (ver dragstart em renderDayPanel) — só reage a algo sendo
+    // arrastado de verdade (classList "drag-over" só entra via dragenter).
+    cell.addEventListener("dragover", (ev) => {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+    });
+    cell.addEventListener("dragenter", () => cell.classList.add("drag-over"));
+    cell.addEventListener("dragleave", () => cell.classList.remove("drag-over"));
+    cell.addEventListener("drop", (ev) => {
+      ev.preventDefault();
+      cell.classList.remove("drag-over");
+      const eventoId = ev.dataTransfer.getData("text/plain");
+      const newDate = cell.dataset.date;
+      if (eventoId && newDate) handleEventoDrop(eventoId, newDate);
     });
   });
 }
@@ -282,7 +349,11 @@ function renderDayPanel() {
   if (!dayEvents.length) {
     filtersEl.innerHTML = "";
     activeFilters.clear();
-    listEl.innerHTML = `<div class="empty-state">nenhum evento nesse dia.</div>`;
+    listEl.innerHTML = `
+      <div class="empty-state">nenhum evento nesse dia.</div>
+      <button type="button" class="btn sm cal-day-quick-add" id="cal-day-quick-add">${icon("plus", { size: 11 })}&nbsp;adicionar evento</button>
+    `;
+    listEl.querySelector("#cal-day-quick-add").addEventListener("click", handleNewEventClick);
     return;
   }
 
@@ -343,21 +414,22 @@ function renderDayPanel() {
       const categoriesHtml = e.categories?.length
         ? `<div class="cal-event-categories">${e.categories.map((c) => `<span class="cal-event-category-tag">${escapeHtml(c)}</span>`).join("")}</div>`
         : "";
-      // e.id vem como "tipo:id_do_registro" ou "tipo:id_do_registro:mes"
-      // (conta_fixa/assinatura/parcela têm o mês grudado pra ficarem
-      // únicos por mês — o id real do registro é sempre o 2º pedaço).
       const recordId = e.id.split(":")[1] || "";
+      const draggableAttr = isEventoEvent(e) ? ` draggable="true" data-evento-id="${escapeHtml(recordId)}"` : "";
       return `
-        <div class="cal-event-row" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}">
+        <div class="cal-event-row${isEventoEvent(e) ? " cal-event-row-evento" : ""}" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}"${draggableAttr}>
           <div class="cal-event-row-main">
             <span class="cal-event-dot${milestone ? " milestone" : ""}" style="--type-color:${meta.color}">${icon(meta.icon, { size: 11 })}</span>
             <span class="cal-event-type">${escapeHtml(meta.label)}</span>
+            ${e.time ? `<span class="cal-event-time">${icon("clock", { size: 10 })}${escapeHtml(e.time)}</span>` : ""}
             <span class="cal-event-title">${escapeHtml(title)}</span>
             ${statusHtml}
             ${amountHtml}
             ${xpHtml}
+            ${isEventoEvent(e) ? `<span class="cal-event-edit-hint">${icon("pencil", { size: 10 })}</span>` : ""}
           </div>
           ${categoriesHtml}
+          ${isEventoEvent(e) && e.notes ? `<div class="cal-event-notes">${escapeHtml(e.notes)}</div>` : ""}
         </div>
       `;
     })
@@ -365,12 +437,30 @@ function renderDayPanel() {
 
   listEl.querySelectorAll(".cal-event-row").forEach((row) => {
     row.addEventListener("click", () => {
+      const { type, recordId } = row.dataset;
+      if (type === "evento") {
+        const evtRow = dayEvents.find((e) => e.type === "evento" && eventoRecordId(e) === recordId);
+        if (evtRow) handleEditEventoClick(evtRow);
+        return;
+      }
       const page = row.dataset.module;
       if (!page) return;
-      const { type, recordId } = row.dataset;
       if (type && recordId) setPendingFocus(type, recordId);
       document.querySelector(`.nav-link[data-page="${page}"]`)?.click();
     });
+
+    // eventos manuais são arrastáveis pra outro dia da grade (ver
+    // handleGridDrop em renderGrid) — os demais tipos (conta_fixa,
+    // dívida, meta...) pertencem a outros módulos, então reagendar por
+    // aqui não faria sentido, só o "evento" tem essa liberdade.
+    if (row.draggable) {
+      row.addEventListener("dragstart", (ev) => {
+        ev.dataTransfer.setData("text/plain", row.dataset.eventoId);
+        ev.dataTransfer.effectAllowed = "move";
+        row.classList.add("dragging");
+      });
+      row.addEventListener("dragend", () => row.classList.remove("dragging"));
+    }
   });
 }
 
@@ -434,6 +524,7 @@ export async function mount(container) {
           ${icon("bell", { size: 13 })}
           <span class="cal-alerts-badge" id="cal-alerts-badge" hidden></span>
         </button>
+        <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;novo evento</button>
         <button type="button" class="btn sm" id="cal-today-btn">hoje</button>
       </div>
     </div>
@@ -460,6 +551,7 @@ export async function mount(container) {
   container.querySelector("#cal-next").addEventListener("click", () => shiftMonth(1));
   container.querySelector("#cal-today-btn").addEventListener("click", goToToday);
   container.querySelector("#cal-alerts-btn").addEventListener("click", handleAlertsBtnClick);
+  container.querySelector("#cal-new-event-btn").addEventListener("click", handleNewEventClick);
 
   await Promise.all([loadMonth(), loadAlerts()]);
 }

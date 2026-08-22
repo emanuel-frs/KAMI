@@ -1,3 +1,5 @@
+import { icon } from "../components/icons.js";
+
 /**
  * Modal genérico de prompt de valor único — substitui prompt(...) no
  * fluxo que ainda pedia um valor rápido pelo dialog nativo do
@@ -25,7 +27,7 @@ function buildModal() {
   wrap.id = "prompt-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="pm-title">informar valor</span> <span class="close" data-action="cancel">×</span></div>
+      <div class="modal-head"><span id="pm-title">informar valor</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
           <label id="pm-label"></label>

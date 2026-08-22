@@ -8,7 +8,8 @@
  *     a largura real do grid (não da janela) para --wg-cols via breakpoints,
  *     e reconverte os data-span (em sextos) para colunas reais.
  *
- * Drag (reordenar) e resize manual (arrastar ⠿ e ⋰) — portados do protótipo
+ * Drag (reordenar) e resize manual (arrastar via ícones grip/resize,
+ * ver icons.js) — portados do protótipo
  * (linhas ~1456-1698 do kami_telas_final.html), adaptados pra persistir via
  * onLayoutChange ao final de cada operação em vez de só mexer no DOM.
  */
@@ -337,9 +338,9 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
 }
 
 /**
- * Handle de drag (⠿, no card-head) — arrasta o card inteiro pra reordenar
- * dentro do grid, usando um placeholder que segue o cursor entre os cards
- * vizinhos. Persiste a nova ordem via onLayoutChange ao soltar.
+ * Handle de drag (ícone "grip", no card-head) — arrasta o card inteiro pra
+ * reordenar dentro do grid, usando um placeholder que segue o cursor entre
+ * os cards vizinhos. Persiste a nova ordem via onLayoutChange ao soltar.
  */
 function attachDragHandle(card, container, getCommit, pauseObservers, resumeObservers) {
   const head = card.querySelector(":scope > .card-head");
@@ -528,7 +529,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = "span 12";
 
     const removeBtn = def.removable !== false
-      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget">×</span>`
+      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget">${icon("x", { size: 11 })}</span>`
       : "";
 
     card.innerHTML = `

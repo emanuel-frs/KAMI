@@ -364,8 +364,32 @@
   font-size: 9.5px;
   color: var(--text-faint);
   margin-left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .gh-token-badge.on { color: var(--accent); }
+/* ── ponto de status ("token ativo"/"sem token") ─────────────────────
+ * era um glifo unicode "●"/"○" solto no texto — mesma ideia do
+ * .filter-dot (widget-financas-extra.css): ponto de status, não
+ * pictograma, então vira span circular via CSS em vez de SVG. Sem
+ * token, fica só contorno (border) pra diferenciar visualmente de
+ * "ativo" (preenchido) mesmo pra quem não distingue bem a cor.
+ */
+.gh-token-badge .status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.gh-token-badge:not(.on) .status-dot {
+  background: transparent;
+  border: 1px solid currentColor;
+  width: 5px;
+  height: 5px;
+}
 
 .gh-private-tag {
   color: var(--amber);
@@ -379,7 +403,8 @@
 .rc-sparkline svg rect:last-child { opacity: 1; }
 
 .repo-card .rc-stats .rc-star {
-  font-size: 16px;
-  line-height: 1;
   color: var(--amber);
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
 }

@@ -1,0 +1,91 @@
+/*
+ * Toast empilhável (components/toast.js) — usado pelos lembretes de
+ * calendário (components/calendar-notifications.js). Mesma linguagem
+ * visual do toast de backup-reminder.css (borda + sombra dura + fundo
+ * --panel), só que em pilha (várias notificações podem coexistir) em
+ * vez de singleton.
+ */
+
+.toast-stack {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 160; /* acima do backup-reminder-toast (150), abaixo de modal (200) */
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 320px;
+  max-width: calc(100vw - 40px);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  color: var(--text-dim);
+  pointer-events: auto;
+
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.toast-item.open {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast-item.clickable { cursor: pointer; }
+.toast-item.clickable:hover { border-color: var(--accent-dim); }
+
+.toast-icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+  margin-top: 1px;
+}
+
+.toast-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 11.5px;
+  color: var(--text-bright);
+  line-height: 1.35;
+}
+
+.toast-message {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: var(--font);
+}
+.toast-close:hover { color: var(--text-bright); }
+
+@media (max-width: 520px) {
+  .toast-stack {
+    left: 16px;
+    right: 16px;
+  }
+  .toast-item {
+    width: auto;
+  }
+}

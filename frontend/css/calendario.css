@@ -405,3 +405,80 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── modal de evento (calendar-event-modal.js) ──────────────────────────
+ * `.form-actions` não tem regra própria em nenhum outro CSS do app (os
+ * outros modais vivem com o fluxo inline padrão de botões) — aqui
+ * precisamos de 3 botões com o de excluir separado à esquerda, então
+ * a regra fica escopada por id pra não afetar nenhum outro modal. */
+#calendar-event-modal .form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+#calendar-event-modal .cal-event-delete-btn {
+  margin-right: auto;
+}
+
+/* ── botão "novo evento" na toolbar ──────────────────────────────────── */
+#cal-new-event-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ── grade: fim de semana + alvo de drop ────────────────────────────────
+ * shading bem sutil (mesma lógica de has-events, só que ainda mais
+ * discreto — é só uma orientação visual de "sábado/domingo", não deve
+ * competir com o destaque de hoje/selecionado/tem-evento). */
+.cal-day.weekend:not(.cal-day-filler) {
+  background: color-mix(in srgb, var(--text-bright) 2%, var(--card));
+}
+.cal-day.weekend.has-events {
+  background: color-mix(in srgb, var(--accent) 4%, var(--card));
+}
+
+.cal-day.drag-over {
+  background: color-mix(in srgb, var(--accent) 16%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ── painel do dia: evento manual (arrastável, com hora/notas/editar) ── */
+.cal-event-row-evento {
+  cursor: grab;
+}
+.cal-event-row-evento:active { cursor: grabbing; }
+.cal-event-row-evento.dragging { opacity: 0.4; }
+
+.cal-event-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.cal-event-edit-hint {
+  margin-left: auto;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.cal-event-row-evento:hover .cal-event-edit-hint { color: var(--accent); }
+
+.cal-event-notes {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.cal-day-quick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  align-self: flex-start;
+}

@@ -89,6 +89,13 @@ a { color: var(--text-bright); }
   line-height: 1.4;
   padding: 1px 8px;
   cursor: pointer;
+  /* segura o <svg> injetado por titlebar.js (ícones minus/square/x,
+     ver icons.js) em vez do glifo unicode cru (—, □, ✕) que ficava
+     direto no HTML estático — flex centraliza o ícone dentro do botão
+     igual os outros icon-btn do app. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .win-ctrl-btn:hover { color: var(--text-bright); border-color: var(--text-dim); }
 .win-ctrl-close:hover { color: var(--red); border-color: var(--red); }

@@ -1,6 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Modal "novo lançamento" — entrada/saída/transferência. Recebe as
@@ -20,7 +21,7 @@ function buildModal() {
   wrap.id = "transaction-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">novo lançamento <span class="close" data-action="close">×</span></div>
+      <div class="modal-head">novo lançamento <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
           <label>tipo</label>

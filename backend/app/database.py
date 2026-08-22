@@ -209,6 +209,76 @@ def _migrate_recorrentes_conta_transacao(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_income_v2(conn: sqlite3.Connection) -> None:
+    """
+    Substitui income_sources/income_entries pelo modelo v2 (renda
+    recorrente genérica, CRUD completo, encadeamento — ver
+    app/routers/financas.py) — dropa as tabelas antigas em bancos
+    criados antes desta mudança. Sem perda de dado real:
+    income_sources/income_entries só continham dado semeado ("parte 1"/
+    "parte 2" hardcoded, sem CRUD próprio antes disso), nunca algo que o
+    usuário tenha digitado num cadastro dele. `CREATE TABLE IF NOT
+    EXISTS` não recria uma tabela que já existe, então quem já tinha o
+    schema antigo precisa do DROP manual pra ganhar as colunas novas
+    (frequencia/tipo_data/conta_id/etc.) — mesmo motivo de sempre pras
+    migrações deste arquivo. Bancos novos já nascem com o schema.sql
+    atual (v2) e essa função é um no-op pra eles.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(income_sources)").fetchall()]
+    if "frequencia" in cols:
+        return  # já é v2
+    conn.execute("DROP TABLE IF EXISTS income_entries")
+    conn.execute("DROP TABLE IF EXISTS income_sources")
+    conn.executescript(
+        """
+        CREATE TABLE income_sources (
+            id                   TEXT PRIMARY KEY,
+            nome                 TEXT NOT NULL,
+            valor                REAL NOT NULL,
+            conta_id             TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+            categoria            TEXT,
+            frequencia           TEXT NOT NULL,
+            tipo_data            TEXT,
+            dia_mes              INTEGER,
+            nth_dia_util         INTEGER,
+            intervalo_dias       INTEGER,
+            data_base            TEXT,
+            fonte_referencia_id  TEXT REFERENCES income_sources(id) ON DELETE SET NULL,
+            offset_dias_uteis    INTEGER,
+            data_avulsa          TEXT,
+            active               INTEGER NOT NULL DEFAULT 1,
+            unica                INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE income_entries (
+            id                TEXT PRIMARY KEY,
+            income_source_id  TEXT NOT NULL REFERENCES income_sources(id) ON DELETE CASCADE,
+            expected_date     TEXT NOT NULL,
+            paid_date         TEXT,
+            amount            REAL NOT NULL,
+            status            TEXT NOT NULL DEFAULT 'previsto',
+            transaction_id    TEXT REFERENCES transactions(id) ON DELETE SET NULL
+        );
+        """
+    )
+    conn.commit()
+
+
+def _migrate_drop_compra_parcelada_aplicacoes(conn: sqlite3.Connection) -> None:
+    """
+    Dropa `compra_parcelada_aplicacoes` (item 3 do plano de ajustes de
+    finanças) — a tabela nunca foi usada em nenhuma rota do
+    wallet.py; a exibição de parcela por mês sempre foi (e continua
+    sendo) calculada on the fly a partir de mes_primeira_parcela +
+    ajuste_parcelas (ver _compra_parcelada_out/_parcela_no_mes),
+    tornando a tabela redundante desde sempre — sobrou de um plano
+    anterior que não foi concluído. `DROP TABLE IF EXISTS` é seguro
+    tanto pra quem nunca teve a tabela quanto pra quem tinha (dado
+    nela, se houver, não é usado por nada — perda sem efeito real).
+    """
+    conn.execute("DROP TABLE IF EXISTS compra_parcelada_aplicacoes")
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -223,6 +293,8 @@ def init_db() -> None:
     _migrate_tracks_position(conn)
     _migrate_goals_v2(conn)
     _migrate_recorrentes_conta_transacao(conn)
+    _migrate_income_v2(conn)
+    _migrate_drop_compra_parcelada_aplicacoes(conn)
 
     _seed_defaults(conn)
 
@@ -255,17 +327,24 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
                 (new_id(), name),
             )
 
-    # renda recorrente: parte 1 (~5º dia útil) + parte 2 (~+15 dias úteis) —
-    # valores default do usuário (decisão 06), editáveis depois via API
+    # renda recorrente (v2): parte 1 (5º dia útil) + parte 2 (+15 dias
+    # úteis após parte 1, via encadeamento offset_fonte) — mesmos valores
+    # default de sempre (decisão 06), agora editáveis via CRUD completo
+    # (GET/POST/PUT/DELETE /financas/income-sources) em vez de fixos.
     cur.execute("SELECT COUNT(*) AS c FROM income_sources")
     if cur.fetchone()["c"] == 0:
+        parte1_id = new_id()
         cur.execute(
-            "INSERT INTO income_sources (id, label, amount, payment_rule) VALUES (?, ?, ?, ?)",
-            (new_id(), "parte 1", 1800, "5º dia útil do mês"),
+            "INSERT INTO income_sources "
+            "(id, nome, valor, frequencia, tipo_data, nth_dia_util, active, unica) "
+            "VALUES (?, ?, ?, 'mensal', 'dia_util', ?, 1, 0)",
+            (parte1_id, "parte 1", 1800, 5),
         )
         cur.execute(
-            "INSERT INTO income_sources (id, label, amount, payment_rule) VALUES (?, ?, ?, ?)",
-            (new_id(), "parte 2", 1300, "+15 dias úteis após parte 1"),
+            "INSERT INTO income_sources "
+            "(id, nome, valor, frequencia, tipo_data, fonte_referencia_id, offset_dias_uteis, active, unica) "
+            "VALUES (?, ?, ?, 'mensal', 'offset_fonte', ?, ?, 1, 0)",
+            (new_id(), "parte 2", 1300, parte1_id, 15),
         )
 
     # dashboard: layout default por tela (decisão 17) — espelha o que já

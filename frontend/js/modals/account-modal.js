@@ -2,6 +2,7 @@ import { imageToAscii, fitAsciiText } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
 import * as walletApi from "../api/wallet.js";
 import { showErrorModal } from "./err-modal.js";
+import { icon } from "../components/icons.js";
 
 /**
  * Modal "nova conta" / "editar conta" (decisão 18 — modais são o padrão
@@ -32,7 +33,7 @@ function buildModal() {
   wrap.id = "account-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conta</span> <span class="close" data-action="close">×</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova conta</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field" id="am-bank-field">
           <label>banco</label>
