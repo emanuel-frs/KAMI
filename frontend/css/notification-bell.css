@@ -1,0 +1,169 @@
+/*
+ * Notificações v2.1 — components/notification-bell.js (botão + badge
+ * do rodapé da sidebar) e modals/notifications-modal.js (modal
+ * unificado que ele abre, junto com o sino da tela de calendário).
+ *
+ * As classes .nbell-* abaixo eram do popover antigo, ancorado tipo
+ * tooltip no botão do sino (`position: absolute`) — cortava na tela
+ * em telas menores porque não tinha como "empurrar" pra caber, mesmo
+ * problema que um tooltip mal posicionado tem. Migraram pra dentro do
+ * modal central (.modal-backdrop, ver base.css), então essas regras de
+ * item/avatar/lista continuam as mesmas, só o container ao redor que
+ * mudou de popover pra modal.
+ */
+
+/* ── badge de contagem no ícone do sino, visível com o painel fechado ── */
+#btn-open-notifications { position: relative; }
+.nbell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--amber);
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid var(--panel);
+}
+.nbell-badge[hidden] { display: none; }
+
+/* ── modal unificado (modals/notifications-modal.js) ──────────────────
+ * duas seções empilhadas dentro do mesmo .modal-body: calendário
+ * (reaproveita .cal-alerts-list/.cal-alert-item de calendario.css,
+ * já era um bloco scrollável de verdade) e e-mail (abaixo). */
+.notif-section { margin-bottom: 14px; }
+.notif-section:last-child { margin-bottom: 0; }
+.notif-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.notif-section-head .icon { color: var(--text-faint); flex-shrink: 0; }
+
+/* ── resumo recolhido de e-mail ("você tem N novos e-mails") — clica
+ * pra virar a lista scrollável abaixo, mesma ideia de um <details>
+ * mas com o chevron/ícones que o resto do app já usa ── */
+.notif-email-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+  cursor: pointer;
+}
+.notif-email-summary:hover { border-color: var(--accent-dim); }
+.notif-email-summary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-bright);
+}
+.notif-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.notif-actions .icon-btn { color: var(--text-faint); cursor: pointer; line-height: 1; }
+.notif-actions .icon-btn:hover { color: var(--accent); }
+.notif-chevron { display: inline-flex; color: var(--text-faint); transition: transform .12s; }
+.notif-chevron.open { transform: rotate(180deg); }
+
+/* ── lista de e-mails (some quando recolhida, em vez de sair do DOM —
+ * mantém o estado de "expandido" só como uma classe, sem re-render
+ * pesado a cada toggle) ── */
+.nbell-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 3px;
+  margin-top: 6px;
+}
+.nbell-list.collapsed { display: none; }
+
+.nbell-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 8px 8px 6px;
+  margin-bottom: 5px;
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--border-soft);
+  background: var(--bg);
+  cursor: pointer;
+}
+.nbell-item:last-child { margin-bottom: 0; }
+.nbell-item:hover { border-color: var(--accent-dim); background: rgba(255, 255, 255, 0.03); }
+.nbell-item.unread { border-left-color: var(--amber); background: var(--card); }
+
+.nbell-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+.nbell-item.unread .nbell-dot { background: var(--amber); }
+
+.nbell-avatar {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* cor por conta (--chip-color, ver accountColor() em account-color.js)
+     — mesma lógica do avatar de e-mail na aba Organização (ver
+     .email-avatar em widget-organizacao.css), pra diferenciar contas
+     aqui também em vez de todo item ficar com a mesma cor genérica. */
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 18%, var(--bg));
+  color: var(--chip-color, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--chip-color, var(--accent)) 55%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.nbell-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nbell-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.nbell-subject {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nbell-item.unread .nbell-subject { color: var(--text-bright); font-weight: 500; }
+.nbell-time { flex: 0 0 auto; font-size: 9px; color: var(--text-faint); }
+.nbell-sender {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nbell-preview {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nbell-mute {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.nbell-mute:hover { color: var(--red); }

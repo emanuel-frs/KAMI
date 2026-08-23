@@ -1,5 +1,6 @@
 import { getAttributes, registerAction } from "../api/nucleo.js";
 import { enhanceSelect } from "../components/custom-select.js";
+import { icon } from "../components/icons.js";
 
 /** Form pra registrar uma ação — credita xp num atributo (ver app/actions.py). */
 export async function render(el, widget) {
@@ -34,7 +35,7 @@ export async function render(el, widget) {
       </div>
     </div>
     <button class="btn primary reg-submit wg-anchor-bottom">registrar ação</button>
-    <div class="reg-msg" style="display:none; color:var(--accent); font-size:10.5px; margin-top:6px;">registrado ✓</div>
+    <div class="reg-msg" style="display:none; color:var(--accent); font-size:10.5px; margin-top:6px;">registrado ${icon("check", { size: 10 })}</div>
     <div class="reg-error" style="display:none; color:var(--red); font-size:10.5px; margin-top:6px;"></div>
   `;
 

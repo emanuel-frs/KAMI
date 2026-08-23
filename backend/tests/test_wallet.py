@@ -238,6 +238,72 @@ def test_list_subscriptions(client):
     assert nomes == {"Streaming A", "Streaming B"}
 
 
+def test_update_subscription(client):
+    sub = client.post(
+        "/api/wallet/subscriptions",
+        json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12},
+    ).json()
+    resp = client.put(
+        f"/api/wallet/subscriptions/{sub['id']}",
+        json={"nome": "Streaming Premium", "valor_esperado": 45.0, "dia_cobranca": 20, "active": False},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["nome"] == "Streaming Premium"
+    assert body["valor_esperado"] == 45.0
+    assert body["dia_cobranca"] == 20
+    assert body["active"] is False
+
+    body = client.get("/api/wallet/subscriptions").json()[0]
+    assert body["nome"] == "Streaming Premium"
+
+
+def test_update_subscription_not_found_returns_404(client):
+    resp = client.put(
+        "/api/wallet/subscriptions/inexistente",
+        json={"nome": "x", "valor_esperado": 10.0, "dia_cobranca": 5},
+    )
+    assert resp.status_code == 404
+
+
+def test_update_subscription_with_invalid_conta_returns_422(client):
+    sub = client.post(
+        "/api/wallet/subscriptions",
+        json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12},
+    ).json()
+    resp = client.put(
+        f"/api/wallet/subscriptions/{sub['id']}",
+        json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12, "conta_id": "inexistente"},
+    )
+    assert resp.status_code == 422
+
+
+def test_delete_subscription(client):
+    sub = client.post(
+        "/api/wallet/subscriptions",
+        json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12},
+    ).json()
+    resp = client.delete(f"/api/wallet/subscriptions/{sub['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] is True
+    assert client.get("/api/wallet/subscriptions").json() == []
+
+
+def test_delete_subscription_cascades_periods(client):
+    """Ao remover a assinatura, os wallet_subscription_periods dela também
+    somem (ON DELETE CASCADE) — não deixa período órfão pra reaparecer."""
+    sub = client.post(
+        "/api/wallet/subscriptions",
+        json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12},
+    ).json()
+    client.get("/api/wallet/subscriptions/periods?month=2026-01")  # gera o period sob demanda
+
+    client.delete(f"/api/wallet/subscriptions/{sub['id']}")
+
+    resp = client.get("/api/wallet/subscriptions/periods?month=2026-01")
+    assert resp.json() == []
+
+
 def test_subscription_periods_generated_on_demand_and_idempotent(client):
     sub = client.post(
         "/api/wallet/subscriptions",
@@ -485,6 +551,108 @@ def test_compra_parcelada_parcela_atual_and_quitada_computed_from_calendar(clien
     assert body["quitada"] is True
 
 
+def test_update_compra_parcelada_sem_conta(client):
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "fone", "valor_total": 300, "num_parcelas": 3, "mes_primeira_parcela": "2026-01"},
+    ).json()
+    resp = client.put(
+        f"/api/wallet/compras-parceladas/{compra['id']}",
+        json={"nome": "fone bluetooth", "valor_total": 300, "num_parcelas": 3, "mes_primeira_parcela": "2026-01"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["nome"] == "fone bluetooth"
+
+
+def test_update_compra_parcelada_not_found_returns_404(client):
+    resp = client.put(
+        "/api/wallet/compras-parceladas/inexistente",
+        json={"nome": "x", "valor_total": 100, "num_parcelas": 2, "mes_primeira_parcela": "2026-01"},
+    )
+    assert resp.status_code == 404
+
+
+def test_update_compra_parcelada_reconcilia_fatura_da_mesma_conta(client):
+    """Editar valor_total de uma compra que já tinha conta_id precisa
+    desfazer a reserva antiga e refazer com o novo valor, não simplesmente
+    somar por cima."""
+    bank = client.post("/api/wallet/banks", json={"nome": "Nubank"}).json()
+    conta = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": "cartão", "possui_saldo": False, "possui_credito": True,
+              "fatura_atual": 0, "limite_total": 1000},
+    ).json()
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "fone", "valor_total": 300, "num_parcelas": 3,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta["id"]},
+    ).json()
+
+    resp = client.put(
+        f"/api/wallet/compras-parceladas/{compra['id']}",
+        json={"nome": "fone", "valor_total": 500, "num_parcelas": 5,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta["id"]},
+    )
+    assert resp.status_code == 200, resp.text
+
+    contas = client.get("/api/wallet/banks").json()[0]["accounts"]
+    assert contas[0]["fatura_atual"] == 500  # não 300 (antigo) + 500 (novo) = 800
+
+
+def test_update_compra_parcelada_move_conta_reconcilia_ambas(client):
+    bank = client.post("/api/wallet/banks", json={"nome": "Nubank"}).json()
+    conta_a = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": "cartão A", "possui_saldo": False, "possui_credito": True,
+              "fatura_atual": 0, "limite_total": 1000},
+    ).json()
+    conta_b = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": "cartão B", "possui_saldo": False, "possui_credito": True,
+              "fatura_atual": 0, "limite_total": 1000},
+    ).json()
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "fone", "valor_total": 300, "num_parcelas": 3,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta_a["id"]},
+    ).json()
+
+    resp = client.put(
+        f"/api/wallet/compras-parceladas/{compra['id']}",
+        json={"nome": "fone", "valor_total": 300, "num_parcelas": 3,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta_b["id"]},
+    )
+    assert resp.status_code == 200, resp.text
+
+    contas = {a["nome"]: a for a in client.get("/api/wallet/banks").json()[0]["accounts"]}
+    assert contas["cartão A"]["fatura_atual"] == 0
+    assert contas["cartão B"]["fatura_atual"] == 300
+
+
+def test_update_compra_parcelada_limite_insuficiente_returns_422_e_nao_altera_fatura(client):
+    bank = client.post("/api/wallet/banks", json={"nome": "Nubank"}).json()
+    conta = client.post(
+        f"/api/wallet/banks/{bank['id']}/accounts",
+        json={"nome": "cartão", "possui_saldo": False, "possui_credito": True,
+              "fatura_atual": 0, "limite_total": 400},
+    ).json()
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "fone", "valor_total": 300, "num_parcelas": 3,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta["id"]},
+    ).json()
+
+    resp = client.put(
+        f"/api/wallet/compras-parceladas/{compra['id']}",
+        json={"nome": "fone", "valor_total": 500, "num_parcelas": 5,
+              "mes_primeira_parcela": "2026-01", "conta_id": conta["id"]},
+    )
+    assert resp.status_code == 422, resp.text
+
+    contas = client.get("/api/wallet/banks").json()[0]["accounts"]
+    assert contas[0]["fatura_atual"] == 300  # reserva antiga preservada, não perdida no rollback
+
+
 def test_ajustar_parcelas_delta_positivo_avanca_parcela(client, monkeypatch):
     compra = client.post(
         "/api/wallet/compras-parceladas",
@@ -517,6 +685,46 @@ def test_ajustar_parcelas_delta_negativo_desfaz_ajuste(client, monkeypatch):
 def test_ajustar_parcelas_not_found_returns_404(client):
     resp = client.put("/api/wallet/compras-parceladas/inexistente/ajustar", json={"delta": 1})
     assert resp.status_code == 404
+
+
+def test_ajustar_parcelas_delta_negativo_sem_adiantamento_returns_422(client, monkeypatch):
+    """0/N (ainda não começou) é um estado válido — um '‹' até ali é
+    permitido (desfaz o avanço natural do calendário). O que reproduz o
+    bug relatado é o PRÓXIMO '‹' a partir daí, que empurraria
+    ajuste_parcelas pra produzir parcela_atual < 0."""
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "cadeira", "valor_total": 300, "num_parcelas": 3, "mes_primeira_parcela": "2026-01"},
+    ).json()
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-01")
+
+    resp = client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": -1})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["parcela_atual"] == 0
+
+    resp = client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": -1})
+    assert resp.status_code == 422, resp.text
+
+    # e o estado no banco não deve ter mudado além do primeiro ajuste válido
+    body = client.get("/api/wallet/compras-parceladas").json()[0]
+    assert body["ajuste_parcelas"] == -1
+    assert body["parcela_atual"] == 0
+
+
+def test_ajustar_parcelas_delta_positivo_quando_ja_quitada_returns_422(client, monkeypatch):
+    """'›' não pode avançar além do total de parcelas."""
+    compra = client.post(
+        "/api/wallet/compras-parceladas",
+        json={"nome": "notebook", "valor_total": 300, "num_parcelas": 3, "mes_primeira_parcela": "2026-01"},
+    ).json()
+    monkeypatch.setattr("app.routers.wallet._current_month_str", lambda: "2026-03")  # parcela_atual == 3 (último mês)
+
+    resp = client.put(f"/api/wallet/compras-parceladas/{compra['id']}/ajustar", json={"delta": 1})
+    assert resp.status_code == 422, resp.text
+
+    body = client.get("/api/wallet/compras-parceladas").json()[0]
+    assert body["ajuste_parcelas"] == 0
+    assert body["parcela_atual"] == 3
 
 
 def test_delete_compra_parcelada_reverts_fatura_atual(client):

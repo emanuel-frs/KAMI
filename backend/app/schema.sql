@@ -74,28 +74,106 @@ CREATE TABLE IF NOT EXISTS achievements (
 );
 
 -- ---------------- FINANÇAS ----------------
+-- Renda recorrente (v2 — substitui o hardcode de exatamente 2 fontes
+-- fixas "parte 1"/"parte 2" por um cadastro genérico, com CRUD completo
+-- e suporte a encadeamento entre fontes; ver app/routers/financas.py e
+-- app/database.py::_migrate_income_v2 pro racional completo).
+--
+-- `frequencia`: 'mensal' | 'quinzenal' | 'semanal' | 'avulsa'.
+-- `tipo_data` (NULL só quando frequencia='avulsa') define como a data
+-- prevista de cada ocorrência é calculada:
+--   'dia_fixo'       -> `dia_mes` (1-31, clampado no último dia do mês
+--                        em meses mais curtos). Só mensal.
+--   'dia_util'       -> N-ésimo dia útil do mês (`nth_dia_util`), via
+--                        business_days.py. Só mensal.
+--   'intervalo_dias' -> toda vez que se passam `intervalo_dias` dias a
+--                        partir de `data_base` (cobre quinzenal=14/
+--                        semanal=7 como caso particular, mas aceita
+--                        qualquer N).
+--   'offset_fonte'   -> depende de outra fonte (`fonte_referencia_id`):
+--                        soma `offset_dias_uteis` dias úteis à data
+--                        (paga, se já confirmada; senão prevista) da
+--                        ocorrência da fonte de referência naquele mês.
+--                        Validado contra ciclos na criação/edição.
+-- `data_avulsa` só é usada com frequencia='avulsa' — uma única entrada
+-- nessa data, sem gerar novas ocorrências (`unica=1`, ver
+-- _ensure_income_entries_for_month).
+-- `conta_id` opcional: marcar uma ocorrência como paga credita saldo
+-- real na conta vinculada (mesmo padrão opcional de fixed_bills/
+-- wallet_subscriptions — item 6 do mapa de problemas, agora replicado
+-- aqui). `categoria` alimenta a transação gerada, cai pra "renda" se
+-- vazia.
 CREATE TABLE IF NOT EXISTS income_sources (
-    id           TEXT PRIMARY KEY,
-    label        TEXT NOT NULL,        -- "parte 1", "parte 2"
-    amount       REAL NOT NULL,
-    payment_rule TEXT NOT NULL         -- ex: "5o dia útil" / "+15 dias úteis após parte 1"
+    id                   TEXT PRIMARY KEY,
+    nome                 TEXT NOT NULL,
+    valor                REAL NOT NULL,
+    conta_id             TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+    categoria            TEXT,
+    frequencia           TEXT NOT NULL,
+    tipo_data            TEXT,
+    dia_mes              INTEGER,
+    nth_dia_util         INTEGER,
+    intervalo_dias       INTEGER,
+    data_base            TEXT,
+    fonte_referencia_id  TEXT REFERENCES income_sources(id) ON DELETE SET NULL,
+    offset_dias_uteis    INTEGER,
+    data_avulsa          TEXT,
+    active               INTEGER NOT NULL DEFAULT 1,
+    unica                INTEGER NOT NULL DEFAULT 0
 );
 
+-- Uma linha por ocorrência, gerada sob demanda (mesmo padrão sob-demanda
+-- de fixed_bill_periods/wallet_subscription_periods). transaction_id:
+-- ver comentário equivalente em fixed_bill_periods — aponta pra
+-- transação 'entrada' real gerada ao marcar como paga (NULL se a fonte
+-- não tem conta_id vinculada, ou se foi marcada só como lembrete),
+-- permite reverter de forma limpa em /unpay.
 CREATE TABLE IF NOT EXISTS income_entries (
     id                TEXT PRIMARY KEY,
     income_source_id  TEXT NOT NULL REFERENCES income_sources(id) ON DELETE CASCADE,
-    expected_date     TEXT NOT NULL,   -- calculada via workalendar
+    expected_date     TEXT NOT NULL,   -- calculada via business_days.py quando aplicável
     paid_date         TEXT,
     amount            REAL NOT NULL,
-    status            TEXT NOT NULL DEFAULT 'previsto'  -- 'previsto' | 'pago'
+    status            TEXT NOT NULL DEFAULT 'previsto',  -- 'previsto' | 'pago'
+    transaction_id    TEXT REFERENCES transactions(id) ON DELETE SET NULL
 );
 
+-- Cadastro da conta fixa em si (nome/valor/dia de vencimento). Assim como
+-- wallet_subscriptions, marcar uma instância mensal (fixed_bill_periods)
+-- como paga é OPCIONALMENTE real: se `conta_id` está preenchida E o
+-- usuário confirma na hora de marcar como paga (ver
+-- app/routers/financas.py::pay_fixed_bill_period), gera uma transação
+-- 'saida' de verdade e desconta saldo/fatura da conta vinculada — mesmo
+-- comportamento de um app de finanças "de verdade" (YNAB/Mobills: marcar
+-- uma conta recorrente como paga lança a despesa). Sem conta_id, ou se o
+-- usuário recusar, continua sendo só lembrete (decisão do item 6 do mapa
+-- de problemas, resolvida como opcional por registro).
 CREATE TABLE IF NOT EXISTS fixed_bills (
-    id      TEXT PRIMARY KEY,
-    name    TEXT NOT NULL,
-    amount  REAL NOT NULL,
-    due_day INTEGER NOT NULL,
-    active  INTEGER NOT NULL DEFAULT 1
+    id        TEXT PRIMARY KEY,
+    name      TEXT NOT NULL,
+    amount    REAL NOT NULL,
+    due_day   INTEGER NOT NULL,
+    active    INTEGER NOT NULL DEFAULT 1,
+    conta_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
+    categoria TEXT   -- usada na transação gerada quando marcada paga; cai
+                      -- pra um default ("contas fixas") se ficar em branco
+);
+
+-- Um registro por (conta fixa, mês) — nasce "não paga" quando o mês é
+-- consultado pela primeira vez. Mesmo padrão sob-demanda de
+-- wallet_subscription_periods/income_entries, unificando os 3 conceitos de
+-- "coisa que se repete todo mês" (item 1 do mapa de problemas).
+-- transaction_id aponta pra a transação real gerada ao marcar como paga
+-- (NULL se foi marcada só como lembrete, sem gerar transação) — permite
+-- reverter de forma limpa quando o usuário desfaz o pagamento.
+CREATE TABLE IF NOT EXISTS fixed_bill_periods (
+    id             TEXT PRIMARY KEY,
+    fixed_bill_id  TEXT NOT NULL REFERENCES fixed_bills(id) ON DELETE CASCADE,
+    mes_ano        TEXT NOT NULL,   -- 'YYYY-MM'
+    paga           INTEGER NOT NULL DEFAULT 0,
+    valor_pago     REAL,            -- override, só se pago com valor diferente do esperado
+    transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL,
+    UNIQUE(fixed_bill_id, mes_ano)
 );
 
 CREATE TABLE IF NOT EXISTS debts (
@@ -132,25 +210,32 @@ CREATE TABLE IF NOT EXISTS wallet_accounts (
     UNIQUE(bank_id, nome)
 );
 
--- Assinaturas são só lembrete informativo (não afetam saldo/fatura
--- automaticamente) — a conta vinculada é referência visual apenas.
+-- Assinaturas: marcar uma instância mensal (wallet_subscription_periods)
+-- como paga é OPCIONALMENTE real — mesmo mecanismo de fixed_bills acima
+-- (item 6 do mapa de problemas): com conta_id preenchida e confirmação do
+-- usuário no momento de marcar como paga, gera uma transação 'saida' de
+-- verdade. `categoria` alimenta essa transação (default "assinaturas" se
+-- vazia). Sem conta_id, continua sendo só lembrete.
 CREATE TABLE IF NOT EXISTS wallet_subscriptions (
     id             TEXT PRIMARY KEY,
     nome           TEXT NOT NULL,
     valor_esperado REAL NOT NULL,
     dia_cobranca   INTEGER NOT NULL,
     conta_id       TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,
-    active         INTEGER NOT NULL DEFAULT 1
+    active         INTEGER NOT NULL DEFAULT 1,
+    categoria      TEXT
 );
 
 -- Um registro por (assinatura, mês) — nasce "não paga" quando o mês é
 -- consultado pela primeira vez (mesmo padrão sob-demanda de income_entries).
+-- transaction_id: ver comentário equivalente em fixed_bill_periods.
 CREATE TABLE IF NOT EXISTS wallet_subscription_periods (
     id               TEXT PRIMARY KEY,
     subscription_id  TEXT NOT NULL REFERENCES wallet_subscriptions(id) ON DELETE CASCADE,
     mes_ano          TEXT NOT NULL,   -- 'YYYY-MM'
     paga             INTEGER NOT NULL DEFAULT 0,
     valor_pago       REAL,            -- override, só se pago com valor diferente do esperado
+    transaction_id   TEXT REFERENCES transactions(id) ON DELETE SET NULL,
     UNIQUE(subscription_id, mes_ano)
 );
 
@@ -222,7 +307,11 @@ CREATE TABLE IF NOT EXISTS email_accounts (
     imap_host         TEXT NOT NULL,
     imap_port         INTEGER NOT NULL,
     username          TEXT NOT NULL,
-    app_password_enc  TEXT NOT NULL    -- senha de app, criptografada localmente
+    app_password_enc  TEXT NOT NULL,   -- senha de app, criptografada localmente
+    sync_by_default   INTEGER NOT NULL DEFAULT 1  -- redesign da aba e-mail: contas "padrão"
+                                                    -- já vêm selecionadas na visualização
+                                                    -- combinada ao entrar na tela (ver
+                                                    -- plano-email-organizacao.md secao 3.1)
 );
 
 CREATE TABLE IF NOT EXISTS email_cache (
@@ -236,6 +325,22 @@ CREATE TABLE IF NOT EXISTS email_cache (
     body_preview TEXT                 -- trecho em TEXTO PURO do corpo (sem HTML), truncado
                                        -- na extração (ver app/routers/organizacao.py) — nunca
                                        -- o corpo original/HTML bruto, por segurança (XSS/tracking)
+);
+
+-- ---------------- CONTAS SILENCIADAS (notificações v2.1) ----------------
+-- silencia uma CONTA de e-mail inteira (não um remetente/e-mail
+-- individual) — decisão revisitada: quem tem mais de uma conta IMAP
+-- vinculada em Organização e recebe muito volume numa delas prefere
+-- silenciar a conta de uma vez a ter que silenciar remetente por
+-- remetente. E-mails da conta continuam sendo sincronizados/cacheados
+-- normalmente em email_cache (aparecem em Organização igual a
+-- qualquer outro), só ficam de fora da lista/contagem do sino de
+-- notificações. Substitui a antiga muted_senders (ver
+-- _migrate_muted_accounts em app/database.py pra migração dos dados).
+CREATE TABLE IF NOT EXISTS muted_accounts (
+    id         TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL UNIQUE REFERENCES email_accounts(id) ON DELETE CASCADE,
+    muted_at   TEXT NOT NULL
 );
 
 -- ---------------- METAS PESSOAIS (v2 — tipos, peso, financas+aprendizado) ----------------
@@ -290,14 +395,33 @@ CREATE TABLE IF NOT EXISTS compras_parceladas (
     created_at           TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS compra_parcelada_aplicacoes (
-    id             TEXT PRIMARY KEY,
-    compra_id      TEXT NOT NULL REFERENCES compras_parceladas(id) ON DELETE CASCADE,
-    mes_ano        TEXT NOT NULL,
-    parcela_numero INTEGER NOT NULL,
-    valor_aplicado REAL NOT NULL,
-    UNIQUE(compra_id, mes_ano)
+-- compra_parcelada_aplicacoes (um registro por mês/parcela) foi removida:
+-- nunca chegou a ser usada em nenhuma rota (app/routers/wallet.py sempre
+-- calculou a parcela on the fly a partir de mes_primeira_parcela +
+-- ajuste_parcelas — ver _compra_parcelada_out/_parcela_no_mes). Ficava
+-- redundante manter uma tabela morta desde o plano anterior que não foi
+-- concluído; dropada via migration em database.py pra quem já tinha um
+-- kami.db antigo com ela criada.
+
+-- ---------------- CALENDÁRIO (eventos manuais) ----------------
+-- Única tabela própria do módulo Calendário (item novo) — todo o resto
+-- que aparece na grade (conta_fixa/divida/assinatura/parcela/meta/acao)
+-- continua vindo agregado de outros módulos, sem tabela própria (ver
+-- app/routers/calendario.py). `evento` é o único tipo com CRUD real.
+CREATE TABLE IF NOT EXISTS calendar_events (
+    id                      TEXT PRIMARY KEY,
+    title                   TEXT NOT NULL,
+    date                    TEXT NOT NULL,   -- 'YYYY-MM-DD' — data da 1ª ocorrência
+    time                    TEXT,            -- 'HH:MM' opcional
+    notes                   TEXT,
+    recurrence              TEXT NOT NULL DEFAULT 'none',  -- 'none'|'daily'|'weekly'|'monthly'|'yearly'
+    recurrence_end          TEXT,            -- 'YYYY-MM-DD' opcional, NULL = sem fim
+    reminder_minutes_before INTEGER,         -- NULL = sem lembrete
+    color                   TEXT,            -- NULL = usa --accent
+    created_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
 
 -- ---------------- ÍNDICES ÚTEIS ----------------
 CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at);

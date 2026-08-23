@@ -21,6 +21,28 @@
 }
 .org-account-actions .icon-btn:hover { color: var(--accent); }
 
+/* feedback de sync em andamento (data-sync-account fica vazio nesse estado,
+   então o clickHandler de pages/organizacao.js ignora novos cliques —
+   ver renderAccounts/handleSyncAccount) */
+.org-account-actions .icon-btn.is-syncing {
+  color: var(--accent);
+  cursor: default;
+  pointer-events: none;
+}
+.org-account-actions .icon-btn.is-syncing svg { animation: org-sync-spin 0.8s linear infinite; }
+
+@keyframes org-sync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── conta silenciada (notificações v2.1 — silenciar é por CONTA
+   inteira agora, não mais por remetente individual; ver o botão de
+   sino em data-mute-account, renderAccounts em pages/organizacao.js) ── */
+.org-account.is-muted { opacity: 0.6; }
+.org-account.is-muted:hover { opacity: 0.9; }
+.org-account.is-muted .org-account-actions [data-mute-account] { color: var(--accent); }
+
 /* ── lista de e-mails (mais rica que .log-item — tem avatar, remetente e
    prévia do corpo) ── */
 .email-item {
@@ -40,9 +62,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--accent) 18%, var(--bg));
-  color: var(--accent);
-  border: 1px solid var(--accent-dim);
+  /* cor por conta (--chip-color, ver accountColor() em account-color.js)
+     em vez de uma tag cheia por e-mail — a lista já mistura contas,
+     então o próprio avatar carrega a identidade visual da conta. */
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 18%, var(--bg));
+  color: var(--chip-color, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--chip-color, var(--accent)) 55%, transparent);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -364,8 +389,32 @@
   font-size: 9.5px;
   color: var(--text-faint);
   margin-left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .gh-token-badge.on { color: var(--accent); }
+/* ── ponto de status ("token ativo"/"sem token") ─────────────────────
+ * era um glifo unicode "●"/"○" solto no texto — mesma ideia do
+ * .filter-dot (widget-financas-extra.css): ponto de status, não
+ * pictograma, então vira span circular via CSS em vez de SVG. Sem
+ * token, fica só contorno (border) pra diferenciar visualmente de
+ * "ativo" (preenchido) mesmo pra quem não distingue bem a cor.
+ */
+.gh-token-badge .status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.gh-token-badge:not(.on) .status-dot {
+  background: transparent;
+  border: 1px solid currentColor;
+  width: 5px;
+  height: 5px;
+}
 
 .gh-private-tag {
   color: var(--amber);
@@ -379,7 +428,153 @@
 .rc-sparkline svg rect:last-child { opacity: 1; }
 
 .repo-card .rc-stats .rc-star {
-  font-size: 16px;
-  line-height: 1;
   color: var(--amber);
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
 }
+
+/* ── badge "silenciado"/tag reaproveitada tanto no item de e-mail
+   (pages/organizacao.js — reflete a conta dele estar silenciada) quanto
+   na própria linha da conta (renderAccounts, ver .org-account.is-muted
+   acima). Silenciar virou uma ação por CONTA (botão de sino na linha da
+   conta), não mais por e-mail/remetente individual — por isso não tem
+   mais um `.email-mute-btn` por item de e-mail aqui. ── */
+.email-muted-tag {
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.email-item.is-muted { opacity: 0.55; }
+.email-item.is-muted:hover { opacity: 0.85; }
+
+.org-emails-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.org-emails-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * NOVO — redesign da aba "e-mail" (visualização combinada, ver
+ * plano-email-organizacao.md). Chips de conta substituem o card grande
+ * de "contas imap"; gerenciar contas (CRUD/silenciar/sincronizar
+ * individual) migrou pro modal #manage-accounts-modal.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.email-search-row { margin-bottom: 10px; }
+.email-search-row input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.email-account-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.email-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  padding: 4px 9px;
+  cursor: pointer;
+  user-select: none;
+}
+.email-account-chip:hover { border-color: var(--border); color: var(--text-dim); }
+.email-account-chip.on {
+  color: var(--text-bright);
+  border-color: var(--chip-color, var(--accent-dim));
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 14%, var(--bg));
+}
+.email-account-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--chip-color, var(--text-faint));
+  opacity: 0.55;
+}
+.email-account-chip.on .email-account-chip-dot { opacity: 1; }
+
+.email-filter-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.email-filter-opt {
+  font-size: 10px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  padding: 4px 10px;
+  cursor: pointer;
+  background: var(--bg);
+}
+.email-filter-opt:hover { color: var(--text-dim); border-color: var(--border); }
+.email-filter-opt.on {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-alt);
+}
+
+/* selo de conta virou a cor do próprio avatar do e-mail (--chip-color,
+   ver .email-avatar acima) — não uma tag cheia por item, que destoava
+   do resto do sistema. */
+
+/* estrela dentro do chip de conta — clicável, alterna sync_by_default
+   direto (ajuste pedido: antes só dava pra ver/mudar abrindo o modal de
+   editar conta, uma por vez). Ícone outline quando não é padrão,
+   preenchido em âmbar quando é — mesmo padrão de "preenchido = ativo"
+   já usado no .gh-token-badge .status-dot acima. */
+.email-account-star {
+  display: inline-flex;
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+.email-account-star:hover { opacity: 1; color: var(--text-bright); }
+.email-account-star.on { color: var(--text-bright); opacity: 1; }
+
+/* botão único "sincronizar" no topo do painel de e-mail — 3 estados
+   (ocioso / travado por sync do scheduler / travado por sync manual),
+   visualmente idênticos: ícone girando + tooltip "sincronizando..."
+   (ver renderSyncButton em pages/organizacao.js). Reaproveita a mesma
+   animação de giro (org-sync-spin) já definida acima pros ícones de
+   sincronizar por conta. */
+#org-email-sync-btn.is-syncing {
+  color: var(--accent);
+  cursor: default;
+  pointer-events: none;
+}
+#org-email-sync-btn.is-syncing svg { animation: org-sync-spin 0.8s linear infinite; }
+
+/* toggle "conta padrão" dentro do modal de criar/editar conta
+   (account-modal) — mesmo padrão visual do checkbox de "mostrar
+   silenciados" que existia antes, só com o ícone de estrela. */
+.acc-default-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin: 4px 0 2px;
+  cursor: pointer;
+}
+.acc-default-toggle svg { color: var(--text-bright); flex-shrink: 0; }

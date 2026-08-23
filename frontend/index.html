@@ -21,12 +21,15 @@
 <link rel="stylesheet" href="css/widgets/widget-metas.css">
 <link rel="stylesheet" href="css/widgets/widget-financas-extra.css">
 <link rel="stylesheet" href="css/widgets/widget-financas-extra-graficos.css">
+<link rel="stylesheet" href="css/calendario.css">
+<link rel="stylesheet" href="css/toast.css">
 <link rel="stylesheet" href="css/onboarding.css">
 <link rel="stylesheet" href="css/boot-splash.css">
 <link rel="stylesheet" href="css/kami-intro.css">
 <link rel="stylesheet" href="css/tip-sequence.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/help-menu.css">
+<link rel="stylesheet" href="css/notification-bell.css">
 <link rel="stylesheet" href="css/backup-reminder.css">
 </head>
 <body>
@@ -34,9 +37,9 @@
 <div class="titlebar" data-tauri-drag-region>
 <div class="titlebar-text" data-tauri-drag-region>kami<span class="cursor"></span></div>
 <div class="win-ctrls">
-<button class="win-ctrl-btn" id="win-minimize" title="minimizar">—</button>
-<button class="win-ctrl-btn" id="win-maximize" title="maximizar">□</button>
-<button class="win-ctrl-btn win-ctrl-close" id="win-close" title="fechar">✕</button>
+<button class="win-ctrl-btn" id="win-minimize" title="minimizar"></button>
+<button class="win-ctrl-btn" id="win-maximize" title="maximizar"></button>
+<button class="win-ctrl-btn win-ctrl-close" id="win-close" title="fechar"></button>
 </div>
 </div>
 
@@ -51,8 +54,8 @@
     <div class="nav-link" data-page="aprendizado"><span class="branch">├─</span>aprendizado</div>
     <div class="nav-link" data-page="organizacao"><span class="branch">├─</span>organização</div>
     <div class="nav-link" data-page="metas"><span class="branch">├─</span>metas pessoais</div>
+    <div class="nav-link" data-page="calendario"><span class="branch">├─</span>calendário</div>
     <div class="nav-link disabled" data-page="carreira" data-tooltip="em breve"><span class="branch">├─</span>carreira</div>
-    <div class="nav-link disabled" data-page="calendario" data-tooltip="em breve"><span class="branch">├─</span>calendário</div>
     <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve"><span class="branch">└─</span>assistente kami</div>
   </div>
 
@@ -60,6 +63,7 @@
     <pre class="mini-avatar" id="sidebar-avatar">sem avatar ainda — configure no módulo perfil.</pre>
     <div class="sidebar-footer-actions">
       <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações"></button>
       <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações"></button>
     </div>
   </div>

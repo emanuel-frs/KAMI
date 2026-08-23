@@ -1,4 +1,5 @@
 import * as financasApi from "../api/financas.js";
+import { attachChartTooltip } from "./chart-tooltip.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -15,6 +16,9 @@ function monthAbbrev(monthStr) {
 }
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function escapeAttr(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 const MESES_JANELA = 6;
@@ -51,9 +55,11 @@ export async function render(el, widget) {
       const hOut = (d.total_out / maxValue) * H;
       const xIn = groupX + barGroupW * 0.5 - barW - gap / 2;
       const xOut = groupX + barGroupW * 0.5 + gap / 2;
+      const tipIn = escapeAttr(`${monthAbbrev(months[i])}: entrada ${brl(d.total_in)}`);
+      const tipOut = escapeAttr(`${monthAbbrev(months[i])}: saída ${brl(d.total_out)}`);
       return `
-        <rect x="${xIn.toFixed(1)}" y="${(H - hIn).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIn.toFixed(1)}" class="cf-bar entrada"><title>${monthAbbrev(months[i])}: entrada ${brl(d.total_in)}</title></rect>
-        <rect x="${xOut.toFixed(1)}" y="${(H - hOut).toFixed(1)}" width="${barW.toFixed(1)}" height="${hOut.toFixed(1)}" class="cf-bar saida"><title>${monthAbbrev(months[i])}: saída ${brl(d.total_out)}</title></rect>
+        <rect x="${xIn.toFixed(1)}" y="${(H - hIn).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIn.toFixed(1)}" class="cf-bar entrada" data-tip="${tipIn}"></rect>
+        <rect x="${xOut.toFixed(1)}" y="${(H - hOut).toFixed(1)}" width="${barW.toFixed(1)}" height="${hOut.toFixed(1)}" class="cf-bar saida" data-tip="${tipOut}"></rect>
       `;
     }).join("");
 
@@ -78,6 +84,7 @@ export async function render(el, widget) {
         </div>
       </div>
     `;
+    attachChartTooltip(el.querySelector(".chart-fluxo-wrap"));
   }
 
   await reload();

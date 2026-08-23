@@ -38,6 +38,7 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # (defesa em profundidade — get_connection() já liga isso, mas um
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
+    "calendar_events",
     "screen_tips_seen",
     "action_log_attributes",
     "action_logs",

@@ -494,19 +494,10 @@ textarea {
   display: none !important;
 }
 
-/* 3. Ajusta o tooltip para não aparecer como uma barra sobre o botão */
-[data-tooltip]::after {
-  /* mantém o tooltip, mas garante que não crie uma "barra" estranha */
-  background: var(--panel);
-  color: var(--text-bright);
-  border: 1px solid var(--border);
-  padding: 4px 7px;
-  font-size: 9.5px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 60; /* acima de tudo */
-  /* posição já definida: bottom: 125%, mas se quiser ajustar */
-}
+/* 3. (removido) O tooltip genérico agora é um portal em <body> — ver
+   frontend/js/components/tooltip.js — não usa mais ::after, então essa
+   regra virou no-op (sem `content` o pseudo-elemento não renderiza).
+   Aparência/posição do tooltip vivem só no módulo JS agora. */
 
 /* 4. Remove qualquer sombra ou borda extra no hover dos botões do cabeçalho */
 #btn-expand-map:hover,
@@ -645,3 +636,8 @@ textarea {
   white-space: nowrap;
   max-width: 100%;
 }
+/* o tooltip genérico agora é o portal de tooltip.js (branch condicional
+   de largura/wrap teria que ser feita ali, não em CSS por seletor) —
+   por ora o portal usa white-space:nowrap fixo; se o texto de
+   .track-goal-subtitle precisar quebrar linha, isso é trabalho pro
+   próprio tooltip.js, não uma regra ::after morta como antes. */

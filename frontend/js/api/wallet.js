@@ -13,22 +13,32 @@ export const deleteAccount = (accountId) => del(`/api/wallet/accounts/${accountI
 // resumo
 export const getWalletSummary = () => get("/api/wallet/summary");
 
-// assinaturas
+// assinaturas — marcar como paga pode gerar uma transação real (item 6
+// do mapa de problemas): `payload` aceita { valor_pago?, forma_pagamento?,
+// gerar_transacao? } — ver modals/pay-period-modal.js.
 export const listSubscriptions = () => get("/api/wallet/subscriptions");
 export const createSubscription = (data) => post("/api/wallet/subscriptions", data);
+export const updateSubscription = (id, data) => put(`/api/wallet/subscriptions/${id}`, data);
+export const deleteSubscription = (id) => del(`/api/wallet/subscriptions/${id}`);
 export const listSubscriptionPeriods = (month) =>
   get(`/api/wallet/subscriptions/periods?month=${month}`);
-export const paySubscriptionPeriod = (periodId, valorPago) =>
-  put(`/api/wallet/subscriptions/periods/${periodId}/pay`, valorPago != null ? { valor_pago: valorPago } : {});
+export const paySubscriptionPeriod = (periodId, payload) =>
+  put(`/api/wallet/subscriptions/periods/${periodId}/pay`, payload || {});
 export const unpaySubscriptionPeriod = (periodId) =>
   put(`/api/wallet/subscriptions/periods/${periodId}/unpay`, {});
 
 // compras parceladas — progressão calculada por calendário + ajuste
 // manual opcional (ajustarParcelasCompra: delta positivo adianta,
 // negativo desfaz um adiantamento). O GET não muda mais nada no banco
-// (a reserva no limite é feita inteira uma vez, na criação).
+// (a reserva no limite é feita inteira uma vez, na criação/edição).
 export const listComprasParceladas = () => get("/api/wallet/compras-parceladas");
 export const createCompraParcelada = (data) => post("/api/wallet/compras-parceladas", data);
+export const updateCompraParcelada = (id, data) => put(`/api/wallet/compras-parceladas/${id}`, data);
 export const deleteCompraParcelada = (id) => del(`/api/wallet/compras-parceladas/${id}`);
 export const ajustarParcelasCompra = (id, delta) =>
   put(`/api/wallet/compras-parceladas/${id}/ajustar`, { delta });
+// fatura mês a mês (item 3 do plano) — uma linha por compra ativa no
+// mês consultado, com o nº da parcela correspondente àquele mês
+// específico (calculado on the fly no backend, sem persistir nada).
+export const listComprasParceladasMes = (mes) =>
+  get(`/api/wallet/compras-parceladas/mes?mes=${mes}`);

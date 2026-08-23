@@ -2,6 +2,7 @@
 import { getLog } from "../api/nucleo.js";
 import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { enhanceSelect } from "../components/custom-select.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /** Log cronológico — escuta filtro de attributes.js e refresh de registrar.js. */
 export async function render(el, widget) {
@@ -45,6 +46,7 @@ export async function render(el, widget) {
       listEl.innerHTML = `<div class="empty-state">erro ao carregar log: ${err.message}</div>`;
       return;
     }
+    const focusId = consumePendingFocus("acao");
     if (!entries.length) {
       listEl.innerHTML = '<div class="empty-state">nada por aqui nesse filtro/período.</div>';
       return;
@@ -52,13 +54,15 @@ export async function render(el, widget) {
     listEl.innerHTML = entries
       .map(
         (l) => `
-      <div class="log-item">
+      <div class="log-item" data-id="${l.id}">
         <span class="desc">${escapeHtml(l.description)}</span>
         <span class="meta">${fmtRelDate(l.created_at)}</span>
         <span class="tag">+${l.xp_gained}xp</span>
       </div>`
       )
       .join("");
+
+    if (focusId) focusRow(listEl.querySelector(`[data-id="${focusId}"]`), "acao");
   }
 
   periodEl.addEventListener("change", () => {

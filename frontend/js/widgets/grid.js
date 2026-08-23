@@ -8,7 +8,8 @@
  *     a largura real do grid (não da janela) para --wg-cols via breakpoints,
  *     e reconverte os data-span (em sextos) para colunas reais.
  *
- * Drag (reordenar) e resize manual (arrastar ⠿ e ⋰) — portados do protótipo
+ * Drag (reordenar) e resize manual (arrastar via ícones grip/resize,
+ * ver icons.js) — portados do protótipo
  * (linhas ~1456-1698 do kami_telas_final.html), adaptados pra persistir via
  * onLayoutChange ao final de cada operação em vez de só mexer no DOM.
  */
@@ -248,15 +249,15 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
 
   const handle = document.createElement("div");
   handle.className = "resize-handle";
-  handle.innerHTML = icon("resize", { size: 12 });
-  handle.title =
-    "arraste pra redimensionar — largura em frações da linha, altura livre (mínimo garantido)";
+  handle.dataset.tooltip =
+    "arraste pra redimensionar";
+  handle.innerHTML = icon("resize", { size: 12, title: "redimensionar widget" });
   card.appendChild(handle);
 
   const reset = document.createElement("div");
   reset.className = "resize-reset";
-  reset.innerHTML = icon("undo", { size: 11 });
-  reset.title = "voltar ao tamanho automático";
+  reset.dataset.tooltip = "voltar ao tamanho automático";
+  reset.innerHTML = icon("undo", { size: 11, title: "voltar ao tamanho automático" });
   reset.onclick = () => {
     const cols = currentCols(container);
     card.style.height = "";
@@ -337,9 +338,9 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
 }
 
 /**
- * Handle de drag (⠿, no card-head) — arrasta o card inteiro pra reordenar
- * dentro do grid, usando um placeholder que segue o cursor entre os cards
- * vizinhos. Persiste a nova ordem via onLayoutChange ao soltar.
+ * Handle de drag (ícone "grip", no card-head) — arrasta o card inteiro pra
+ * reordenar dentro do grid, usando um placeholder que segue o cursor entre
+ * os cards vizinhos. Persiste a nova ordem via onLayoutChange ao soltar.
  */
 function attachDragHandle(card, container, getCommit, pauseObservers, resumeObservers) {
   const head = card.querySelector(":scope > .card-head");
@@ -347,8 +348,8 @@ function attachDragHandle(card, container, getCommit, pauseObservers, resumeObse
 
   const handle = document.createElement("span");
   handle.className = "drag-handle";
-  handle.innerHTML = icon("grip", { size: 12 });
-  handle.title = "arraste pra reordenar";
+  handle.dataset.tooltip = "arraste pra reordenar";
+  handle.innerHTML = icon("grip", { size: 12, title: "arraste pra reordenar" });
   head.insertBefore(handle, head.firstChild);
 
   handle.addEventListener("pointerdown", (e) => {
@@ -528,19 +529,17 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = "span 12";
 
     const removeBtn = def.removable !== false
-      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" title="remover widget">×</span>`
+      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget">${icon("x", { size: 11 })}</span>`
       : "";
 
     card.innerHTML = `
       <div class="card-head">
-        <span class="drag-handle" title="arrastar pra reordenar">${icon("grip", { size: 12 })}</span>
         ${def.label}${removeBtn}
       </div>
       <div class="card-body">
         <span style="color:var(--text-faint);font-size:10px;">carregando…</span>
       </div>
     `;
-    card.querySelector(":scope > .card-head > .drag-handle")?.remove();
 
     if (!observedCards.has(card)) {
       observedCards.add(card);

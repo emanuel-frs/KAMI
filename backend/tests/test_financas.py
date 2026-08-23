@@ -34,7 +34,15 @@ def _create_account(
     return resp.json()
 
 
-# ==================== renda recorrente ====================
+# ==================== renda recorrente (v2) ====================
+
+
+def _get_sources(client):
+    return client.get("/api/financas/income-sources").json()
+
+
+def _parte1_id(client):
+    return next(s for s in _get_sources(client) if s["nome"] == "parte 1")["id"]
 
 
 def test_get_income_entries_generates_part1_and_part2(client):
@@ -46,6 +54,7 @@ def test_get_income_entries_generates_part1_and_part2(client):
     for entry in body:
         assert entry["status"] == "previsto"
         assert entry["paid_date"] is None
+        assert entry["gerou_transacao"] is False
 
     p1 = next(e for e in body if e["label"] == "parte 1")
     expected_p1 = nth_business_day_of_month(2026, 3, 5).isoformat()
@@ -63,21 +72,23 @@ def test_get_income_entries_invalid_month_format_returns_422(client):
     assert resp.status_code == 422
 
 
-def test_confirm_income_entry_marks_as_paid(client):
+def test_pay_income_entry_marks_as_paid_without_conta(client):
     entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
     p1 = next(e for e in entries if e["label"] == "parte 1")
 
     resp = client.put(
-        f"/api/financas/income-entries/{p1['id']}/confirm",
+        f"/api/financas/income-entries/{p1['id']}/pay",
         json={"paid_date": p1["expected_date"]},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "pago"
     assert body["paid_date"] == p1["expected_date"]
+    assert body["amount"] == p1["amount"]
+    assert body["gerou_transacao"] is False  # fonte default não tem conta_id
 
 
-def test_confirm_part1_with_different_date_recalculates_part2(client):
+def test_pay_part1_with_different_date_recalculates_part2(client):
     entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
     p1 = next(e for e in entries if e["label"] == "parte 1")
     p2_before = next(e for e in entries if e["label"] == "parte 2")
@@ -86,7 +97,7 @@ def test_confirm_part1_with_different_date_recalculates_part2(client):
         datetime.date.fromisoformat(p1["expected_date"]) + datetime.timedelta(days=3)
     )
     client.put(
-        f"/api/financas/income-entries/{p1['id']}/confirm",
+        f"/api/financas/income-entries/{p1['id']}/pay",
         json={"paid_date": real_paid_date.isoformat()},
     )
 
@@ -99,27 +110,219 @@ def test_confirm_part1_with_different_date_recalculates_part2(client):
     assert p2_after["status"] == "previsto"
 
 
-def test_revert_income_entry_undoes_confirmation(client):
+def test_unpay_income_entry_undoes_payment(client):
     entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
     p1 = next(e for e in entries if e["label"] == "parte 1")
     client.put(
-        f"/api/financas/income-entries/{p1['id']}/confirm",
+        f"/api/financas/income-entries/{p1['id']}/pay",
         json={"paid_date": p1["expected_date"]},
     )
 
-    resp = client.put(f"/api/financas/income-entries/{p1['id']}/revert")
+    resp = client.put(f"/api/financas/income-entries/{p1['id']}/unpay")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "previsto"
     assert body["paid_date"] is None
 
 
-def test_confirm_income_entry_not_found_returns_404(client):
+def test_pay_income_entry_not_found_returns_404(client):
     resp = client.put(
-        "/api/financas/income-entries/id-inexistente/confirm",
+        "/api/financas/income-entries/id-inexistente/pay",
         json={"paid_date": "2026-03-10"},
     )
     assert resp.status_code == 404
+
+
+def test_pay_income_entry_with_conta_credits_saldo_real(client):
+    conta = _create_account(client, nome="conta renda")
+    source = client.post(
+        "/api/financas/income-sources",
+        json={
+            "nome": "freela mensal", "valor": 500, "conta_id": conta["id"],
+            "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 10,
+        },
+    ).json()
+
+    entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
+    entry = next(e for e in entries if e["income_source_id"] == source["id"])
+
+    resp = client.put(
+        f"/api/financas/income-entries/{entry['id']}/pay",
+        json={"paid_date": "2026-03-10"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["gerou_transacao"] is True
+
+    conta_after = client.get("/api/wallet/banks").json()
+    acc = next(a for b in conta_after for a in b["accounts"] if a["id"] == conta["id"])
+    assert acc["saldo_atual"] == 500
+
+    unpay_resp = client.put(f"/api/financas/income-entries/{entry['id']}/unpay")
+    assert unpay_resp.status_code == 200
+    conta_after_unpay = client.get("/api/wallet/banks").json()
+    acc2 = next(a for b in conta_after_unpay for a in b["accounts"] if a["id"] == conta["id"])
+    assert acc2["saldo_atual"] == 0
+
+
+def test_pay_income_entry_different_value_updates_source_when_requested(client):
+    source = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "bico", "valor": 200, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 15},
+    ).json()
+    entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
+    entry = next(e for e in entries if e["income_source_id"] == source["id"])
+
+    resp = client.put(
+        f"/api/financas/income-entries/{entry['id']}/pay",
+        json={"paid_date": "2026-03-15", "valor_recebido": 250, "atualizar_valor_fonte": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["amount"] == 250
+
+    updated_source = next(s for s in _get_sources(client) if s["id"] == source["id"])
+    assert updated_source["valor"] == 250
+
+
+# ==================== renda recorrente — CRUD de fontes ====================
+
+
+def test_income_source_crud(client):
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "bico extra", "valor": 300, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 20},
+    )
+    assert resp.status_code == 200
+    source = resp.json()
+    assert source["nome"] == "bico extra"
+    assert source["unica"] is False
+
+    resp = client.put(
+        f"/api/financas/income-sources/{source['id']}",
+        json={"nome": "bico extra editado", "valor": 350, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 20},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["nome"] == "bico extra editado"
+
+    resp = client.delete(f"/api/financas/income-sources/{source['id']}")
+    assert resp.status_code == 200
+    assert source["id"] not in {s["id"] for s in _get_sources(client)}
+
+
+def test_income_source_avulsa_creates_single_entry(client):
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "venda usado", "valor": 400, "frequencia": "avulsa", "data_avulsa": "2026-05-12"},
+    )
+    assert resp.status_code == 200
+    source = resp.json()
+    assert source["unica"] is True
+
+    entries = client.get("/api/financas/income-entries", params={"month": "2026-05"}).json()
+    matching = [e for e in entries if e["income_source_id"] == source["id"]]
+    assert len(matching) == 1
+    assert matching[0]["expected_date"] == "2026-05-12"
+
+    # reconsultar o mesmo mês (ou outro) não duplica a entrada avulsa
+    client.get("/api/financas/income-entries", params={"month": "2026-06"})
+    entries_again = client.get("/api/financas/income-entries", params={"month": "2026-05"}).json()
+    assert len([e for e in entries_again if e["income_source_id"] == source["id"]]) == 1
+
+
+def test_income_source_intervalo_dias_generates_multiple_entries_in_month(client):
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={
+            "nome": "semanal", "valor": 100, "frequencia": "semanal",
+            "tipo_data": "intervalo_dias", "intervalo_dias": 7, "data_base": "2026-03-02",
+        },
+    )
+    assert resp.status_code == 200
+    source = resp.json()
+
+    entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
+    matching = sorted(e["expected_date"] for e in entries if e["income_source_id"] == source["id"])
+    assert matching == ["2026-03-02", "2026-03-09", "2026-03-16", "2026-03-23", "2026-03-30"]
+
+
+def test_income_source_offset_fonte_chain_generic(client):
+    p1_id = _parte1_id(client)
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={
+            "nome": "parte 3", "valor": 100, "frequencia": "mensal",
+            "tipo_data": "offset_fonte", "fonte_referencia_id": p1_id, "offset_dias_uteis": 10,
+        },
+    )
+    assert resp.status_code == 200
+    parte3 = resp.json()
+
+    entries = client.get("/api/financas/income-entries", params={"month": "2026-03"}).json()
+    p1 = next(e for e in entries if e["label"] == "parte 1")
+    p3 = next(e for e in entries if e["income_source_id"] == parte3["id"])
+    assert p3["expected_date"] == add_business_days(
+        datetime.date.fromisoformat(p1["expected_date"]), 10
+    ).isoformat()
+
+
+def test_income_source_offset_fonte_rejects_self_reference(client):
+    source = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "auto", "valor": 100, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 5},
+    ).json()
+    resp = client.put(
+        f"/api/financas/income-sources/{source['id']}",
+        json={
+            "nome": "auto", "valor": 100, "frequencia": "mensal",
+            "tipo_data": "offset_fonte", "fonte_referencia_id": source["id"], "offset_dias_uteis": 5,
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_income_source_offset_fonte_rejects_cycle(client):
+    a = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "a", "valor": 100, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 5},
+    ).json()
+    b = client.post(
+        "/api/financas/income-sources",
+        json={
+            "nome": "b", "valor": 100, "frequencia": "mensal",
+            "tipo_data": "offset_fonte", "fonte_referencia_id": a["id"], "offset_dias_uteis": 5,
+        },
+    ).json()
+    # tenta fazer 'a' depender de 'b', fechando o ciclo a -> b -> a
+    resp = client.put(
+        f"/api/financas/income-sources/{a['id']}",
+        json={
+            "nome": "a", "valor": 100, "frequencia": "mensal",
+            "tipo_data": "offset_fonte", "fonte_referencia_id": b["id"], "offset_dias_uteis": 5,
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_income_source_missing_tipo_data_returns_422(client):
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "sem tipo", "valor": 100, "frequencia": "mensal"},
+    )
+    assert resp.status_code == 422
+
+
+def test_income_source_avulsa_without_data_returns_422(client):
+    resp = client.post(
+        "/api/financas/income-sources",
+        json={"nome": "avulsa sem data", "valor": 100, "frequencia": "avulsa"},
+    )
+    assert resp.status_code == 422
+
+
+def test_delete_income_source_blocked_when_referenced_by_chain(client):
+    p1_id = _parte1_id(client)
+    resp = client.delete(f"/api/financas/income-sources/{p1_id}")
+    assert resp.status_code == 422  # "parte 2" depende de "parte 1"
 
 
 # ==================== cadastros simples (fixed_bills / debts) ====================
@@ -136,6 +339,23 @@ def test_fixed_bill_crud(client):
     assert resp.status_code == 200
     bill = resp.json()
     assert bill["active"] is True
+
+    resp_upd = client.put(
+        f"/api/financas/fixed-bills/{bill['id']}",
+        json={"name": "Aluguel novo", "amount": 1600, "due_day": 10, "active": False},
+    )
+    assert resp_upd.status_code == 200
+    updated = resp_upd.json()
+    assert updated["name"] == "Aluguel novo"
+    assert updated["amount"] == 1600
+    assert updated["due_day"] == 10
+    assert updated["active"] is False
+
+    resp_404 = client.put(
+        "/api/financas/fixed-bills/inexistente",
+        json={"name": "x", "amount": 1, "due_day": 1},
+    )
+    assert resp_404.status_code == 404
 
     resp_del = client.delete(f"/api/financas/fixed-bills/{bill['id']}")
     assert resp_del.status_code == 200

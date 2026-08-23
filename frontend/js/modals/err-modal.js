@@ -1,3 +1,5 @@
+import { icon } from "../components/icons.js";
+
 /**
  * Modal genérico de erro — substitui alert(err.message) nos catches de
  * chamada de API. Mesmo padrão singleton dos outros modais (ver
@@ -14,7 +16,7 @@ function buildModal() {
   wrap.id = "error-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="em-title">erro</span> <span class="close" data-action="close">×</span></div>
+      <div class="modal-head"><span id="em-title">erro</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <p id="em-message" class="em-message"></p>
         <div class="form-actions">

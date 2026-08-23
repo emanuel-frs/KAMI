@@ -89,6 +89,13 @@ a { color: var(--text-bright); }
   line-height: 1.4;
   padding: 1px 8px;
   cursor: pointer;
+  /* segura o <svg> injetado por titlebar.js (ícones minus/square/x,
+     ver icons.js) em vez do glifo unicode cru (—, □, ✕) que ficava
+     direto no HTML estático — flex centraliza o ícone dentro do botão
+     igual os outros icon-btn do app. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .win-ctrl-btn:hover { color: var(--text-bright); border-color: var(--text-dim); }
 .win-ctrl-close:hover { color: var(--red); border-color: var(--red); }
@@ -157,7 +164,12 @@ a { color: var(--text-bright); }
 #btn-open-settings { flex: 0 0 auto; }
 
 /* ---------- ÁREA DE CONTEÚDO ---------- */
-main.page { padding: 24px; min-width: 0; overflow-y: auto; height: 100%; }
+/* overflow-x: hidden explícito — sem isso, overflow-y:auto sozinho faz o
+   eixo x computar pra "auto" também (mesma causa documentada em
+   tooltip.css/.apr-left), e qualquer elemento que encoste na borda
+   (tooltip de canto, badge etc.) vira um scroll horizontal fantasma,
+   sem nada visível pra rolar até. Mesma proteção que a .sidebar já tem. */
+main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; height: 100%; }
 
 /* ---------- MODAL genérico (decisão 18) ----------
    Padrão de criação/edição do app inteiro (criar meta, editar avatar,
@@ -184,6 +196,7 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; height: 100%; }
   box-shadow: 4px 4px 0 0 #000;
 }
 .modal.wide { width: min(760px, 94vw); }
+.modal.narrow { width: min(380px, 92vw); }
 .modal-head {
   display: flex;
   align-items: center;
@@ -250,4 +263,33 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; height: 100%; }
   margin-top: 6px;
   text-transform: capitalize;
   text-align: center;
+}
+/* ── flash de foco genérico (drill-down do Calendário) ────────────────
+ * Aplicado via components/pending-focus.js em qualquer linha/card de
+ * qualquer widget/página quando o usuário chega ali clicando num
+ * evento do Calendário. Genérico de propósito — não depende de
+ * nenhuma classe específica de widget.
+ * --kami-focus-color é setado inline por focusRow() com a cor do tipo
+ * do registro (components/event-types.js — a mesma cor da bolinha
+ * desse tipo no Calendário); sem isso, cai no --accent do tema.
+ *
+ * Anima a COR da borda que o elemento já tem (todo .card/.sub-row/
+ * .divida-row/.conta-fixa-row/.compra-parcelada-row/.log-item etc. já
+ * nasce com border: 1px solid var(--border-soft), ou border-bottom no
+ * caso do log-item) em vez de desenhar um box-shadow por cima. Um
+ * box-shadow novo, sobreposto ao layout existente (scroll interno das
+ * listas, gap entre linhas, bordas tracejadas do log), rendeirizava
+ * inconsistente entre widgets — cortado só embaixo em alguns, invisível
+ * em outros. Mudar a cor da borda que já existe evita essa cascata de
+ * casos especiais: cada widget já garante sozinho que sua borda
+ * apareça certinho, então só precisamos trocar a cor dela. Como isso é
+ * uma animação CSS, ela já sobrepõe qualquer border-color estático do
+ * elemento (ex: .sub-row.paga) enquanto dura, sem precisar aumentar
+ * especificidade. */
+@keyframes kami-focus-flash {
+  0%, 100% { border-color: var(--border-soft); }
+  15%, 85% { border-color: var(--kami-focus-color, var(--accent)); }
+}
+.kami-focus-flash {
+  animation: kami-focus-flash 2s ease-in-out;
 }

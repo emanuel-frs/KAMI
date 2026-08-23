@@ -25,6 +25,7 @@
         { "url": "https://*" },
         { "url": "http://*" }
       ]
-    }
+    },
+    "notification:default"
   ]
 }

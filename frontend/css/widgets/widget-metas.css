@@ -111,7 +111,8 @@
  * (mesmo ícone/traço de frontend/assets/icons/check.svg, embutido como
  * data-uri pra não depender de fetch). content:"" segue obrigatório pra
  * o pseudo-elemento existir, mas fica vazio — o desenho é só a máscara.
- * Sobrescreve o "▸ " padrão de .card-head::before (card-base.css).
+ * Sobrescreve o mask-ícone padrão (chevron-right) de .card-head::before
+ * (card-base.css) com o ícone de check.
  */
 .goal-card.done .card-head::before {
   content: "";
@@ -148,6 +149,7 @@
   height: 90px;
   display: flex;
   flex-direction: column;
+  position: relative; /* ancora o .chart-tooltip (ver chart-tooltip.js) */
 }
 .chart-progresso .chart-svg {
   flex: 1 1 auto;

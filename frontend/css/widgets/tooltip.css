@@ -1,45 +1,14 @@
-/* ── tooltip genérico [data-tooltip] + botão de ícone quadrado ────────────
- * Utilitário compartilhável — hoje usado no header do modo edição do
- * módulo Aprendizado, mas não é específico dele (pode ser aplicado em
- * qualquer botão de ícone de outros widgets). */
-
-[data-tooltip] { position: relative; }
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 125%;
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  background: var(--panel);
-  color: var(--text-bright);
-  font-size: 9.5px;
-  padding: 4px 7px;
-  border: 1px solid var(--border);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s, transform .12s;
-  /* acima de qualquer camada da sidebar (avatar, scanline de fundo
-     etc.) — a sidebar em si não cria stacking context, mas isso
-     garante a prioridade mesmo se algo ali ganhar position/opacity/
-     transform no futuro (o que criaria um) */
-  z-index: 1000;
-}
-[data-tooltip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* os botões de ajuda/configurações ficam no canto inferior direito da
-   sidebar, lado a lado (ver .sidebar-footer-actions em base.css) — um
-   tooltip centralizado neles estouraria a borda direita e seria
-   cortado pelo overflow-x: hidden da sidebar. Ancora pela direita em
-   vez de centralizar, pros dois. */
-#btn-open-help::after,
-#btn-open-settings::after {
-  left: auto;
-  right: 0;
-  transform: translateY(4px);
-}
-#btn-open-help:hover::after,
-#btn-open-settings:hover::after { transform: translateY(0); }
+/* ── tooltip genérico [data-tooltip] ──────────────────────────────────
+ * O tooltip em si (posicionamento, aparência, animação) foi movido pra
+ * um portal em <body> — ver frontend/js/components/tooltip.js. Motivo:
+ * o antigo `::after` position:absolute era cortado por qualquer
+ * ancestral com overflow-y:auto (listas de finanças com scroll), igual
+ * o dropdown de custom-select.js já resolveu do mesmo jeito.
+ *
+ * O CSS do tooltip em si é injetado pelo próprio tooltip.js
+ * (ensureStyles) — não depende de um <link> aqui. O que sobra aqui é
+ * só `.icon-btn-square`, utilitário de botão de ícone quadrado, não
+ * relacionado ao mecanismo de tooltip. */
 
 .icon-btn-square {
   width: 26px; height: 26px;

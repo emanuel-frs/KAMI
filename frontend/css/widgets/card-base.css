@@ -5,6 +5,28 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  /* trava o card no tamanho que o grid.js deu a ele (grid-column span),
+     em vez de deixar conteúdo largo (linha nowrap, número grande etc.)
+     "puxar" a coluna pra ser mais larga — o que empurrava os cards
+     vizinhos na mesma linha pra ficarem mais finos, já que
+     grid-template-columns usa `1fr` (grid.css) e uma track `1fr` só
+     divide igual quando nada nela força um mínimo maior.
+     min-width:0 sozinho não bastava aqui: item de grid (assim como
+     item de flex) tem `min-width: auto` por padrão, que é calculado a
+     partir do min-content de TODA a subárvore — inclusive filhos que
+     já têm min-width:0 mas cujo pai intermediário não tem. overflow-x
+     não-visible muda essa conta: pela spec do CSS Grid, quando o
+     overflow computado do item não é "visible", o "automatic minimum
+     size" vira 0 em vez de ser baseado em conteúdo — resolve a causa
+     raiz de uma vez pra qualquer widget atual ou futuro, sem precisar
+     caçar min-width:0 filho por filho (mesmo espírito do overflow-x:
+     hidden "cinto de segurança" já usado nas listas internas, só que
+     aplicado no nível do próprio item de grid). Cortar no eixo X é
+     seguro aqui: drag-handle/resize-handle/wg-size-badge são todos
+     position:absolute com right/bottom/left dentro da borda do card
+     (ver mais abaixo), nada depende de vazar pra fora horizontalmente. */
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ── widget fixo (ex: profile) ───────────────────────────────────────────
@@ -36,11 +58,30 @@
   font-size: 11px;
   letter-spacing: 0.5px;
 }
-.card-head::before { content: "▸ "; color: var(--text-faint); }
+/* ── indicador padrão do card-head ───────────────────────────────────
+ * era content:"▸ " — um pseudo-elemento não pode renderizar <svg>, então
+ * segue a mesma técnica de máscara já usada em .goal-card.done
+ * .card-head::before (widget-metas.css): o pseudo vira um retângulo
+ * colorido (background-color: currentColor) recortado no formato do
+ * chevron-right.svg (mesmo ícone/traço de icons.js), embutido como
+ * data-uri pra não depender de fetch. content:"" segue obrigatório pra
+ * o pseudo-elemento existir, mas fica vazio — o desenho é só a máscara.
+ */
+.card-head::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  background-color: var(--text-faint);
+  -webkit-mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIuNzUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=') no-repeat center / contain;
+  mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIuNzUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=') no-repeat center / contain;
+}
 .card-head .push { margin-left: auto; font-size: 10px; }
 
 .card-body {
-  padding: 12px 14px;
+  padding: 12px 14px 22px;
   flex: 1 1 auto;
   min-height: 0; /* crucial pro flex-fill: permite o filho (lista) crescer/encolher
                     de verdade em vez de sempre manter a altura do conteúdo bruto —
@@ -101,7 +142,13 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 }
 .card.resizing .wg-size-badge { opacity: 1; }
 
-.resize-handle {
+/* seletor .card > pra ganhar de [data-tooltip] { position: relative }
+   (tooltip.css) em especificidade — sem isso, como as duas regras têm
+   o mesmo peso (uma classe) e tooltip.css carrega depois no index.html,
+   o position:relative genérico vencia e derrubava o position:absolute
+   daqui, tirando o handle do canto do card e jogando ele pro fluxo
+   normal do flex-column (aparecia fora da borda, embaixo à esquerda). */
+.card > .resize-handle {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -123,7 +170,7 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 .resize-handle:hover { color: var(--accent); opacity: 1; }
 .card.resizing { box-shadow: 0 0 0 1px var(--accent-dim); }
 
-.resize-reset {
+.card > .resize-reset {
   position: absolute;
   right: 19px;
   bottom: 2px;

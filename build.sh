@@ -376,6 +376,22 @@ step 2 "cargo tauri build (frontend + sidecar → instaladores)"
 sync_version
 cd "$TAURI_DIR"
 
+# limpa só os instaladores empacotados de builds anteriores (não o
+# target/ inteiro — isso preserva o cache incremental do Rust, então
+# é barato e roda sempre, sem precisar de --clean). Sem isso, o
+# check_target do passo 3 (find ... | head -n1, sem ordenação) pode
+# pegar um .deb/.rpm de uma versão antiga que ficou pra trás na mesma
+# pasta em vez do que acabou de ser gerado — foi exatamente isso que
+# aconteceu na build de v1.2.0 (o find devolveu o Kami_1.1.0_amd64.deb
+# de uma tentativa anterior em vez do 1.2.0 recém-gerado, porque os
+# dois coexistiam e a ordem do find não é garantida).
+log "limpando instaladores de builds anteriores (bundle/deb, bundle/rpm, bundle/appimage, bundle/msi, bundle/nsis)"
+rm -rf "$TAURI_DIR/target/release/bundle/deb" \
+       "$TAURI_DIR/target/release/bundle/rpm" \
+       "$TAURI_DIR/target/release/bundle/appimage" \
+       "$TAURI_DIR/target/release/bundle/msi" \
+       "$TAURI_DIR/target/release/bundle/nsis"
+
 # workaround oficial pra ambientes sem FUSE configurado (comum em
 # Fedora) — evita boa parte dos "failed to run linuxdeploy". Ver nota
 # no cabeçalho deste arquivo.
@@ -402,7 +418,12 @@ declare -a MISSING=()
 check_target() {
   local label="$1" pattern="$2" required="$3"
   local hit
-  hit=$(find "$BUNDLE_DIR" -maxdepth 2 -iname "$pattern" 2>/dev/null | head -n1)
+  # segunda camada de proteção além da limpeza no passo 2: se por
+  # algum motivo mais de um arquivo bater o padrão na mesma pasta
+  # (ex.: alguém rodou com --skip-sidecar ou pulou a limpeza manual),
+  # pega o modificado mais recentemente em vez do primeiro que o find
+  # devolver (find não garante nenhuma ordem específica).
+  hit=$(find "$BUNDLE_DIR" -maxdepth 2 -iname "$pattern" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
   if [ -n "$hit" ]; then
     local size
     size=$(du -h "$hit" 2>/dev/null | cut -f1)

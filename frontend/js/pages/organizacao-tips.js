@@ -58,7 +58,7 @@ const STEPS = [
   },
   {
     selector: "#org-search-clear",
-    text: "esse ✕ limpa o texto e o resultado da última busca.",
+    text: "esse botão limpa o texto e o resultado da última busca.",
   },
 
   // ─── visão geral das abas ─────────────────────────────────────────────

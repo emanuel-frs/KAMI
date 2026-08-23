@@ -18,9 +18,6 @@
  * Widget presente na tela mas sem entrada em `textsByType` (widget
  * novo, ou tela ainda não revisada) => nenhum passo é gerado pra ele —
  * silenciosamente ignorado, não um texto genérico de preenchimento.
- * É a mesma decisão que já existia pro org_notifications no Núcleo,
- * só que agora é automática em vez de precisar de um comentário
- * explicando a exclusão manual.
  *
  * A ordem dos passos segue a ordem dos cards no DOM (ordem real do
  * grid), não a ordem das chaves de `textsByType`.

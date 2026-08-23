@@ -26,6 +26,7 @@
 import { exportData, importData, resetData } from "../api/system.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
+import { icon } from "../components/icons.js";
 
 const RESET_WORD = "excluir";
 const IMPORT_WORD = "importar";
@@ -39,7 +40,7 @@ function buildModal() {
   wrap.id = "settings-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">configurações <span class="close" data-action="close">×</span></div>
+      <div class="modal-head">configurações <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="settings-section">
           <h4>exportar dados</h4>
@@ -138,7 +139,7 @@ async function handleExport(wrap) {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusEl.textContent = `✓ salvo como ${filename} (confira sua pasta de downloads)`;
+    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)`;
     statusEl.classList.add("settings-status--visible");
   } catch (err) {
     showErrorModal(err.message, "erro ao exportar dados");

@@ -113,7 +113,7 @@ const STEPS = [
             })
             .join("")}
           <div class="ob-attr-row" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border-soft);">
-            <span class="ob-attr">✓ concluiu "fundamentos de python"</span>
+            <span class="ob-attr">${icon("check", { size: 9 })} concluiu "fundamentos de python"</span>
             <span class="ob-attr-xp">+50 xp</span>
           </div>
         </div>
@@ -122,7 +122,7 @@ const STEPS = [
   {
     title: () => "finanças",
     desc: () =>
-      "renda recorrente com cálculo de dia útil real, cartões, contas fixas, dívidas, compras parceladas, assinaturas e gastos avulsos — visão mensal de entradas vs. saídas, comparando com o mês anterior. cada lançamento daqui também vira uma linha no log do núcleo, com xp igual a qualquer outro módulo.",
+      "renda recorrente com cadastro próprio (várias fontes, dia fixo/dia útil/intervalo de dias/depende de outra fonte, ou avulsa) e cálculo de dia útil real, cartões, contas fixas, dívidas, compras parceladas, assinaturas e gastos avulsos — visão mensal de entradas vs. saídas, comparando com o mês anterior. cada lançamento daqui também vira uma linha no log do núcleo, com xp igual a qualquer outro módulo.",
     illustration: () => `
       <div class="ob-illus ob-illus--financas">
         <div class="ob-fin-row">
@@ -153,8 +153,8 @@ const STEPS = [
         </div>
         <div class="ob-track-bar"><span class="ob-track-fill" style="width:67%"></span></div>
         <div class="ob-milestones">
-          <div class="ob-milestone ob-ms-done">✓ fundamentos de python</div>
-          <div class="ob-milestone ob-ms-done">✓ fastapi — rotas e modelos</div>
+          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} fundamentos de python</div>
+          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} fastapi — rotas e modelos</div>
           <div class="ob-milestone">  sqlite sem ORM</div>
           <div class="ob-milestone ob-ms-faint">  testes com pytest</div>
         </div>
@@ -167,11 +167,11 @@ const STEPS = [
     illustration: () => `
       <div class="ob-illus ob-illus--org">
         <div class="ob-org-row">
-          <span class="ob-org-icon">🔗</span>
+          <span class="ob-org-icon">${icon("link", { size: 11 })}</span>
           <span class="ob-org-label">github.com/usuario/kami</span>
         </div>
         <div class="ob-org-row">
-          <span class="ob-org-icon">✉</span>
+          <span class="ob-org-icon">${icon("mail", { size: 11 })}</span>
           <span class="ob-org-label">3 mensagens não lidas</span>
         </div>
         <div class="ob-email-preview">
@@ -210,7 +210,7 @@ function buildModal() {
     <div class="modal ob-modal" role="dialog" aria-modal="true">
       <div class="modal-head">
         <span class="ob-step-label" id="ob-step-label"></span>
-        <span class="close" data-action="close" aria-label="fechar">×</span>
+        <span class="close" data-action="close" aria-label="fechar">${icon("x")}</span>
       </div>
       <div class="modal-body ob-body">
         <div class="ob-illus-wrap" id="ob-illus-wrap"></div>

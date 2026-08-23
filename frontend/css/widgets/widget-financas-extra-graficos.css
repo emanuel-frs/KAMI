@@ -27,6 +27,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  position: relative; /* ancora o .chart-tooltip (ver chart-tooltip.js) */
 }
 .chart-fluxo{
   flex: 1 1 auto;
@@ -82,8 +83,40 @@
   stroke: var(--accent);
   stroke-width: 1.5;
   cursor: default;
+  pointer-events: none; /* quem recebe o hover é o .chart-dot-hit, por cima */
 }
-.chart-dot:hover{ fill: var(--accent); }
+/* alvo de hover invisível, bem maior que o ponto desenhado — o raio
+   pequeno do .chart-dot é ótimo pro desenho da linha, mas péssimo de
+   acertar com o mouse quando o widget está redimensionado pequeno */
+.chart-dot-hit{
+  fill: var(--accent);
+  opacity: 0;
+  stroke: none;
+  cursor: default;
+  transition: opacity .1s;
+}
+.chart-dot-hit:hover{ opacity: 0.18; }
+
+/* ── tooltip customizado (fluxo + evolução) ──────────────────────────────
+ * Substitui o <title> nativo do SVG, que renderiza com o estilo bruto do
+ * navegador/OS (ver feedback). Mesmo visual do tooltip genérico do
+ * sistema em tooltip.css, só que posicionado via JS (chart-tooltip.js)
+ * porque segue o mouse em vez de ficar ancorado num elemento fixo. */
+.chart-tooltip{
+  position: absolute;
+  top: 0; left: 0;
+  background: var(--panel);
+  color: var(--text-bright);
+  font-size: 9.5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .08s;
+  z-index: 5;
+}
+.chart-tooltip.visible{ opacity: 1; }
 
 /* ── categorias: lista de barras rankeada ────────────────────────────── */
 .chart-categorias-list{ display: flex; flex-direction: column; gap: 8px; }
@@ -102,22 +135,37 @@
   white-space: nowrap;
 }
 
-/* ── limites: mesma lista, com semáforo accent/âmbar/vermelho ───────── */
-.chart-limites-list{ display: flex; flex-direction: column; gap: 9px; }
-.lim-row{ display: flex; align-items: center; gap: 8px; font-size: 10.5px; }
+/* ── limites: mesma lista, com semáforo accent/âmbar/vermelho ───────── *
+ * Tentativa anterior (ellipsis em .lim-valor) não bastou: numa coluna
+ * estreita, label(116px fixo) + o texto do detalhe já consomem quase
+ * toda a largura disponível, e não sobra praticamente nada pra
+ * .lim-bar-track — que é o elemento mais importante do widget (a
+ * própria barra), e acaba encolhendo pra uma lasca de ~2px em vez do
+ * texto. Ellipsis só ajuda quando SOBRA um pouco de espaço; quando não
+ * sobra NADA, precisa tirar elementos da mesma linha, não só encolher.
+ * Duas linhas por conta, como .divida-row: linha 1 = rótulo + %
+ * (curtos, sempre cabem); linha 2 = barra sozinha, em largura total —
+ * nunca mais fica sem espaço pra existir. O detalhe em R$ vira
+ * secundário, discreto, embaixo da barra (só aparece se houver espaço,
+ * já que agora é a última coisa na hierarquia, não mais competindo
+ * pela mesma linha que a barra). */
+.chart-limites-list{ display: flex; flex-direction: column; gap: 10px; }
+.lim-row{ display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; }
+.lim-top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lim-label{
-  width: 116px; flex-shrink: 0; color: var(--text-dim);
+  flex: 1; min-width: 0; color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.lim-pct{ flex-shrink: 0; color: var(--text-bright); font-weight: 600; }
 .lim-bar-track{
-  flex: 1 1 auto; height: 6px; background: rgba(0,0,0,0.5);
+  width: 100%; height: 6px; background: rgba(0,0,0,0.5);
   border: 1px solid var(--border-soft); overflow: hidden;
 }
 .lim-bar-track .bar-fill{ height: 100%; }
 .bar-fill.lim-ok{ background: var(--accent); }
 .bar-fill.lim-warn{ background: var(--amber); }
 .bar-fill.lim-danger{ background: var(--red); }
-.lim-valor{
-  flex-shrink: 0; color: var(--text-bright); white-space: nowrap; text-align: right;
+.lim-valor-detail{
+  color: var(--text-faint); font-size: 9px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.lim-valor-detail{ color: var(--text-faint); font-size: 9px; }

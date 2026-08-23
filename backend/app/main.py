@@ -17,6 +17,7 @@ from app.routers import organizacao
 from app.routers import dashboard
 from app.routers import system
 from app.routers import widgets
+from app.routers import calendario
 
 app = FastAPI(title="Kami API", version=KAMI_VERSION)
 
@@ -48,3 +49,4 @@ app.include_router(organizacao.router, prefix="/api/organizacao", tags=["organiz
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(system.router, prefix="/api/system", tags=["system"])
 app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
+app.include_router(calendario.router, prefix="/api/calendario", tags=["calendario"])

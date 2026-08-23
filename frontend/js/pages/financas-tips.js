@@ -26,6 +26,7 @@ const SCREEN = "financas";
 const WIDGET_TEXTS = {
   wallet: "seus bancos e contas — saldo, cartão de crédito, o que cada um tiver.",
   financas_resumo: "visão rápida: quanto você tem versus quanto ainda precisa pagar.",
+  financas_renda: "suas fontes de renda cadastradas — marque como paga quando cair na conta.",
   financas_registros: "todo lançamento do mês, com filtro por conta e por status.",
   financas_assinaturas: "suas assinaturas recorrentes e quanto elas somam no mês.",
   dividas: "dívidas em aberto — status editável direto aqui, sem abrir nada.",

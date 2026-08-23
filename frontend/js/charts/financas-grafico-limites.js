@@ -32,9 +32,12 @@ export async function render(el, widget) {
           const nivel = pct >= 90 ? "danger" : pct >= 70 ? "warn" : "ok";
           return `
             <div class="lim-row">
-              <span class="lim-label">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
+              <div class="lim-top">
+                <span class="lim-label">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
+                <span class="lim-pct">${pct}%</span>
+              </div>
               <div class="lim-bar-track"><div class="bar-fill lim-${nivel}" style="width:${pct}%;"></div></div>
-              <span class="lim-valor">${pct}%<span class="lim-valor-detail"> (${brl(a.fatura_atual || 0)} de ${brl(a.limite_total)})</span></span>
+              <span class="lim-valor-detail">${brl(a.fatura_atual || 0)} de ${brl(a.limite_total)}</span>
             </div>`;
         }).join("") : `<div class="wallet-empty">nenhuma conta com crédito e limite definido.</div>`}
       </div>

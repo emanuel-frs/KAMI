@@ -1,0 +1,484 @@
+/* ── módulo calendário (pages/calendario.js) ────────────────────────────
+ * Layout fixo (não usa o grid configurável de dashboard_widgets — mesmo
+ * caso de metas). Tela agregadora, só leitura: sem CRUD próprio, todo
+ * evento pertence a outro módulo (ver app/routers/calendario.py). */
+
+/* ── botão de alertas na toolbar + badge ─────────────────────────────── */
+.cal-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#cal-alerts-btn {
+  position: relative;
+}
+
+.cal-alerts-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--amber);
+  color: #000;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ── modal de alertas ────────────────────────────────────────────────── */
+.cal-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cal-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 7px;
+  cursor: pointer;
+  font-size: 11px;
+  border: 1px solid var(--border-soft);
+  transition: border-color .12s, background .12s;
+}
+.cal-alert-item:hover {
+  border-color: var(--accent-dim);
+  background: color-mix(in srgb, var(--text-bright) 4%, transparent);
+}
+.cal-alert-item.overdue .cal-alert-due { color: var(--red); }
+
+.cal-alert-dot {
+  --type-color: var(--text-faint);
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--type-color);
+  background: color-mix(in srgb, var(--type-color) 18%, transparent);
+}
+.cal-alert-dot svg { display: block; }
+
+.cal-alert-title {
+  flex: 1 1 auto;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-alert-amount {
+  color: var(--text-faint);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.cal-alert-due {
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--amber);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-month-label {
+  font-size: 13px;
+  color: var(--text-bright);
+  letter-spacing: 0.5px;
+  min-width: 150px;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.cal-body {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 16px;
+  align-items: start;
+  grid-template-rows: auto;
+}
+
+.cal-grid-wrap,
+.cal-day-panel {
+  height: 100%;
+}
+
+/* ── grade do mês ─────────────────────────────────────────────────────── */
+.cal-grid-wrap {
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-soft);
+}
+.cal-weekdays > div {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  transition: opacity .1s;
+}
+.cal-grid.loading { opacity: 0.5; }
+
+.cal-day {
+  min-height: 80px;
+  padding: 7px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: default;
+  transition: background .1s;
+}
+.cal-day:nth-child(7n) { border-right: none; }
+
+.cal-day:not(.cal-day-filler) { cursor: pointer; }
+.cal-day:not(.cal-day-filler):hover { background: var(--bg-alt); }
+
+.cal-day-filler { background: var(--panel); }
+
+/* dias com evento ganham um tom sutil pra facilitar escanear o mês de
+   relance — accent bem diluído, não compete com o marcador de hoje/seleção */
+.cal-day.has-events {
+  background: color-mix(in srgb, var(--accent) 3%, var(--card));
+}
+.cal-day.has-events:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-alt));
+}
+
+.cal-day.today {
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
+.cal-day.today .cal-day-num {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.cal-day.selected {
+  background: color-mix(in srgb, var(--accent) 9%, var(--card));
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.cal-day.selected:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-alt));
+}
+
+.cal-day-num {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 19px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cal-day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.cal-chip {
+  --type-color: var(--text-faint);
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--type-color);
+  background: color-mix(in srgb, var(--type-color) 18%, transparent);
+}
+.cal-chip svg { display: block; }
+/* marco concluído — mesmo destaque em anel âmbar usado no heatmap de
+   Aprendizado (widget-aprendizado-heatmap.css), pra manter a linguagem
+   visual consistente entre as duas telas. */
+.cal-chip.milestone { box-shadow: 0 0 0 1px var(--amber); }
+
+/* ── painel do dia selecionado ───────────────────────────────────────── */
+.cal-day-panel {
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cal-day-panel .card-head {
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+/* filtros de tipo acima da lista */
+.cal-day-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.cal-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+  white-space: nowrap;
+}
+.cal-filter-btn:hover {
+  color: var(--text-dim);
+  border-color: var(--accent-dim);
+}
+.cal-filter-btn.active {
+  color: var(--text-bright);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.cal-filter-btn .cal-chip {
+  flex-shrink: 0;
+}
+
+.cal-day-events {
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1 1 0;
+}
+
+.cal-event-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  font-size: 11px;
+}
+.cal-event-row:hover { border-color: var(--accent-dim); }
+
+.cal-event-row-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cal-event-dot {
+  --type-color: var(--text-faint);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--type-color);
+  background: color-mix(in srgb, var(--type-color) 18%, transparent);
+}
+.cal-event-dot svg { display: block; }
+.cal-event-dot.milestone { box-shadow: 0 0 0 1px var(--amber); }
+
+.cal-event-type {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.cal-event-title {
+  color: var(--text);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-event-status {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-soft);
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.cal-event-amount {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.cal-event-xp {
+  font-size: 10.5px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.cal-event-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cal-event-category-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  padding: 1px 5px;
+}
+
+/* ── legenda ──────────────────────────────────────────────────────────── */
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.cal-legend-item .cal-chip {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .cal-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── modal de evento (calendar-event-modal.js) ──────────────────────────
+ * `.form-actions` não tem regra própria em nenhum outro CSS do app (os
+ * outros modais vivem com o fluxo inline padrão de botões) — aqui
+ * precisamos de 3 botões com o de excluir separado à esquerda, então
+ * a regra fica escopada por id pra não afetar nenhum outro modal. */
+#calendar-event-modal .form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+#calendar-event-modal .cal-event-delete-btn {
+  margin-right: auto;
+}
+
+/* ── botão "novo evento" na toolbar ──────────────────────────────────── */
+#cal-new-event-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ── grade: fim de semana + alvo de drop ────────────────────────────────
+ * shading bem sutil (mesma lógica de has-events, só que ainda mais
+ * discreto — é só uma orientação visual de "sábado/domingo", não deve
+ * competir com o destaque de hoje/selecionado/tem-evento). */
+.cal-day.weekend:not(.cal-day-filler) {
+  background: color-mix(in srgb, var(--text-bright) 2%, var(--card));
+}
+.cal-day.weekend.has-events {
+  background: color-mix(in srgb, var(--accent) 4%, var(--card));
+}
+
+.cal-day.drag-over {
+  background: color-mix(in srgb, var(--accent) 16%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ── painel do dia: evento manual (arrastável, com hora/notas/editar) ── */
+.cal-event-row-evento {
+  cursor: grab;
+}
+.cal-event-row-evento:active { cursor: grabbing; }
+.cal-event-row-evento.dragging { opacity: 0.4; }
+
+.cal-event-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.cal-event-edit-hint {
+  margin-left: auto;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.cal-event-row-evento:hover .cal-event-edit-hint { color: var(--accent); }
+
+.cal-event-notes {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.cal-day-quick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  align-self: flex-start;
+}

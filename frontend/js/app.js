@@ -10,10 +10,16 @@ import { openSettingsModal } from "./modals/settings-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
+import { wireTooltips } from "./components/tooltip.js";
+import { startCalendarNotifications } from "./components/calendar-notifications.js";
+import { wireNotificationBell } from "./components/notification-bell.js";
+import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
+import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
-// Só as telas do v1 (seção 0.1 do projeto) entram aqui — as
-// pós-mvp ficam na sidebar como link desabilitado (ver index.html).
+// Telas do v1 (seção 0.1 do projeto) + calendário (primeira tela
+// pós-mvp a sair do estado "em breve", ver index.html). As demais
+// pós-mvp (carreira, assistente kami) continuam como link desabilitado.
 const PAGES = {
   perfil: () => import("./pages/perfil.js"),
   nucleo: () => import("./pages/nucleo.js"),
@@ -21,15 +27,29 @@ const PAGES = {
   aprendizado: () => import("./pages/aprendizado.js"),
   organizacao: () => import("./pages/organizacao.js"),
   metas: () => import("./pages/metas.js"),
+  calendario: () => import("./pages/calendario.js"),
 };
 
 const pageRoot = document.getElementById("page-root");
 let currentPageModule = null;
 let currentPageName = null;
 
-async function showPage(name) {
-  if (name === currentPageName) return;
+/**
+ * @param {string} name - chave de PAGES
+ * @param {object} [opts] - repassado direto pro mount()/focus() da tela
+ *   de destino (ver components/navigate.js pro motivo disso existir —
+ *   hoje só pages/organizacao.js usa, pra abrir já na aba de e-mail
+ *   numa mensagem específica vinda do modal de notificações).
+ */
+async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
+
+  if (name === currentPageName) {
+    // já está na tela — não remonta (evitaria perder scroll/estado à
+    // toa), só aplica os opts se a tela souber o que fazer com eles.
+    await currentPageModule?.focus?.(opts);
+    return;
+  }
 
   currentPageModule?.unmount?.();
 
@@ -40,7 +60,7 @@ async function showPage(name) {
   const mod = await PAGES[name]();
   currentPageModule = mod;
   currentPageName = name;
-  await mod.mount(pageRoot);
+  await mod.mount(pageRoot, opts);
 }
 
 function wireNav() {
@@ -101,10 +121,16 @@ async function boot() {
   // estar pronta por baixo quando ela terminar/for pulada.
   const splashDone = playBootSplash();
 
+  registerNavigator(showPage);
+
   wireNav();
   wireSettingsButton();
   wireHelpButton();
+  wireNotificationBell();
   wireModalEscapeClose();
+  wireTooltips();
+  startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
+  startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   await showPage("nucleo"); // tela inicial
   await splashDone;

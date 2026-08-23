@@ -2,62 +2,6 @@
  * Grid de células por dia (hm-cell), navegação por ano e legenda. Usa
  * as mesmas variáveis de cor do tema, independente do roadmap acima. */
 
-.apr-heatmap-wrap {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-.apr-heatmap-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
-  gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.hm-cell {
-  width: 13px;
-  height: 13px;
-  background: var(--bg-alt);
-  border: 1px solid var(--border-soft);
-  position: relative;
-  cursor: default;
-}
-.hm-cell.lvl-1 { background: var(--accent-dim); opacity: 0.5; border-color: transparent; }
-.hm-cell.lvl-2 { background: var(--accent-dim); opacity: 0.85; border-color: transparent; }
-.hm-cell.lvl-3 { background: var(--accent); opacity: 0.9; border-color: transparent; }
-.hm-cell.milestone { box-shadow: 0 0 0 2px var(--amber); z-index: 1; }
-/* ── marcador de milestone — era content:"★" ─────────────────────────
- * pseudo-elemento não renderiza <svg>, então vira máscara: um quadrado
- * colorido (background-color: var(--amber), mesma cor do glifo antigo)
- * recortado no formato do star.svg sólido (mesmo path de
- * frontend/assets/icons/star.svg, com fill em vez de stroke — é o
- * "peso" visual mais próximo do ★ preenchido que estava aqui).
- */
-.hm-cell.milestone::after {
-  content: "";
-  position: absolute;
-  top: -7px;
-  left: 1px;
-  width: 8px;
-  height: 8px;
-  background-color: var(--amber);
-  -webkit-mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwMCIgc3Ryb2tlPSJub25lIj48cGF0aCBkPSJNMTEuNTI1IDIuMjk1YS41My41MyAwIDAgMSAuOTUgMGwyLjMxIDQuNjc5YTIuMTIzIDIuMTIzIDAgMCAwIDEuNTk1IDEuMTZsNS4xNjYuNzU2YS41My41MyAwIDAgMSAuMjk0LjkwNGwtMy43MzYgMy42MzhhMi4xMjMgMi4xMjMgMCAwIDAtLjYxMSAxLjg3OGwuODgyIDUuMTRhLjUzLjUzIDAgMCAxLS43NzEuNTZsLTQuNjE4LTIuNDI4YTIuMTIyIDIuMTIyIDAgMCAwLTEuOTczIDBMNi4zOTYgMjEuMDFhLjUzLjUzIDAgMCAxLS43Ny0uNTZsLjg4MS01LjEzOWEyLjEyMiAyLjEyMiAwIDAgMC0uNjExLTEuODc5TDIuMTYgOS43OTVhLjUzLjUzIDAgMCAxIC4yOTQtLjkwNmw1LjE2NS0uNzU1YTIuMTIyIDIuMTIyIDAgMCAwIDEuNTk3LTEuMTZ6Ii8+PC9zdmc+') no-repeat center / contain;
-  mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwMCIgc3Ryb2tlPSJub25lIj48cGF0aCBkPSJNMTEuNTI1IDIuMjk1YS41My41MyAwIDAgMSAuOTUgMGwyLjMxIDQuNjc5YTIuMTIzIDIuMTIzIDAgMCAwIDEuNTk1IDEuMTZsNS4xNjYuNzU2YS41My41MyAwIDAgMSAuMjk0LjkwNGwtMy43MzYgMy42MzhhMi4xMjMgMi4xMjMgMCAwIDAtLjYxMSAxLjg3OGwuODgyIDUuMTRhLjUzLjUzIDAgMCAxLS43NzEuNTZsLTQuNjE4LTIuNDI4YTIuMTIyIDIuMTIyIDAgMCAwLTEuOTczIDBMNi4zOTYgMjEuMDFhLjUzLjUzIDAgMCAxLS43Ny0uNTZsLjg4MS01LjEzOWEyLjEyMiAyLjEyMiAwIDAgMC0uNjExLTEuODc5TDIuMTYgOS43OTVhLjUzLjUzIDAgMCAxIC4yOTQtLjkwNmw1LjE2NS0uNzU1YTIuMTIyIDIuMTIyIDAgMCAwIDEuNTk3LTEuMTZ6Ii8+PC9zdmc+') no-repeat center / contain;
-}
-.apr-heatmap-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 9.5px;
-  color: var(--text-faint);
-  min-width: 170px;
-  padding-top: 2px;
-}
-.apr-heatmap-legend .lg-row { display: flex; align-items: center; gap: 7px; }
-.apr-heatmap-legend .lg-sw { width: 11px; height: 11px; flex: 0 0 auto; }
-
 .apr-heatmap-card-inner {
   display: flex;
   gap: 20px;
@@ -68,6 +12,10 @@
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+.apr-heatmap-main::-webkit-scrollbar {
+  display: none;
 }
 
 .apr-heatmap-months {
@@ -91,7 +39,7 @@
 
 .apr-heatmap-weekdays {
   display: grid;
-  grid-template-rows: repeat(7, 13px);
+  grid-template-rows: repeat(7, var(--hm-cell, 13px));
   gap: 3px;
   flex-shrink: 0;
   width: 20px;
@@ -105,14 +53,14 @@
 .apr-heatmap-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
+  grid-template-rows: repeat(7, var(--hm-cell, 13px));
   gap: 3px;
   width: max-content;
 }
 
 .hm-cell {
-  width: 13px;
-  height: 13px;
+  width: var(--hm-cell, 13px);
+  height: var(--hm-cell, 13px);
   background: var(--bg-alt);
   border: 1px solid var(--border-soft);
   position: relative;
@@ -136,9 +84,41 @@
   -webkit-mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwMCIgc3Ryb2tlPSJub25lIj48cGF0aCBkPSJNMTEuNTI1IDIuMjk1YS41My41MyAwIDAgMSAuOTUgMGwyLjMxIDQuNjc5YTIuMTIzIDIuMTIzIDAgMCAwIDEuNTk1IDEuMTZsNS4xNjYuNzU2YS41My41MyAwIDAgMSAuMjk0LjkwNGwtMy43MzYgMy42MzhhMi4xMjMgMi4xMjMgMCAwIDAtLjYxMSAxLjg3OGwuODgyIDUuMTRhLjUzLjUzIDAgMCAxLS43NzEuNTZsLTQuNjE4LTIuNDI4YTIuMTIyIDIuMTIyIDAgMCAwLTEuOTczIDBMNi4zOTYgMjEuMDFhLjUzLjUzIDAgMCAxLS43Ny0uNTZsLjg4MS01LjEzOWEyLjEyMiAyLjEyMiAwIDAgMC0uNjExLTEuODc5TDIuMTYgOS43OTVhLjUzLjUzIDAgMCAxIC4yOTQtLjkwNmw1LjE2NS0uNzU1YTIuMTIyIDIuMTIyIDAgMCAwIDEuNTk3LTEuMTZ6Ii8+PC9zdmc+') no-repeat center / contain;
   mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwMCIgc3Ryb2tlPSJub25lIj48cGF0aCBkPSJNMTEuNTI1IDIuMjk1YS41My41MyAwIDAgMSAuOTUgMGwyLjMxIDQuNjc5YTIuMTIzIDIuMTIzIDAgMCAwIDEuNTk1IDEuMTZsNS4xNjYuNzU2YS41My41MyAwIDAgMSAuMjk0LjkwNGwtMy43MzYgMy42MzhhMi4xMjMgMi4xMjMgMCAwIDAtLjYxMSAxLjg3OGwuODgyIDUuMTRhLjUzLjUzIDAgMCAxLS43NzEuNTZsLTQuNjE4LTIuNDI4YTIuMTIyIDIuMTIyIDAgMCAwLTEuOTczIDBMNi4zOTYgMjEuMDFhLjUzLjUzIDAgMCAxLS43Ny0uNTZsLjg4MS01LjEzOWEyLjEyMiAyLjEyMiAwIDAgMC0uNjExLTEuODc5TDIuMTYgOS43OTVhLjUzLjUzIDAgMCAxIC4yOTQtLjkwNmw1LjE2NS0uNzU1YTIuMTIyIDIuMTIyIDAgMCAwIDEuNTk3LTEuMTZ6Ii8+PC9zdmc+') no-repeat center / contain;
 }
+
+/* ── tooltip das células (data/registros/marco) ───────────────────────
+ * o utilitário genérico [data-tooltip] em tooltip.css usa ::after, mas
+ * aqui esse pseudo-elemento já é o marcador de milestone (estrela)
+ * acima — então a célula usa ::before pro tooltip em vez de duplicar
+ * a regra genérica. E como [data-tooltip]::after ainda casa com a
+ * célula (mesmo atributo), tem que ser explicitamente desligado, senão
+ * mostra os dois ao mesmo tempo (ou rouba o ::after do milestone). */
+.hm-cell[data-tooltip]::after { content: none; }
+.hm-cell[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--panel);
+  color: var(--text-bright);
+  font-size: 9.5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  white-space: normal;
+  max-width: 180px;
+  width: max-content;
+  text-align: left;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s, transform .12s;
+  z-index: 1000;
+}
+.hm-cell[data-tooltip]:hover::before { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 .hm-cell-empty {
-  width: 13px;
-  height: 13px;
+  width: var(--hm-cell, 13px);
+  height: var(--hm-cell, 13px);
   background: transparent;
   border: none;
   pointer-events: none;

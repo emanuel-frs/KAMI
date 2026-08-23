@@ -25,6 +25,13 @@ export const listEmailCache = (params = {}) => {
 };
 export const markEmailRead = (cacheId) => put(`/api/organizacao/email-cache/${cacheId}/read`, {});
 
+// contas silenciadas (notificações v2.1) — silencia a CONTA inteira
+// (não um remetente/e-mail individual); ver EmailCacheOut.is_muted/
+// muted_accounts no backend.
+export const listMutedAccounts = () => get("/api/organizacao/muted-accounts");
+export const muteAccount = (accountId) => post("/api/organizacao/muted-accounts", { account_id: accountId });
+export const unmuteAccount = (mutedId) => del(`/api/organizacao/muted-accounts/${mutedId}`);
+
 // configuração do token github (opcional — repos privados + rate limit maior)
 export const getGithubTokenStatus = () => get("/api/organizacao/github-token");
 export const saveGithubToken = (token) => put("/api/organizacao/github-token", { token });

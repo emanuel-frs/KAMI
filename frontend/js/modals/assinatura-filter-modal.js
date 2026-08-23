@@ -1,3 +1,5 @@
+import { icon } from "../components/icons.js";
+
 /**
  * Modal "filtrar assinaturas" — mesmo padrão de registro-filter-modal.js.
  * Filtro client-side sobre as assinaturas já carregadas: devolve
@@ -15,7 +17,7 @@ function buildModal() {
   wrap.id = "assinatura-filter-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">filtrar assinaturas <span class="close" data-action="close">×</span></div>
+      <div class="modal-head">filtrar assinaturas <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
           <label>conta</label>

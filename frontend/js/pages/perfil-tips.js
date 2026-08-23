@@ -14,8 +14,9 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  * default_span sempre presente), attributes e achievements (mesmos
  * tipos que já aparecem no Núcleo — mas com texto próprio aqui, porque
  * o contexto muda: em Perfil eles são "seu histórico", em Núcleo são
- * "o que você tá fazendo agora"), e org_notifications (cross-module,
- * opcional, mesma ideia do Núcleo).
+ * "o que você tá fazendo agora"). `org_notifications` saiu do
+ * catálogo de widgets (notificações v2 — virou o sino global na
+ * sidebar), então não tem mais entrada aqui.
  */
 const SCREEN = "perfil";
 
@@ -23,7 +24,6 @@ const WIDGET_TEXTS = {
   profile: "seu nome, cor e avatar ficam aqui — toque em editar pra mudar qualquer um dos três.",
   attributes: "o mesmo progresso por atributo do núcleo, só que centralizado aqui no seu perfil.",
   achievements: "todas as conquistas que você já destravou, num só lugar.",
-  org_notifications: "resumo do módulo organização: e-mails não lidos e contas conectadas, direto aqui no perfil.",
 };
 
 function buildSteps(container) {
