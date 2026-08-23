@@ -432,9 +432,6 @@ function renderLegend() {
   const typeItems = Object.entries(TYPE_META)
     .map(([type, m]) => `<span class="cal-legend-item">${typeBadge(type, 9)}${escapeHtml(m.label)}</span>`)
     .join("");
-  // marco não é um "tipo" próprio (é uma "acao" com description prefixada,
-  // ver isMilestoneEvent), então não vem do TYPE_META — entra à parte aqui
-  // só pra deixar a estrelinha documentada na legenda.
   const milestoneItem = `<span class="cal-legend-item"><span class="cal-chip milestone" style="--type-color:${MILESTONE_META.color}">${icon(MILESTONE_META.icon, { size: 9 })}</span>${escapeHtml(MILESTONE_META.label)}</span>`;
   return typeItems + milestoneItem;
 }
@@ -493,6 +490,5 @@ export function unmount() {
   eventsByDate = new Map();
   selectedDate = null;
   activeFilters.clear();
-  pendingAlertsCount = 0;
   loadToken++;
 }
