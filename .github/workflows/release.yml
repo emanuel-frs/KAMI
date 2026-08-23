@@ -1,0 +1,80 @@
+name: Release
+
+# Dispara em qualquer tag no formato vX.Y.Z (o mesmo padrão que
+# scripts/bump-version.sh já cria e que `git flow release finish` +
+# `git push --tags` já empurra). Não precisa mexer no fluxo de
+# release existente — só dar o push da tag.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write # necessário pra criar/anexar arquivos na Release
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false # se o Windows falhar, o Linux ainda termina (e vice-versa)
+      matrix:
+        include:
+          - platform: ubuntu-latest
+          - platform: windows-latest
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Instalar dependências de sistema do Tauri (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Instalar Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Empacotar o backend (sidecar PyInstaller)
+        shell: bash
+        run: |
+          cd backend
+          python -m venv .venv
+          # venv cria Scripts/activate no Windows e bin/activate no Linux —
+          # os dois funcionam via bash (git-bash no windows-latest)
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          pip install -r requirements.txt pyinstaller
+          cd ..
+          bash scripts/build_sidecar.sh
+
+      - name: Build e publicar na Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Kami ${{ github.ref_name }}"
+          releaseBody: "Ver CHANGELOG.md para o detalhamento desta versão."
+          # true = cria como rascunho pra você revisar/publicar manualmente
+          # depois; troque pra false quando confiar no fluxo e quiser
+          # publicação automática direto no push da tag.
+          releaseDraft: true
+          prerelease: false
