@@ -4,6 +4,20 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] - 2026-08-22
+
+### Adicionado
+- módulo Calendário — agrega eventos de contas fixas, dívidas, assinaturas, parcelas, metas e ações num só lugar, com filtros por tipo e navegação mensal
+- hub de notificações centralizado (sino) substituindo o widget de notificações de organização, com sincronização automática de e-mail e silenciamento por remetente
+- novo design da tela de e-mail em Organização
+
+### Corrigido
+- ajustes na tela de Calendário
+- build.sh podia empacotar instalador de uma versão antiga
+
+### Manutenção
+- combo de ajustes em finanças, calendário, notificações, ícones e design
+
 ## [1.2.0] - 2026-08-10
 
 ### Adicionado
