@@ -11,7 +11,7 @@
 
 **Sistema pessoal de organização gamificada — 100% local**
 
-`v1.0.0` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
+`v1.3.0` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
 
 </div>
 
@@ -31,25 +31,6 @@ Todo o app roda localmente na máquina do usuário: nenhum dado sai da
 sua máquina, nenhum serviço pago é necessário. O visual é uma
 homenagem a terminais antigos — paleta preto/branco/cinza com uma
 única cor de destaque, configurável.
-
-## ► Screenshots
-
-<!--
-Rode o projeto localmente (veja "Como rodar" abaixo), navegue pelas
-telas e salve os prints em docs/screenshots/ com esses nomes.
-Substitua os placeholders pelas tags de imagem reais, por exemplo:
-
-![Núcleo](docs/screenshots/nucleo.png)
--->
-
-| Tela | Descrição |
-|---|---|
-| `docs/screenshots/nucleo.png` | Dashboard do Núcleo — atributos, log de ações, conquistas e widgets configuráveis |
-| `docs/screenshots/perfil.png` | Perfil com avatar pessoal em ASCII e seletor de cor de destaque |
-| `docs/screenshots/financas.png` | Visão mensal de Finanças, cartões, contas fixas e Wallet |
-| `docs/screenshots/aprendizado.png` | Trilhas de aprendizado com roadmap de timeline e heatmap de atividade |
-| `docs/screenshots/organizacao.png` | Hub de Organização — links, GitHub e e-mail via IMAP |
-| `docs/screenshots/onboarding.png` | Tour de onboarding em modais sequenciais |
 
 ## ► Funcionalidades
 
@@ -91,6 +72,12 @@ Substitua os placeholders pelas tags de imagem reais, por exemplo:
 - **Onboarding** — tour interativo em modais sequenciais na
   primeira execução, com mini-ilustrações estáticas por conceito do
   sistema; pode ser reaberto a qualquer momento pelas configurações.
+- **Calendário** — agrega em visão mensal os eventos read-only de
+  contas fixas, dívidas, assinaturas, parcelas, metas e ações
+  registradas, com filtros por tipo e navegação por mês.
+- **Notificações** — sino centralizado no lugar do widget de
+  notificações do Núcleo, com sincronização automática de e-mail em
+  background e silenciamento de notificações por remetente.
 
 ## ► Stack técnica
 
@@ -194,7 +181,7 @@ kami/
 │   │   ├── schema.sql
 │   │   └── routers/           # perfil, nucleo, financas, wallet,
 │   │                          # aprendizado, organizacao, metas,
-│   │                          # dashboard, system
+│   │                          # calendario, dashboard, system
 │   ├── tests/
 │   ├── run_server.py          # entrypoint do backend empacotado (sidecar)
 │   ├── kami-backend.spec      # spec do PyInstaller
