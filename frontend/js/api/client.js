@@ -70,6 +70,17 @@ async function request(path, options = {}) {
   try {
     res = await fetch(`${baseUrl}${path}`, {
       headers: { "Content-Type": "application/json" },
+      // `cache: "no-store"` em toda chamada (não só GET) — o webview do
+      // Tauri (WebKit no linux/mac, WebView2 no windows) já demonstrou
+      // servir uma resposta antiga em cache pra uma URL idêntica mesmo
+      // sem o backend mandar Cache-Control algum (FastAPI não manda por
+      // padrão em rotas JSON simples), reproduzido no cache de e-mail:
+      // GET /email-cache?account_id=X ficava preso na primeira resposta
+      // (vazia, de antes do primeiro sync) até algo — qualquer coisa —
+      // "convencer" o webview a revalidar, ex: silenciar/dessilenciar
+      // que dispara outra chamada de rede no meio. Sem isso o Kami
+      // dependeria de sorte de cache do navegador pra ver dado fresco.
+      cache: "no-store",
       ...options,
     });
   } catch (networkErr) {

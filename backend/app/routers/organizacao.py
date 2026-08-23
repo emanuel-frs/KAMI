@@ -40,8 +40,13 @@ Endpoints:
   DELETE /api/organizacao/email-accounts/{id}       remove conta (cache junto, CASCADE)
   POST   /api/organizacao/email-accounts/{id}/sync  conecta via IMAP e atualiza o cache
 
-  GET    /api/organizacao/email-cache               lista e-mails em cache (filtro por account_id/is_read)
+  GET    /api/organizacao/email-cache               lista e-mails em cache (filtro por account_id/is_read/
+                                                     exclude_muted)
   PUT    /api/organizacao/email-cache/{id}/read      marca e-mail como lido
+
+  GET    /api/organizacao/muted-accounts            lista contas de e-mail silenciadas
+  POST   /api/organizacao/muted-accounts             silencia uma conta inteira (idempotente)
+  DELETE /api/organizacao/muted-accounts/{id}        dessilencia (remove da lista)
 
   GET    /api/organizacao/search-key                status da chave da tavily (nunca devolve a chave)
   PUT    /api/organizacao/search-key                 cadastra/troca a chave (valida contra a api antes de salvar)
@@ -60,6 +65,7 @@ from datetime import datetime as dt
 import email as email_lib
 import imaplib
 import json
+import sqlite3
 import urllib.error
 import urllib.request
 from email.header import decode_header
@@ -162,6 +168,8 @@ class EmailAccountIn(BaseModel):
     imap_port: int = 993
     username: str
     app_password: str  # texto puro só no payload de entrada; nunca guardado assim
+    sync_by_default: bool = True  # redesign da aba e-mail (secao 3.1) — controla se a conta
+                                    # já nasce selecionada na visualização combinada
 
 
 class EmailAccountUpdate(BaseModel):
@@ -177,6 +185,7 @@ class EmailAccountUpdate(BaseModel):
     imap_port: Optional[int] = None
     username: Optional[str] = None
     app_password: Optional[str] = None
+    sync_by_default: Optional[bool] = None
 
 
 class EmailAccountOut(BaseModel):
@@ -185,6 +194,7 @@ class EmailAccountOut(BaseModel):
     imap_host: str
     imap_port: int
     username: str
+    sync_by_default: bool = True
     # app_password_enc propositalmente omitido — nunca sai da API
 
 
@@ -203,6 +213,17 @@ class EmailCacheOut(BaseModel):
     is_read: bool
     summary_text: Optional[str] = None
     body_preview: Optional[str] = None
+    is_muted: bool = False  # calculado via lookup contra muted_accounts — não persistido no cache
+
+
+class MutedAccountIn(BaseModel):
+    account_id: str
+
+
+class MutedAccountOut(BaseModel):
+    id: str
+    account_id: str
+    muted_at: str
 
 
 # ==================== links ====================
@@ -398,7 +419,20 @@ def _decode_mime_words(s: str) -> str:
     decoded = ""
     for text, charset in parts:
         if isinstance(text, bytes):
-            decoded += text.decode(charset or "utf-8", errors="replace")
+            # "unknown-8bit" (e qualquer outro nome de charset inválido/não
+            # suportado) não é um codec python de verdade — é só o marcador
+            # que email.header.decode_header devolve pra bytes >127 sem
+            # charset declarado no header (RFC 2047 não cobre esse caso).
+            # Chamar .decode("unknown-8bit") sempre estoura LookupError:
+            # unknown encoding, e isso derrubava a sincronização inteira
+            # por causa de UM único header malformado (visto nos logs).
+            # latin-1 nunca falha — mapeia byte a byte pros primeiros 256
+            # codepoints Unicode — então é o fallback mais seguro pra não
+            # perder o e-mail inteiro por um charset que o Python não conhece.
+            try:
+                decoded += text.decode(charset or "utf-8", errors="replace")
+            except LookupError:
+                decoded += text.decode("latin-1", errors="replace")
         else:
             decoded += text
     return decoded
@@ -456,6 +490,7 @@ def list_email_accounts(db=Depends(get_db)):
         {
             "id": r["id"], "label": r["label"], "imap_host": r["imap_host"],
             "imap_port": r["imap_port"], "username": r["username"],
+            "sync_by_default": bool(r["sync_by_default"]),
         }
         for r in rows
     ]
@@ -466,14 +501,15 @@ def create_email_account(payload: EmailAccountIn, db=Depends(get_db)):
     account_id = new_id()
     enc_password = encrypt_password(payload.app_password)
     db.execute(
-        "INSERT INTO email_accounts (id, label, imap_host, imap_port, username, app_password_enc) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (account_id, payload.label, payload.imap_host, payload.imap_port, payload.username, enc_password),
+        "INSERT INTO email_accounts (id, label, imap_host, imap_port, username, app_password_enc, sync_by_default) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (account_id, payload.label, payload.imap_host, payload.imap_port, payload.username, enc_password, int(payload.sync_by_default)),
     )
     db.commit()
     return {
         "id": account_id, "label": payload.label, "imap_host": payload.imap_host,
         "imap_port": payload.imap_port, "username": payload.username,
+        "sync_by_default": payload.sync_by_default,
     }
 
 
@@ -490,17 +526,21 @@ def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depend
     app_password_enc = (
         encrypt_password(payload.app_password) if payload.app_password else row["app_password_enc"]
     )
+    sync_by_default = (
+        payload.sync_by_default if payload.sync_by_default is not None else bool(row["sync_by_default"])
+    )
 
     db.execute(
         "UPDATE email_accounts SET label = ?, imap_host = ?, imap_port = ?, username = ?, "
-        "app_password_enc = ? WHERE id = ?",
-        (label, imap_host, imap_port, username, app_password_enc, account_id),
+        "app_password_enc = ?, sync_by_default = ? WHERE id = ?",
+        (label, imap_host, imap_port, username, app_password_enc, int(sync_by_default), account_id),
     )
     db.commit()
 
     return {
         "id": account_id, "label": label, "imap_host": imap_host,
         "imap_port": imap_port, "username": username,
+        "sync_by_default": sync_by_default,
     }
 
 
@@ -539,11 +579,24 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
     except OSError:
         raise HTTPException(status_code=422, detail="não foi possível conectar ao servidor imap")
 
+    # Busca e parseia todas as mensagens ANTES de tocar no banco — isso é
+    # puramente IMAP/rede (lento, cada .fetch() é um round-trip), sem
+    # nenhuma escrita no sqlite intercalada. Antes o INSERT de cada
+    # mensagem rolava dentro do mesmo loop dos .fetch(): como o sqlite abre
+    # a transação de escrita já no primeiro INSERT e só libera no commit()
+    # no final do loop inteiro, a conexão ficava seguns segundos (às vezes
+    # dezenas, a depender de quantos e-mails e da latência do servidor
+    # IMAP) com uma transação de escrita aberta — e com várias contas
+    # sincronizando ao mesmo tempo (scheduler roda todas em paralelo, ver
+    # email-sync-scheduler.js), outras conexões esbarravam nesse lock e
+    # estouravam "database is locked". Juntando as mensagens aqui em
+    # memória primeiro, a parte que efetivamente escreve fica pequena e
+    # rápida (só sqlite local, sem I/O de rede no meio).
     try:
         status, msg_ids = imap.search(None, "ALL")
         ids = msg_ids[0].split()[-limit:] if msg_ids and msg_ids[0] else []
 
-        new_count = 0
+        parsed_messages = []
         for mid in reversed(ids):
             status, msg_data = imap.fetch(mid, "(RFC822)")
             if status != "OK" or not msg_data or not msg_data[0]:
@@ -558,6 +611,18 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
             except (TypeError, ValueError):
                 received_at = now_iso()
 
+            parsed_messages.append((subject, sender, received_at, _extract_body_preview(msg)))
+    finally:
+        try:
+            imap.logout()
+        except Exception:
+            pass
+
+    # Só agora abre a transação de escrita — dedupe + insert de tudo que
+    # veio do IMAP, sem nenhuma chamada de rede no meio.
+    new_count = 0
+    try:
+        for subject, sender, received_at, body_preview in parsed_messages:
             # dedupe simples (sem message_id no schema v1): mesmo assunto +
             # remetente + data já em cache pra essa conta = já sincronizado
             dup = db.execute(
@@ -568,8 +633,6 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
             if dup:
                 continue
 
-            body_preview = _extract_body_preview(msg)
-
             db.execute(
                 "INSERT INTO email_cache "
                 "(id, account_id, subject, sender, received_at, is_read, summary_text, body_preview) "
@@ -578,11 +641,14 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
             )
             new_count += 1
         db.commit()
-    finally:
-        try:
-            imap.logout()
-        except Exception:
-            pass
+    except sqlite3.OperationalError as exc:
+        db.rollback()
+        if "locked" in str(exc).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="banco de dados ocupado por outra sincronização; tente novamente em alguns segundos",
+            )
+        raise
 
     register_action(
         db,
@@ -596,10 +662,16 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
     return {"account_id": account_id, "new_messages": new_count, "synced_at": now_iso()}
 
 
+def _muted_account_set(db) -> set:
+    rows = db.execute("SELECT account_id FROM muted_accounts").fetchall()
+    return {r["account_id"] for r in rows}
+
+
 @router.get("/email-cache", response_model=List[EmailCacheOut])
 def list_email_cache(
     account_id: Optional[str] = None,
     is_read: Optional[bool] = None,
+    exclude_muted: bool = False,
     db=Depends(get_db),
 ):
     query = "SELECT * FROM email_cache"
@@ -615,7 +687,11 @@ def list_email_cache(
     query += " ORDER BY received_at DESC"
 
     rows = db.execute(query, args).fetchall()
-    return [dict(r) | {"is_read": bool(r["is_read"])} for r in rows]
+    muted = _muted_account_set(db)
+    out = [dict(r) | {"is_read": bool(r["is_read"]), "is_muted": r["account_id"] in muted} for r in rows]
+    if exclude_muted:
+        out = [e for e in out if not e["is_muted"]]
+    return out
 
 
 @router.put("/email-cache/{cache_id}/read", response_model=EmailCacheOut)
@@ -626,7 +702,54 @@ def mark_email_read(cache_id: str, db=Depends(get_db)):
     db.execute("UPDATE email_cache SET is_read = 1 WHERE id = ?", (cache_id,))
     db.commit()
     updated = db.execute("SELECT * FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
-    return dict(updated) | {"is_read": bool(updated["is_read"])}
+    muted = _muted_account_set(db)
+    return dict(updated) | {"is_read": bool(updated["is_read"]), "is_muted": updated["account_id"] in muted}
+
+
+# ==================== contas silenciadas ====================
+# conceito de "conta silenciada" (não remetente/e-mail individual) —
+# ver schema.sql (muted_accounts) e o comentário de EmailCacheOut.is_muted
+# acima pro porquê. E-mails da conta continuam sendo sincronizados
+# e visíveis normalmente em /email-cache; só ficam de fora quando
+# exclude_muted=true é passado (usado pelo modal de notificações).
+
+@router.get("/muted-accounts", response_model=List[MutedAccountOut])
+def list_muted_accounts(db=Depends(get_db)):
+    rows = db.execute("SELECT * FROM muted_accounts ORDER BY muted_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.post("/muted-accounts", response_model=MutedAccountOut, status_code=201)
+def mute_account(payload: MutedAccountIn, db=Depends(get_db)):
+    account = db.execute("SELECT id FROM email_accounts WHERE id = ?", (payload.account_id,)).fetchone()
+    if not account:
+        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+
+    existing = db.execute(
+        "SELECT * FROM muted_accounts WHERE account_id = ?", (payload.account_id,)
+    ).fetchone()
+    if existing:
+        # idempotente — silenciar uma conta já silenciada devolve a existente
+        # em vez de estourar erro de unique constraint.
+        return dict(existing)
+
+    row_id = new_id()
+    db.execute(
+        "INSERT INTO muted_accounts (id, account_id, muted_at) VALUES (?, ?, ?)",
+        (row_id, payload.account_id, now_iso()),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM muted_accounts WHERE id = ?", (row_id,)).fetchone()
+    return dict(row)
+
+
+@router.delete("/muted-accounts/{muted_id}", status_code=204)
+def unmute_account(muted_id: str, db=Depends(get_db)):
+    row = db.execute("SELECT id FROM muted_accounts WHERE id = ?", (muted_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="conta silenciada não encontrada")
+    db.execute("DELETE FROM muted_accounts WHERE id = ?", (muted_id,))
+    db.commit()
 
 @router.get("/github-token", response_model=GithubTokenStatus)
 def get_github_token_status(db=Depends(get_db)):

@@ -57,15 +57,6 @@ WIDGET_CATALOG = {
         "max_span": 6,
         "default_span": 4,
     },
-    "org_notifications": {
-        "label": "notificações — organização (não lidos)",
-        "screens": ["nucleo", "perfil"],
-        "removable": True,
-        "min_span": 2,
-        "max_span": 6,
-        "default_span": 2,
-        "cross_module": True,
-    },
     "wallet": {
         "label": "wallet — bancos e contas",
         "screens": ["financas"],

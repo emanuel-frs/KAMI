@@ -307,7 +307,11 @@ CREATE TABLE IF NOT EXISTS email_accounts (
     imap_host         TEXT NOT NULL,
     imap_port         INTEGER NOT NULL,
     username          TEXT NOT NULL,
-    app_password_enc  TEXT NOT NULL    -- senha de app, criptografada localmente
+    app_password_enc  TEXT NOT NULL,   -- senha de app, criptografada localmente
+    sync_by_default   INTEGER NOT NULL DEFAULT 1  -- redesign da aba e-mail: contas "padrão"
+                                                    -- já vêm selecionadas na visualização
+                                                    -- combinada ao entrar na tela (ver
+                                                    -- plano-email-organizacao.md secao 3.1)
 );
 
 CREATE TABLE IF NOT EXISTS email_cache (
@@ -321,6 +325,22 @@ CREATE TABLE IF NOT EXISTS email_cache (
     body_preview TEXT                 -- trecho em TEXTO PURO do corpo (sem HTML), truncado
                                        -- na extração (ver app/routers/organizacao.py) — nunca
                                        -- o corpo original/HTML bruto, por segurança (XSS/tracking)
+);
+
+-- ---------------- CONTAS SILENCIADAS (notificações v2.1) ----------------
+-- silencia uma CONTA de e-mail inteira (não um remetente/e-mail
+-- individual) — decisão revisitada: quem tem mais de uma conta IMAP
+-- vinculada em Organização e recebe muito volume numa delas prefere
+-- silenciar a conta de uma vez a ter que silenciar remetente por
+-- remetente. E-mails da conta continuam sendo sincronizados/cacheados
+-- normalmente em email_cache (aparecem em Organização igual a
+-- qualquer outro), só ficam de fora da lista/contagem do sino de
+-- notificações. Substitui a antiga muted_senders (ver
+-- _migrate_muted_accounts em app/database.py pra migração dos dados).
+CREATE TABLE IF NOT EXISTS muted_accounts (
+    id         TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL UNIQUE REFERENCES email_accounts(id) ON DELETE CASCADE,
+    muted_at   TEXT NOT NULL
 );
 
 -- ---------------- METAS PESSOAIS (v2 — tipos, peso, financas+aprendizado) ----------------

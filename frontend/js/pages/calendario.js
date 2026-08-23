@@ -2,8 +2,7 @@ import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js
 import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { setPendingFocus } from "../components/pending-focus.js";
-import { TYPE_META, isPendingAlertEvent } from "../components/event-types.js";
-import { openCalendarAlertsModal } from "../modals/calendar-alerts-modal.js";
+import { TYPE_META } from "../components/event-types.js";
 import { openCalendarEventModal } from "../modals/calendar-event-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 
@@ -73,12 +72,6 @@ const MONTH_LABELS = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
-// ─── alertas "vencendo em breve" ────────────────────────────────────────
-// janela de antecedência pra considerar algo "vencendo em breve" (dias).
-// isPendingAlertEvent agora mora em components/event-types.js (também
-// usado por components/calendar-notifications.js pro resumo diário).
-const ALERT_WINDOW_DAYS = 7;
-
 // ─── estado ──────────────────────────────────────────────────────────────
 let containerEl = null;
 let viewYear = 0;
@@ -138,70 +131,12 @@ async function loadMonth() {
   renderDayPanel();
 }
 
-// ─── alertas: carregamento ────────────────────────────────────────────────
-// reaproveita o mesmo GET /calendario/events já usado pra grade — só que
-// sempre relativo a "hoje" (independe do mês que está sendo navegado), por
-// isso busca os meses separadamente em vez de usar `eventsByDate`. O modal
-// em si (render + interação) mora em modals/calendar-alerts-modal.js.
-let pendingAlerts = [];
-
-async function loadAlerts() {
-  const t = todayParts();
-  const windowEndDate = new Date(Date.UTC(t.year, t.month - 1, t.day + ALERT_WINDOW_DAYS));
-  const windowEndStr = `${windowEndDate.getUTCFullYear()}-${pad2(windowEndDate.getUTCMonth() + 1)}-${pad2(windowEndDate.getUTCDate())}`;
-
-  const months = new Set([
-    monthStr(t.year, t.month),
-    monthStr(windowEndDate.getUTCFullYear(), windowEndDate.getUTCMonth() + 1),
-  ]);
-
-  let events;
-  try {
-    const results = await Promise.all([...months].map((m) => listEvents(m)));
-    events = results.flat();
-  } catch (err) {
-    pendingAlerts = [];
-    renderAlertsBadge();
-    return;
-  }
-
-  pendingAlerts = events
-    .filter((e) => isPendingAlertEvent(e) && e.date <= windowEndStr)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  renderAlertsBadge();
-}
-
-function renderAlertsBadge() {
-  const badgeEl = containerEl?.querySelector("#cal-alerts-badge");
-  if (!badgeEl) return;
-  if (pendingAlerts.length) {
-    badgeEl.textContent = pendingAlerts.length > 9 ? "9+" : String(pendingAlerts.length);
-    badgeEl.hidden = false;
-  } else {
-    badgeEl.hidden = true;
-  }
-}
-
-function handleAlertsBtnClick() {
-  const t = todayParts();
-  const todayStr = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
-  openCalendarAlertsModal({
-    alerts: pendingAlerts,
-    todayStr,
-    onSelect: ({ module, type, recordId }) => {
-      setPendingFocus(type, recordId);
-      document.querySelector(`.nav-link[data-page="${module}"]`)?.click();
-    },
-  });
-}
-
 // ─── eventos manuais: criar/editar ────────────────────────────────────────
 function handleNewEventClick() {
   openCalendarEventModal({
     date: selectedDate || undefined,
     onSaved: async () => {
-      await Promise.all([loadMonth(), loadAlerts()]);
+      await loadMonth();
     },
   });
 }
@@ -210,10 +145,10 @@ function handleEditEventoClick(evtRow) {
   openCalendarEventModal({
     event: toEventoRecord(evtRow),
     onSaved: async () => {
-      await Promise.all([loadMonth(), loadAlerts()]);
+      await loadMonth();
     },
     onDeleted: async () => {
-      await Promise.all([loadMonth(), loadAlerts()]);
+      await loadMonth();
     },
   });
 }
@@ -227,7 +162,7 @@ async function handleEventoDrop(eventoId, newDate) {
     showErrorModal(err.message, "erro ao reagendar evento");
     return;
   }
-  await Promise.all([loadMonth(), loadAlerts()]);
+  await loadMonth();
 }
 
 // ─── render: grade do mês ───────────────────────────────────────────────
@@ -520,10 +455,6 @@ export async function mount(container) {
         <button type="button" class="btn icon-btn-square" id="cal-next" data-tooltip="próximo mês">${icon("arrow-right", { size: 13 })}</button>
       </div>
       <div class="cal-toolbar-actions">
-        <button type="button" class="btn icon-btn-square" id="cal-alerts-btn" data-tooltip="vencendo em breve">
-          ${icon("bell", { size: 13 })}
-          <span class="cal-alerts-badge" id="cal-alerts-badge" hidden></span>
-        </button>
         <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;novo evento</button>
         <button type="button" class="btn sm" id="cal-today-btn">hoje</button>
       </div>
@@ -550,10 +481,9 @@ export async function mount(container) {
   container.querySelector("#cal-prev").addEventListener("click", () => shiftMonth(-1));
   container.querySelector("#cal-next").addEventListener("click", () => shiftMonth(1));
   container.querySelector("#cal-today-btn").addEventListener("click", goToToday);
-  container.querySelector("#cal-alerts-btn").addEventListener("click", handleAlertsBtnClick);
   container.querySelector("#cal-new-event-btn").addEventListener("click", handleNewEventClick);
 
-  await Promise.all([loadMonth(), loadAlerts()]);
+  await loadMonth();
 }
 
 export function unmount() {
@@ -563,6 +493,6 @@ export function unmount() {
   eventsByDate = new Map();
   selectedDate = null;
   activeFilters.clear();
-  pendingAlerts = [];
+  pendingAlertsCount = 0;
   loadToken++;
 }

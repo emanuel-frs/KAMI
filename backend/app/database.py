@@ -34,9 +34,24 @@ def now_iso() -> str:
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    # timeout=30: quanto tempo o sqlite espera por um lock liberado antes de
+    # estourar "database is locked" (default do driver é só 5s — curto
+    # demais pra operações que ficam mais tempo com a conexão aberta, tipo
+    # o sync de e-mail via IMAP; ver sync_email_account em routers/organizacao.py).
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL: sem isso, todo mundo usa o rollback journal padrão, onde qualquer
+    # transação de escrita bloqueia TODAS as outras conexões (inclusive
+    # leituras) até dar commit. Com várias contas de e-mail sincronizando em
+    # paralelo (email-sync-scheduler.js roda todas via Promise.all a cada
+    # tick, e pode coincidir com um clique manual de sync), isso é a causa
+    # raiz do "database is locked" visto nos logs — WAL permite leitores
+    # concorrentes com um único escritor por vez, e busy_timeout (em ms,
+    # espelhando o timeout acima) faz escritores concorrentes esperarem a
+    # vez em vez de falhar na hora.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -263,6 +278,72 @@ def _migrate_income_v2(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_remove_org_notifications_widget(conn: sqlite3.Connection) -> None:
+    """
+    Remove qualquer instância do widget `org_notifications` de layouts
+    já salvos (notificações v2 — vira sino global, não widget de
+    dashboard mais). Sem isso, quem já tinha adicionado esse widget ao
+    grid de Perfil/Núcleo ficaria com uma linha em dashboard_widgets
+    apontando pra um widget_type que não existe mais em WIDGET_CATALOG
+    (app/widgets.py), o que o frontend não sabe renderizar (buraco no
+    grid) e o backend não sabe mais validar. Idempotente — DELETE sem
+    match nenhum é um no-op silencioso.
+    """
+    conn.execute("DELETE FROM dashboard_widgets WHERE widget_type = 'org_notifications'")
+    conn.commit()
+
+
+def _migrate_muted_accounts(conn: sqlite3.Connection) -> None:
+    """
+    Substitui `muted_senders` (silenciar por remetente individual) por
+    `muted_accounts` (silenciar a conta de e-mail inteira) — ver
+    comentário da tabela nova em schema.sql pro motivo da mudança.
+    `CREATE TABLE IF NOT EXISTS` já cria muted_accounts do zero em
+    bancos novos; aqui só cuida de quem já tinha muted_senders: migra
+    o melhor esforço (silencia a(s) conta(s) de onde já veio algum
+    e-mail de cada remetente silenciado) e dropa a tabela antiga.
+    Idempotente — a checagem de existência faz o resto virar no-op
+    depois da primeira vez que rodar.
+    """
+    exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='muted_senders'"
+    ).fetchone()
+    if not exists:
+        return
+
+    senders = conn.execute("SELECT sender FROM muted_senders").fetchall()
+    for row in senders:
+        accounts = conn.execute(
+            "SELECT DISTINCT account_id FROM email_cache WHERE sender = ?", (row["sender"],)
+        ).fetchall()
+        for acc in accounts:
+            already = conn.execute(
+                "SELECT id FROM muted_accounts WHERE account_id = ?", (acc["account_id"],)
+            ).fetchone()
+            if not already:
+                conn.execute(
+                    "INSERT INTO muted_accounts (id, account_id, muted_at) VALUES (?, ?, ?)",
+                    (new_id(), acc["account_id"], now_iso()),
+                )
+
+    conn.execute("DROP TABLE IF EXISTS muted_senders")
+    conn.commit()
+
+
+def _migrate_email_accounts_sync_by_default(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra quem já tinha um kami.db criado antes da coluna
+    sync_by_default existir (redesign da aba e-mail — ver
+    plano-email-organizacao.md secao 3.1). Default 1 pra não quebrar
+    contas já cadastradas: continuam aparecendo pré-selecionadas na
+    visualização combinada, como se sempre tivessem sido "padrão".
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()]
+    if "sync_by_default" not in cols:
+        conn.execute("ALTER TABLE email_accounts ADD COLUMN sync_by_default INTEGER NOT NULL DEFAULT 1")
+        conn.commit()
+
+
 def _migrate_drop_compra_parcelada_aplicacoes(conn: sqlite3.Connection) -> None:
     """
     Dropa `compra_parcelada_aplicacoes` (item 3 do plano de ajustes de
@@ -294,7 +375,10 @@ def init_db() -> None:
     _migrate_goals_v2(conn)
     _migrate_recorrentes_conta_transacao(conn)
     _migrate_income_v2(conn)
+    _migrate_remove_org_notifications_widget(conn)
     _migrate_drop_compra_parcelada_aplicacoes(conn)
+    _migrate_muted_accounts(conn)
+    _migrate_email_accounts_sync_by_default(conn)
 
     _seed_defaults(conn)
 

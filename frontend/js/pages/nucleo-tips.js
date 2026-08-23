@@ -15,10 +15,9 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  * cinco abaixo removido pelo usuário) simplesmente não aparece na
  * lista — sem precisar de nenhum guard especial nos dois casos.
  *
- * `org_notifications` agora TEM entrada em WIDGET_TEXTS — é opcional
- * (não faz parte do layout padrão do Núcleo, então normalmente nem
- * está na tela na primeira visita), mas se o usuário adicionar pelo
- * catálogo, ganha dica como qualquer outro widget do grid.
+ * `org_notifications` saiu do catálogo de widgets (notificações v2 —
+ * virou o sino global na sidebar, não widget de dashboard mais), então
+ * não tem mais entrada aqui.
  */
 const SCREEN = "nucleo";
 
@@ -28,7 +27,6 @@ const WIDGET_TEXTS = {
   log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem.",
   registrar: "registre qualquer ação manual pra ganhar xp direto num atributo.",
   achievements: "marcos que destravam sozinhos conforme você usa o app.",
-  org_notifications: "resumo do módulo organização: e-mails não lidos e contas conectadas, direto aqui no núcleo.",
 };
 
 // único passo que não é um widget do catálogo — o botão de adicionar
