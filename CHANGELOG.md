@@ -4,6 +4,17 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.1] - 2026-08-24
+
+### Adicionado
+- workflow de CI (GitHub Actions) para build automático dos instaladores Linux e Windows a cada tag de release
+
+### Documentação
+- atualiza README (versão, calendário/notificações, remove screenshots)
+
+### Manutenção
+- sincroniza versão do Tauri com v1.3.0
+
 ## [1.3.0] - 2026-08-22
 
 ### Adicionado
