@@ -6,14 +6,15 @@
  * O botão de ajuda vive na sidebar (fora do container de qualquer
  * página — ver index.html/app.js), então não tem acesso direto ao
  * `grid` da página montada no momento. Em vez disso, cada página que
- * tiver uma sequência de dicas (hoje só nucleo.js) registra sua própria
- * função de replay ao montar e desregistra ao desmontar; o botão de
- * ajuda só chama o que estiver registrado nesse momento.
+ * tiver uma sequência de dicas (hoje nucleo.js, perfil.js, financas.js,
+ * metas.js, aprendizado.js, organizacao.js e calendario.js) registra
+ * sua própria função de replay ao montar e desregistra ao desmontar;
+ * o botão de ajuda só chama o que estiver registrado nesse momento.
  *
- * Sem registro nenhum (telas que ainda não ganharam dicas contextuais,
- * ver seção 8 do plano) => getScreenTipsReplay() volta null, e quem
- * consome isso (help-menu.js) desabilita a opção em vez de tentar
- * chamar algo que não existe.
+ * Sem registro nenhum (telas que ainda não ganharam dicas contextuais)
+ * => getScreenTipsReplay() volta null, e quem consome isso
+ * (help-menu.js) desabilita a opção em vez de tentar chamar algo que
+ * não existe.
  */
 let currentReplay = null;
 

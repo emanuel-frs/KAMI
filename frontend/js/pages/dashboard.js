@@ -3,10 +3,10 @@ import { initGrid, availableToAdd } from "../widgets/grid.js";
 import { WIDGET_CATALOG, loadWidgetCatalog } from "../widgets/registry.js";
 
 /**
- * Perfil e Núcleo são as duas únicas telas com dashboard configurável
+ * Perfil, Núcleo e Finanças são as três telas com dashboard configurável
  * (decisão 17) — compartilham exatamente o mesmo mecanismo de toolbar
  * "+ adicionar widget" + popover de catálogo + grid.js, só mudando o
- * `screen`. Em vez de duplicar isso nos dois arquivos de página, cada
+ * `screen`. Em vez de duplicar isso nos três arquivos de página, cada
  * um vira só uma chamada a createDashboardPage(screen, options).
  *
  * options.title / options.tag / options.description são opcionais —
@@ -45,19 +45,26 @@ export function createDashboardPage(screen, options = {}) {
     }));
 
     /**
-     * Não basta injetar os widgets faltantes — precisa também GARANTIR
-     * que os não-removíveis (ex: profile) fiquem sempre na frente do
-     * array, mesmo quando já existiam no layout salvo (ex: usuário
-     * arrastou o widget pra outra posição antes dessa regra existir,
-     * ou salvou um layout antigo). O CSS (data-pinned, grid-column/row-
-     * start:1 !important) só evita a sobreposição visual se o card já
-     * for o primeiro no DOM — auto-placement do grid não "reserva"
-     * espaço pra um item que vai ser forçado depois. Por isso a ordem
-     * do array também precisa ser corrigida aqui, não só a presença.
+     * Widgets "pinned" (hoje: só profile) precisam ficar SEMPRE na frente
+     * do array, mesmo quando já existiam no layout salvo — o CSS
+     * (data-pinned, grid-column/row-start:1 !important) só evita a
+     * sobreposição visual se o card já for o primeiro no DOM (ver
+     * grid.js). Widgets apenas obrigatórios (removable:false) mas NÃO
+     * pinned — ex: carreira_perfil, que é obrigatório mas deliberadamente
+     * arrastável (ver carreira-perfil.js) — não entram nessa reordenação:
+     * forçá-los pro início aqui desfazia o reorder salvo pelo usuário a
+     * cada vez que a tela era montada (o bug reportado — tamanho salvava,
+     * posição não). Esses só precisam estar PRESENTES; sua posição vem
+     * do layout salvo como qualquer outro widget.
      */
-    const existingRequired = widgets.filter((w) => requiredTypes.has(w.widget_type));
-    const rest = widgets.filter((w) => !requiredTypes.has(w.widget_type));
-    const reordered = [...missingAsWidgets, ...existingRequired, ...rest];
+    const pinnedTypes = new Set(
+      required.filter(({ def }) => def.pinned).map((r) => r.type)
+    );
+    const pinnedMissing = missingAsWidgets.filter((w) => pinnedTypes.has(w.widget_type));
+    const otherMissing = missingAsWidgets.filter((w) => !pinnedTypes.has(w.widget_type));
+    const pinnedExisting = widgets.filter((w) => pinnedTypes.has(w.widget_type));
+    const rest = widgets.filter((w) => !pinnedTypes.has(w.widget_type));
+    const reordered = [...pinnedMissing, ...pinnedExisting, ...otherMissing, ...rest];
 
     const changed =
       missing.length > 0 ||

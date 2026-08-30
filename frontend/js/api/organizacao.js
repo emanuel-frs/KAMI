@@ -15,7 +15,8 @@ export const deleteGithubRepo = (repoId) => del(`/api/organizacao/github-repos/$
 export const listEmailAccounts = () => get("/api/organizacao/email-accounts");
 export const createEmailAccount = (data) => post("/api/organizacao/email-accounts", data);
 export const updateEmailAccount = (accountId, data) => put(`/api/organizacao/email-accounts/${accountId}`, data);
-export const syncEmailAccount = (accountId) => post(`/api/organizacao/email-accounts/${accountId}/sync`, {});
+export const syncEmailAccount = (accountId, { automatic = false } = {}) =>
+  post(`/api/organizacao/email-accounts/${accountId}/sync${automatic ? "?automatic=true" : ""}`, {});
 export const deleteEmailAccount = (accountId) => del(`/api/organizacao/email-accounts/${accountId}`);
 
 // cache de e-mail (leitura)

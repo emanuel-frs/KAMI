@@ -82,6 +82,12 @@ const ICON_PATHS = {
   // pages/organizacao.js) — mesmo glifo "bell-off" do Lucide.
   "bell-off":
     '<path d="M13.73 21a2 2 0 0 1-3.46 0" /> <path d="M18.63 13A17.89 17.89 0 0 1 18 8" /> <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /> <path d="M18 8a6 6 0 0 0-9.33-5" /> <path d="m2 2 20 20" />',
+  // adicionados pro modal de configurações com abas (settings-modal.js)
+  // — aba "perfil" e aba "aparência" respectivamente, mesmo estilo
+  // outline/Lucide do resto do arquivo.
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /> <circle cx="12" cy="7" r="4" />',
+  palette:
+    '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /> <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /> <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /> <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /> <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />',
 };
 
 const NAMES = new Set(Object.keys(ICON_PATHS));

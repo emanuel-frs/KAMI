@@ -42,6 +42,11 @@ const COMPONENT_PATHS = {
   financas_grafico_categorias: "../charts/financas-grafico-categorias.js",
   financas_grafico_evolucao: "../charts/financas-grafico-evolucao.js",
   financas_grafico_limites: "../charts/financas-grafico-limites.js",
+  carreira_perfil: "./carreira-perfil.js",
+  carreira_interesses: "./carreira-interesses.js",
+  carreira_posicoes: "./carreira-posicoes.js",
+  carreira_formacoes: "./carreira-formacoes.js",
+  carreira_salario: "./carreira-salario.js",
 };
 
 export const WIDGET_CATALOG = {};

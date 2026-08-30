@@ -7,7 +7,7 @@ import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
  * interrogação ao lado do botão de configurações, sempre visível. Ao
  * tocar, mostra duas opções:
  *
- *   1. "rever tour geral" — sempre disponível, reabre o tour de 7 telas
+ *   1. "rever tour geral" — sempre disponível, reabre o tour de 8 telas
  *      (onboarding-modal.js) do início, sem mexer em onboarding_completed
  *      (mesmo comportamento que "ver tutorial novamente" no widget de
  *      perfil, só que acessível de qualquer tela).

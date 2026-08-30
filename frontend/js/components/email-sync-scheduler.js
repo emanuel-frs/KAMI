@@ -28,6 +28,15 @@ import { sendNativeNotification } from "./native-notify.js";
  * Sem nenhuma conta cadastrada, o tick não faz nada (sem custo). Roda
  * só enquanto o app está aberto — mesma limitação que já existe pros
  * lembretes de calendário, não é regressão.
+ *
+ * Cada sync daqui passa `automatic: true` pra
+ * api/organizacao.js:syncEmailAccount() — o backend usa essa flag pra
+ * NÃO creditar XP nem gravar action_log (ver sync_email_account em
+ * routers/organizacao.py): um tick a cada 5min o dia inteiro não é
+ * uma ação do usuário, e inflava tanto o nível quanto o "log recente"
+ * (widgets/log.js) com dezenas de "sincronizou e-mail" repetidos. Sync
+ * manual (organização, aba chaves de configurações) continua sem essa
+ * flag e conta normalmente.
  */
 
 const CHECK_INTERVAL_MS = 5 * 60_000; // 5min
@@ -97,7 +106,7 @@ async function runCheck() {
 
     const results = await Promise.all(
       accounts.map((acc) =>
-        syncEmailAccount(acc.id).catch((err) => {
+        syncEmailAccount(acc.id, { automatic: true }).catch((err) => {
           console.error(`email-sync-scheduler: falha ao sincronizar conta ${acc.label}:`, err);
           return null;
         })

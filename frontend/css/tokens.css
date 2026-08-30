@@ -26,6 +26,7 @@
   --accent-dim: color-mix(in srgb, var(--accent) 58%, black);
   --amber: #b3a06a;
   --red: #b06060;
+  --green: #7fd97f;
 
   --text: #c9c9c9;
   --text-bright: #f2f2f2;

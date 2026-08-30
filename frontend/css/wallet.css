@@ -71,7 +71,7 @@
 .bank-account{ padding:10px 14px; position:relative; }
 .bank-account + .bank-account{ border-top:1px dashed var(--border-soft); }
 .ba-head{ display:flex; align-items:center; gap:8px; margin-bottom:7px; }
-.ba-name{ font-size:11px; color:var(--text-bright); letter-spacing:0.3px; flex:1; }
+.ba-name{ font-size:11px; color:var(--text-bright); letter-spacing:0.3px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ba-edit, .ba-remove{ color:var(--text-faint); font-size:12px; cursor:pointer; opacity:0.6; }
 .ba-edit:hover{ color:var(--accent); opacity:1; }
 .ba-remove:hover{ color:var(--red); opacity:1; }

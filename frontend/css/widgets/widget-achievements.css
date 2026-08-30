@@ -13,7 +13,7 @@
   min-height: 0;
   max-height: 320px; /* teto padrão — só vale enquanto o card tem altura automática */
   overflow-y: auto;
-  padding-right: 3px; /* separa o conteúdo da scrollbar */
+  padding-right: var(--scroll-gutter);
 }
 .card[data-manual="1"] .ach-grid {
   max-height: none;

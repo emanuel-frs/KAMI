@@ -102,11 +102,23 @@ def test_put_layout_rejects_widget_not_allowed_on_screen(client):
     assert resp.status_code == 422
 
 
-def test_put_layout_rejects_width_below_min_span(client):
-    # 'log' tem min_span=2
+def test_put_layout_accepts_width_at_min_span_one(client):
+    # todo widget do catálogo tem min_span=1 (qualquer widget pode ser
+    # redimensionado pro tamanho mínimo da grade) — 'log' aqui só como
+    # representante, não é especial em relação aos demais tipos
     resp = client.put(
         "/api/dashboard/nucleo",
         json={"widgets": [{"widget_type": "log", "width": 1}]},
+    )
+    assert resp.status_code == 200
+
+
+def test_put_layout_rejects_width_below_one(client):
+    # width=0 nem chega a bater o min_span=1 do catálogo — barrado antes
+    # disso pela validação de campo (Field(ge=1)) em WidgetLayoutItem
+    resp = client.put(
+        "/api/dashboard/nucleo",
+        json={"widgets": [{"widget_type": "log", "width": 0}]},
     )
     assert resp.status_code == 422
 

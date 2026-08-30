@@ -1,0 +1,342 @@
+/* ── carreira: widget de interesses profissionais (tags) ─────────────────
+ * carreira-interesses.js — lista livre, sem os campos/valores de
+ * .vm-row (já coberto por widget-organizacao.css, reaproveitado em
+ * carreira-perfil.js pro bloco área atual/meta).
+ */
+.ci-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start; /* mesmo motivo do .ach-grid (widget-achievements.css):
+                            sem isso, com poucas tags o flex esticaria as linhas
+                            pra preencher a altura em vez de crescer de cima pra
+                            baixo e deixar sobra embaixo */
+  gap: 8px;
+  margin-bottom: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 260px; /* teto padrão — só vale enquanto o card tem altura automática */
+  overflow-y: auto;
+  padding-right: var(--scroll-gutter);
+}
+.card[data-manual="1"] .ci-tags {
+  max-height: none;
+}
+
+.ci-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.2px;
+}
+
+.ci-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+}
+.ci-tag-remove:hover { color: var(--red); }
+
+.ci-add-row {
+  display: flex;
+  gap: 6px;
+}
+.ci-add-row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── carreira: linha do tempo de posições (Parte 2) ──────────────────────
+ * carreira-posicoes.js — reaproveita .divida-row/.divida-* como base
+ * conceitual (widget-financas.css), mas com um traço vertical (.cp-dot
+ * + borda esquerda do .cp-timeline) pra dar leitura de linha do tempo.
+ * Ordenação/hierarquia visual "estilo LinkedIn" fica pro polish da
+ * Parte 5 — isso aqui é só o traço básico.
+ */
+.cp-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border-soft);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 260px; /* teto padrão — só vale enquanto o card tem altura automática */
+  overflow-y: auto;
+  padding-right: var(--scroll-gutter);
+}
+.card[data-manual="1"] .cp-timeline {
+  max-height: none;
+}
+
+.cp-row {
+  position: relative;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+.cp-row.atual { border-color: var(--accent-dim); }
+
+.cp-dot {
+  position: absolute;
+  left: -20px;
+  top: 12px;
+  width: 7px;
+  height: 7px;
+  background: var(--text-faint);
+}
+.cp-row.atual .cp-dot { background: var(--accent); }
+
+.cp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cp-role {
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-role:hover { color: var(--accent); }
+
+.cp-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  flex: 0 0 auto;
+}
+.cp-remove:hover { color: var(--red); }
+
+.cp-company {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.cp-dates {
+  color: var(--text-faint);
+  font-size: 10px;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ── carreira: formação acadêmica (Parte 3) ──────────────────────────────
+ * carreira-formacoes.js — mesmo padrão de cartão de .cp-row (linha do
+ * tempo de posições), mas sem o traço vertical (formações não têm uma
+ * leitura cronológica tão forte quanto posições — várias "em andamento"
+ * ao mesmo tempo são o normal, não a exceção). A tag de status usa a
+ * mesma paleta de sinalização do resto do app: dim/neutro pra
+ * "em andamento", accent pra "concluído" (é a conquista), texto apagado
+ * pra "trancado".
+ */
+.ce-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 260px; /* teto padrão — só vale enquanto o card tem altura automática */
+  overflow-y: auto;
+  padding-right: var(--scroll-gutter);
+}
+.card[data-manual="1"] .ce-list {
+  max-height: none;
+}
+
+.ce-row {
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+.ce-row.status-concluido { border-color: var(--accent-dim); }
+
+.ce-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ce-curso {
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ce-curso:hover { color: var(--accent); }
+
+.ce-status-tag {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+}
+.ce-status-concluido {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+.ce-status-trancado { color: var(--text-faint); }
+
+.ce-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.ce-remove:hover { color: var(--red); }
+
+.ce-instituicao {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.ce-previsao {
+  color: var(--text-faint);
+  font-size: 10px;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ── carreira: evolução salarial (Parte 4) ───────────────────────────────
+ * carreira-salario.js — a lista de registros segue o mesmo padrão
+ * simples de .cp-row (linha do tempo de posições), sem o traço
+ * vertical — reajustes não têm a mesma leitura cronológica contínua de
+ * posições.
+ */
+/* ── carreira: gráfico de evolução salarial ──────────────────────────────
+ * Reaproveita a base de gráfico de linha já usada em finanças (evolução
+ * patrimonial — ver widget-financas-extra-graficos.css: .chart-svg/
+ * .chart-area/.chart-line/.chart-dot/.chart-dot-hit/.chart-tooltip), só
+ * que com eixo X pelos próprios registros (datas reais dos reajustes) em
+ * vez de uma janela fixa de N meses. Sem bloco de estatísticas, sem
+ * rótulo de valor acima do último ponto e sem datas cravadas no eixo —
+ * só o traço + pontos; data/valor/motivo de cada ponto aparecem no
+ * tooltip do hover (mesmo componente global, chart-tooltip.js). Isso
+ * mantém o widget tão baixo em altura mínima quanto
+ * carreira-posicoes.js — sem texto reservando espaço vertical no svg,
+ * o gráfico cabe numa faixa bem mais curta.
+ */
+.cs-widget {
+  container-type: inline-size;
+  container-name: cs-widget;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* .cs-widget é o único filho direto de .card-body agora — sem
+                    isso o .cs-list interno perde o flex-fill que o card-body
+                    (widgets/card-base.css) dava antes, quando a lista era
+                    filha direta dele; mesmo raciocínio do próprio card-body */
+}
+.cs-chart-wrap {
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 380 / 90; /* mesma proporção do viewBox (CHART_W/CHART_H) —
+                              garante que o svg escale uniformemente em vez
+                              de esticar/distorcer o traçado quando a
+                              largura do card muda (preserveAspectRatio=
+                              "xMidYMid meet" no svg fecha o encaixe: o box
+                              já casa com o viewBox, então nunca sobra
+                              letterbox nem precisa cortar nada). Bem mais
+                              baixo (380x90, ~4.2:1) do que quando ainda
+                              existiam rótulo de valor e eixo de datas
+                              desenhados dentro do svg — sem esses textos
+                              reservando altura, a faixa do gráfico fica
+                              tão enxuta quanto o resto do widget (mesma
+                              altura mínima de carreira-posicoes.js). */
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* ancora o .chart-tooltip (ver chart-tooltip.js) */
+}
+
+.cs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 130px; /* teto padrão dos outros widgets de lista (cp-timeline,
+                         ce-list) é 260px — aqui reduzido porque o gráfico
+                         (~150px) + botão "+ registro" já ocupam boa parte
+                         da altura do card antes da lista nem começar; com
+                         260px de teto pra lista SOMADO a esse gráfico, o
+                         widget inteiro ficava bem mais alto que
+                         carreira-posicoes.js (linha do tempo), que não tem
+                         gráfico. 140px é o valor que faz o card final
+                         (gráfico + toolbar + lista) bater aproximadamente
+                         a mesma altura total — a lista em si fica mais
+                         baixa que as outras, só pra compensar o espaço que
+                         o gráfico consome acima dela. */
+  overflow-y: auto;
+  padding-right: var(--scroll-gutter);
+}
+.card[data-manual="1"] .cs-list {
+  max-height: none;
+}
+
+.cs-row {
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+
+.cs-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cs-amount {
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cs-amount:hover { color: var(--accent); }
+
+.cs-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  flex: 0 0 auto;
+}
+.cs-remove:hover { color: var(--red); }
+
+.cs-meta {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 4px;
+}

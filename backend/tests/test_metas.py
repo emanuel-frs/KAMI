@@ -82,6 +82,13 @@ def _complete_milestone(client, milestone_id):
     return resp.json()
 
 
+def _create_education(client, curso="ciência da computação", instituicao="USP", nivel="graduacao", **extra):
+    payload = {"curso": curso, "instituicao": instituicao, "nivel": nivel, **extra}
+    resp = client.post("/api/carreira/formacoes", json=payload)
+    assert resp.status_code == 201
+    return resp.json()
+
+
 # ── criação ──────────────────────────────────────────────────────────────────
 
 def test_create_goal_starts_ativa_with_zero_progress(client):
@@ -333,6 +340,16 @@ def test_completing_first_goal_unlocks_quest_achievement(client):
     assert quest["unlocked_at"] is not None
 
 
+def test_completing_five_goals_unlocks_colecionador_de_metas(client):
+    for i in range(5):
+        goal = _create_goal(client, title=f"meta {i}", target_value=10)
+        client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 10})
+
+    achievements = client.get("/api/nucleo/achievements").json()
+    unlocked_titles = {a["title"] for a in achievements if a["unlocked"]}
+    assert "colecionador de metas" in unlocked_titles
+
+
 # ── tipos novos (v2) ─────────────────────────────────────────────────────────
 
 def test_create_goal_accepts_new_types_with_unit_label(client):
@@ -529,3 +546,81 @@ def test_aprendizado_goal_rejects_manual_contribution(client):
     goal = _create_goal(client, type_="aprendizado", target_value=1, linked_track_id=track["id"])
     resp = client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 1})
     assert resp.status_code == 422
+
+
+# ── conexão com Carreira (v3 — Parte 3) ──────────────────────────────────────
+
+def test_academica_goal_requires_linked_education(client):
+    resp = client.post(
+        "/api/metas", json={"title": "terminar mestrado", "type": "academica", "target_value": 1}
+    )
+    assert resp.status_code == 422
+
+
+def test_academica_goal_rejects_unknown_education(client):
+    resp = client.post(
+        "/api/metas",
+        json={"title": "x", "type": "academica", "target_value": 1, "linked_education_id": "does-not-exist"},
+    )
+    assert resp.status_code == 422
+
+
+def test_academica_goal_backfills_progress_when_education_already_concluded(client):
+    education = _create_education(client, status="concluido")
+
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+    assert goal["current_value"] == 1
+    assert goal["status"] == "concluida"
+
+
+def test_academica_goal_stays_at_zero_while_education_in_progress(client):
+    education = _create_education(client)  # em_andamento
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+    assert goal["current_value"] == 0
+    assert goal["status"] == "ativa"
+
+
+def test_academica_goal_completes_when_education_concludes(client):
+    education = _create_education(client)
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+
+    client.put(f"/api/carreira/formacoes/{education['id']}", json={"status": "concluido"})
+
+    updated = _get_goal(client, goal["id"])
+    assert updated["current_value"] == 1
+    assert updated["status"] == "concluida"
+    assert _metas_xp(client) == 30  # bônus de conclusão, peso medio
+
+
+def test_academica_goal_does_not_uncomplete_when_education_reopened(client):
+    education = _create_education(client)
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+    client.put(f"/api/carreira/formacoes/{education['id']}", json={"status": "concluido"})
+    assert _get_goal(client, goal["id"])["status"] == "concluida"
+
+    client.put(f"/api/carreira/formacoes/{education['id']}", json={"status": "em_andamento"})
+    assert _get_goal(client, goal["id"])["status"] == "concluida"
+
+
+def test_academica_goal_rejects_manual_contribution(client):
+    education = _create_education(client)
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+    resp = client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 1})
+    assert resp.status_code == 422
+
+
+def test_academica_goal_shows_linked_education_name(client):
+    education = _create_education(client, curso="mestrado em IA")
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+    assert goal["linked_education_name"] == "mestrado em IA"
+
+
+def test_deleting_education_sets_linked_goal_education_id_to_null(client):
+    education = _create_education(client)
+    goal = _create_goal(client, type_="academica", target_value=1, linked_education_id=education["id"])
+
+    client.delete(f"/api/carreira/formacoes/{education['id']}")
+
+    updated = _get_goal(client, goal["id"])
+    assert updated["linked_education_id"] is None
+    assert updated["linked_education_name"] is None

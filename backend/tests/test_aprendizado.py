@@ -274,3 +274,62 @@ def test_reorder_tracks_rejects_unknown_id(client):
     # nada deve ter sido alterado por uma tentativa rejeitada
     listed = client.get("/api/aprendizado/tracks").json()
     assert [t["name"] for t in listed] == ["Rust", "Elixir"]
+
+
+# ── was_ever_stale / achievement 'trilha em dia' ─────────────────────────────
+
+def test_completing_never_stale_milestone_unlocks_trilha_em_dia(client):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+
+    resp = client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"})
+    assert resp.status_code == 200
+
+    achievements = client.get("/api/nucleo/achievements").json()
+    unlocked_titles = {a["title"] for a in achievements if a["unlocked"]}
+    assert "trilha em dia" in unlocked_titles
+
+
+def test_completing_previously_stale_milestone_does_not_unlock_trilha_em_dia(client, db_conn):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+
+    # simula 31 dias sem atividade, direto no banco (bypassa a API)
+    old_date = (datetime.datetime.utcnow() - datetime.timedelta(days=31)).isoformat()
+    db_conn.execute(
+        "UPDATE milestones SET last_activity_at = ?, started_at = ? WHERE id = ?",
+        (old_date, old_date, m1["id"]),
+    )
+    db_conn.commit()
+
+    # GET aplica a staleness lazy (_apply_staleness) e marca was_ever_stale = 1
+    client.get(f"/api/aprendizado/tracks/{track['id']}/milestones")
+
+    resp = client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"})
+    assert resp.status_code == 200
+
+    achievements = client.get("/api/nucleo/achievements").json()
+    unlocked_titles = {a["title"] for a in achievements if a["unlocked"]}
+    assert "trilha em dia" not in unlocked_titles
+
+
+def test_was_ever_stale_persists_after_reopening_milestone(client, db_conn):
+    track = _create_track(client)
+    m1 = _create_milestone(client, track["id"])
+
+    old_date = (datetime.datetime.utcnow() - datetime.timedelta(days=31)).isoformat()
+    db_conn.execute(
+        "UPDATE milestones SET last_activity_at = ?, started_at = ? WHERE id = ?",
+        (old_date, old_date, m1["id"]),
+    )
+    db_conn.commit()
+    client.get(f"/api/aprendizado/tracks/{track['id']}/milestones")
+
+    # conclui, reabre, conclui de novo — was_ever_stale nunca deve voltar a 0
+    client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"})
+    client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "pendente"})
+    client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"})
+
+    achievements = client.get("/api/nucleo/achievements").json()
+    unlocked_titles = {a["title"] for a in achievements if a["unlocked"]}
+    assert "trilha em dia" not in unlocked_titles

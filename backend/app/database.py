@@ -81,10 +81,13 @@ def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
 def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra bancos criados antes de description/notes/position/
-    xp_awarded existirem em milestones. `position` é backfillada a partir
-    da ordem antiga (rowid, mesma ordem que a API já devolvia antes desta
-    mudança) — sem isso, todo marco existente nasceria empatado em 0 e a
-    ordem visual embaralharia na primeira listagem.
+    xp_awarded/was_ever_stale existirem em milestones. `position` é
+    backfillada a partir da ordem antiga (rowid, mesma ordem que a API já
+    devolvia antes desta mudança) — sem isso, todo marco existente nasceria
+    empatado em 0 e a ordem visual embaralharia na primeira listagem.
+    `was_ever_stale` nasce em 0 pra todo marco pré-existente (não há como
+    saber retroativamente se ele já passou por 'esquecido' antes desta
+    coluna existir — assume-se que não).
     """
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(milestones)").fetchall()]
 
@@ -98,6 +101,9 @@ def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:
     needs_position_backfill = "position" not in cols
     if needs_position_backfill:
         conn.execute("ALTER TABLE milestones ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+
+    if "was_ever_stale" not in cols:
+        conn.execute("ALTER TABLE milestones ADD COLUMN was_ever_stale INTEGER NOT NULL DEFAULT 0")
     conn.commit()
 
     if needs_position_backfill:
@@ -140,6 +146,24 @@ def _migrate_user_profile_last_backup(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_user_profile_notif_settings(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra bancos criados antes de notif_alerts_enabled/
+    notif_email_enabled existirem (configurações > notificações, filtro
+    por tipo). Default 1 (ligado) pros dois — mesmo comportamento de
+    hoje (tudo aparece) até o usuário desmarcar algo, igual ao DEFAULT
+    do schema.sql; feito manualmente via ALTER TABLE porque `CREATE
+    TABLE IF NOT EXISTS` não altera uma tabela já existente.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()]
+    if "notif_alerts_enabled" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN notif_alerts_enabled INTEGER NOT NULL DEFAULT 1")
+        conn.commit()
+    if "notif_email_enabled" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN notif_email_enabled INTEGER NOT NULL DEFAULT 1")
+        conn.commit()
+
+
 def _migrate_tracks_position(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra bancos criados antes de `position` existir em tracks
@@ -179,6 +203,8 @@ def _migrate_goals_v2(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE goals ADD COLUMN linked_conta_id TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL")
     if "linked_track_id" not in cols:
         conn.execute("ALTER TABLE goals ADD COLUMN linked_track_id TEXT REFERENCES tracks(id) ON DELETE SET NULL")
+    if "linked_education_id" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN linked_education_id TEXT REFERENCES career_educations(id) ON DELETE SET NULL")
     conn.commit()
 
     gc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(goal_contributions)").fetchall()]
@@ -344,6 +370,24 @@ def _migrate_email_accounts_sync_by_default(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_github_repos_source(conn: sqlite3.Connection) -> None:
+    """
+    Migração leve pra quem já tinha um kami.db criado antes das colunas
+    source/owner_login existirem (importação automática de repositórios
+    ao conectar/trocar o token — ver organizacao.py, PUT /github-token).
+    DEFAULT 'manual' pra não quebrar repos já cadastrados: continuam
+    sendo tratados como cadastro manual (nunca removidos automaticamente
+    numa troca de token), que é exatamente o comportamento que já tinham
+    antes dessa coluna existir.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(github_repos)").fetchall()]
+    if "source" not in cols:
+        conn.execute("ALTER TABLE github_repos ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'")
+    if "owner_login" not in cols:
+        conn.execute("ALTER TABLE github_repos ADD COLUMN owner_login TEXT")
+    conn.commit()
+
+
 def _migrate_drop_compra_parcelada_aplicacoes(conn: sqlite3.Connection) -> None:
     """
     Dropa `compra_parcelada_aplicacoes` (item 3 do plano de ajustes de
@@ -371,6 +415,7 @@ def init_db() -> None:
     _migrate_milestones_fields(conn)
     _migrate_user_profile_onboarding(conn)
     _migrate_user_profile_last_backup(conn)
+    _migrate_user_profile_notif_settings(conn)
     _migrate_tracks_position(conn)
     _migrate_goals_v2(conn)
     _migrate_recorrentes_conta_transacao(conn)
@@ -379,6 +424,7 @@ def init_db() -> None:
     _migrate_drop_compra_parcelada_aplicacoes(conn)
     _migrate_muted_accounts(conn)
     _migrate_email_accounts_sync_by_default(conn)
+    _migrate_github_repos_source(conn)
 
     _seed_defaults(conn)
 
@@ -401,10 +447,24 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
             (new_id(), "usuário", "#8fbf8f", None, now_iso()),
         )
 
-    # atributos: lista fechada da decisão 13
-    cur.execute("SELECT COUNT(*) AS c FROM attributes")
+    # carreira: linha única (área atual/meta), criada vazia se ainda não
+    # existir — mesmo padrão de user_profile. career_interests não tem
+    # seed (lista livre, começa vazia de verdade).
+    cur.execute("SELECT COUNT(*) AS c FROM career_profile")
     if cur.fetchone()["c"] == 0:
-        for name in DEFAULT_ATTRIBUTES:
+        cur.execute(
+            "INSERT INTO career_profile (id, area_atual, area_meta, updated_at) VALUES (?, ?, ?, ?)",
+            (new_id(), None, None, now_iso()),
+        )
+
+    # atributos: lista fechada da decisão 13. Checado nome a nome (e não
+    # só "tabela vazia?") pra bancos criados antes de um atributo novo
+    # existir (ex: 'carreira') ganharem o que falta sem perder XP/nível
+    # dos atributos que já tinham — mesmo raciocínio das migrações
+    # ALTER TABLE manuais acima, aplicado a linhas em vez de colunas.
+    existing_names = {r["name"] for r in cur.execute("SELECT name FROM attributes").fetchall()}
+    for name in DEFAULT_ATTRIBUTES:
+        if name not in existing_names:
             cur.execute(
                 "INSERT INTO attributes (id, name, current_xp, current_level, is_active) "
                 "VALUES (?, ?, 0, 1, 1)",
@@ -436,6 +496,19 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
     DEFAULT_LAYOUTS = {
         "perfil": ["profile", "attributes", "achievements"],
         "nucleo": ["attributes", "priorities", "log", "registrar", "achievements"],
+        # carreira_perfil é removable:False (auto-injetado de qualquer
+        # forma por withRequiredWidgets no frontend, ver dashboard.js) —
+        # entra aqui também só pra já nascer na posição 1, antes de
+        # carreira_interesses (removable:True, que SÓ aparece de cara
+        # por estar listado aqui — sem isso a tela chegaria com só o
+        # bloco obrigatório e o usuário precisaria adicionar interesses
+        # manualmente pelo popover "+ adicionar widget").
+        # carreira_posicoes (Parte 2) entra aqui também pro mesmo efeito
+        # de carreira_interesses acima: sem isso, instalações novas só
+        # ganhariam a linha do tempo adicionando manualmente pelo popover.
+        # carreira_formacoes (Parte 3) — mesmo raciocínio, novas
+        # instalações já nascem com o bloco de formação acadêmica visível.
+        "carreira": ["carreira_perfil", "carreira_interesses", "carreira_posicoes", "carreira_formacoes"],
     }
     cur.execute("SELECT COUNT(*) AS c FROM dashboard_widgets")
     if cur.fetchone()["c"] == 0:

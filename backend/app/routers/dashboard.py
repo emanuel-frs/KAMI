@@ -26,8 +26,11 @@ from app.widgets import WIDGET_CATALOG, is_valid_widget_type, screens_for
 router = APIRouter()
 
 # telas conhecidas do sistema — usadas só pra validar o parâmetro de rota;
-# a permissão real de "widget X pode estar na tela Y" vem de screens_for()
-KNOWN_SCREENS = {"perfil", "nucleo", "financas"}
+# a permissão real de "widget X pode estar na tela Y" vem de screens_for().
+# 'carreira' entra aqui na parte 1 do módulo (fundação da tela) — sem
+# isso, GET/PUT /api/dashboard/carreira (chamado por createDashboardPage,
+# ver pages/carreira.js) sempre devolveria 422 e a tela nunca carregaria.
+KNOWN_SCREENS = {"perfil", "nucleo", "financas", "carreira"}
 
 
 class DashboardWidgetIn(BaseModel):

@@ -8,6 +8,7 @@ import {
 } from "../api/metas.js";
 import { listBanks } from "../api/wallet.js";
 import { listTracks } from "../api/aprendizado.js";
+import { listCareerEducations } from "../api/carreira.js";
 import { escapeHtml, fmtDateBR, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
@@ -29,6 +30,7 @@ const GOAL_TYPE_LABELS = {
   leitura: "leitura",
   habito: "hábito",
   aprendizado: "aprendizado",
+  academica: "acadêmica",
 };
 // placeholder do campo "unidade" no modal — só cosmético, ajuda a lembrar o
 // tipo de valor esperado sem travar o usuário num vocabulário fixo
@@ -73,6 +75,7 @@ function goalValuesText(goal) {
   const cur = goal.unit === "money" ? fmtMoney(goal.current_value) : fmtCount(goal.current_value);
   const target = goal.unit === "money" ? fmtMoney(goal.target_value) : fmtCount(goal.target_value);
   if (goal.type === "aprendizado") return `${cur} / ${target} módulos`;
+  if (goal.type === "academica") return goal.status === "concluida" ? "concluída" : "em andamento";
   const suffix = goal.unit === "count" && goal.unit_label ? ` ${goal.unit_label}` : "";
   return `${cur} / ${target}${suffix}`;
 }
@@ -83,6 +86,10 @@ function getGoal(id) {
 
 async function navigateToAprendizado() {
   document.querySelector('.nav-link[data-page="aprendizado"]')?.click();
+}
+
+async function navigateToCarreira() {
+  document.querySelector('.nav-link[data-page="carreira"]')?.click();
 }
 
 // ─── modal: criar/editar meta (decisão 18 — criação/edição sempre em modal) ─
@@ -110,7 +117,7 @@ function buildGoalModal() {
             <select id="goal-type-input">
               ${GOAL_TYPES_MANUAL.map((t) => `<option value="${t}">${GOAL_TYPE_LABELS[t]}</option>`).join("")}
               <option value="aprendizado">aprendizado (trilha)</option>
-              <option value="academica" disabled>acadêmica (pós-mvp)</option>
+              <option value="academica">acadêmica (formação)</option>
             </select>
           </div>
           <div class="field">
@@ -127,6 +134,11 @@ function buildGoalModal() {
         <div class="field" id="goal-track-field">
           <label>trilha</label>
           <select id="goal-track-input"></select>
+        </div>
+
+        <div class="field" id="goal-education-field">
+          <label>formação</label>
+          <select id="goal-education-input"></select>
         </div>
 
         <div class="field-row">
@@ -161,6 +173,7 @@ function buildGoalModal() {
   wrap.querySelector("#goal-modal-save").addEventListener("click", saveGoalModal);
   wrap.querySelector("#goal-type-input").addEventListener("change", () => updateGoalModalVisibility(wrap));
   wrap.querySelector("#goal-track-input").addEventListener("change", () => applyTrackDefaultTarget(wrap));
+  wrap.querySelector("#goal-education-input").addEventListener("change", () => applyEducationDefaultTarget(wrap));
   enhanceSelect(wrap.querySelector("#goal-type-input"));
   enhanceSelect(wrap.querySelector("#goal-weight-input"));
   return wrap;
@@ -169,14 +182,20 @@ function buildGoalModal() {
 function updateGoalModalVisibility(wrap) {
   const type = wrap.querySelector("#goal-type-input").value;
   const isAprendizado = type === "aprendizado";
+  const isAcademica = type === "academica";
   const isFinanceira = type === "financeira";
 
   wrap.querySelector("#goal-track-field").style.display = isAprendizado ? "block" : "none";
+  wrap.querySelector("#goal-education-field").style.display = isAcademica ? "block" : "none";
   wrap.querySelector("#goal-conta-field").style.display = isFinanceira ? "block" : "none";
   wrap.querySelector("#goal-unit-label-field").style.display =
-    !isAprendizado && !isFinanceira ? "block" : "none";
+    !isAprendizado && !isAcademica && !isFinanceira ? "block" : "none";
 
-  wrap.querySelector("#goal-target-label").textContent = isAprendizado ? "quantos módulos" : "alvo";
+  wrap.querySelector("#goal-target-label").textContent = isAprendizado
+    ? "quantos módulos"
+    : isAcademica
+      ? "alvo (livre — a formação conclui direto pra esse valor)"
+      : "alvo";
   wrap.querySelector("#goal-unit-label-input").placeholder = UNIT_LABEL_PLACEHOLDER[type] || "ex: unidades...";
 }
 
@@ -191,16 +210,28 @@ function applyTrackDefaultTarget(wrap) {
   }
 }
 
-async function populateGoalModalSelects(wrap, { selectedContaId = "", selectedTrackId = "" } = {}) {
+// meta 'academica' é binária (0% ou 100%, ver sync_academic_goals no
+// backend) — não há "total de módulos" pra puxar como em aprendizado,
+// então só preenche 1 como ponto de partida cômodo se o campo ainda
+// estiver vazio (não sobrescreve um valor que o usuário já digitou)
+function applyEducationDefaultTarget(wrap) {
+  const targetInput = wrap.querySelector("#goal-target-input");
+  if (!targetInput.value) targetInput.value = 1;
+}
+
+async function populateGoalModalSelects(wrap, { selectedContaId = "", selectedTrackId = "", selectedEducationId = "" } = {}) {
   const contaSelect = wrap.querySelector("#goal-conta-input");
   const trackSelect = wrap.querySelector("#goal-track-input");
+  const educationSelect = wrap.querySelector("#goal-education-input");
   contaSelect.innerHTML = `<option value="">nenhuma</option>`;
   trackSelect.innerHTML = `<option value="">carregando…</option>`;
+  educationSelect.innerHTML = `<option value="">carregando…</option>`;
   refreshCustomSelect(contaSelect);
   refreshCustomSelect(trackSelect);
+  refreshCustomSelect(educationSelect);
 
   try {
-    const [banks, tracks] = await Promise.all([listBanks(), listTracks()]);
+    const [banks, tracks, educations] = await Promise.all([listBanks(), listTracks(), listCareerEducations()]);
     const accountsFlat = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
     wrap.__tracks = tracks;
 
@@ -215,9 +246,17 @@ async function populateGoalModalSelects(wrap, { selectedContaId = "", selectedTr
       : `<option value="">nenhuma trilha cadastrada</option>`;
     trackSelect.value = selectedTrackId || (tracks[0]?.id ?? "");
     refreshCustomSelect(trackSelect);
+
+    educationSelect.innerHTML = educations.length
+      ? educations.map((e) => `<option value="${e.id}">${escapeHtml(e.curso)} — ${escapeHtml(e.instituicao)}</option>`).join("")
+      : `<option value="">nenhuma formação cadastrada</option>`;
+    educationSelect.value = selectedEducationId || (educations[0]?.id ?? "");
+    refreshCustomSelect(educationSelect);
   } catch (err) {
     trackSelect.innerHTML = `<option value="">erro ao carregar trilhas</option>`;
     refreshCustomSelect(trackSelect);
+    educationSelect.innerHTML = `<option value="">erro ao carregar formações</option>`;
+    refreshCustomSelect(educationSelect);
   }
 }
 
@@ -263,6 +302,7 @@ async function openEditGoalModal(goalId) {
   await populateGoalModalSelects(wrap, {
     selectedContaId: goal.linked_conta_id || "",
     selectedTrackId: goal.linked_track_id || "",
+    selectedEducationId: goal.linked_education_id || "",
   });
 }
 
@@ -284,6 +324,7 @@ async function saveGoalModal() {
   const unitLabel = wrap.querySelector("#goal-unit-label-input").value.trim() || null;
   const contaId = wrap.querySelector("#goal-conta-input").value || null;
   const trackId = wrap.querySelector("#goal-track-input").value || null;
+  const educationId = wrap.querySelector("#goal-education-input").value || null;
 
   if (!title) {
     errorEl.textContent = "digite um título para a meta.";
@@ -302,6 +343,11 @@ async function saveGoalModal() {
     errorEl.style.display = "block";
     return;
   }
+  if (type === "academica" && !educationId) {
+    errorEl.textContent = "escolha a formação vinculada a essa meta.";
+    errorEl.style.display = "block";
+    return;
+  }
 
   const payload = {
     title,
@@ -309,9 +355,10 @@ async function saveGoalModal() {
     target_value: target,
     deadline,
     weight,
-    unit_label: type === "financeira" || type === "aprendizado" ? null : unitLabel,
+    unit_label: type === "financeira" || type === "aprendizado" || type === "academica" ? null : unitLabel,
     linked_conta_id: type === "financeira" ? contaId : null,
     linked_track_id: type === "aprendizado" ? trackId : null,
+    linked_education_id: type === "academica" ? educationId : null,
   };
 
   try {
@@ -478,6 +525,8 @@ async function saveContribution() {
 function goalCardHtml(goal) {
   const isDone = goal.status === "concluida";
   const isLearning = goal.type === "aprendizado";
+  const isAcademic = goal.type === "academica";
+  const isAutoSynced = isLearning || isAcademic;
   const pct = Math.min(100, goal.progress_pct ?? 0);
 
   return `
@@ -487,7 +536,7 @@ function goalCardHtml(goal) {
         <span class="goal-type-tag">${GOAL_TYPE_LABELS[goal.type] || goal.type}</span>
         <span class="goal-weight-tag goal-weight-${goal.weight}">${goal.weight}</span>
         <span class="push goal-card-icons">
-          ${isLearning ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
+          ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
           <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
           <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">${icon("trash-2", { size: 15 })}</span>
         </span>
@@ -503,14 +552,20 @@ function goalCardHtml(goal) {
           ? `<div class="goal-meta">sincronizado com a trilha «${escapeHtml(goal.linked_track_name)}»</div>`
           : ""
         }
+        ${isAcademic && goal.linked_education_name
+          ? `<div class="goal-meta">sincronizado com a formação «${escapeHtml(goal.linked_education_name)}»</div>`
+          : ""
+        }
         ${isDone
           ? `<div class="goal-meta">concluída${goal.completed_at ? " em " + fmtDeadline(goal.completed_at) : ""} · +${xpBonusFor(goal.weight)} xp bônus</div>
              <button type="button" class="btn sm" disabled>meta concluída ${icon("check", { size: 12 })}</button>`
           : isLearning
             ? `<button type="button" class="btn sm" data-action="ver-trilha">ver trilha ${icon("arrow-right", { size: 11 })}</button>`
-            : `<button type="button" class="btn sm primary" data-action="contribute-goal">+ contribuir</button>`
+            : isAcademic
+              ? `<button type="button" class="btn sm" data-action="ver-formacao">ver formação ${icon("arrow-right", { size: 11 })}</button>`
+              : `<button type="button" class="btn sm primary" data-action="contribute-goal">+ contribuir</button>`
         }
-        ${isLearning ? "" : `
+        ${isAutoSynced ? "" : `
         <div class="goal-progress-panel${openProgressGoalIds.has(goal.id) ? " open" : ""}" data-progress-panel="${goal.id}">
           <div class="empty-state">carregando…</div>
         </div>`}
@@ -614,6 +669,11 @@ function wireCardActions(scopeEl) {
     const verTrilhaBtn = card.querySelector('[data-action="ver-trilha"]');
     if (verTrilhaBtn) {
       verTrilhaBtn.addEventListener("click", navigateToAprendizado);
+    }
+
+    const verFormacaoBtn = card.querySelector('[data-action="ver-formacao"]');
+    if (verFormacaoBtn) {
+      verFormacaoBtn.addEventListener("click", navigateToCarreira);
     }
   });
 }

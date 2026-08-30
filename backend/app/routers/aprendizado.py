@@ -139,7 +139,8 @@ def _apply_staleness(db, track_id: str) -> None:
     db.execute(
         """
         UPDATE milestones
-           SET status = 'esquecido'
+           SET status = 'esquecido',
+               was_ever_stale = 1
          WHERE track_id = ?
            AND status   = 'pendente'
            AND COALESCE(last_activity_at, started_at) IS NOT NULL
@@ -376,18 +377,11 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
     xp_awarded       = row["xp_awarded"]
     last_activity_at = now   # qualquer edição atualiza last_activity_at
 
-    if new_status == "concluido" and row["status"] != "concluido":
+    is_completing = new_status == "concluido" and row["status"] != "concluido"
+
+    if is_completing:
         completed_at = now
         xp_awarded = XP_PER_MILESTONE
-        # credita XP em Aprendizado via núcleo
-        register_action(
-            db,
-            description=f"concluiu marco: {row['title']}",
-            categories=["aprendizado"],
-            xp=XP_PER_MILESTONE,
-            impact=3,
-            source="aprendizado",
-        )
 
     elif new_status == "pendente" and row["status"] == "concluido":
         # reabre o marco — estorna exatamente o xp que foi creditado
@@ -425,6 +419,24 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
         ),
     )
     db.commit()
+
+    if is_completing:
+        # credita XP em Aprendizado via núcleo — feito DEPOIS do UPDATE
+        # acima (e não antes, como era antigamente) porque register_action
+        # dispara check_achievements na mesma chamada: o achievement
+        # 'milestone_completed' lê a linha deste marco direto da tabela
+        # milestones, então ela precisa já estar com status='concluido'
+        # nesse momento, ou o desbloqueio só aconteceria numa checagem
+        # futura e por acaso (na próxima ação registrada em qualquer lugar
+        # do app), nunca na hora certa.
+        register_action(
+            db,
+            description=f"concluiu marco: {row['title']}",
+            categories=["aprendizado"],
+            xp=XP_PER_MILESTONE,
+            impact=3,
+            source="aprendizado",
+        )
 
     # meta 3.6 (metas v2): metas tipo 'aprendizado' vinculadas a essa trilha
     # progridem sozinhas junto com os marcos — recalcula sempre que o status

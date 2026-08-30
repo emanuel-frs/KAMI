@@ -48,9 +48,11 @@ export async function render(el, widget) {
       <div class="chart-categorias-list">
         ${categories.length ? categories.map((c) => `
           <div class="cat-row">
-            <span class="cat-label">${escapeHtml(c.category)}</span>
+            <div class="cat-top">
+              <span class="cat-label">${escapeHtml(c.category)}</span>
+              <span class="cat-valor">${brl(c.total)}</span>
+            </div>
             <div class="cat-bar-track"><div class="bar-fill" style="width:${((c.total / max) * 100).toFixed(1)}%;"></div></div>
-            <span class="cat-valor">${brl(c.total)}</span>
           </div>`).join("") : `<div class="wallet-empty">nenhum gasto em ${monthLabel(month)}.</div>`}
       </div>
     `;

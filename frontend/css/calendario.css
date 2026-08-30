@@ -59,13 +59,11 @@
   --type-color: var(--text-faint);
   width: 18px;
   height: 18px;
-  border-radius: 4px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--type-color);
-  background: color-mix(in srgb, var(--type-color) 18%, transparent);
 }
 .cal-alert-dot svg { display: block; }
 
@@ -220,19 +218,16 @@
   --type-color: var(--text-faint);
   width: 14px;
   height: 14px;
-  border-radius: 3px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--type-color);
-  background: color-mix(in srgb, var(--type-color) 18%, transparent);
 }
 .cal-chip svg { display: block; }
 /* marco concluído — mesmo destaque em anel âmbar usado no heatmap de
    Aprendizado (widget-aprendizado-heatmap.css), pra manter a linguagem
    visual consistente entre as duas telas. */
-.cal-chip.milestone { box-shadow: 0 0 0 1px var(--amber); }
 
 /* ── painel do dia selecionado ───────────────────────────────────────── */
 .cal-day-panel {
@@ -317,16 +312,13 @@
   --type-color: var(--text-faint);
   width: 20px;
   height: 20px;
-  border-radius: 4px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--type-color);
-  background: color-mix(in srgb, var(--type-color) 18%, transparent);
 }
 .cal-event-dot svg { display: block; }
-.cal-event-dot.milestone { box-shadow: 0 0 0 1px var(--amber); }
 
 .cal-event-type {
   font-size: 8.5px;

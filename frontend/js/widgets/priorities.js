@@ -37,11 +37,6 @@ export async function render(el, widget) {
         </div>`);
     }
 
-    rows.push(`
-      <div class="log-item">
-        <span class="desc">sem decaimento de xp no v1 — cálculo simplificado (decisão 10)</span>
-      </div>`);
-
     el.innerHTML = rows.join("");
   }
 

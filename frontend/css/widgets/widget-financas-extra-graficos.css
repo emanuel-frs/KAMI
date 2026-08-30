@@ -8,7 +8,8 @@
 /* ── legenda (fluxo) ──────────────────────────────────────────────────── */
 .chart-legend{
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   margin-bottom: 8px;
   font-size: 10px;
   color: var(--text-dim);
@@ -118,20 +119,27 @@
 }
 .chart-tooltip.visible{ opacity: 1; }
 
-/* ── categorias: lista de barras rankeada ────────────────────────────── */
-.chart-categorias-list{ display: flex; flex-direction: column; gap: 8px; }
-.cat-row{ display: flex; align-items: center; gap: 8px; font-size: 10.5px; }
+/* ── categorias: lista de barras rankeada ────────────────────────────── *
+ * Mesmo raciocínio de .lim-row logo abaixo (ver comentário lá): label
+ * (88px fixo) + valor (72px fixo) já consumiam quase toda a largura
+ * disponível numa coluna estreita, deixando a barra — o elemento mais
+ * importante do widget — espremida numa lasca de poucos px. Duas
+ * linhas por categoria: linha 1 = nome + valor (curtos, sempre cabem
+ * lado a lado); linha 2 = barra sozinha, em largura total. */
+.chart-categorias-list{ display: flex; flex-direction: column; gap: 10px; }
+.cat-row{ display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; }
+.cat-top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cat-label{
-  width: 88px; flex-shrink: 0; color: var(--text-dim);
+  flex: 1; min-width: 0; color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cat-bar-track{
-  flex: 1 1 auto; height: 6px; background: rgba(0,0,0,0.5);
+  width: 100%; height: 6px; background: rgba(0,0,0,0.5);
   border: 1px solid var(--border-soft); overflow: hidden;
 }
 .cat-bar-track .bar-fill{ height: 100%; background: var(--accent); }
 .cat-valor{
-  flex-shrink: 0; width: 72px; text-align: right; color: var(--text-bright);
+  flex-shrink: 0; text-align: right; color: var(--text-bright);
   white-space: nowrap;
 }
 

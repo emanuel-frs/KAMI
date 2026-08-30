@@ -6,7 +6,12 @@ Três fontes, conforme decisão de arquitetura:
   - github: 1+ repositórios, status sincronizado via API pública do GitHub
             (sem autenticação — só repositórios públicos, rate limit de 60 req/h
             por IP no v1; se isso for um problema, decisão futura é adicionar
-            um token pessoal via header Authorization)
+            um token pessoal via header Authorization). Repositórios têm uma
+            coluna `source`: 'manual' (cadastrados um a um por aqui) ou 'auto'
+            (importados automaticamente ao salvar/trocar o token — ver
+            PUT /github-token e _auto_import_repos). Trocar o token remove só
+            os 'auto' da conta anterior e reimporta da conta nova; repos
+            'manual' nunca são tocados por esse processo.
   - email:  1+ contas IMAP reais, sem resumo por IA no v1 (campo summary_text
             fica reservado pro pós-mvp); senha de app guardada criptografada
             (ver app/crypto.py)
@@ -86,8 +91,16 @@ XP_GITHUB_SYNC = 2
 XP_EMAIL_SYNC  = 3
 
 GITHUB_API_BASE = "https://api.github.com/repos/"
+GITHUB_USER_URL = "https://api.github.com/user"
+GITHUB_USER_REPOS_URL = "https://api.github.com/user/repos"
 # GitHub exige um User-Agent em toda chamada, senão devolve 403
 GITHUB_HEADERS = {"User-Agent": "kami-app-local", "Accept": "application/vnd.github+json"}
+# paginação da importação automática (GET /user/repos) — 100 é o máximo
+# aceito pela api por página; o teto de páginas é só uma trava de
+# segurança (2000 repos) contra um loop infinito em caso de resposta
+# inesperada, não um limite que se espera bater na prática
+GITHUB_REPOS_PER_PAGE = 100
+GITHUB_REPOS_MAX_PAGES = 20
 
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 # quantos resultados a tavily devolve por busca — painel mostra resumo
@@ -123,6 +136,8 @@ class GithubRepoOut(BaseModel):
     cached_status: Optional[dict] = None
     last_synced_at: Optional[str] = None
     sync_error: Optional[str] = None  # não persistido; só informativo na resposta
+    source: str = "manual"            # 'manual' (cadastrado à mão) ou 'auto' (importado do token)
+    owner_login: Optional[str] = None # login da conta dona do token, só preenchido pra source='auto'
 
 class GithubTokenIn(BaseModel):
     token: str
@@ -130,6 +145,13 @@ class GithubTokenIn(BaseModel):
 
 class GithubTokenStatus(BaseModel):
     configured: bool
+    # info da importação automática disparada ao salvar o token — todos
+    # opcionais porque a validação/salvamento do token em si nunca falha
+    # por causa disso (import é best-effort, ver _auto_import_repos)
+    imported_count: Optional[int] = None
+    removed_count: Optional[int] = None
+    owner_login: Optional[str] = None
+    import_error: Optional[str] = None
 
 
 class CommitActivityWeek(BaseModel):
@@ -141,6 +163,10 @@ class CommitActivityOut(BaseModel):
     repo_full_name: str
     weeks: List[CommitActivityWeek]
     error: Optional[str] = None
+    computing: bool = False  # True quando o erro é o 202 "github ainda calculando
+                              # estatísticas" — sinaliza pro frontend que vale a
+                              # pena tentar de novo em instantes, ao contrário de
+                              # um erro definitivo (rate limit, sem acesso, etc.)
 
 
 class SearchApiKeyIn(BaseModel):
@@ -334,6 +360,8 @@ def _repo_row_to_out(row, sync_error: Optional[str] = None) -> dict:
         "cached_status": json.loads(row["cached_status"]) if row["cached_status"] else None,
         "last_synced_at": row["last_synced_at"],
         "sync_error": sync_error,
+        "source": row["source"] if "source" in row.keys() else "manual",
+        "owner_login": row["owner_login"] if "owner_login" in row.keys() else None,
     }
 
 
@@ -354,8 +382,12 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
     status, error = _fetch_github_status(payload.repo_full_name, db)
     repo_id = new_id()
     synced_at = now_iso() if status else None
+    # cadastro manual (via este endpoint) é sempre source='manual' — a
+    # importação automática (ver _auto_import_repos) nunca passa por
+    # aqui, insere direto via SQL com source='auto'
     db.execute(
-        "INSERT INTO github_repos (id, repo_full_name, cached_status, last_synced_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO github_repos (id, repo_full_name, cached_status, last_synced_at, source, owner_login) "
+        "VALUES (?, ?, ?, ?, 'manual', NULL)",
         (repo_id, payload.repo_full_name, json.dumps(status) if status else None, synced_at),
     )
     db.commit()
@@ -554,7 +586,7 @@ def delete_email_account(account_id: str, db=Depends(get_db)):
 
 
 @router.post("/email-accounts/{account_id}/sync", response_model=EmailSyncResult)
-def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
+def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20, automatic: bool = False):
     account = db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
     if not account:
         raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
@@ -650,14 +682,24 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20):
             )
         raise
 
-    register_action(
-        db,
-        description=f"sincronizou e-mail: {account['label']}",
-        categories=["organizacao"],
-        xp=XP_EMAIL_SYNC,
-        impact=1,
-        source="organizacao",
-    )
+    # `automatic=True` (scheduler global, email-sync-scheduler.js —
+    # roda a cada 5min pra TODAS as contas, ver docstring do módulo)
+    # não credita XP nem grava action_log: sync automático não é uma
+    # ação do usuário, e um scheduler de 5 em 5 minutos rodando o dia
+    # inteiro inflava tanto o XP quanto o log recente (nucleo.js) com
+    # dezenas de entradas "sincronizou e-mail" sem nenhum esforço real
+    # por trás. Sync MANUAL (clique em organização ou na aba chaves de
+    # configurações, `automatic` fica no default False) continua
+    # contando normalmente — esse sim é uma ação deliberada.
+    if not automatic:
+        register_action(
+            db,
+            description=f"sincronizou e-mail: {account['label']}",
+            categories=["organizacao"],
+            xp=XP_EMAIL_SYNC,
+            impact=1,
+            source="organizacao",
+        )
 
     return {"account_id": account_id, "new_messages": new_count, "synced_at": now_iso()}
 
@@ -757,6 +799,130 @@ def get_github_token_status(db=Depends(get_db)):
     return {"configured": bool(row and row["token_enc"])}
 
 
+def _fetch_authenticated_user(headers: dict) -> dict:
+    """GET /user — devolve o login da conta dona do token. Levanta
+    urllib.error.HTTPError/URLError na falha; quem chama decide o que
+    fazer (aqui sempre tratado como erro fatal da importação, já que
+    sem login não dá pra rotular os repos como 'auto')."""
+    req = urllib.request.Request(GITHUB_USER_URL, headers=headers)
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _fetch_all_user_repos(headers: dict) -> list:
+    """
+    GET /user/repos paginado — devolve TODOS os repositórios da conta
+    dona do token. type=owner restringe aos repositórios que a própria
+    conta possui (exclui repos de organizações/times onde ela é só
+    colaboradora), pra bater com "todos os repositórios da conta" e
+    manter owner_login consistente em cada repo importado.
+    """
+    repos = []
+    page = 1
+    while page <= GITHUB_REPOS_MAX_PAGES:
+        url = f"{GITHUB_USER_REPOS_URL}?type=owner&per_page={GITHUB_REPOS_PER_PAGE}&page={page}"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            batch = json.loads(resp.read().decode("utf-8"))
+        if not isinstance(batch, list) or not batch:
+            break
+        repos.extend(batch)
+        if len(batch) < GITHUB_REPOS_PER_PAGE:
+            break
+        page += 1
+    return repos
+
+
+def _auto_import_repos(db, token: str) -> dict:
+    """
+    Importação automática disparada ao salvar o token (conectar OU
+    trocar — mesmo fluxo pros dois casos, ver PUT /github-token):
+
+      1. remove todos os repositórios com source='auto' da conta
+         ANTERIOR (se houver) — repositórios source='manual' nunca são
+         tocados, seja qual for a conta dona.
+      2. busca todos os repositórios da conta dona do NOVO token
+         (GET /user/repos) e insere cada um como source='auto' com o
+         owner_login da conta.
+      3. repositórios já cadastrados manualmente com o mesmo
+         repo_full_name são pulados na importação (não duplica, e o
+         cadastro manual continua sendo o dono daquele nome).
+
+    Best-effort: nunca levanta exceção pra fora — falha de rede/token
+    sem permissão de leitura em repos vira import_error informativo, e
+    a remoção do passo 1 só é commitada se a busca do passo 2 for bem
+    sucedida (senão a pessoa fica sem token novo E sem os repos antigos
+    por causa de uma falha de rede passageira).
+    """
+    headers = {**GITHUB_HEADERS, "Authorization": f"Bearer {token}"}
+
+    try:
+        user = _fetch_authenticated_user(headers)
+        owner_login = user.get("login")
+        if not owner_login:
+            return {"imported_count": 0, "removed_count": 0, "owner_login": None,
+                     "import_error": "resposta da api do github sem login de usuário"}
+
+        remote_repos = _fetch_all_user_repos(headers)
+    except urllib.error.HTTPError as e:
+        detail = "token sem permissão de leitura em repositórios" if e.code in (401, 403) else f"erro http {e.code}"
+        return {"imported_count": 0, "removed_count": 0, "owner_login": None,
+                 "import_error": f"não foi possível importar os repositórios automaticamente ({detail})"}
+    except (urllib.error.URLError, TimeoutError):
+        return {"imported_count": 0, "removed_count": 0, "owner_login": None,
+                 "import_error": "sem conexão com a api do github pra importar os repositórios"}
+
+    # passo 1 — só remove os 'auto' antigos depois que a busca dos novos
+    # já deu certo (ver docstring)
+    removed = db.execute("DELETE FROM github_repos WHERE source = 'auto'")
+    removed_count = removed.rowcount if removed.rowcount and removed.rowcount > 0 else 0
+
+    # nomes já ocupados por cadastro manual — nunca sobrescritos/duplicados
+    manual_names = {
+        r["repo_full_name"]
+        for r in db.execute("SELECT repo_full_name FROM github_repos WHERE source = 'manual'").fetchall()
+    }
+
+    imported_count = 0
+    now = now_iso()
+    for repo in remote_repos:
+        full_name = repo.get("full_name")
+        if not full_name or full_name in manual_names:
+            continue
+        status = {
+            "full_name": repo.get("full_name"),
+            "description": repo.get("description"),
+            "stargazers_count": repo.get("stargazers_count"),
+            "open_issues_count": repo.get("open_issues_count"),
+            "default_branch": repo.get("default_branch"),
+            "pushed_at": repo.get("pushed_at"),
+            "html_url": repo.get("html_url"),
+            "language": repo.get("language"),
+            "private": repo.get("private", False),
+        }
+        db.execute(
+            "INSERT INTO github_repos (id, repo_full_name, cached_status, last_synced_at, source, owner_login) "
+            "VALUES (?, ?, ?, ?, 'auto', ?)",
+            (new_id(), full_name, json.dumps(status), now, owner_login),
+        )
+        imported_count += 1
+
+    db.commit()
+
+    if imported_count:
+        register_action(
+            db,
+            description=f"importou {imported_count} repositório(s) automaticamente do github ({owner_login})",
+            categories=["organizacao"],
+            xp=XP_GITHUB_SYNC,
+            impact=1,
+            source="organizacao",
+        )
+
+    return {"imported_count": imported_count, "removed_count": removed_count,
+             "owner_login": owner_login, "import_error": None}
+
+
 @router.put("/github-token", response_model=GithubTokenStatus)
 def save_github_token(payload: GithubTokenIn, db=Depends(get_db)):
     token = payload.token.strip()
@@ -791,7 +957,14 @@ def save_github_token(payload: GithubTokenIn, db=Depends(get_db)):
             (new_id(), enc, now_iso()),
         )
     db.commit()
-    return {"configured": True}
+
+    # importação automática — tanto pra "conectar" (github_settings
+    # ainda não existia) quanto pra "trocar" (já existia um token
+    # configurado) o fluxo é o mesmo: limpa os 'auto' antigos e importa
+    # os da conta do novo token (ver _auto_import_repos)
+    import_result = _auto_import_repos(db, token)
+
+    return {"configured": True, **import_result}
 
 
 @router.delete("/github-token", status_code=204)
@@ -812,7 +985,8 @@ def get_commit_activity(repo_id: str, db=Depends(get_db)):
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=8) as resp:
             if resp.status == 202:
-                return {"repo_full_name": row["repo_full_name"], "weeks": [], "error": "github ainda calculando estatísticas — tente de novo em instantes"}
+                return {"repo_full_name": row["repo_full_name"], "weeks": [], "computing": True,
+                         "error": "github ainda calculando estatísticas — tente de novo em instantes"}
             data = json.loads(resp.read().decode("utf-8"))
 
         if not isinstance(data, list):

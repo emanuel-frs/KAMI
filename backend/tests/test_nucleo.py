@@ -140,3 +140,27 @@ def test_register_action_response_reports_newly_unlocked_achievements(client):
     )
     unlocked = resp.json()["newly_unlocked_achievements"]
     assert any(a["title"] == "10 em aprendizado" for a in unlocked)
+
+
+def test_achievement_unlocks_via_metas_attribute(client):
+    for i in range(10):
+        client.post(
+            "/api/nucleo/actions",
+            json={"description": f"ação {i}", "categories": ["metas"], "xp": 1},
+        )
+    unlocked_titles = {
+        a["title"] for a in client.get("/api/nucleo/achievements").json() if a["unlocked"]
+    }
+    assert "planejador" in unlocked_titles
+
+
+def test_achievement_unlocks_via_count_total(client):
+    for i in range(100):
+        client.post(
+            "/api/nucleo/actions",
+            json={"description": f"ação {i}", "categories": ["organizacao"], "xp": 1},
+        )
+    unlocked_titles = {
+        a["title"] for a in client.get("/api/nucleo/achievements").json() if a["unlocked"]
+    }
+    assert "hábito formado" in unlocked_titles

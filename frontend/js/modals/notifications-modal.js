@@ -3,9 +3,12 @@ import { icon } from "../components/icons.js";
 import { TYPE_META } from "../components/event-types.js";
 import { fetchPendingAlerts, todayStr } from "../components/calendar-alerts.js";
 import { listEmailCache, listEmailAccounts, markEmailRead, muteAccount } from "../api/organizacao.js";
+import { refreshMutedAccounts } from "../pages/organizacao.js";
 import { setPendingFocus } from "../components/pending-focus.js";
+import { refreshNotificationBell } from "../components/notification-bell.js";
 import { navigateTo } from "../components/navigate.js";
 import { accountColor } from "../components/account-color.js";
+import { store } from "../state/store.js";
 
 /**
  * Modal unificado de notificações (notificações v2.1) — substitui DOIS
@@ -60,7 +63,7 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="notif-section">
+        <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">
             ${icon("calendar-days", { size: 12 })}
             <span>vencendo em breve</span>
@@ -68,6 +71,7 @@ function buildModal() {
           <div class="cal-alerts-list" id="notif-alerts-list"></div>
         </div>
         <div class="notif-section" id="notif-email-section"></div>
+        <div class="empty-state" id="notif-all-disabled" hidden>nenhum tipo de notificação está ativo — ajuste em configurações &gt; notificações.</div>
       </div>
     </div>
   `;
@@ -101,7 +105,7 @@ function renderAlerts() {
       const recordId = e.id.split(":")[1] || "";
       return `
         <div class="cal-alert-item${diff < 0 ? " overdue" : ""}" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}">
-          <span class="cal-alert-dot" style="--type-color:${meta.color}">${icon(meta.icon, { size: 11 })}</span>
+          <span class="cal-alert-dot" style="--type-color:${meta.color}">${icon(meta.icon, { size: 18 })}</span>
           <span class="cal-alert-title">${escapeHtml(e.title)}</span>
           ${amountHtml}
           <span class="cal-alert-due">${dueLabel}</span>
@@ -212,11 +216,20 @@ function onEmailClick(cacheId) {
 function onMarkAll() {
   const toMark = unreadEmails();
   if (!toMark.length) return;
+  const ids = toMark.map((e) => e.id);
   toMark.forEach((e) => (e.is_read = true));
   renderEmailSection();
-  Promise.all(toMark.map((e) => markEmailRead(e.id))).catch((err) =>
-    console.error("notifications-modal: falha ao marcar todos como lidos:", err)
-  );
+  // propaga pro store — a tela de organização, se já estiver montada,
+  // marca os mesmos e-mails como lidos na hora (mesmo padrão de
+  // store.set/store.subscribe usado em accent_color/nome/avatar do
+  // perfil, ver settings-modal.js + widgets/profile.js), sem precisar
+  // recarregar/reabrir a tela.
+  store.set("emailsMarkedRead", ids);
+  Promise.all(toMark.map((e) => markEmailRead(e.id)))
+    .then(() => refreshNotificationBell())
+    .catch((err) =>
+      console.error("notifications-modal: falha ao marcar todos como lidos:", err)
+    );
 }
 
 function onMuteAccount(accountId) {
@@ -224,10 +237,16 @@ function onMuteAccount(accountId) {
   // otimista — some da lista na hora, recarrega de verdade se a chamada falhar.
   emails = emails.filter((e) => e.account_id !== accountId);
   renderEmailSection();
-  muteAccount(accountId).catch((err) => {
-    console.error("notifications-modal: falha ao silenciar conta:", err);
-    loadEmailData().then(renderEmailSection);
-  });
+  muteAccount(accountId)
+    // tela de Organização pode estar aberta atrás deste modal — sem
+    // isso ela só refletia o silenciamento no próximo mount() (sair e
+    // entrar de novo na tela). O badge do sino também precisa recontar,
+    // já que e-mails da conta agora silenciada saem da contagem.
+    .then(() => Promise.all([refreshMutedAccounts(), refreshNotificationBell()]))
+    .catch((err) => {
+      console.error("notifications-modal: falha ao silenciar conta:", err);
+      loadEmailData().then(renderEmailSection);
+    });
 }
 
 async function loadCalendarData() {
@@ -263,12 +282,31 @@ export async function openNotificationsModal() {
   emailsExpanded = false;
   modalEl.classList.add("open");
 
-  modalEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">carregando…</div>`;
-  modalEl.querySelector("#notif-email-section").innerHTML = `<div class="empty-state">carregando…</div>`;
+  // configurações > notificações (settings-modal.js) filtra por tipo —
+  // seção desmarcada nem é buscada, some do modal por completo. Lê do
+  // store (populado no boot e mantido em sync por quem grava o
+  // perfil) em vez de um fetch próprio; `!== false` trata undefined
+  // (perfil ainda não carregou) como ligado, mesmo default do schema.
+  const profile = store.get("profile");
+  const showAlerts = profile?.notif_alerts_enabled !== false;
+  const showEmail = profile?.notif_email_enabled !== false;
 
-  await Promise.all([loadCalendarData(), loadEmailData()]);
-  renderAlerts();
-  renderEmailSection();
+  const alertsSectionEl = modalEl.querySelector("#notif-alerts-section");
+  const emailSectionEl = modalEl.querySelector("#notif-email-section");
+  const allDisabledEl = modalEl.querySelector("#notif-all-disabled");
+  alertsSectionEl.hidden = !showAlerts;
+  emailSectionEl.hidden = !showEmail;
+  allDisabledEl.hidden = showAlerts || showEmail;
+
+  if (showAlerts) alertsSectionEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">carregando…</div>`;
+  if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">carregando…</div>`;
+
+  await Promise.all([
+    showAlerts ? loadCalendarData() : Promise.resolve((alerts = [])),
+    showEmail ? loadEmailData() : Promise.resolve((emails = []) && (accounts = [])),
+  ]);
+  if (showAlerts) renderAlerts();
+  if (showEmail) renderEmailSection();
 }
 
 /** Contagem combinada pra badges externas (sino da sidebar, etc.) —

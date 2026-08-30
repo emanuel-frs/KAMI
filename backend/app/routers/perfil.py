@@ -23,12 +23,16 @@ class ProfileOut(BaseModel):
     avatar_ascii: Optional[str] = None
     onboarding_completed: bool
     last_backup_at: Optional[str] = None
+    notif_alerts_enabled: bool
+    notif_email_enabled: bool
     updated_at: str
 
 
 class ProfileUpdate(BaseModel):
     display_name: Optional[str] = None
     accent_color: Optional[str] = None
+    notif_alerts_enabled: Optional[bool] = None
+    notif_email_enabled: Optional[bool] = None
 
 
 class AvatarUpdate(BaseModel):
@@ -61,9 +65,16 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
     row = _get_profile_row(db)
     display_name = payload.display_name if payload.display_name is not None else row["display_name"]
     accent_color = payload.accent_color if payload.accent_color is not None else row["accent_color"]
+    notif_alerts_enabled = (
+        int(payload.notif_alerts_enabled) if payload.notif_alerts_enabled is not None else row["notif_alerts_enabled"]
+    )
+    notif_email_enabled = (
+        int(payload.notif_email_enabled) if payload.notif_email_enabled is not None else row["notif_email_enabled"]
+    )
     db.execute(
-        "UPDATE user_profile SET display_name = ?, accent_color = ?, updated_at = ? WHERE id = ?",
-        (display_name, accent_color, now_iso(), row["id"]),
+        "UPDATE user_profile SET display_name = ?, accent_color = ?, "
+        "notif_alerts_enabled = ?, notif_email_enabled = ?, updated_at = ? WHERE id = ?",
+        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, now_iso(), row["id"]),
     )
     db.commit()
     return dict(_get_profile_row(db))
