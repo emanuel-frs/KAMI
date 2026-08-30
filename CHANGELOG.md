@@ -4,6 +4,25 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] - 2026-08-30
+
+### Adicionado
+- adiciona módulo Carreira, auto-import do GitHub e automações de sync/notificação
+
+### Documentação
+- atualiza README (versão, calendário/notificações, remove screenshots)
+
+### Manutenção
+- v1.3.1
+- sincroniza versão do Tauri com v1.3.0
+
+### Outros
+- ci: sincroniza VERSION com tauri.conf.json/Cargo.toml antes do build
+- Merge branch 'release/1.3.1' into develop
+- ci: adiciona workflow de release (build Linux+Windows via tauri-action)
+- Merge branch 'release/1.3.0' into develop
+
+
 ## [1.3.1] - 2026-08-24
 
 ### Adicionado
