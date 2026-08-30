@@ -2,22 +2,24 @@
 Conquistas automáticas por regra fixa (v1 — 'ai_generated' é pós-mvp).
 
 `criteria_json` guarda a regra em JSON. Tipos suportados hoje:
-  - count_by_attribute: {"type": "count_by_attribute", "attribute": "aprendizado", "count": 10}
-  - count_total:        {"type": "count_total", "count": 50}
-  - streak_days:        {"type": "streak_days", "days": 7}
-  - goal_completed:     {"type": "goal_completed"} — desbloqueia quando pelo menos
-                        1 meta (goals.status='concluida') existir. Passou a disparar
-                        de verdade com a implementação do módulo Metas (routers/metas.py);
-                        antes ficava registrada mas nunca era avaliada porque o módulo
-                        que gera o dado (goals) ainda não existia.
-
-Tipos já registrados mas que dependem de módulos futuros (ficam
-como "nunca disparam" até esses módulos existirem):
-  - milestone_completed: já é coberto por Aprendizado desde que o módulo entrou
-    (roadmap concluindo marcos é gravado como action_log com categoria
-    'aprendizado' via register_action) — mas o tipo aqui é distinto do que
-    'count_by_attribute' já cobre, então segue sem checagem própria até
-    existir um critério específico pra ele.
+  - count_by_attribute:  {"type": "count_by_attribute", "attribute": "aprendizado", "count": 10}
+  - count_total:         {"type": "count_total", "count": 50}
+  - streak_days:         {"type": "streak_days", "days": 7}
+  - goal_completed:      {"type": "goal_completed", "count": 1} — desbloqueia quando pelo
+                         menos `count` metas (goals.status='concluida') existirem
+                         ("count" é opcional, default 1). Passou a disparar de verdade
+                         com a implementação do módulo Metas (routers/metas.py); antes
+                         ficava registrada mas nunca era avaliada porque o módulo que
+                         gera o dado (goals) ainda não existia.
+  - milestone_completed: {"type": "milestone_completed"} — desbloqueia quando existir
+                         pelo menos 1 marco de Aprendizado com status='concluido' e
+                         que nunca tenha passado por 'esquecido' (milestones.was_ever_stale
+                         = 0). was_ever_stale é setado por _apply_staleness em
+                         routers/aprendizado.py e nunca volta a 0, mesmo que o marco
+                         seja reaberto e concluído de novo depois — passou a disparar
+                         de verdade agora que a coluna existe (antes o tipo estava
+                         registrado no seed mas _meets_criteria não tinha um `if` pra
+                         ele, então nunca desbloqueava).
 
 `check_achievements(conn)` roda depois de cada ação registrada,
 avalia todas as conquistas ainda bloqueadas e desbloqueia as que
@@ -60,15 +62,44 @@ ACHIEVEMENT_SEED = [
         "description": 'concluiu um marco de aprendizado sem ficar "esquecido"',
         "criteria": {"type": "milestone_completed"},
     },
+    {
+        "title": "planejador",
+        "description": "10 ações registradas em metas",
+        "criteria": {"type": "count_by_attribute", "attribute": "metas", "count": 10},
+    },
+    {
+        "title": "colecionador de metas",
+        "description": "5 metas pessoais concluídas",
+        "criteria": {"type": "goal_completed", "count": 5},
+    },
+    {
+        "title": "hábito formado",
+        "description": "100 ações registradas no total",
+        "criteria": {"type": "count_total", "count": 100},
+    },
+    {
+        "title": "um mês de disciplina",
+        "description": "registrou pelo menos 1 ação por 30 dias seguidos",
+        "criteria": {"type": "streak_days", "days": 30},
+    },
 ]
 
 
 def seed_achievements(conn) -> None:
+    """
+    Idempotente por título: insere só as conquistas do ACHIEVEMENT_SEED que
+    ainda não existem no banco, em vez de checar "a tabela está vazia?" e
+    desistir inteira se não estiver. Sem isso, quem já tinha um kami.db
+    com as conquistas antigas nunca ganharia as novas que forem adicionadas
+    ao seed depois — rodava a cada start só pra não fazer nada.
+    """
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) AS c FROM achievements")
-    if cur.fetchone()["c"] > 0:
-        return
+    existing_titles = {
+        r["title"] for r in cur.execute("SELECT title FROM achievements").fetchall()
+    }
     for item in ACHIEVEMENT_SEED:
+        if item["title"] in existing_titles:
+            continue
         cur.execute(
             "INSERT INTO achievements (id, title, description, rule_type, criteria_json, unlocked_at) "
             "VALUES (?, ?, ?, 'fixed', ?, NULL)",
@@ -95,6 +126,14 @@ def _count_goals_completed(conn) -> int:
     return conn.execute(
         "SELECT COUNT(*) AS c FROM goals WHERE status = 'concluida'"
     ).fetchone()["c"]
+
+
+def _has_milestone_completed_without_staleness(conn) -> bool:
+    row = conn.execute(
+        "SELECT COUNT(*) AS c FROM milestones "
+        "WHERE status = 'concluido' AND was_ever_stale = 0"
+    ).fetchone()
+    return row["c"] > 0
 
 
 def _longest_streak_days(conn) -> int:
@@ -125,6 +164,8 @@ def _meets_criteria(conn, criteria: dict) -> bool:
         return _longest_streak_days(conn) >= criteria["days"]
     if t == "goal_completed":
         return _count_goals_completed(conn) >= criteria.get("count", 1)
+    if t == "milestone_completed":
+        return _has_milestone_completed_without_staleness(conn)
     return False
 
 

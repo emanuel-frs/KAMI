@@ -1,5 +1,5 @@
 """
-Módulo Metas Pessoais (v2 — tipo 'academica' fica pós-mvp, depende de Carreira).
+Módulo Metas Pessoais (v2 — tipo 'academica' ativo desde a Parte 3 de Carreira).
 
 Endpoints:
   GET    /api/metas                        lista todas as metas (ativas + concluídas)
@@ -32,6 +32,17 @@ Regras de negócio (v2 — NOVO nesta versão):
     marco muda de status ou é removido — nunca em GET, pra não recreditar xp
     em toda leitura. Uma vez concluída, a meta não desfaz (mesma filosofia
     dos outros tipos) mesmo que um marco seja reaberto depois.
+  - tipo 'academica' (NOVO — Parte 3 de Carreira) segue o mesmo padrão de
+    'aprendizado', mas BINÁRIO em vez de incremental: current_value fica em
+    0 enquanto a formação vinculada (`linked_education_id`) não está
+    'concluida', e pula direto pra target_value quando ela conclui — não
+    existe "marco parcial" de uma formação nesse escopo, então não faz
+    sentido replicar o cálculo por contagem de milestones. Também não
+    aceita POST /contribute (422). Quem atualiza é o módulo Carreira,
+    chamando `sync_academic_goals(db, education_id)` sempre que o status
+    de uma formação muda ou ela é removida — nunca em GET. Uma vez
+    concluída, também não desfaz se a formação for reaberta depois (mesma
+    filosofia de 'aprendizado').
   - peso (`weight`, tiers fixos: baixo/medio/alto/epico) multiplica o xp de
     contribuição e o xp bônus de conclusão (ver GOAL_WEIGHTS) — meta "épica"
     vale bem mais xp que uma "baixa", sem reinventar a fórmula de xp em si.
@@ -60,8 +71,7 @@ router = APIRouter()
 
 # ── constantes ──────────────────────────────────────────────────────────────
 
-GOAL_TYPES = {"financeira", "livre", "saude", "leitura", "habito", "aprendizado"}
-# 'academica' só entra com o módulo Carreira
+GOAL_TYPES = {"financeira", "livre", "saude", "leitura", "habito", "aprendizado", "academica"}
 GOAL_STATUSES = {"ativa", "concluida"}
 CONTRIBUTION_ORIGINS = {"conta", "externo"}
 
@@ -93,8 +103,9 @@ class GoalIn(BaseModel):
     deadline: Optional[str] = None  # YYYY-MM-DD, opcional
     weight: str = "medio"
     unit_label: Optional[str] = None
-    linked_conta_id: Optional[str] = None   # só 'financeira' (conta padrão pra contribuir)
-    linked_track_id: Optional[str] = None   # obrigatório em 'aprendizado'
+    linked_conta_id: Optional[str] = None      # só 'financeira' (conta padrão pra contribuir)
+    linked_track_id: Optional[str] = None      # obrigatório em 'aprendizado'
+    linked_education_id: Optional[str] = None  # obrigatório em 'academica'
 
 
 class GoalUpdate(BaseModel):
@@ -110,6 +121,7 @@ class GoalUpdate(BaseModel):
     linked_conta_id: Optional[str] = None
     clear_linked_conta_id: bool = False
     linked_track_id: Optional[str] = None
+    linked_education_id: Optional[str] = None
 
 
 class GoalOut(BaseModel):
@@ -129,6 +141,8 @@ class GoalOut(BaseModel):
     linked_conta_nome: Optional[str] = None       # computado (join), só exibição
     linked_track_id: Optional[str] = None
     linked_track_name: Optional[str] = None       # computado (join), só exibição
+    linked_education_id: Optional[str] = None
+    linked_education_name: Optional[str] = None   # computado (join), só exibição
 
 
 class ContributeIn(BaseModel):
@@ -188,6 +202,14 @@ def _goal_row_to_out(db, row) -> dict:
         if track:
             linked_track_name = track["name"]
 
+    linked_education_name = None
+    if row["linked_education_id"]:
+        education = db.execute(
+            "SELECT curso FROM career_educations WHERE id = ?", (row["linked_education_id"],)
+        ).fetchone()
+        if education:
+            linked_education_name = education["curso"]
+
     return {
         "id": row["id"],
         "title": row["title"],
@@ -205,6 +227,8 @@ def _goal_row_to_out(db, row) -> dict:
         "linked_conta_nome": linked_conta_nome,
         "linked_track_id": row["linked_track_id"],
         "linked_track_name": linked_track_name,
+        "linked_education_id": row["linked_education_id"],
+        "linked_education_name": linked_education_name,
     }
 
 
@@ -275,6 +299,54 @@ def sync_learning_goals(db, track_id: str) -> None:
         )
 
 
+def sync_academic_goals(db, education_id: str) -> None:
+    """
+    Recalcula o progresso das metas tipo 'academica' vinculadas a uma
+    formação, a partir do status atual dela em career_educations. Chamado
+    pelo módulo Carreira (não pelas rotas de Metas) sempre que uma
+    formação muda de status ou é removida — nunca em GET /metas, pra não
+    recreditar xp em toda leitura.
+
+    Diferente de sync_learning_goals (progresso incremental por contagem
+    de marcos), aqui é BINÁRIO: current_value = target_value assim que a
+    formação está 'concluida', current_value = 0 em qualquer outro status
+    ('em_andamento' ou 'trancado') — não existe "formação 50% concluída"
+    nesse escopo. Só anda pra frente: uma meta que já concluiu não volta
+    a 'ativa' se a formação for reaberta depois (mesma filosofia das
+    outras metas — meta concluída não desfaz).
+    """
+    active_goals = db.execute(
+        "SELECT * FROM goals WHERE type = 'academica' AND linked_education_id = ? AND status = 'ativa'",
+        (education_id,),
+    ).fetchall()
+    if not active_goals:
+        return
+
+    education = db.execute(
+        "SELECT status FROM career_educations WHERE id = ?", (education_id,)
+    ).fetchone()
+    is_completed = bool(education) and education["status"] == "concluido"
+
+    newly_completed = []
+    for goal in active_goals:
+        new_current = goal["target_value"] if is_completed else 0
+        db.execute("UPDATE goals SET current_value = ? WHERE id = ?", (new_current, goal["id"]))
+        if is_completed:
+            db.execute("UPDATE goals SET status = 'concluida' WHERE id = ?", (goal["id"],))
+            newly_completed.append(goal)
+    db.commit()
+
+    for goal in newly_completed:
+        register_action(
+            db,
+            description=f'concluiu a meta "{goal["title"]}" (formação, xp bônus)',
+            categories=["metas"],
+            xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
+            impact=5,
+            source="metas",
+        )
+
+
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=List[GoalOut])
@@ -332,6 +404,19 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
             raise HTTPException(status_code=422, detail="trilha não encontrada")
         linked_track_id = payload.linked_track_id
 
+    linked_education_id = None
+    if payload.type == "academica":
+        if not payload.linked_education_id:
+            raise HTTPException(
+                status_code=422, detail="meta do tipo 'academica' precisa de uma formação vinculada"
+            )
+        education = db.execute(
+            "SELECT id FROM career_educations WHERE id = ?", (payload.linked_education_id,)
+        ).fetchone()
+        if not education:
+            raise HTTPException(status_code=422, detail="formação não encontrada")
+        linked_education_id = payload.linked_education_id
+
     unit_label = (payload.unit_label or "").strip() or None
     if payload.type == "financeira":
         unit_label = None  # unidade já é 'money', rótulo livre não se aplica
@@ -339,8 +424,9 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
     goal_id = new_id()
     db.execute(
         "INSERT INTO goals "
-        "(id, title, type, current_value, target_value, unit, unit_label, deadline, status, weight, linked_conta_id, linked_track_id) "
-        "VALUES (?, ?, ?, 0, ?, ?, ?, ?, 'ativa', ?, ?, ?)",
+        "(id, title, type, current_value, target_value, unit, unit_label, deadline, status, weight, "
+        " linked_conta_id, linked_track_id, linked_education_id) "
+        "VALUES (?, ?, ?, 0, ?, ?, ?, ?, 'ativa', ?, ?, ?, ?)",
         (
             goal_id,
             payload.title.strip(),
@@ -352,6 +438,7 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
             payload.weight,
             linked_conta_id,
             linked_track_id,
+            linked_education_id,
         ),
     )
     db.commit()
@@ -360,6 +447,10 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
         # backfilla o progresso já existente da trilha (ex: usuário cria a
         # meta depois de já ter concluído alguns módulos)
         sync_learning_goals(db, linked_track_id)
+    elif payload.type == "academica":
+        # backfilla o caso da formação já estar concluída antes de a meta
+        # existir (ex: usuário cadastra a meta depois de já ter terminado)
+        sync_academic_goals(db, linked_education_id)
 
     return _goal_row_to_out(db, _get_goal_or_404(db, goal_id))
 
@@ -431,18 +522,35 @@ def update_goal(goal_id: str, payload: GoalUpdate, db=Depends(get_db)):
         # mudou pra um tipo que não é mais 'aprendizado' — solta o vínculo
         new_linked_track_id = None
 
+    new_linked_education_id = row["linked_education_id"]
+    if new_type == "academica":
+        candidate = payload.linked_education_id if payload.linked_education_id is not None else row["linked_education_id"]
+        if not candidate:
+            raise HTTPException(
+                status_code=422, detail="meta do tipo 'academica' precisa de uma formação vinculada"
+            )
+        education = db.execute("SELECT id FROM career_educations WHERE id = ?", (candidate,)).fetchone()
+        if not education:
+            raise HTTPException(status_code=422, detail="formação não encontrada")
+        new_linked_education_id = candidate
+    elif payload.type is not None:
+        # mudou pra um tipo que não é mais 'academica' — solta o vínculo
+        new_linked_education_id = None
+
     db.execute(
         "UPDATE goals SET title = ?, type = ?, target_value = ?, unit = ?, unit_label = ?, "
-        "deadline = ?, weight = ?, linked_conta_id = ?, linked_track_id = ? WHERE id = ?",
+        "deadline = ?, weight = ?, linked_conta_id = ?, linked_track_id = ?, linked_education_id = ? WHERE id = ?",
         (
             new_title, new_type, new_target, _unit_for_type(new_type), new_unit_label,
-            new_deadline, new_weight, new_linked_conta_id, new_linked_track_id, goal_id,
+            new_deadline, new_weight, new_linked_conta_id, new_linked_track_id, new_linked_education_id, goal_id,
         ),
     )
     db.commit()
 
     if new_type == "aprendizado" and row["status"] == "ativa":
         sync_learning_goals(db, new_linked_track_id)
+    elif new_type == "academica" and row["status"] == "ativa":
+        sync_academic_goals(db, new_linked_education_id)
 
     return _goal_row_to_out(db, _get_goal_or_404(db, goal_id))
 
@@ -462,10 +570,11 @@ def delete_goal(goal_id: str, db=Depends(get_db)):
 def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
     row = _get_goal_or_404(db, goal_id)
 
-    if row["type"] == "aprendizado":
+    if row["type"] in ("aprendizado", "academica"):
+        origem_label = "trilha" if row["type"] == "aprendizado" else "formação"
         raise HTTPException(
             status_code=422,
-            detail="meta do tipo 'aprendizado' progride sozinha junto com a trilha — não aceita contribuição manual",
+            detail=f"meta do tipo '{row['type']}' progride sozinha junto com a {origem_label} — não aceita contribuição manual",
         )
     if row["status"] == "concluida":
         raise HTTPException(status_code=422, detail="meta já concluída — não aceita novas contribuições")

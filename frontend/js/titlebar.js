@@ -25,9 +25,9 @@ const isTauri = Boolean(window.__TAURI__);
 // aqui via innerHTML em vez de ficar embutidos como glifo unicode cru
 // (—, □, ✕) direto no HTML estático, seguindo o mesmo padrão do resto
 // do app (item "sem emoji/glifo cru").
-document.getElementById("win-minimize")?.insertAdjacentHTML("beforeend", icon("minus", { size: 12 }));
-document.getElementById("win-maximize")?.insertAdjacentHTML("beforeend", icon("square", { size: 11 }));
-document.getElementById("win-close")?.insertAdjacentHTML("beforeend", icon("x", { size: 12 }));
+document.getElementById("win-minimize")?.insertAdjacentHTML("beforeend", icon("minus", { size: 14 }));
+document.getElementById("win-maximize")?.insertAdjacentHTML("beforeend", icon("square", { size: 13 }));
+document.getElementById("win-close")?.insertAdjacentHTML("beforeend", icon("x", { size: 14 }));
 
 // Fora do Tauri (rodando no navegador durante o dev/teste) a titlebar
 // custom não faz sentido — é só referência visual de como vai ficar

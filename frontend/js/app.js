@@ -1,4 +1,4 @@
-import { getProfile } from "./api/perfil.js";
+import { getProfile, updateAvatar } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
@@ -7,6 +7,8 @@ import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
 import { openSettingsModal } from "./modals/settings-modal.js";
+import { openAvatarModal } from "./modals/avatar-modal.js";
+import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
@@ -17,9 +19,9 @@ import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
-// Telas do v1 (seção 0.1 do projeto) + calendário (primeira tela
-// pós-mvp a sair do estado "em breve", ver index.html). As demais
-// pós-mvp (carreira, assistente kami) continuam como link desabilitado.
+// Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
+// saíram do estado "em breve" (ver index.html). Assistente kami
+// continua como link desabilitado (pós-mvp).
 const PAGES = {
   perfil: () => import("./pages/perfil.js"),
   nucleo: () => import("./pages/nucleo.js"),
@@ -28,6 +30,7 @@ const PAGES = {
   organizacao: () => import("./pages/organizacao.js"),
   metas: () => import("./pages/metas.js"),
   calendario: () => import("./pages/calendario.js"),
+  carreira: () => import("./pages/carreira.js"),
 };
 
 const pageRoot = document.getElementById("page-root");
@@ -77,35 +80,69 @@ function wireSettingsButton() {
   btn.addEventListener("click", () => openSettingsModal());
 }
 
+/**
+ * Reflete o perfil atual (nome + avatar) no rodapé da sidebar. Chamada
+ * uma vez no boot (loadProfile) e de novo toda vez que store.set("profile")
+ * dispara — perfil pode mudar por vários caminhos (widget de perfil,
+ * configurações, avatar da própria sidebar, onboarding) e a sidebar
+ * precisa acompanhar todos eles, não só o carregamento inicial.
+ */
+function applyProfileToSidebar(profile) {
+  if (!profile) return;
+
+  const usernameEl = document.getElementById("sidebar-username");
+  if (usernameEl) {
+    usernameEl.textContent = profile.display_name || "usuário";
+  }
+
+  const sidebarAvatarEl = document.getElementById("sidebar-avatar");
+  if (sidebarAvatarEl && profile.avatar_ascii) {
+    sidebarAvatarEl.textContent = profile.avatar_ascii;
+    try {
+      fitAsciiText(sidebarAvatarEl, profile.avatar_ascii, {
+        container: sidebarAvatarEl.parentElement,
+        maxHeight: 25,
+        maxFont: 3,
+        minFont: 1,
+        paddingX: 8,
+        paddingY: 4,
+      });
+    } catch (err) {
+      console.error("fitAsciiText falhou no avatar da sidebar:", err);
+    }
+  }
+}
+
+/**
+ * Avatar da sidebar (decisão 18, mesmo modal do widget de perfil e da
+ * aba "perfil" de configurações — 3 caminhos, 1 só modal). Clicar nele
+ * abre direto o editor, sem precisar navegar até a tela perfil.
+ */
+function wireSidebarAvatar() {
+  const el = document.getElementById("sidebar-avatar");
+  if (!el) return;
+  el.addEventListener("click", () => {
+    const profile = store.get("profile");
+    openAvatarModal({
+      currentAscii: profile?.avatar_ascii,
+      onSave: async (ascii) => {
+        try {
+          await updateAvatar(ascii);
+        } catch (err) {
+          showErrorModal(err.message, "erro ao salvar avatar");
+          return;
+        }
+        store.set("profile", { ...store.get("profile"), avatar_ascii: ascii });
+      },
+    });
+  });
+}
+
 async function loadProfile() {
   try {
     const profile = await getProfile();
     store.set("profile", profile);
     document.documentElement.style.setProperty("--accent", profile.accent_color);
-
-    const usernameEl = document.getElementById("sidebar-username");
-    if (usernameEl) {
-      usernameEl.textContent = profile.display_name || "usuário";
-    }
-
-    if (profile.avatar_ascii) {
-      const sidebarAvatarEl = document.getElementById("sidebar-avatar");
-      if (sidebarAvatarEl) {
-        sidebarAvatarEl.textContent = profile.avatar_ascii;
-        try {
-          fitAsciiText(sidebarAvatarEl, profile.avatar_ascii, {
-            container: sidebarAvatarEl.parentElement,
-            maxHeight: 25,
-            maxFont: 3,
-            minFont: 1,
-            paddingX: 8,
-            paddingY: 4,
-          });
-        } catch (err) {
-          console.error("fitAsciiText falhou no avatar da sidebar:", err);
-        }
-      }
-    }
   } catch (err) {
     const usernameEl = document.getElementById("sidebar-username");
     if (usernameEl) {
@@ -123,8 +160,11 @@ async function boot() {
 
   registerNavigator(showPage);
 
+  store.subscribe("profile", applyProfileToSidebar);
+
   wireNav();
   wireSettingsButton();
+  wireSidebarAvatar();
   wireHelpButton();
   wireNotificationBell();
   wireModalEscapeClose();

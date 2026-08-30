@@ -20,11 +20,13 @@ import { store } from "../state/store.js";
  *   fica correto se reaberto depois de o usuário trocar nome/cor no
  *   perfil).
  * - Fio narrativo: o mesmo marco de exemplo ("fundamentos de python")
- *   aparece em três telas (núcleo → aprendizado → metas), mostrando como
- *   um módulo alimenta o outro, em vez de sete blocos desconectados.
- * - Último passo deixa claro que isso é só uma prévia, e que cada tela
- *   vai ter dicas mais detalhadas na hora de usar de verdade (etapa 5,
- *   ainda não construída — texto já prepara terreno pra ela).
+ *   aparece em quatro telas (núcleo → aprendizado → metas → calendário),
+ *   mostrando como um módulo alimenta o outro, em vez de blocos
+ *   desconectados.
+ * - Último passo (calendário) deixa claro que isso é só uma prévia, e
+ *   que cada tela vai ter dicas mais detalhadas na hora de usar de
+ *   verdade (etapa 5, screen-tips-registry.js — calendário ainda não
+ *   tem dicas próprias registradas, só as outras 6 telas do v1).
  *
  * Comportamento (mantido):
  * - Abre automaticamente no primeiro boot, encadeado depois da etapa 2/3
@@ -56,7 +58,7 @@ const STEPS = [
   {
     title: (ctx) => `bora, ${ctx.name}`,
     desc: () =>
-      "essa é uma prévia rápida — sete telas, meio minuto cada. o fio condutor do kami: toda ação que você registra em qualquer módulo credita xp num atributo, sobe de nível e pode desbloquear conquistas. vou usar o mesmo exemplo em mais de uma tela pra você ver como um módulo alimenta o outro.",
+      "essa é uma prévia rápida — oito telas, meio minuto cada. o fio condutor do kami: toda ação que você registra em qualquer módulo credita xp num atributo, sobe de nível e pode desbloquear conquistas. vou usar o mesmo exemplo em mais de uma tela pra você ver como um módulo alimenta o outro.",
     illustration: () => `
       <div class="ob-illus ob-illus--intro">
         <div class="ob-illus-row">
@@ -122,7 +124,7 @@ const STEPS = [
   {
     title: () => "finanças",
     desc: () =>
-      "renda recorrente com cadastro próprio (várias fontes, dia fixo/dia útil/intervalo de dias/depende de outra fonte, ou avulsa) e cálculo de dia útil real, cartões, contas fixas, dívidas, compras parceladas, assinaturas e gastos avulsos — visão mensal de entradas vs. saídas, comparando com o mês anterior. cada lançamento daqui também vira uma linha no log do núcleo, com xp igual a qualquer outro módulo.",
+      "renda recorrente com cadastro próprio (várias fontes, dia fixo/dia útil/intervalo de dias/depende de outra fonte, ou avulsa) e cálculo de dia útil real, cartões, contas fixas, dívidas, compras parceladas, assinaturas e gastos avulsos — visão mensal de entradas vs. saídas, comparando com o mês anterior, mais gráficos de fluxo, categorias, evolução e limites de cartão. cada lançamento daqui também vira uma linha no log do núcleo, com xp igual a qualquer outro módulo.",
     illustration: () => `
       <div class="ob-illus ob-illus--financas">
         <div class="ob-fin-row">
@@ -163,7 +165,7 @@ const STEPS = [
   {
     title: () => "organização",
     desc: () =>
-      "hub de acesso rápido: links categorizados com favicon, status dos seus repositórios do GitHub e e-mail via IMAP de verdade — assunto, remetente e trecho do corpo em texto puro, sem HTML de terceiros e sem IA lendo nada por enquanto.",
+      "hub de acesso rápido: links categorizados com favicon, status dos seus repositórios do GitHub, e-mail via IMAP de verdade — assunto, remetente e trecho do corpo em texto puro, sem HTML de terceiros e sem IA lendo nada por enquanto — e uma busca na web com resumo inline (chave pessoal opcional; sem ela, cai pro DuckDuckGo direto).",
     illustration: () => `
       <div class="ob-illus ob-illus--org">
         <div class="ob-org-row">
@@ -181,9 +183,9 @@ const STEPS = [
       </div>`,
   },
   {
-    title: (ctx) => `metas pessoais — é só uma prévia, ${ctx.name}`,
+    title: () => "metas pessoais",
     desc: () =>
-      'metas financeiras (tipo aquela viagem ali embaixo) ou livres, cada uma com prazo e histórico de contribuições. repara na segunda: metas do tipo aprendizado ficam vinculadas a uma trilha — a mesma de programação que você viu — e avançam sozinhas conforme os marcos são concluídos, sem precisar atualizar nada na mão. isso fecha o fio: um marco concluído em aprendizado virou xp no núcleo e progresso aqui, tudo pela mesma ação. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+      'metas financeiras (tipo aquela viagem ali embaixo) ou livres, cada uma com prazo e histórico de contribuições. repara na segunda: metas do tipo aprendizado ficam vinculadas a uma trilha — a mesma de programação que você viu — e avançam sozinhas conforme os marcos são concluídos, sem precisar atualizar nada na mão. isso fecha o fio: um marco concluído em aprendizado virou xp no núcleo e progresso aqui, tudo pela mesma ação.',
     illustration: () => `
       <div class="ob-illus ob-illus--metas">
         <div class="ob-meta-card">
@@ -195,6 +197,26 @@ const STEPS = [
           <span class="ob-meta-title">dominar python</span>
           <div class="ob-meta-bar"><span class="ob-meta-fill" style="width:67%"></span></div>
           <span class="ob-meta-sub">trilha: programação · avança sozinha</span>
+        </div>
+      </div>`,
+  },
+  {
+    title: (ctx) => `calendário — é só uma prévia, ${ctx.name}`,
+    desc: () =>
+      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+    illustration: () => `
+      <div class="ob-illus ob-illus--calendario">
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("receipt", { size: 9 })} conta de luz</span>
+          <span class="ob-attr-xp">venceu ontem</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("target", { size: 9 })} viagem para o japão</span>
+          <span class="ob-attr-xp">vence em dez</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("star", { size: 9 })} concluiu "fundamentos de python"</span>
+          <span class="ob-attr-xp">há 2 dias</span>
         </div>
       </div>`,
   },

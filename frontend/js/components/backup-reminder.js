@@ -50,7 +50,7 @@ function buildToast() {
   `;
   el.querySelector('[data-action="backup"]').addEventListener("click", () => {
     hideBackupReminder();
-    openSettingsModal();
+    openSettingsModal("backup"); // pula direto pra aba de export, já que hoje o modal virou multi-aba (ver configuracoes_plano.md)
   });
   el.querySelector('[data-action="dismiss"]').addEventListener("click", () => {
     dismissedThisSession = true;

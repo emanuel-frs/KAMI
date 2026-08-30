@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS user_profile (
     avatar_ascii          TEXT,               -- NULL = sem avatar ainda
     onboarding_completed  INTEGER NOT NULL DEFAULT 0,  -- decisão 25 (seção 15.6)
     last_backup_at        TEXT,               -- NULL = nunca exportou um backup
+    notif_alerts_enabled  INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "vencendo em breve" (calendário)
+    notif_email_enabled   INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "e-mails"
     updated_at            TEXT NOT NULL
 );
 
@@ -282,8 +284,14 @@ CREATE TABLE IF NOT EXISTS milestones (
     started_at        TEXT,
     completed_at      TEXT,
     last_activity_at  TEXT,
-    xp_awarded         INTEGER             -- XP creditado ao concluir este marco especifico — usado
+    xp_awarded         INTEGER,            -- XP creditado ao concluir este marco especifico — usado
                                             -- pra estornar o valor exato se o marco for desmarcado
+    was_ever_stale     INTEGER NOT NULL DEFAULT 0  -- 1 se este marco já passou por 'esquecido' em
+                                            -- algum momento da vida dele (marcado por _apply_staleness),
+                                            -- mesmo que depois tenha sido reaberto/concluído — nunca
+                                            -- volta a 0; usado pelo achievement 'milestone_completed'
+                                            -- ("trilha em dia": concluir um marco sem nunca ter ficado
+                                            -- esquecido)
 );
 
 -- ---------------- ORGANIZAÇÃO ----------------
@@ -298,7 +306,9 @@ CREATE TABLE IF NOT EXISTS github_repos (
     id              TEXT PRIMARY KEY,
     repo_full_name  TEXT NOT NULL,     -- "usuario/kami"
     cached_status   TEXT,              -- json cru da última resposta da api pública
-    last_synced_at  TEXT
+    last_synced_at  TEXT,
+    source          TEXT NOT NULL DEFAULT 'manual',  -- 'manual' ou 'auto' (importado via token)
+    owner_login     TEXT               -- login da conta dona do token, só pra source='auto'
 );
 
 CREATE TABLE IF NOT EXISTS email_accounts (
@@ -345,19 +355,20 @@ CREATE TABLE IF NOT EXISTS muted_accounts (
 
 -- ---------------- METAS PESSOAIS (v2 — tipos, peso, financas+aprendizado) ----------------
 CREATE TABLE IF NOT EXISTS goals (
-    id               TEXT PRIMARY KEY,
-    title            TEXT NOT NULL,
-    type             TEXT NOT NULL,       -- 'financeira' | 'livre' | 'saude' | 'leitura' | 'habito' |
-                                           -- 'aprendizado' ('academica' entra com Carreira, pós-mvp)
-    current_value    REAL NOT NULL DEFAULT 0,
-    target_value     REAL NOT NULL,
-    unit             TEXT NOT NULL DEFAULT 'count',  -- 'money' | 'count'
-    unit_label       TEXT,                 -- rótulo livre pro 'count' ("kg", "páginas", "vezes"...)
-    deadline         TEXT,
-    status           TEXT NOT NULL DEFAULT 'ativa',  -- 'ativa' | 'concluida'
-    weight           TEXT NOT NULL DEFAULT 'medio',  -- 'baixo' | 'medio' | 'alto' | 'epico' — multiplica o xp
-    linked_conta_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- só 'financeira' (conta padrão)
-    linked_track_id  TEXT REFERENCES tracks(id) ON DELETE SET NULL           -- só 'aprendizado'
+    id                   TEXT PRIMARY KEY,
+    title                TEXT NOT NULL,
+    type                 TEXT NOT NULL,       -- 'financeira' | 'livre' | 'saude' | 'leitura' | 'habito' |
+                                               -- 'aprendizado' | 'academica' (Parte 3 de Carreira)
+    current_value        REAL NOT NULL DEFAULT 0,
+    target_value         REAL NOT NULL,
+    unit                 TEXT NOT NULL DEFAULT 'count',  -- 'money' | 'count'
+    unit_label           TEXT,                 -- rótulo livre pro 'count' ("kg", "páginas", "vezes"...)
+    deadline             TEXT,
+    status               TEXT NOT NULL DEFAULT 'ativa',  -- 'ativa' | 'concluida'
+    weight               TEXT NOT NULL DEFAULT 'medio',  -- 'baixo' | 'medio' | 'alto' | 'epico' — multiplica o xp
+    linked_conta_id      TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,      -- só 'financeira'
+    linked_track_id      TEXT REFERENCES tracks(id) ON DELETE SET NULL,               -- só 'aprendizado'
+    linked_education_id  TEXT REFERENCES career_educations(id) ON DELETE SET NULL     -- só 'academica'
 );
 
 CREATE TABLE IF NOT EXISTS goal_contributions (
@@ -422,6 +433,98 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     updated_at              TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
+
+-- ---------------- CARREIRA (perfil profissional interno) ----------------
+-- Parte 1 do módulo Carreira: só os dois blocos "campo simples" (área
+-- atual/meta + interesses) — sem histórico próprio e sem XP (ver
+-- carreira-regras-de-negocio.md, seções 1 e 2). Linha do tempo de
+-- posições, formação acadêmica e evolução salarial chegam nas próximas
+-- partes, em tabelas próprias.
+CREATE TABLE IF NOT EXISTS career_profile (
+    id         TEXT PRIMARY KEY,   -- linha única (mesmo padrão de user_profile)
+    area_atual TEXT,
+    area_meta  TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS career_interests (
+    id         TEXT PRIMARY KEY,
+    tag        TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+-- Parte 2 do módulo Carreira: linha do tempo de posições (seção 3 do
+-- documento de regras de negócio) — CRUD completo, com XP no atributo
+-- 'carreira' via register_action na criação (ver app/routers/carreira.py).
+-- `end_date` NULL = posição em andamento; múltiplas posições "atuais"
+-- (várias linhas com end_date NULL) são permitidas de propósito, sem
+-- validação de unicidade. `expected_contract_end`/`expected_salary_review`
+-- ainda não alimentam o calendário nesta parte — isso é integração da
+-- Parte 5, aqui só os campos já existem pra não precisar migração depois.
+CREATE TABLE IF NOT EXISTS career_positions (
+    id                     TEXT PRIMARY KEY,
+    company                TEXT NOT NULL,
+    role                   TEXT NOT NULL,
+    area                   TEXT,
+    employment_type        TEXT,   -- ex: CLT, PJ, freelancer, estágio — texto livre, sem enum no backend
+    start_date             TEXT NOT NULL,  -- 'YYYY-MM-DD'
+    end_date               TEXT,           -- 'YYYY-MM-DD', NULL = posição atual
+    expected_contract_end  TEXT,           -- 'YYYY-MM-DD' opcional
+    expected_salary_review TEXT,           -- 'YYYY-MM-DD' opcional
+    created_at             TEXT NOT NULL,
+    updated_at             TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_career_positions_start_date ON career_positions(start_date);
+
+-- Parte 3 do módulo Carreira: formação acadêmica (seção 4 do documento de
+-- regras de negócio) — CRUD completo, com XP escalonado por `nivel` no
+-- atributo 'carreira', creditado só na TRANSIÇÃO pra status='concluido'
+-- (criar/editar um registro "em andamento" não credita nada — diferente
+-- de career_positions, aqui o marco que importa é a conclusão, não o
+-- registro do início; mesmo espírito de milestones em Aprendizado).
+-- `xp_awarded` guarda o valor efetivamente creditado (não um valor fixo
+-- recalculado depois) pra reabrir o registro (status volta a diferir de
+-- 'concluido') estornar exatamente o que foi dado, mesmo se NIVEL_XP
+-- mudar no futuro — mesmo padrão de milestones.xp_awarded. Múltiplas
+-- formações "em andamento" são permitidas, sem validação de unicidade
+-- (mesma filosofia de career_positions com "atual").
+CREATE TABLE IF NOT EXISTS career_educations (
+    id                 TEXT PRIMARY KEY,
+    curso              TEXT NOT NULL,
+    instituicao        TEXT NOT NULL,
+    nivel              TEXT NOT NULL,   -- 'certificacao'|'tecnico'|'graduacao'|'pos_graduacao'|'mestrado'|'doutorado'
+    status             TEXT NOT NULL DEFAULT 'em_andamento',  -- 'em_andamento'|'concluido'|'trancado'
+    previsao_conclusao TEXT,            -- 'YYYY-MM-DD' opcional — vira fonte de calendário na Parte 5
+    xp_awarded         INTEGER,         -- NULL até concluir; guarda o xp creditado nessa conclusão
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_career_educations_status ON career_educations(status);
+
+-- Parte 4 do módulo Carreira: evolução salarial (seção 5 do documento de
+-- regras de negócio) — CRUD completo, com XP no atributo 'carreira'
+-- diferenciado por lançamento em tempo real (proporcional ao salto, ver
+-- SALARY_XP_REALTIME_* em app/routers/carreira.py) vs. preenchimento
+-- retroativo de histórico (valor fixo simbólico) — mesmo critério
+-- data=hoje/data!=hoje já usado em career_positions (comentário lá
+-- previa essa reutilização). `position_id` é um vínculo OPCIONAL a uma
+-- posição da linha do tempo (ON DELETE SET NULL — remover a posição não
+-- apaga o histórico salarial, só desvincula, mesmo tratamento de
+-- goals.linked_education_id); não há unicidade por posição, múltiplos
+-- registros podem apontar pra mesma posição (reajustes dentro do mesmo
+-- cargo).
+CREATE TABLE IF NOT EXISTS career_salary_records (
+    id          TEXT PRIMARY KEY,
+    amount      REAL NOT NULL,
+    currency    TEXT NOT NULL DEFAULT 'BRL',
+    employment_type TEXT,   -- ex: CLT, PJ — texto livre, sem enum no backend (mesmo padrão de career_positions)
+    date        TEXT NOT NULL,  -- 'YYYY-MM-DD'
+    reason      TEXT,           -- motivo opcional (ex: "promoção", "reajuste anual")
+    position_id TEXT REFERENCES career_positions(id) ON DELETE SET NULL,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_career_salary_records_date ON career_salary_records(date);
 
 -- ---------------- ÍNDICES ÚTEIS ----------------
 CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at);

@@ -5,13 +5,17 @@ import { setPendingFocus } from "../components/pending-focus.js";
 import { TYPE_META } from "../components/event-types.js";
 import { openCalendarEventModal } from "../modals/calendar-event-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { store } from "../state/store.js";
+import { maybeStartCalendarioTips, replayCalendarioTips } from "./calendario-tips.js";
+import { cancelActiveTipSequence } from "../components/tip-sequence.js";
+import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
 /** Badge colorido (cor do tipo) com o ícone SVG do tipo dentro — reaproveitado
  * na grade do mês, no filtro do dia, na lista de eventos e na legenda, só
  * variando o tamanho do ícone via `size`. */
-function typeBadge(type, size = 10) {
+function typeBadge(type, size = 14) {
   const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
   return `<span class="cal-chip" style="--type-color:${meta.color}">${icon(meta.icon, { size })}</span>`;
 }
@@ -82,6 +86,8 @@ let loadToken = 0;
 let activeFilters = new Set(); // tipos selecionados para filtrar; vazio = todos
 
 let resizeObserver = null;
+let unsubscribeProfile = null;
+let currentReplayFn = null;
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -203,7 +209,7 @@ function renderGrid() {
       .map(([type, evts]) => {
         const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
         const tip = evts.length > 1 ? `${meta.label} (${evts.length})` : `${meta.label}: ${evts[0].title}`;
-        return `<span class="cal-chip" style="--type-color:${meta.color}" data-tooltip="${escapeHtml(tip)}">${icon(meta.icon, { size: 9 })}</span>`;
+        return `<span class="cal-chip" style="--type-color:${meta.color}" data-tooltip="${escapeHtml(tip)}">${icon(meta.icon, { size: 14 })}</span>`;
       })
       .join("")
       + (milestoneEvts.length
@@ -211,7 +217,7 @@ function renderGrid() {
             milestoneEvts.length > 1
               ? `${milestoneEvts.length} marcos concluídos`
               : `marco concluído: ${milestoneName(milestoneEvts[0])}`
-          )}">${icon(MILESTONE_META.icon, { size: 9 })}</span>`
+          )}">${icon(MILESTONE_META.icon, { size: 14 })}</span>`
         : "");
 
     const dow = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
@@ -306,7 +312,7 @@ function renderDayPanel() {
       .map((type) => {
         const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
         const isActive = activeFilters.has(type);
-        return `<button type="button" class="cal-filter-btn${isActive ? " active" : ""}" data-type="${escapeHtml(type)}">${typeBadge(type, 9)}${escapeHtml(meta.label)}</button>`;
+        return `<button type="button" class="cal-filter-btn${isActive ? " active" : ""}" data-type="${escapeHtml(type)}">${typeBadge(type, 14)}${escapeHtml(meta.label)}</button>`;
       })
       .join("");
 
@@ -354,7 +360,7 @@ function renderDayPanel() {
       return `
         <div class="cal-event-row${isEventoEvent(e) ? " cal-event-row-evento" : ""}" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}"${draggableAttr}>
           <div class="cal-event-row-main">
-            <span class="cal-event-dot${milestone ? " milestone" : ""}" style="--type-color:${meta.color}">${icon(meta.icon, { size: 11 })}</span>
+            <span class="cal-event-dot${milestone ? " milestone" : ""}" style="--type-color:${meta.color}">${icon(meta.icon, { size: 20 })}</span>
             <span class="cal-event-type">${escapeHtml(meta.label)}</span>
             ${e.time ? `<span class="cal-event-time">${icon("clock", { size: 10 })}${escapeHtml(e.time)}</span>` : ""}
             <span class="cal-event-title">${escapeHtml(title)}</span>
@@ -430,9 +436,9 @@ function goToToday() {
 // ─── legenda ─────────────────────────────────────────────────────────────
 function renderLegend() {
   const typeItems = Object.entries(TYPE_META)
-    .map(([type, m]) => `<span class="cal-legend-item">${typeBadge(type, 9)}${escapeHtml(m.label)}</span>`)
+    .map(([type, m]) => `<span class="cal-legend-item">${typeBadge(type, 14)}${escapeHtml(m.label)}</span>`)
     .join("");
-  const milestoneItem = `<span class="cal-legend-item"><span class="cal-chip milestone" style="--type-color:${MILESTONE_META.color}">${icon(MILESTONE_META.icon, { size: 9 })}</span>${escapeHtml(MILESTONE_META.label)}</span>`;
+  const milestoneItem = `<span class="cal-legend-item"><span class="cal-chip milestone" style="--type-color:${MILESTONE_META.color}">${icon(MILESTONE_META.icon, { size: 14 })}</span>${escapeHtml(MILESTONE_META.label)}</span>`;
   return typeItems + milestoneItem;
 }
 
@@ -481,9 +487,21 @@ export async function mount(container) {
   container.querySelector("#cal-new-event-btn").addEventListener("click", handleNewEventClick);
 
   await loadMonth();
+
+  maybeStartCalendarioTips();
+  unsubscribeProfile = store.subscribe("profile", () => maybeStartCalendarioTips());
+
+  // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
+  currentReplayFn = () => replayCalendarioTips();
+  registerScreenTipsReplay(currentReplayFn);
 }
 
 export function unmount() {
+  cancelActiveTipSequence();
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+  if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
+  currentReplayFn = null;
   resizeObserver?.disconnect();
   resizeObserver = null;
   containerEl = null;

@@ -1,50 +1,49 @@
-import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
+import { getProfile, updateAvatar } from "../api/perfil.js";
 import { getAttributes, getAchievements } from "../api/nucleo.js";
 import { levelFromXp } from "../components/xp.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
+import { icon } from "../components/icons.js";
+import { openSettingsModal } from "../modals/settings-modal.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
-import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
-import { icon } from "../components/icons.js";
-import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
+import { store } from "../state/store.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
- * tela Perfil que combina identidade (nome/cor/avatar) com resumo de
- * progresso (nível/xp/conquistas, vindos do núcleo). Toggle view/edit
- * inline pra nome/cor usando o mecanismo genérico de widgets.css:
- *   .card[data-editable] .edit-mode      { display:none }
- *   .card[data-editable].editing .view-mode { display:none }
- *   .card[data-editable].editing .edit-mode { display:block }
+ * tela Perfil que combina identidade (nome/avatar) com resumo de
+ * progresso (nível/xp/conquistas, vindos do núcleo).
  *
- * Edição de AVATAR é diferente: por convenção do app (decisão 18, que
- * cita "editar o avatar" como exemplo explícito) isso abre um MODAL
- * dedicado (avatar-modal.js, ascii-lab portado do protótipo) em vez de
- * virar inputs dentro do card.
+ * Somente leitura (conforme configuracoes_plano.md): não tem mais
+ * toggle view/edit inline nem inputs de nome/cor — isso agora vive só
+ * na aba Perfil do modal de Configurações. O botão no canto do card
+ * abre esse modal (já na aba perfil).
+ *
+ * O avatar em si tem um atalho próprio: clicar nele abre direto o
+ * modal de avatar (avatar-modal.js) — mesmo modal usado na aba perfil
+ * de configurações e no avatar da sidebar (decisão 18: um modal só) —
+ * em vez de precisar passar pela tela de configurações primeiro.
+ * Cor de destaque não aparece mais aqui — isso é aba Aparência.
  *
  * Este card é fixo (data-pinned, ver widgets.css) — sempre primeiro
  * (posição 1/1) e não arrastável, já que não faz sentido reordenar o
  * único widget de identidade da tela.
+ *
+ * Fica inscrito em store.subscribe("profile") pra se manter em sync
+ * automaticamente sempre que o perfil mudar por qualquer outro
+ * caminho (nome/avatar salvos na aba perfil de configurações, avatar
+ * da sidebar, onboarding etc.) — sem isso, o card ficava com dados
+ * velhos até a próxima navegação/reload. Reassina a cada render()
+ * (desinscrevendo a anterior primeiro) pra não acumular listeners
+ * quando o widget é remontado.
  */
 
-function _applySidebarAvatar(ascii) {
-  const el = document.getElementById("sidebar-avatar");
-  if (!el) return;
-  el.textContent = ascii;
-  try {
-    fitAsciiText(el, ascii, {
-      container: el.parentElement,
-      maxHeight: 25,
-      maxFont: 3,
-      minFont: 1,
-      paddingX: 8,
-      paddingY: 4,
-    });
-  } catch (_) {}
-}
+let unsubscribeProfile = null;
 
 export async function render(el, widget) {
+  unsubscribeProfile?.();
+  unsubscribeProfile = null;
+
   el.innerHTML = '<div class="empty-state">carregando perfil…</div>';
 
   const cardEl = el.closest(".card");
@@ -63,12 +62,6 @@ export async function render(el, widget) {
     return;
   }
 
-  // o select de cor (e o dropdown customizado dele, que vive num portal
-  // em <body> — ver custom-select.js) é recriado do zero a cada render()
-  // deste widget; destrói o antigo antes de sobrescrever o innerHTML,
-  // senão a lista velha fica órfã, escondida, acumulando no body.
-  destroyCustomSelect(el.querySelector("#pw-accent-input"));
-
   const totalXp = attributes.reduce((sum, a) => sum + a.current_xp, 0);
   const { level } = levelFromXp(totalXp);
   const unlockedCount = achievements.filter((a) => a.unlocked_at).length;
@@ -76,19 +69,15 @@ export async function render(el, widget) {
 
   el.innerHTML = `
     <div class="view-mode">
-      <button type="button" class="pw-avatar-btn" data-tooltip="editar avatar">
+      <div class="pw-avatar-btn" data-tooltip="ver/editar avatar">
         <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
-      </button>
+      </div>
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
           <div style="display:flex; gap:6px;">
-            <button type="button" class="btn sm mode-toggle-btn" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar nome/cor</button>
+            <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar perfil</button>
           </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:11px; color:var(--text-dim);">
-          <span style="width:11px; height:11px; background:${profile.accent_color}; display:inline-block; border:1px solid var(--border-soft);"></span>
-          <span>${escapeHtml(accentLabel(profile.accent_color))}</span>
         </div>
         <div style="display:flex; gap:20px; margin-top:14px; flex-wrap:wrap;">
           <div class="vm-row"><span class="k">nível</span><span class="v">${level}</span></div>
@@ -98,75 +87,11 @@ export async function render(el, widget) {
         </div>
       </div>
     </div>
-
-    <div class="edit-mode">
-      <button type="button" class="pw-avatar-btn" data-tooltip="editar avatar" data-action="avatar-edit">
-        <pre class="pw-avatar-ascii-el" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
-      </button>
-      <div style="flex:1 1 200px; min-width:0;">
-        <div class="field">
-          <label>nome de exibição</label>
-          <input type="text" id="pw-name-input" placeholder="como a kami vai te chamar" value="${escapeHtml(profile.display_name)}">
-        </div>
-        <div class="field">
-          <label>cor de destaque</label>
-          <select id="pw-accent-input">
-            ${ACCENT_OPTIONS.map(
-              (o) => `<option value="${o.value}" ${o.value === profile.accent_color ? "selected" : ""}>${o.label}</option>`
-            ).join("")}
-          </select>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn primary" data-action="save">salvar</button>
-          <button type="button" class="btn sm" data-action="cancel">cancelar</button>
-        </div>
-        <div id="pw-save-msg" style="font-size:10px; color:var(--accent); margin-top:8px; display:none; align-items:center; gap:4px;">salvo ${icon("check", { size: 9 })}</div>
-      </div>
-    </div>
   `;
-
-  // select de cor é recriado do zero a cada render() (innerHTML acima) —
-  // por isso é montado de novo aqui, e não uma vez só como nos modais
-  // singleton (ver custom-select.js).
-  enhanceSelect(el.querySelector("#pw-accent-input"));
-
-  // ── avatar: anexa o clique JÁ AQUI, antes de qualquer coisa que possa
-  //    lançar erro (fitAsciiText, cálculo de grid, etc.). Antes esse
-  //    listener era o ÚLTIMO a ser anexado — se algo antes dele
-  //    lançasse uma exceção não capturada, o resto da função parava e
-  //    o botão do avatar ficava com a aparência normal mas sem clique
-  //    nenhum funcionando (o card já tinha sido inserido no DOM antes
-  //    da falha). Abre modal dedicado (decisão 18), nunca inline. ──
-  el.querySelectorAll(".pw-avatar-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openAvatarModal({
-        currentAscii: profile.avatar_ascii,
-        onSave: async (ascii) => {
-          await updateAvatar(ascii);
-          _applySidebarAvatar(ascii);
-          render(el, widget);
-        },
-      });
-    });
-  });
-
-  el.querySelectorAll(".pw-avatar-ascii-el").forEach((avatarPre) => {
-    try {
-      fitAsciiText(avatarPre, profile.avatar_ascii ?? "sem avatar\nainda", {
-        container: avatarPre.parentElement,
-        maxHeight: 136,
-        maxFont: 8,
-        paddingX: 10,
-        paddingY: 10,
-      });
-    } catch (err) {
-      console.error("fitAsciiText falhou no avatar do perfil:", err);
-    }
-  });
 
   // ── ajusta o tamanho do mini-avatar ao box maior (ver widgets.css .pw-avatar-btn) ──
   // try/catch: uma falha de medição aqui (ex: canvas indisponível, layout
-  // ainda não computado) não pode impedir os listeners abaixo de anexar.
+  // ainda não computado) não pode impedir o listener abaixo de anexar.
   const avatarPre = el.querySelector("#pw-avatar-ascii");
   try {
     fitAsciiText(avatarPre, profile.avatar_ascii ?? "sem avatar\nainda", {
@@ -180,86 +105,33 @@ export async function render(el, widget) {
     console.error("fitAsciiText falhou no avatar do perfil:", err);
   }
 
-  // ── grid: garante altura suficiente pro modo de edição não cortar
-  //    inputs/botões. cardEl.scrollHeight já reflete o conteúdo real
-  //    (mesmo que o grid tenha reservado menos linhas originalmente);
-  //    guardamos o valor original pra restaurar ao sair da edição. ──
-  let originalRowEnd = null;
-  let originalHeight = null;
+  // ── somente leitura: o card não edita nome/cor inline. O botão
+  //    "editar perfil" abre o modal de Configurações direto na aba
+  //    perfil, onde essa edição acontece. ──
+  el.querySelector('[data-action="edit"]')?.addEventListener("click", () => openSettingsModal("perfil"));
 
-  function growCardToFitContent() {
-    if (!cardEl) return;
-    cardEl.style.height = "";
-    requestAnimationFrame(() => {
-      const rowSpan = Math.max(1, Math.ceil((cardEl.scrollHeight + 16) / (8 + 16))) + 1;
-      cardEl.style.gridRowEnd = `span ${rowSpan}`;
+  // ── avatar tem atalho próprio: abre direto o modal de avatar (mesmo
+  //    padrão do avatar da sidebar em app.js), sem passar por
+  //    Configurações primeiro. ──
+  el.querySelector(".pw-avatar-btn")?.addEventListener("click", () => {
+    openAvatarModal({
+      currentAscii: profile.avatar_ascii,
+      onSave: async (ascii) => {
+        try {
+          await updateAvatar(ascii);
+        } catch (err) {
+          showErrorModal(err.message, "erro ao salvar avatar");
+          return;
+        }
+        // propaga via store — o próprio subscribe abaixo cuida de
+        // re-renderizar este card, e app.js/sidebar já está inscrito
+        // no mesmo canal e se atualiza junto.
+        store.set("profile", { ...store.get("profile"), avatar_ascii: ascii });
+      },
     });
-  }
-  function restoreCardHeight() {
-    if (!cardEl) return;
-    if (originalRowEnd !== null) cardEl.style.gridRowEnd = originalRowEnd;
-    else cardEl.style.removeProperty("grid-row-end");
-    if (originalHeight !== null) cardEl.style.height = originalHeight;
-    else cardEl.style.removeProperty("height");
-  }
-
-  // ── toggle view/edit (nome/cor) ──────────────────────────────────────
-  el.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
-    originalRowEnd = cardEl?.style.gridRowEnd || null;
-    originalHeight = cardEl?.style.height || null;
-    cardEl?.classList.add("editing");
-    growCardToFitContent();
-
-    // o avatar do modo de edição foi medido em render() enquanto
-    // .edit-mode ainda estava display:none (container com clientWidth 0
-    // nesse momento) — o font-size calculado ali não reflete o box real.
-    // Agora que a classe .editing tornou o painel visível, remede.
-    const editAvatarPre = el.querySelector(".pw-avatar-ascii-el");
-    if (editAvatarPre) {
-      try {
-        fitAsciiText(editAvatarPre, profile.avatar_ascii ?? "sem avatar\nainda", {
-          container: editAvatarPre.parentElement,
-          maxHeight: 136,
-          maxFont: 8,
-          paddingX: 10,
-          paddingY: 10,
-        });
-      } catch (err) {
-        console.error("fitAsciiText falhou no avatar (modo edição):", err);
-      }
-    }
-  });
-  el.querySelector('[data-action="cancel"]')?.addEventListener("click", () => {
-    cardEl?.classList.remove("editing");
-    restoreCardHeight();
   });
 
-  // ── salvar nome/cor ──────────────────────────────────────────────────
-  el.querySelector('[data-action="save"]')?.addEventListener("click", async () => {
-    const nameInput = el.querySelector("#pw-name-input");
-    const accentInput = el.querySelector("#pw-accent-input");
-    const saveMsg = el.querySelector("#pw-save-msg");
-
-    const newName = nameInput.value.trim() || "usuário";
-    const newAccent = accentInput.value;
-
-    try {
-      await updateProfile({ display_name: newName, accent_color: newAccent });
-    } catch (err) {
-      showErrorModal(err.message, "erro ao salvar perfil");
-      return;
-    }
-
-    // aplica a cor de destaque globalmente, igual o boot faz em app.js
-    document.documentElement.style.setProperty("--accent", newAccent);
-    const tagline = document.getElementById("sidebar-tagline");
-    if (tagline) tagline.textContent = newName;
-
-    saveMsg.style.display = "flex";
-    setTimeout(() => {
-      cardEl?.classList.remove("editing");
-      restoreCardHeight();
-      render(el, widget); // recarrega o widget com os dados atualizados
-    }, 500);
-  });
+  // ── mantém o card em sync com mudanças de perfil feitas em outro
+  //    lugar (aba perfil de configurações, avatar da sidebar etc.). ──
+  unsubscribeProfile = store.subscribe("profile", () => render(el, widget));
 }

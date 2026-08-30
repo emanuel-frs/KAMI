@@ -84,6 +84,19 @@ function buildDom() {
   return root;
 }
 
+function titlebarHeight() {
+  // janela frameless (ver base.css: .titlebar) — window.innerHeight/
+  // getBoundingClientRect já incluem essa faixa no topo da viewport,
+  // então sem descontar isso o balão pode ficar preso embaixo da
+  // titlebar customizada (mesmo problema do clamp genérico: sobra
+  // "espaço" na conta, mas é espaço ocupado pela titlebar, não
+  // realmente livre). Lida via CSS var em vez de valor fixo pra não
+  // duplicar o número de base.css.
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--titlebar-h");
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function positionAll() {
   if (!active) return;
   const { root, steps, index } = active;
@@ -118,18 +131,44 @@ function positionAll() {
   right.style.cssText = `top:${y1}px; left:${x2}px; right:0; height:${y2 - y1}px;`;
   hl.style.cssText = `top:${y1}px; left:${x1}px; width:${x2 - x1}px; height:${y2 - y1}px;`;
 
-  // balão: embaixo do alvo se couber, senão em cima — sempre dentro da viewport horizontalmente
+  // balão: embaixo do alvo se couber, senão em cima, senão o lado com
+  // mais espaço — sempre preso dentro da viewport (vertical e
+  // horizontalmente). Antes decidíamos "embaixo" só pela distância do
+  // alvo até a borda (spaceBelow > 160 || y1 < 160), o que ignorava a
+  // altura real do balão: um alvo grande e alto (ex: #cal-grid do
+  // Calendário, que ocupa quase a tela toda) tem y1 pequeno, então
+  // caía sempre em "showBelow" mesmo sem espaço nenhum sobrando abaixo
+  // — o balão saía por baixo da viewport. Agora medimos a altura real
+  // (offsetHeight, já com o texto e a largura deste passo aplicados) e
+  // sempre encaixamos (clamp) o `top` dentro de [titlebar + 12, vh -
+  // altura - 12] — o limite de cima usa a altura real da titlebar
+  // customizada (titlebarHeight()), não um valor fixo, senão o balão
+  // ficava colado embaixo dela quando "em cima" era escolhido perto do
+  // topo da janela (bug reportado depois do primeiro fix).
   const balloon = root.querySelector(".tip-balloon");
   const bw = Math.min(340, vw - 24);
   balloon.style.width = `${bw}px`;
-  let bx = Math.min(Math.max(12, rect.left), vw - bw - 12);
-  const spaceBelow = vh - y2;
-  const showBelow = spaceBelow > 160 || y1 < 160;
-  balloon.classList.toggle("tip-balloon--above", !showBelow);
-  const by = showBelow ? y2 + 10 : undefined;
+  const bx = Math.min(Math.max(12, rect.left), vw - bw - 12);
   balloon.style.left = `${bx}px`;
-  balloon.style.top = showBelow ? `${by}px` : "";
-  balloon.style.bottom = showBelow ? "" : `${vh - y1 + 10}px`;
+  balloon.style.bottom = "";
+  balloon.style.top = "0px"; // posição provisória só pra medir a altura real do conteúdo
+  const bh = balloon.offsetHeight;
+
+  const spaceBelow = vh - y2;
+  const spaceAbove = y1 - titlebarHeight();
+  const fitsBelow = spaceBelow >= bh + 20;
+  const fitsAbove = spaceAbove >= bh + 20;
+  // prefere embaixo quando cabe; senão em cima quando cabe; se nenhum
+  // dos dois cabe de verdade (alvo maior que a viewport útil), fica do
+  // lado com mais espaço mesmo que o balão acabe sobrepondo um pouco
+  // o destaque — sempre melhor que vazar pra fora da tela.
+  const showBelow = fitsBelow || (!fitsAbove && spaceBelow >= spaceAbove);
+  balloon.classList.toggle("tip-balloon--above", !showBelow);
+
+  let by = showBelow ? y2 + 10 : y1 - 10 - bh;
+  const topMin = titlebarHeight() + 12;
+  by = Math.max(topMin, Math.min(by, vh - bh - 12));
+  balloon.style.top = `${by}px`;
 }
 
 function renderStep() {

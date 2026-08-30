@@ -65,7 +65,7 @@ export function openCalendarAlertsModal({ alerts, todayStr, onSelect } = {}) {
         const recordId = e.id.split(":")[1] || "";
         return `
           <div class="cal-alert-item${diff < 0 ? " overdue" : ""}" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}">
-            <span class="cal-alert-dot" style="--type-color:${meta.color}">${icon(meta.icon, { size: 11 })}</span>
+            <span class="cal-alert-dot" style="--type-color:${meta.color}">${icon(meta.icon, { size: 18 })}</span>
             <span class="cal-alert-title">${escapeHtml(e.title)}</span>
             ${amountHtml}
             <span class="cal-alert-due">${dueLabel}</span>

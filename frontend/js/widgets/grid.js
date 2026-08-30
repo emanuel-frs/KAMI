@@ -576,9 +576,15 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
    * caso setWidgets/render seja chamado com uma ordem diferente.
    */
   function pinnedFirst(list) {
+    // "pinned" (ex: profile) é distinto de "removable:false" (ex: também
+    // carreira_perfil) — nem todo widget obrigatório é fixo na posição
+    // 1/1. Usar removable:false aqui forçava QUALQUER widget obrigatório
+    // pro início do array a cada commit de drag, desfazendo reorder do
+    // usuário para widgets como carreira_perfil que são obrigatórios mas
+    // deliberadamente arrastáveis (ver comentário em carreira-perfil.js).
     return [...list].sort((a, b) => {
-      const aPinned = WIDGET_CATALOG[a.widget_type]?.removable === false;
-      const bPinned = WIDGET_CATALOG[b.widget_type]?.removable === false;
+      const aPinned = WIDGET_CATALOG[a.widget_type]?.pinned === true;
+      const bPinned = WIDGET_CATALOG[b.widget_type]?.pinned === true;
       if (aPinned === bPinned) return 0;
       return aPinned ? -1 : 1;
     });

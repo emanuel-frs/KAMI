@@ -155,8 +155,15 @@
   border-bottom: 1px dashed var(--border-soft);
 }
 .vm-row:last-child { border-bottom: none; }
-.vm-row .k { color: var(--text-faint); }
-.vm-row .v { color: var(--text-bright); text-align: right; }
+.vm-row .k { color: var(--text-faint); flex-shrink: 0; }
+.vm-row .v {
+  color: var(--text-bright);
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
  * NOVO — abas (links / github / e-mail), portado do protótipo
@@ -237,6 +244,30 @@
   margin-bottom: 6px;
 }
 .repo-card .rc-head .rc-name { color: var(--text-bright); font-size: 11.5px; }
+.repo-card .rc-head .rc-name-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.repo-source-badge {
+  flex-shrink: 0;
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+}
+.repo-source-badge.auto {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.repo-source-badge.manual {
+  color: var(--text-faint);
+  border-color: var(--border-soft);
+}
 .repo-card .rc-head .rc-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .repo-card .rc-head .rc-actions .icon-btn {
   color: var(--text-faint);

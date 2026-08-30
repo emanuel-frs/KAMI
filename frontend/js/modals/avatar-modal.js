@@ -17,6 +17,7 @@ import { icon } from "../components/icons.js";
 
 let modalEl = null;
 let onSaveCb = null;
+let onCloseCb = null;
 let currentImg = null;
 let lastAscii = "";
 
@@ -198,15 +199,20 @@ function wireModal(wrap) {
 
 /**
  * Abre o modal de avatar.
- * @param {{ currentAscii?: string, onSave: (ascii: string) => Promise<void> }} opts
+ * @param {{ currentAscii?: string, onSave: (ascii: string) => Promise<void>, onClose?: () => void }} opts
  *   onSave é chamado com o texto ASCII gerado quando o usuário clica em
  *   "salvar como meu avatar" — deve persistir via updateAvatar() da API
  *   e pode lançar erro (é tratado/mostrado aqui).
+ *   onClose (opcional) é chamado uma vez, sempre que o modal fecha (X,
+ *   clique fora ou Esc) — usado por quem abre este modal por cima de
+ *   outro (ex: settings-modal.js fechando/reabrindo a si mesmo, ver
+ *   comentário no topo do arquivo) pra saber a hora de voltar.
  */
-export function openAvatarModal({ currentAscii, onSave } = {}) {
+export function openAvatarModal({ currentAscii, onSave, onClose } = {}) {
   try {
     modalEl = modalEl || buildModal();
     onSaveCb = onSave;
+    onCloseCb = onClose ?? null;
 
     // precisa ficar visível ANTES de medir o container em fitAsciiText —
     // .modal-backdrop só vira display:flex com .open, e um elemento
@@ -241,4 +247,10 @@ export function openAvatarModal({ currentAscii, onSave } = {}) {
 
 export function closeAvatarModal() {
   modalEl?.classList.remove("open");
+  // dispara uma única vez por abertura — evita chamar de novo numa
+  // futura abertura sem onClose (ex: atalho do widget de perfil, que
+  // não passa essa opção).
+  const cb = onCloseCb;
+  onCloseCb = null;
+  cb?.();
 }

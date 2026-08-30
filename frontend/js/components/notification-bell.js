@@ -1,6 +1,7 @@
 import { listEmailCache } from "../api/organizacao.js";
 import { icon } from "./icons.js";
 import { openNotificationsModal } from "../modals/notifications-modal.js";
+import { store } from "../state/store.js";
 
 /**
  * Sino de notificações geral (rodapé da sidebar, ao lado do ícone de
@@ -18,12 +19,23 @@ import { openNotificationsModal } from "../modals/notifications-modal.js";
  * pages/calendario.js) já mostra a contagem de "vencendo em breve"
  * separadamente; os dois abrem o mesmo modal, só a bolinha de cada um
  * conta coisas diferentes.
+ *
+ * Configurações > notificações (settings-modal.js) pode desligar o
+ * tipo "e-mails" — com ele desligado o badge fica sempre escondido
+ * (nada aqui é e-mail não lido, do ponto de vista deste sino). Lê
+ * store.get("profile") em vez de buscar o perfil de novo — populado
+ * no boot (app.js) e mantido em sync por quem grava o perfil.
  */
 
 let badgeEl = null;
 let btn = null;
 
+function emailNotificationsEnabled() {
+  return store.get("profile")?.notif_email_enabled !== false;
+}
+
 async function unreadCount() {
+  if (!emailNotificationsEnabled()) return 0;
   try {
     const cache = await listEmailCache({ exclude_muted: true, is_read: false });
     return cache.length;
@@ -58,6 +70,14 @@ export function wireNotificationBell() {
     e.stopPropagation();
     openNotificationsModal();
   });
+
+  // recontagem sempre que o perfil mudar — cobre tanto o carregamento
+  // inicial (loadProfile em app.js roda DEPOIS de wireNotificationBell,
+  // então a primeira renderBadge() abaixo ainda pode rodar sem perfil
+  // no store) quanto o toggle de notif_email_enabled na aba
+  // notificações de configurações, sem precisar de um caminho dedicado
+  // pra cada caso.
+  store.subscribe("profile", renderBadge);
 
   // primeira contagem pro badge já no boot, sem precisar abrir o modal
   renderBadge();

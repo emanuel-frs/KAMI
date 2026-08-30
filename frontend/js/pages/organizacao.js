@@ -71,6 +71,13 @@ let clickHandler = null;
 let unsubscribeProfile = null;
 let currentReplayFn = null;
 let unsubscribeSyncState = null;
+// reflete e-mails marcados como lidos em outro lugar (hoje só "marcar
+// todos como lidos" do modal de notificações) na hora, se esta tela já
+// estiver montada — mesmo padrão de store usado em accent_color/nome/
+// avatar do perfil (settings-modal.js + widgets/profile.js), só que
+// aqui o valor publicado é a lista de ids marcados, não um objeto de
+// perfil inteiro.
+let unsubscribeEmailsRead = null;
 // true depois que a seleção inicial de contas "padrão" já rodou uma vez
 // nesta montagem — sem essa guarda, toda vez que loadAccounts() roda de
 // novo (ex: depois de um CRUD de conta) a seleção do usuário seria
@@ -109,6 +116,7 @@ export async function mount(container, opts) {
 
   maybeStartOrganizacaoTips();
   unsubscribeProfile = store.subscribe("profile", () => maybeStartOrganizacaoTips());
+  unsubscribeEmailsRead = store.subscribe("emailsMarkedRead", (ids) => applyEmailsMarkedRead(ids));
 
   // ponto 7 do plano: se o sync automático global já estiver rodando
   // no instante em que a tela monta (ex: app acabou de abrir e o tick
@@ -167,10 +175,51 @@ async function applyFocus(opts) {
   }
 }
 
+/**
+ * Recarrega contas silenciadas + e-mails (é o backend que calcula
+ * `is_muted` por e-mail a partir de muted_accounts, então só recarregar
+ * o array antigo com renderEmails() não bastava — o item continuava com
+ * o is_muted de antes de silenciar) e redesenha — chamado por
+ * modals/notifications-modal.js depois de silenciar uma conta por lá,
+ * pra essa tela refletir na hora se já estiver montada, em vez de só
+ * atualizar no próximo mount() (sair/entrar na tela).
+ */
+export async function refreshMutedAccounts() {
+  if (!rootEl) return; // tela não está montada — nada a atualizar agora
+  await loadMutedAccounts();
+  await loadEmailsForSelectedAccounts();
+  renderAccounts();
+  renderEmails();
+}
+
+/**
+ * Marca localmente como lidos os e-mails cujos ids vieram do store
+ * "emailsMarkedRead" (publicado por modals/notifications-modal.js ao
+ * clicar em "marcar todos como lidos") — sem isso, essa tela só
+ * refletiria a mudança no próximo mount() (sair/entrar de novo).
+ * Reflete só o que já está em state.emails; nada aqui obriga um
+ * recarregamento do backend, já que quem marcou já fez a chamada
+ * PUT /email-cache/{id}/read por conta própria.
+ */
+function applyEmailsMarkedRead(ids) {
+  if (!rootEl || !ids || !ids.length) return; // tela não está montada — nada a atualizar agora
+  const idSet = new Set(ids);
+  let changed = false;
+  state.emails.forEach((e) => {
+    if (idSet.has(e.id) && !e.is_read) {
+      e.is_read = true;
+      changed = true;
+    }
+  });
+  if (changed) renderEmails();
+}
+
 export function unmount() {
   cancelActiveTipSequence();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
+  unsubscribeEmailsRead?.();
+  unsubscribeEmailsRead = null;
   if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
   currentReplayFn = null;
   unsubscribeSyncState?.();
@@ -741,7 +790,10 @@ function repoCardHtml(r) {
   return `
     <div class="repo-card${neverSynced ? " has-error" : ""}">
       <div class="rc-head">
-        <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
+        <span class="rc-name-group">
+          <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
+          <span class="repo-source-badge ${r.source === "auto" ? "auto" : "manual"}" data-tooltip="${r.source === "auto" ? `importado automaticamente${r.owner_login ? ` (${escapeHtml(r.owner_login)})` : ""}` : "cadastrado manualmente"}">${r.source === "auto" ? "auto" : "manual"}</span>
+        </span>
         <span class="rc-actions">
           <span class="icon-btn" data-tooltip="ressincronizar" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
           <span class="icon-btn danger" data-tooltip="remover" data-delete-repo="${r.id}">${icon("x")}</span>
@@ -887,8 +939,9 @@ async function handleSaveGithubToken() {
     err.style.display = "block";
     return;
   }
+  let result;
   try {
-    await api.saveGithubToken(token);
+    result = await api.saveGithubToken(token);
   } catch (e) {
     err.textContent = e?.message || "token inválido ou sem permissão.";
     err.style.display = "block";
@@ -897,6 +950,25 @@ async function handleSaveGithubToken() {
   state.githubTokenConfigured = true;
   renderGithubTokenBadge();
   closeGithubTokenModal();
+
+  // importação automática já rodou no backend (ver save_github_token /
+  // _auto_import_repos) — só falta recarregar a lista de repos pra
+  // refletir o que mudou e avisar a pessoa do que aconteceu.
+  await loadRepos();
+  renderRepos();
+
+  if (result?.import_error) {
+    showErrorModal(result.import_error, "token salvo, mas a importação automática de repositórios falhou");
+  } else if (typeof result?.imported_count === "number") {
+    const owner = result.owner_login ? ` de ${result.owner_login}` : "";
+    showToast({
+      title: "github",
+      message:
+        result.imported_count > 0
+          ? `${result.imported_count} repositório(s) importado(s) automaticamente${owner}.`
+          : `token salvo — nenhum repositório novo pra importar${owner}.`,
+    });
+  }
 }
 
 async function handleDeleteGithubToken() {

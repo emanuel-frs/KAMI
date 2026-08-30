@@ -48,18 +48,37 @@ a { color: var(--text-bright); }
  * mudar de cor no hover, e ganha uma borda no tom do fundo pra criar um
  * respiro entre o thumb e a track (efeito "flutuando"), em vez de ser
  * um bloco colado nas bordas do track.
+ *
+ * --scrollbar-w / --scroll-gutter: antes cada lista rolável (achievements,
+ * log, notificações...) inventava seu próprio padding-right "de olho"
+ * (a maioria usava só 3px) pra separar o conteúdo da scrollbar. No
+ * WebKitGTK (Tauri/Linux) isso não é suficiente — a barra real ocupa os
+ * 10px cheios de ::-webkit-scrollbar width, então um padding menor que
+ * isso deixa o próprio conteúdo (ex: última coluna de um grid) encostar
+ * ou ficar por baixo da barra, em vez de deixar ela livre e visível (bug
+ * reportado com print da galeria de conquistas). Centralizando aqui: toda
+ * lista com scroll interno do projeto agora usa `padding-right:
+ * var(--scroll-gutter)` em vez de um número solto — muda a largura real
+ * da scrollbar só nesse lugar daqui pra frente.
  */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+:root {
+  --scrollbar-w: 10px;
+  --scroll-gutter: calc(var(--scrollbar-w) + 4px); /* barra + respiro visual real */
+}
+::-webkit-scrollbar { width: var(--scrollbar-w); height: var(--scrollbar-w); }
 ::-webkit-scrollbar-track { background: var(--bg-alt); }
 ::-webkit-scrollbar-thumb {
   background: var(--accent-dim);
   border: 2px solid var(--bg-alt);
   background-clip: padding-box;
+  border-radius: 0; /* reto, no padrão quadrado do resto do app (mesmo princípio de forms.css/base.css:103) — sem isso alguns temas GTK aplicam um arredondado sutil por padrão */
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
 ::-webkit-scrollbar-corner { background: var(--bg-alt); }
 /* Firefox não usa ::-webkit-scrollbar — equivalente pra manter o mesmo
-   visual temático fora do webview do Tauri (ex: durante dev no browser). */
+   visual temático fora do webview do Tauri (ex: durante dev no browser).
+   scrollbar-width:thin já é reto por definição da spec (sem variante
+   "rounded" no Firefox), não precisa de border-radius aqui. */
 * { scrollbar-width: thin; scrollbar-color: var(--accent-dim) var(--bg-alt); }
 
 /* ---------- TITLEBAR (janela frameless — decisão: custom em vez de
@@ -78,17 +97,33 @@ a { color: var(--text-bright); }
   background: var(--bg-alt);
   border-bottom: 1px solid var(--border);
   user-select: none;
+  position: relative;
+  z-index: 400;
 }
-.win-ctrls { display: flex; gap: 6px; margin-left: auto; }
+.win-ctrls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .win-ctrl-btn {
+  /* appearance:none é essencial aqui — sem isso o WebKitGTK (motor do
+     Tauri no Linux) renderiza o <button> com o widget nativo do tema
+     GTK por cima do nosso CSS: cantos arredondados que ignoram
+     border-radius, hover controlado pelo próprio widget (nosso :hover
+     nunca dispara) e padding/altura nativos que desalinham o botão
+     verticalmente dentro da titlebar. Resetando appearance, o botão
+     vira uma caixa "crua" e passa a obedecer 100% do CSS abaixo. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   font-family: var(--font);
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
   border: 1px solid var(--border-soft);
+  border-radius: 0;
   background: transparent;
   color: var(--text-faint);
-  font-size: 11px;
-  line-height: 1.4;
-  padding: 1px 8px;
   cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
   /* segura o <svg> injetado por titlebar.js (ícones minus/square/x,
      ver icons.js) em vez do glifo unicode cru (—, □, ✕) que ficava
      direto no HTML estático — flex centraliza o ícone dentro do botão
@@ -96,9 +131,15 @@ a { color: var(--text-bright); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
 }
-.win-ctrl-btn:hover { color: var(--text-bright); border-color: var(--text-dim); }
-.win-ctrl-close:hover { color: var(--red); border-color: var(--red); }
+.win-ctrl-minimize:hover { color: var(--green); border-color: var(--green); }
+.win-ctrl-maximize:hover { color: var(--amber); border-color: var(--amber); }
+.win-ctrl-close:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
 .titlebar-text { color: var(--text-dim); font-size: 12px; letter-spacing: 0.5px; }
 .titlebar-text .cursor {
   display: inline-block; width: 7px; height: 12px; background: var(--accent);
@@ -160,6 +201,7 @@ a { color: var(--text-bright); }
   white-space: pre; margin: 0;
   max-width: 100%; max-height: 90px; overflow: hidden; /* nunca cresce a ponto de sobrepor o botão ao lado */
   flex: 1 1 auto; min-width: 0;
+  cursor: pointer;
 }
 #btn-open-settings { flex: 0 0 auto; }
 
