@@ -16,6 +16,9 @@ import { icon } from "../components/icons.js";
  *     inputType: "number",
  *   });
  *   if (valorStr === null) return; // cancelado
+ *
+ * `defaultValue` pré-preenche o campo (ex: renomear algo já existente)
+ * — sem isso o campo sempre nasce vazio, que é o comportamento default.
  */
 
 let modalEl = null;
@@ -62,11 +65,11 @@ function settle(result) {
 
 /**
  * @param {string} label texto do campo (ex: "valor pago")
- * @param {{ title?: string, placeholder?: string, inputType?: string, confirmText?: string, cancelText?: string }} [opts]
+ * @param {{ title?: string, placeholder?: string, inputType?: string, confirmText?: string, cancelText?: string, defaultValue?: string }} [opts]
  * @returns {Promise<string|null>} string digitada (pode ser vazia), ou null se cancelado
  */
 export function showPromptModal(label, opts = {}) {
-  const { title = "informar valor", placeholder = "", inputType = "text", confirmText = "confirmar", cancelText = "cancelar" } = opts;
+  const { title = "informar valor", placeholder = "", inputType = "text", confirmText = "confirmar", cancelText = "cancelar", defaultValue = "" } = opts;
 
   modalEl = modalEl || buildModal();
 
@@ -79,7 +82,7 @@ export function showPromptModal(label, opts = {}) {
   const input = modalEl.querySelector("#pm-input");
   input.type = inputType;
   input.placeholder = placeholder;
-  input.value = "";
+  input.value = defaultValue;
 
   modalEl.querySelector('[data-action="confirm"]').textContent = confirmText;
   const cancelBtn = modalEl.querySelector('[data-action="cancel"].btn');

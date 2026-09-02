@@ -1,8 +1,8 @@
 import * as financasApi from "../api/financas.js";
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
-import { openTransactionModal } from "../modals/transaction-modal.js";
+import { openTransacaoModal } from "../modals/transacao-modal.js";
 import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
 import { icon } from "../components/icons.js";
 
@@ -59,7 +59,7 @@ export async function render(el, widget) {
   async function reload() {
     try {
       [banks, transactions] = await Promise.all([
-        walletApi.listBanks(),
+        carteiraApi.listBanks(),
         financasApi.listTransactions(month),
       ]);
     } catch (err) {
@@ -122,7 +122,7 @@ export async function render(el, widget) {
     el.querySelector('[data-action="prev-month"]').addEventListener("click", () => { month = shiftMonth(month, -1); reload(); });
     el.querySelector('[data-action="next-month"]').addEventListener("click", () => { month = shiftMonth(month, 1); reload(); });
     el.querySelector('[data-action="add-transaction"]').addEventListener("click", () => {
-      openTransactionModal({ accounts: accountsFlat(), onSaved: reload });
+      openTransacaoModal({ accounts: accountsFlat(), onSaved: reload });
     });
     el.querySelector('[data-action="filter"]').addEventListener("click", () => {
       const categories = [...new Set(transactions.map((t) => t.category).filter(Boolean))].sort();

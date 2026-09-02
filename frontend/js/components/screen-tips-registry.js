@@ -1,6 +1,6 @@
 /**
- * Registro global de "replay de dicas da tela atual" (etapa 6,
- * plano-onboarding-kami.md — opção "rever dicas desta tela" do botão de
+ * Registro global de "replay de dicas da tela atual" (etapa 6 —
+ * opção "rever dicas desta tela" do botão de
  * ajuda).
  *
  * O botão de ajuda vive na sidebar (fora do container de qualquer

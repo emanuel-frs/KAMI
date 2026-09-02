@@ -4,7 +4,7 @@ import { levelFromXp } from "../components/xp.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { icon } from "../components/icons.js";
-import { openSettingsModal } from "../modals/settings-modal.js";
+import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
@@ -62,6 +62,10 @@ export async function render(el, widget) {
     return;
   }
 
+  // Métrica cosmética de "nível médio combinado" do perfil: soma o XP de
+  // TODOS os atributos e passa pela mesma curva de levelFromXp usada por
+  // atributo individual — não tem pretensão de bater com o nível de
+  // nenhum atributo específico, é só um número único pra exibir aqui.
   const totalXp = attributes.reduce((sum, a) => sum + a.current_xp, 0);
   const { level } = levelFromXp(totalXp);
   const unlockedCount = achievements.filter((a) => a.unlocked_at).length;
@@ -108,7 +112,7 @@ export async function render(el, widget) {
   // ── somente leitura: o card não edita nome/cor inline. O botão
   //    "editar perfil" abre o modal de Configurações direto na aba
   //    perfil, onde essa edição acontece. ──
-  el.querySelector('[data-action="edit"]')?.addEventListener("click", () => openSettingsModal("perfil"));
+  el.querySelector('[data-action="edit"]')?.addEventListener("click", () => openConfiguracoesModal("perfil"));
 
   // ── avatar tem atalho próprio: abre direto o modal de avatar (mesmo
   //    padrão do avatar da sidebar em app.js), sem passar por

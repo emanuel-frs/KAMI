@@ -1,7 +1,7 @@
 """
-Módulo Wallet (v1) — bancos agrupando contas, e assinaturas informativas.
+Módulo Carteira (v1) — bancos agrupando contas, e assinaturas informativas.
 
-Ver wallet_plano.md pra spec completa. Resumo das regras que este router
+Resumo das regras que este router
 aplica:
   - Um banco agrupa 1+ contas; cada conta escolhe individualmente se
     possui_saldo e/ou possui_credito.
@@ -12,14 +12,24 @@ aplica:
   - Assinaturas afetam saldo/fatura OPCIONALMENTE: se a assinatura tem
     conta_id vinculada e o usuário confirma no momento de marcar como
     paga, gera uma transação 'saida' real (ver app/finance_utils.py) —
-    mesmo mecanismo de fixed_bills em financas.py (item 6 do mapa de
-    problemas, resolvido junto com a unificação do item 1). Sem conta
+    mesmo mecanismo de fixed_bills em financas.py (item 6,
+    resolvido junto com a unificação do item 1). Sem conta
     vinculada, continua sendo só lembrete + toggle pago/não-pago por mês
     (mesmo padrão sob-demanda de income_entries).
 
 Endpoints:
   GET    /banks                            lista bancos com contas aninhadas
   POST   /banks                             cria banco
+  PUT    /banks/{bank_id}                   edita banco (nome/ícone só — não mexe em
+                                             conta nenhuma, então não afeta saldo/fatura)
+  DELETE /banks/{bank_id}                   remove banco e as contas dele (ON DELETE
+                                             CASCADE em wallet_accounts.bank_id); tudo
+                                             que referenciava essas contas (transações,
+                                             assinaturas, contas fixas, renda, metas,
+                                             compras parceladas) tem ON DELETE SET NULL,
+                                             então só perde o vínculo, sem quebrar
+                                             (mesmo efeito que já acontecia ao apagar
+                                             manualmente a última conta de um banco)
   POST   /banks/{bank_id}/accounts          cria conta dentro de um banco
   PUT    /accounts/{account_id}             edita conta
   DELETE /accounts/{account_id}             remove conta (remove o banco
@@ -51,6 +61,8 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.finance_utils import create_saida_transaction, revert_saida_transaction
+from app.business_days import months_between
+from app.actions import register_action
 
 router = APIRouter()
 
@@ -101,6 +113,11 @@ class AccountIn(BaseModel):
 class DeleteAccountOut(BaseModel):
     deleted: bool
     bank_deleted: bool
+
+
+class DeleteBankOut(BaseModel):
+    deleted: bool
+    accounts_deleted: int
 
 
 class SummaryOut(BaseModel):
@@ -194,6 +211,51 @@ def create_bank(payload: BankIn, db=Depends(get_db)):
     db.commit()
     row = db.execute("SELECT * FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
     return _bank_out(db, row)
+
+
+@router.put("/banks/{bank_id}", response_model=BankOut)
+def update_bank(bank_id: str, payload: BankIn, db=Depends(get_db)):
+    """
+    Edita só nome/icon_ascii do banco — nunca toca em wallet_accounts,
+    então saldo_atual/fatura_atual de nenhuma conta é afetado (GET /summary
+    soma direto da tabela wallet_accounts a cada chamada, não guarda nada
+    cacheado no banco que precisaria ser recalculado aqui).
+    """
+    row = db.execute("SELECT id FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="banco não encontrado")
+    db.execute(
+        "UPDATE wallet_banks SET nome=?, icon_ascii=? WHERE id=?",
+        (payload.nome, payload.icon_ascii, bank_id),
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
+    return _bank_out(db, updated)
+
+
+@router.delete("/banks/{bank_id}", response_model=DeleteBankOut)
+def delete_bank(bank_id: str, db=Depends(get_db)):
+    """
+    Remove o banco e todas as contas dele numa vez só (antes só dava pra
+    apagar banco indiretamente, deletando conta por conta até sobrar
+    nenhuma — ver delete_account). wallet_accounts.bank_id tem ON DELETE
+    CASCADE (schema.sql), então o DELETE abaixo já leva as contas junto;
+    tudo que referenciava essas contas (transactions.conta_id,
+    wallet_subscriptions.conta_id, fixed_bills.conta_id,
+    income_sources.conta_id, goals.linked_conta_id,
+    compras_parceladas.conta_id) tem ON DELETE SET NULL, então o histórico
+    financeiro não some — só perde o vínculo com a conta apagada, mesmo
+    efeito que apagar a última conta de um banco já causava antes.
+    """
+    row = db.execute("SELECT id FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="banco não encontrado")
+    accounts_deleted = db.execute(
+        "SELECT COUNT(*) AS c FROM wallet_accounts WHERE bank_id = ?", (bank_id,)
+    ).fetchone()["c"]
+    db.execute("DELETE FROM wallet_banks WHERE id = ?", (bank_id,))
+    db.commit()
+    return {"deleted": True, "accounts_deleted": accounts_deleted}
 
 
 @router.post("/banks/{bank_id}/accounts", response_model=AccountOut)
@@ -391,6 +453,14 @@ def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
             description=f"assinatura: {sub['nome']}",
             forma_pagamento=payload.forma_pagamento,
         )
+        register_action(
+            db,
+            description=f"pagou assinatura: {sub['nome']}",
+            categories=["financas"],
+            xp=2,
+            impact=2,
+            source="financas",
+        )
 
     db.execute(
         "UPDATE wallet_subscription_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
@@ -421,14 +491,6 @@ def unpay_period(period_id: str, db=Depends(get_db)):
 
 # ==================== compras parceladas ====================
 
-def _months_between(mes_inicio: str, mes_atual: str) -> int:
-    """Quantidade de meses entre dois 'YYYY-MM' (pode ser negativo se
-    mes_inicio for no futuro em relação a mes_atual)."""
-    y1, m1 = (int(x) for x in mes_inicio.split("-"))
-    y2, m2 = (int(x) for x in mes_atual.split("-"))
-    return (y2 - y1) * 12 + (m2 - m1)
-
-
 def _current_month_str() -> str:
     return datetime.date.today().strftime("%Y-%m")
 
@@ -443,7 +505,7 @@ def _parcela_no_mes(row, mes: str) -> Optional[int]:
     do plano de ajustes — fatura mês a mês, calculada on the fly, sem
     persistir nada em `compra_parcelada_aplicacoes`, que foi removida
     por nunca ter sido usada de verdade)."""
-    elapsed = _months_between(row["mes_primeira_parcela"], mes)
+    elapsed = months_between(row["mes_primeira_parcela"], mes)
     raw_parcela = elapsed + 1 + row["ajuste_parcelas"]
     if raw_parcela < 1 or raw_parcela > row["num_parcelas"]:
         return None
@@ -456,7 +518,7 @@ def _compra_parcelada_out(row) -> dict:
     nada no banco. A reserva do limite é feita inteira na criação (ver
     create_compra_parcelada), não é incremental."""
     today_month = _current_month_str()
-    elapsed = _months_between(row["mes_primeira_parcela"], today_month)
+    elapsed = months_between(row["mes_primeira_parcela"], today_month)
     raw_parcela = elapsed + 1 + row["ajuste_parcelas"]
     parcela_atual = max(0, min(raw_parcela, row["num_parcelas"]))
     quitada = raw_parcela > row["num_parcelas"]
@@ -659,7 +721,7 @@ def ajustar_parcelas_compra(compra_id: str, payload: AjustarParcelasPayload, db=
     # fora de [0, num_parcelas] antes de aplicar (não confiar só no clamp de
     # exibição, que mascara ajuste_parcelas indo pra além do limite útil).
     today_month = _current_month_str()
-    elapsed = _months_between(row["mes_primeira_parcela"], today_month)
+    elapsed = months_between(row["mes_primeira_parcela"], today_month)
     novo_ajuste = row["ajuste_parcelas"] + payload.delta
     raw_parcela = elapsed + 1 + novo_ajuste
     if raw_parcela < 0 or raw_parcela > row["num_parcelas"]:

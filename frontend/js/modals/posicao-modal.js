@@ -90,13 +90,13 @@ async function submitPosition(wrap) {
     showErrorModal(err.message, editingPosition ? "erro ao salvar posição" : "erro ao criar posição");
     return;
   }
-  closePositionModal();
+  closePosicaoModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closePositionModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closePositionModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closePosicaoModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closePosicaoModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitPosition(wrap));
 }
 
@@ -105,7 +105,7 @@ function wireModal(wrap) {
  *   `position` — se informado, o modal abre em modo edição (PUT em vez
  *   de POST) pré-preenchido com os dados da posição.
  */
-export function openPositionModal({ position = null, onSaved } = {}) {
+export function openPosicaoModal({ position = null, onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingPosition = position || null;
@@ -127,6 +127,6 @@ export function openPositionModal({ position = null, onSaved } = {}) {
   modalEl.classList.add("open");
 }
 
-export function closePositionModal() {
+export function closePosicaoModal() {
   modalEl?.classList.remove("open");
 }

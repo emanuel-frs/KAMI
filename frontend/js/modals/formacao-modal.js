@@ -103,13 +103,13 @@ async function submitEducation(wrap) {
     showErrorModal(err.message, editingEducation ? "erro ao salvar formação" : "erro ao criar formação");
     return;
   }
-  closeEducationModal();
+  closeFormacaoModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeEducationModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeEducationModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeFormacaoModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeFormacaoModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitEducation(wrap));
 }
 
@@ -118,7 +118,7 @@ function wireModal(wrap) {
  *   `education` — se informado, o modal abre em modo edição (PUT em vez
  *   de POST) pré-preenchido com os dados da formação.
  */
-export function openEducationModal({ education = null, onSaved } = {}) {
+export function openFormacaoModal({ education = null, onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingEducation = education || null;
@@ -138,6 +138,6 @@ export function openEducationModal({ education = null, onSaved } = {}) {
   modalEl.classList.add("open");
 }
 
-export function closeEducationModal() {
+export function closeFormacaoModal() {
   modalEl?.classList.remove("open");
 }

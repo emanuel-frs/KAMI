@@ -68,6 +68,11 @@ ACHIEVEMENT_SEED = [
         "criteria": {"type": "count_by_attribute", "attribute": "metas", "count": 10},
     },
     {
+        "title": "trajetória profissional",
+        "description": "10 ações registradas em carreira",
+        "criteria": {"type": "count_by_attribute", "attribute": "carreira", "count": 10},
+    },
+    {
         "title": "colecionador de metas",
         "description": "5 metas pessoais concluídas",
         "criteria": {"type": "goal_completed", "count": 5},

@@ -11,7 +11,7 @@
  * diferenciava nada. Centralizar aqui garante que os dois lugares
  * pintam o mesmo account_id com a mesma cor, sem duplicar a função.
  */
-export function accountColor(accountId) {
+export function emailAccountColor(accountId) {
   let hash = 0;
   const str = accountId || "";
   for (let i = 0; i < str.length; i++) {

@@ -3,7 +3,7 @@ import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { setPendingFocus } from "../components/pending-focus.js";
 import { TYPE_META } from "../components/event-types.js";
-import { openCalendarEventModal } from "../modals/calendar-event-modal.js";
+import { openCalendarioEventoModal } from "../modals/calendario-evento-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
 import { maybeStartCalendarioTips, replayCalendarioTips } from "./calendario-tips.js";
@@ -39,7 +39,7 @@ function milestoneName(e) {
 // eventos manuais ("evento") têm id agregado "evento:{id_real}:{data}"
 // (ver _evento_events em app/routers/calendario.py — o mês sozinho não
 // basta pra ser único quando a recorrência gera várias ocorrências no
-// mesmo mês). O objeto cru esperado pelo modal (calendar-event-modal.js)
+// mesmo mês). O objeto cru esperado pelo modal (calendario-evento-modal.js)
 // usa o id real, sem o pedaço de data.
 function isEventoEvent(e) {
   return e.type === "evento";
@@ -139,7 +139,7 @@ async function loadMonth() {
 
 // ─── eventos manuais: criar/editar ────────────────────────────────────────
 function handleNewEventClick() {
-  openCalendarEventModal({
+  openCalendarioEventoModal({
     date: selectedDate || undefined,
     onSaved: async () => {
       await loadMonth();
@@ -148,7 +148,7 @@ function handleNewEventClick() {
 }
 
 function handleEditEventoClick(evtRow) {
-  openCalendarEventModal({
+  openCalendarioEventoModal({
     event: toEventoRecord(evtRow),
     onSaved: async () => {
       await loadMonth();
@@ -390,10 +390,11 @@ function renderDayPanel() {
       document.querySelector(`.nav-link[data-page="${page}"]`)?.click();
     });
 
-    // eventos manuais são arrastáveis pra outro dia da grade (ver
-    // handleGridDrop em renderGrid) — os demais tipos (conta_fixa,
-    // dívida, meta...) pertencem a outros módulos, então reagendar por
-    // aqui não faria sentido, só o "evento" tem essa liberdade.
+    // eventos manuais são arrastáveis pra outro dia da grade (drop
+    // tratado no listener "drop" dentro de renderGrid, que chama
+    // handleEventoDrop) — os demais tipos (conta_fixa, dívida, meta...)
+    // pertencem a outros módulos, então reagendar por aqui não faria
+    // sentido, só o "evento" tem essa liberdade.
     if (row.draggable) {
       row.addEventListener("dragstart", (ev) => {
         ev.dataTransfer.setData("text/plain", row.dataset.eventoId);

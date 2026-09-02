@@ -9,7 +9,7 @@
  * (`document.querySelector('.nav-link[data-page="x"]').click()`), mas
  * esse atalho não tem como carregar um parâmetro junto (ex: abrir
  * Organização já na aba de e-mail, numa mensagem específica — ver
- * modals/notifications-modal.js).
+ * modals/notificacoes-modal.js).
  *
  * Em vez de toda tela que precisa navegar (calendário, modal de
  * notificações, sino da sidebar) receber showPage por callback através

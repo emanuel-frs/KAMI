@@ -11,7 +11,7 @@
 
 **Sistema pessoal de organização gamificada — 100% local**
 
-`v1.3.0` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
+`v1.4.0` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
 
 </div>
 
@@ -58,9 +58,14 @@ homenagem a terminais antigos — paleta preto/branco/cinza com uma
   reordenação por drag-and-drop, e um heatmap de atividade estilo
   GitHub contribution graph.
 - **Organização** — hub de acesso rápido: links categorizados com
-  favicon público como ícone, projetos do GitHub via API pública, e
+  favicon público como ícone, projetos do GitHub via API pública,
   e-mail via IMAP de verdade (múltiplas contas, sincronização sob
-  demanda, texto puro sem HTML de terceiros por segurança).
+  demanda, texto puro sem HTML de terceiros por segurança), e busca
+  web com resumo inline (via Tavily, chave própria do usuário).
+- **Carreira** — perfil de carreira (área atual/meta), interesses,
+  linha do tempo de posições/experiências, formação acadêmica e
+  histórico de registros salariais, com auto-import de repositórios
+  do GitHub e widgets dedicados no dashboard.
 - **Metas Pessoais** — seis tipos de meta (financeira, livre, saúde,
   leitura, hábito e aprendizado), cada uma com peso configurável
   (baixo/médio/alto/épico) que multiplica o XP ganho; metas
@@ -72,9 +77,11 @@ homenagem a terminais antigos — paleta preto/branco/cinza com uma
 - **Onboarding** — tour interativo em modais sequenciais na
   primeira execução, com mini-ilustrações estáticas por conceito do
   sistema; pode ser reaberto a qualquer momento pelas configurações.
-- **Calendário** — agrega em visão mensal os eventos read-only de
-  contas fixas, dívidas, assinaturas, parcelas, metas e ações
-  registradas, com filtros por tipo e navegação por mês.
+- **Calendário** — agrega em visão mensal os eventos de contas
+  fixas, dívidas, assinaturas, parcelas, metas e ações registradas
+  (esses, read-only, refletidos de outros módulos), além de eventos
+  manuais próprios (criar, editar, mover entre dias e excluir), com
+  filtros por tipo e navegação por mês.
 - **Notificações** — sino centralizado no lugar do widget de
   notificações do Núcleo, com sincronização automática de e-mail em
   background e silenciamento de notificações por remetente.
@@ -181,7 +188,8 @@ kami/
 │   │   ├── schema.sql
 │   │   └── routers/           # perfil, nucleo, financas, wallet,
 │   │                          # aprendizado, organizacao, metas,
-│   │                          # calendario, dashboard, system
+│   │                          # calendario, carreira, dashboard,
+│   │                          # system, widgets
 │   ├── tests/
 │   ├── run_server.py          # entrypoint do backend empacotado (sidecar)
 │   ├── kami-backend.spec      # spec do PyInstaller

@@ -1,9 +1,11 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
-import { openAccountModal } from "../modals/account-modal.js";
+import { openContaModal } from "../modals/conta-modal.js";
 import { icon } from "../components/icons.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
+import { showPromptModal } from "../modals/prompt-modal.js";
+import { showErrorModal } from "../modals/err-modal.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -65,6 +67,8 @@ export async function render(el, widget) {
                 <div class="bank-icon">${bankIconInner(b)}</div>
                 <div class="bank-name">${escapeHtml(b.nome)}</div>
                 <div class="bank-count">${b.accounts.length}</div>
+                <span class="bank-edit" data-edit-bank="${b.id}" data-tooltip="renomear banco">${icon("pencil", { size: 11 })}</span>
+                <span class="bank-remove" data-remove-bank="${b.id}" data-tooltip="apagar banco">${icon("x", { size: 11 })}</span>
               </div>
               ${accountsHtml}
             </div>`;
@@ -94,7 +98,7 @@ export async function render(el, widget) {
         const bank = banks.find((b) => b.id === bankId);
         const account = bank?.accounts.find((a) => a.id === accId);
         if (!bank || !account) return;
-        openAccountModal({
+        openContaModal({
           banks,
           account,
           bankName: bank.nome,
@@ -110,13 +114,52 @@ export async function render(el, widget) {
         ev.stopPropagation();
         const ok = await showConfirmModal("remover essa conta?", { title: "remover conta", confirmText: "remover", danger: true });
         if (!ok) return;
-        await walletApi.deleteAccount(node.getAttribute("data-remove-account"));
+        await carteiraApi.deleteAccount(node.getAttribute("data-remove-account"));
+        await reload();
+        window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
+      });
+    });
+    el.querySelectorAll("[data-edit-bank]").forEach((node) => {
+      node.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        const bankId = node.getAttribute("data-edit-bank");
+        const bank = banks.find((b) => b.id === bankId);
+        if (!bank) return;
+        const novoNome = await showPromptModal("nome do banco", {
+          title: "renomear banco",
+          defaultValue: bank.nome,
+          confirmText: "salvar",
+        });
+        if (novoNome === null) return;
+        const nome = novoNome.trim();
+        if (!nome) {
+          showErrorModal("o nome não pode ficar em branco.", "atenção");
+          return;
+        }
+        await carteiraApi.updateBank(bankId, { nome, icon_ascii: bank.icon_ascii });
+        await reload();
+      });
+    });
+    el.querySelectorAll("[data-remove-bank]").forEach((node) => {
+      node.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        const bankId = node.getAttribute("data-remove-bank");
+        const bank = banks.find((b) => b.id === bankId);
+        if (!bank) return;
+        const n = bank.accounts.length;
+        const msg = n > 0
+          ? `apagar "${bank.nome}" também remove ${n} conta${n === 1 ? "" : "s"} dele. essa ação não pode ser desfeita.`
+          : `apagar o banco "${bank.nome}"? essa ação não pode ser desfeita.`;
+        const ok = await showConfirmModal(msg, { title: "apagar banco", confirmText: "apagar", danger: true });
+        if (!ok) return;
+        await carteiraApi.deleteBank(bankId);
+        if (expandedBankId === bankId) expandedBankId = null;
         await reload();
         window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
       });
     });
     el.querySelector('[data-action="add-account"]')?.addEventListener("click", () => {
-      openAccountModal({
+      openContaModal({
         banks,
         onSaved: async () => {
           await reload();
@@ -128,7 +171,7 @@ export async function render(el, widget) {
 
   async function reload() {
     try {
-      banks = await walletApi.listBanks();
+      banks = await carteiraApi.listBanks();
       if (!banks.some((b) => b.id === expandedBankId)) {
         expandedBankId = null;
       }

@@ -6,7 +6,7 @@ import { store } from "../state/store.js";
 
 /**
  * Modal de onboarding (item 15.6, decisão 25 — REVISADA; texto
- * reescrito por completo na etapa 4 do plano-onboarding-kami.md).
+ * reescrito por completo na etapa 4 do onboarding).
  *
  * Formato: tour multi-step (vários modais em sequência, um passo por
  * módulo/conceito). Cada passo tem uma mini-ilustração estática (HTML/CSS
@@ -25,8 +25,8 @@ import { store } from "../state/store.js";
  *   desconectados.
  * - Último passo (calendário) deixa claro que isso é só uma prévia, e
  *   que cada tela vai ter dicas mais detalhadas na hora de usar de
- *   verdade (etapa 5, screen-tips-registry.js — calendário ainda não
- *   tem dicas próprias registradas, só as outras 6 telas do v1).
+ *   verdade (etapa 5, screen-tips-registry.js — calendário já tem
+ *   dicas próprias registradas, junto com as outras 6 telas do v1).
  *
  * Comportamento (mantido):
  * - Abre automaticamente no primeiro boot, encadeado depois da etapa 2/3
@@ -266,15 +266,12 @@ function renderStep(step) {
   modalEl.querySelector("#ob-desc").textContent = s.desc(ctx);
   modalEl.querySelector("#ob-illus-wrap").innerHTML = s.illustration(ctx);
 
-  // dots
   const dotsEl = modalEl.querySelector("#ob-dots");
   dotsEl.innerHTML = STEPS.map((_, i) => `<span class="ob-dot${i === step ? " ob-dot--on" : ""}"></span>`).join("");
 
-  // botão anterior
   const prevBtn = modalEl.querySelector("#ob-btn-prev");
   prevBtn.style.display = step === 0 ? "none" : "";
 
-  // botão próximo / finalizar
   const nextBtn = modalEl.querySelector("#ob-btn-next");
   const isLast = step === total - 1;
   nextBtn.innerHTML = isLast ? `${icon("check", { size: 13 })} começar a usar` : `próximo ${icon("arrow-right", { size: 13 })}`;
@@ -283,7 +280,6 @@ function renderStep(step) {
 
 function wireModal(wrap) {
   wrap.querySelector('[data-action="close"]').addEventListener("click", () => closeOnboardingModal());
-  // backdrop click
   wrap.addEventListener("click", (e) => {
     if (e.target === wrap) closeOnboardingModal();
   });

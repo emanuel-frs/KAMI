@@ -40,7 +40,7 @@ import { showConfirmModal } from "../modals/confirm-modal.js";
 import { refreshNotificationBell } from "../components/notification-bell.js";
 import { showToast } from "../components/toast.js";
 import { subscribeSyncState, isSyncRunning } from "../components/email-sync-scheduler.js";
-import { accountColor } from "../components/account-color.js";
+import { emailAccountColor } from "../components/email-account-color.js";
 
 const state = {
   tab: "links",
@@ -89,7 +89,7 @@ let accountsSelectionInitialized = false;
  * @param {HTMLElement} container
  * @param {{ tab?: string, accountId?: string, focusEmailId?: string }} [opts] -
  *   ver components/navigate.js. Usado pelo modal de notificações
- *   (modals/notifications-modal.js) pra abrir Organização já na aba de
+ *   (modals/notificacoes-modal.js) pra abrir Organização já na aba de
  *   e-mail, com a conta certa selecionada e o e-mail clicado aberto —
  *   sem isso o clique caía sempre na aba "links" (bug reportado: botões
  *   de ver/silenciar iam pra Organização, mas na aba errada).
@@ -180,7 +180,7 @@ async function applyFocus(opts) {
  * `is_muted` por e-mail a partir de muted_accounts, então só recarregar
  * o array antigo com renderEmails() não bastava — o item continuava com
  * o is_muted de antes de silenciar) e redesenha — chamado por
- * modals/notifications-modal.js depois de silenciar uma conta por lá,
+ * modals/notificacoes-modal.js depois de silenciar uma conta por lá,
  * pra essa tela refletir na hora se já estiver montada, em vez de só
  * atualizar no próximo mount() (sair/entrar na tela).
  */
@@ -194,7 +194,7 @@ export async function refreshMutedAccounts() {
 
 /**
  * Marca localmente como lidos os e-mails cujos ids vieram do store
- * "emailsMarkedRead" (publicado por modals/notifications-modal.js ao
+ * "emailsMarkedRead" (publicado por modals/notificacoes-modal.js ao
  * clicar em "marcar todos como lidos") — sem isso, essa tela só
  * refletiria a mudança no próximo mount() (sair/entrar de novo).
  * Reflete só o que já está em state.emails; nada aqui obriga um
@@ -313,15 +313,16 @@ function template() {
       </div>
     </div>
 
-    <!-- MODAL: novo link -->
+    <!-- MODAL: novo/editar link -->
     <div class="modal-backdrop" id="link-modal">
       <div class="modal">
-        <div class="modal-head">novo link <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
+        <div class="modal-head"><span id="link-modal-title">novo link</span> <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
         <div class="modal-body">
+          <input type="hidden" id="link-edit-id" value="">
           <div class="field"><label>título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
           <div class="field"><label>url</label><input type="text" id="link-url" placeholder="https://..."></div>
           <div class="field"><label>categoria</label><input type="text" id="link-cat" placeholder="geral"></div>
-          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link">+ adicionar link</button>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link" id="link-save-btn">+ adicionar link</button>
         </div>
       </div>
     </div>
@@ -441,7 +442,7 @@ function bindEvents(container) {
     if (action === "org-search-clear") orgSearchClear();
     if (action === "open-link-modal") openLinkModal();
     if (action === "close-link-modal") closeLinkModal();
-    if (action === "save-link") handleAddLink();
+    if (action === "save-link") handleSaveLink();
     if (action === "open-repo-modal") openRepoModal();
     if (action === "close-repo-modal") closeRepoModal();
     if (action === "save-repo") handleAddRepo();
@@ -463,6 +464,9 @@ function bindEvents(container) {
 
     const openLink = e.target.closest("[data-open-link]")?.dataset.openLink;
     if (openLink) openExternal(openLink);
+
+    const linkEditId = e.target.closest("[data-edit-link]")?.dataset.editLink;
+    if (linkEditId) openLinkModal(linkEditId);
 
     const linkId = e.target.closest("[data-delete-link]")?.dataset.deleteLink;
     if (linkId) handleDeleteLink(linkId);
@@ -683,6 +687,7 @@ function renderLinks() {
               <img class="favicon" src="https://www.google.com/s2/favicons?domain=${escapeAttr(domain)}" alt="">
               <span class="lr-title" data-open-link="${escapeAttr(l.url)}">${escapeHtml(l.title)}</span>
               <span class="lr-go" data-open-link="${escapeAttr(l.url)}">${icon("external-link", { size: 11 })}</span>
+              <span class="lr-edit" data-tooltip="editar" data-edit-link="${l.id}">${icon("pencil", { size: 12 })}</span>
               <span class="lr-delete" data-delete-link="${l.id}">${icon("x")}</span>
             </div>`;
         })
@@ -692,15 +697,30 @@ function renderLinks() {
     .join("");
 }
 
-function openLinkModal() {
-  ["link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+function openLinkModal(linkId) {
+  const titleEl = rootEl.querySelector("#link-modal-title");
+  const saveBtn = rootEl.querySelector("#link-save-btn");
+  if (linkId) {
+    const l = state.links.find((x) => x.id === linkId);
+    rootEl.querySelector("#link-edit-id").value = l.id;
+    rootEl.querySelector("#link-title").value = l.title;
+    rootEl.querySelector("#link-url").value = l.url;
+    rootEl.querySelector("#link-cat").value = l.category;
+    titleEl.textContent = "editar link";
+    saveBtn.textContent = "salvar link";
+  } else {
+    ["link-edit-id", "link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+    titleEl.textContent = "novo link";
+    saveBtn.textContent = "+ adicionar link";
+  }
   rootEl.querySelector("#link-modal").classList.add("open");
 }
 function closeLinkModal() {
   rootEl.querySelector("#link-modal").classList.remove("open");
 }
 
-async function handleAddLink() {
+async function handleSaveLink() {
+  const editId = rootEl.querySelector("#link-edit-id").value;
   const title = rootEl.querySelector("#link-title").value.trim();
   const url = rootEl.querySelector("#link-url").value.trim();
   const category = rootEl.querySelector("#link-cat").value.trim() || "geral";
@@ -708,7 +728,11 @@ async function handleAddLink() {
     showErrorModal("preencha título e url.", "atenção");
     return;
   }
-  await api.createLink({ title, url, category });
+  if (editId) {
+    await api.updateLink(editId, { title, url, category });
+  } else {
+    await api.createLink({ title, url, category });
+  }
   closeLinkModal();
   await loadLinks();
   renderLinks();
@@ -1030,7 +1054,7 @@ function renderAccountChips() {
   wrap.innerHTML = state.accounts
     .map((a) => {
       const on = state.selectedAccountIds.has(a.id);
-      const color = accountColor(a.id);
+      const color = emailAccountColor(a.id);
       return `
       <span class="email-account-chip${on ? " on" : ""}" data-account-chip="${a.id}" style="--chip-color:${color};" data-tooltip="${on ? "remover da visualização" : "adicionar à visualização"}">
         <span class="email-account-chip-dot"></span>
@@ -1304,7 +1328,7 @@ function renderEmails() {
 
   wrap.innerHTML = visible
     .map((e) => {
-      const color = accountColor(e.account_id);
+      const color = emailAccountColor(e.account_id);
       return `
       <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}">
         <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(accountLabel(e.account_id))}">${emailInitial(e.sender)}</div>

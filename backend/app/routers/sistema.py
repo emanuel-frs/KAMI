@@ -1,14 +1,14 @@
 """
-Módulo Sistema — backup/exportação e reset completo dos dados
-(ALINHAMENTO.md 4.3/4.4). Único par de endpoints do app que enxerga
+Módulo Sistema — backup/exportação e reset completo dos dados.
+Único par de endpoints do app que enxerga
 o banco inteiro em vez de um módulo específico.
 
 Endpoints:
-  GET  /api/system/export   devolve TODAS as tabelas do usuário em JSON
-  POST /api/system/import   substitui TODOS os dados atuais pelo
+  GET  /api/sistema/export   devolve TODAS as tabelas do usuário em JSON
+  POST /api/sistema/import   substitui TODOS os dados atuais pelo
                              conteúdo de um export anterior (mesmo
                              formato devolvido por /export)
-  POST /api/system/reset    apaga tudo e recria o estado de instalação
+  POST /api/sistema/reset    apaga tudo e recria o estado de instalação
                              nova (mesma seed do primeiro boot)
 
 Nota sobre /import: `email_accounts.app_password_enc`,

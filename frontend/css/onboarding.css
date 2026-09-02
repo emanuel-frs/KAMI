@@ -202,7 +202,6 @@
   flex-direction: column;
   gap: 3px;
 }
-.ob-meta-card--done { opacity: 0.6; }
 .ob-meta-title { font-size: 10px; color: var(--text); }
 .ob-meta-bar { height: 3px; background: var(--border-soft); }
 .ob-meta-fill { display: block; height: 100%; background: var(--accent); }

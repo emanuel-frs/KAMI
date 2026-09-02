@@ -166,7 +166,6 @@ a { color: var(--text-bright); }
 .sidebar-brand { padding: 0 18px 16px; border-bottom: 1px solid var(--border-soft); margin-bottom: 10px; }
 .tagline { font-size: 9.5px; color: var(--text-faint); line-height: 1.5; }
 .nav-tree { flex: 1 1 auto; padding: 0 10px; }
-.tree-root { font-size: 11px; color: var(--text-faint); padding: 4px 8px 8px; }
 .nav-link {
   display: flex; align-items: center; gap: 6px; padding: 7px 8px;
   font-size: 12px; color: var(--text-dim); cursor: pointer; white-space: nowrap;
@@ -298,14 +297,6 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
 }
 .avatar-modal-view pre { margin: 0; color: var(--accent); white-space: pre; line-height: 1; }
 
-.username-display {
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 500;
-  margin-top: 6px;
-  text-transform: capitalize;
-  text-align: center;
-}
 /* ── flash de foco genérico (drill-down do Calendário) ────────────────
  * Aplicado via components/pending-focus.js em qualquer linha/card de
  * qualquer widget/página quando o usuário chega ali clicando num

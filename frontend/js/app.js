@@ -6,7 +6,7 @@ import { playBootSplash } from "./components/boot-splash.js";
 import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
-import { openSettingsModal } from "./modals/settings-modal.js";
+import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
@@ -77,7 +77,7 @@ function wireSettingsButton() {
   const btn = document.getElementById("btn-open-settings");
   if (!btn) return;
   btn.innerHTML = icon("settings", { size: 14 });
-  btn.addEventListener("click", () => openSettingsModal());
+  btn.addEventListener("click", () => openConfiguracoesModal());
 }
 
 /**

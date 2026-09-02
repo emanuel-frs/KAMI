@@ -4,7 +4,7 @@ import { startTipSequence } from "../components/tip-sequence.js";
 import { switchTab } from "./organizacao.js";
 
 /**
- * Dicas contextuais de Organização (etapa 5, plano-onboarding-kami.md,
+ * Dicas contextuais de Organização (etapa 5,
  * seção 8 item 5). Segunda das três telas de layout fixo — mesmo
  * modelo de lista manual de Metas (metas-tips.js), mas com uma
  * complicação nova: três abas fixas (links/github/e-mail), e só a aba

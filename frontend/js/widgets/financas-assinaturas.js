@@ -1,6 +1,6 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
-import { openSubscriptionModal } from "../modals/subscription-modal.js";
+import { openAssinaturaModal } from "../modals/assinatura-modal.js";
 import { openAssinaturaFilterModal } from "../modals/assinatura-filter-modal.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
 import { openPayPeriodModal } from "../modals/pay-period-modal.js";
@@ -11,13 +11,13 @@ import { icon } from "../components/icons.js";
 
 /**
  * Widget "assinaturas". Marcar como paga pode gerar uma transação real
- * (item 6 do mapa de problemas) quando a assinatura tem conta_id
+ * (item 6) quando a assinatura tem conta_id
  * vinculada — nesse caso abre pay-period-modal.js pra confirmar valor/
  * conta/forma de pagamento. Sem conta vinculada, continua sendo só
  * lembrete (prompt simples de valor, sem afetar saldo).
  *
  * Nome clicável = editar, ícone x = remover (padrão de contas-fixas.js — item
- * 5 do mapa de problemas). Assinaturas INATIVAS continuam listadas (com
+ * 5). Assinaturas INATIVAS continuam listadas (com
  * tag "inativa" no lugar do toggle de pagar, igual contas-fixas.js) em
  * vez de somem da lista — senão reativar uma assinatura desativada via
  * edição ficaria impossível (não teria mais onde clicar).
@@ -49,9 +49,9 @@ export async function render(el, widget) {
   async function reload() {
     try {
       [subscriptions, periods, banks] = await Promise.all([
-        walletApi.listSubscriptions(),
-        walletApi.listSubscriptionPeriods(month),
-        walletApi.listBanks(),
+        carteiraApi.listSubscriptions(),
+        carteiraApi.listSubscriptionPeriods(month),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar assinaturas: ${err.message}</div>`;
@@ -118,14 +118,14 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-sub");
         const subscription = subscriptions.find((s) => s.id === id);
-        if (subscription) openSubscriptionModal({ subscription, accounts: flatAccounts(), onSaved: reload });
+        if (subscription) openAssinaturaModal({ subscription, accounts: flatAccounts(), onSaved: reload });
       });
     });
 
     el.querySelectorAll("[data-remove-sub]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!(await showConfirmModal("remover essa assinatura?", { title: "remover assinatura", confirmText: "remover", danger: true }))) return;
-        await walletApi.deleteSubscription(btn.getAttribute("data-remove-sub"));
+        await carteiraApi.deleteSubscription(btn.getAttribute("data-remove-sub"));
         await reload();
       });
     });
@@ -136,7 +136,7 @@ export async function render(el, widget) {
         if (!periodId) return;
         const isPaga = btn.classList.contains("paga");
         if (isPaga) {
-          await walletApi.unpaySubscriptionPeriod(periodId);
+          await carteiraApi.unpaySubscriptionPeriod(periodId);
         } else {
           const sub = subscriptions.find((s) => s.id === btn.getAttribute("data-sub-id"));
           const accounts = flatAccounts();
@@ -156,7 +156,7 @@ export async function render(el, widget) {
             payload = { valor_pago: valorStr ? Number(valorStr) : null, gerar_transacao: false };
           }
           try {
-            await walletApi.paySubscriptionPeriod(periodId, payload);
+            await carteiraApi.paySubscriptionPeriod(periodId, payload);
           } catch (err) {
             showErrorModal(err.message, "erro ao marcar como pago");
             return;
@@ -167,7 +167,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-sub"]').addEventListener("click", () => {
-      openSubscriptionModal({ accounts: flatAccounts(), onSaved: reload });
+      openAssinaturaModal({ accounts: flatAccounts(), onSaved: reload });
     });
     el.querySelector('[data-action="filter"]').addEventListener("click", () => {
       openAssinaturaFilterModal({ accounts: flatAccounts(), current: filter, onApply: (newFilter) => { filter = newFilter; draw(); } });

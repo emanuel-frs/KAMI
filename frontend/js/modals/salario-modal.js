@@ -102,13 +102,13 @@ async function submitSalaryRecord(wrap) {
     showErrorModal(err.message, editingRecord ? "erro ao salvar registro" : "erro ao criar registro");
     return;
   }
-  closeSalaryModal();
+  closeSalarioModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeSalaryModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeSalaryModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeSalarioModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeSalarioModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitSalaryRecord(wrap));
 }
 
@@ -117,7 +117,7 @@ function wireModal(wrap) {
  *   `record` — se informado, o modal abre em modo edição (PUT em vez de
  *   POST) pré-preenchido com os dados do registro.
  */
-export async function openSalaryModal({ record = null, onSaved } = {}) {
+export async function openSalarioModal({ record = null, onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingRecord = record || null;
@@ -139,6 +139,6 @@ export async function openSalaryModal({ record = null, onSaved } = {}) {
   modalEl.classList.add("open");
 }
 
-export function closeSalaryModal() {
+export function closeSalarioModal() {
   modalEl?.classList.remove("open");
 }

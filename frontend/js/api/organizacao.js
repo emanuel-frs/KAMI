@@ -3,6 +3,7 @@ import { get, post, put, del } from "./client.js";
 // links
 export const listLinks = () => get("/api/organizacao/links");
 export const createLink = (data) => post("/api/organizacao/links", data);
+export const updateLink = (linkId, data) => put(`/api/organizacao/links/${linkId}`, data);
 export const deleteLink = (linkId) => del(`/api/organizacao/links/${linkId}`);
 
 // repositórios github
@@ -39,7 +40,7 @@ export const saveGithubToken = (token) => put("/api/organizacao/github-token", {
 export const deleteGithubToken = () => del("/api/organizacao/github-token");
 export const getCommitActivity = (repoId) => get(`/api/organizacao/github-repos/${repoId}/commit-activity`);
 
-// busca (v2 — resumo inline via tavily, ver ALINHAMENTO.md 4.1)
+// busca (v2 — resumo inline via tavily)
 export const getSearchKeyStatus = () => get("/api/organizacao/search-key");
 export const saveSearchKey = (apiKey) => put("/api/organizacao/search-key", { api_key: apiKey });
 export const deleteSearchKey = () => del("/api/organizacao/search-key");

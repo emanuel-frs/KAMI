@@ -5,8 +5,7 @@ import { icon } from "../components/icons.js";
 /**
  * Modal "marcar como paga/pago" — usado por widgets/contas-fixas.js e
  * widgets/financas-assinaturas.js quando o registro (conta fixa /
- * assinatura) tem uma conta vinculada. Item 6 do mapa de problemas:
- * antes, marcar como pago nunca afetava saldo/fatura; agora, se há
+ * assinatura) tem uma conta vinculada. Item 6: antes, marcar como pago nunca afetava saldo/fatura; agora, se há
  * conta vinculada, o usuário decide aqui (checkbox "descontar
  * automaticamente", ligado por padrão) se isso deve virar uma
  * transação real — igual um app de finanças de verdade perguntaria.

@@ -196,7 +196,7 @@
 .cf-remove:hover{ color:var(--accent); }
 
 /* toggle pago/mês — mesmo visual de .sub-toggle (wallet.css), unificação
-   do item 1 do mapa de problemas: conta fixa ganhou o mesmo padrão de
+   do item 1: conta fixa ganhou o mesmo padrão de
    instância mensal de assinatura. */
 .cf-toggle{
   border:1px solid var(--border-soft); background:var(--bg); color:var(--text-faint);
@@ -206,7 +206,7 @@
 .cf-toggle.paga{ border-color:var(--accent); color:var(--accent); }
 
 /* tag "gerou transação real" — mesmo padrão de .sub-tx-tag (wallet.css),
-   item 6 do mapa de problemas. */
+   item 6. */
 .cf-tx-tag{
   font-size:9px; color:var(--accent); border:1px solid var(--accent-dim);
   padding:1px 4px; flex-shrink:0; cursor:default;
@@ -387,7 +387,7 @@
 .cp-fatura-valor{ color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
 
 /* ── renda recorrente (financas_renda) ────────────────────────────────────
- * item 2 do mapa de problemas — mesmo visual de linha usado em
+ * item 2 — mesmo visual de linha usado em
  * contas-fixas/assinaturas (row + valor + data + toggle).
  */
 /* mesmo padrão de duas linhas de .divida-row — ver comentário em

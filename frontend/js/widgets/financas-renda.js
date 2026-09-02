@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
-import { openIncomeSourceModal } from "../modals/income-source-modal.js";
+import { openFonteRendaModal } from "../modals/fonte-renda-modal.js";
 import { openPayIncomeModal } from "../modals/pay-income-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -9,7 +9,7 @@ import { icon } from "../components/icons.js";
 
 /**
  * Widget "renda recorrente" (financas_renda) — v2: fecha o item 2 do
- * mapa de problemas antigo (o backend só tinha 2 fontes fixas
+ * levantamento antigo de pendências (o backend só tinha 2 fontes fixas
  * hardcoded, sem CRUD nenhum). Agora:
  *   - lista TODAS as fontes ativas, uma ocorrência por linha (uma
  *     fonte com tipo_data='intervalo_dias' semanal pode ter várias
@@ -18,7 +18,7 @@ import { icon } from "../components/icons.js";
  *     contas-fixas.js, item 5);
  *   - toggle "marcar paga" abre pay-income-modal.js (valor editável,
  *     credita saldo real se a fonte tem conta_id vinculada);
- *   - "+ fonte de renda" abre income-source-modal.js pro CRUD completo.
+ *   - "+ fonte de renda" abre fonte-renda-modal.js pro CRUD completo.
  *
  * Deliberadamente fora do Calendário por enquanto (ver comentário em
  * app/routers/calendario.py) — só aparece aqui em Finanças.
@@ -53,7 +53,7 @@ export async function render(el, widget) {
       [sources, entries, banks] = await Promise.all([
         financasApi.listIncomeSources(),
         financasApi.getIncomeEntries(month),
-        walletApi.listBanks(),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar renda: ${err.message}</div>`;
@@ -126,7 +126,7 @@ export async function render(el, widget) {
       label.addEventListener("click", () => {
         const id = label.getAttribute("data-edit-source");
         const source = sources.find((s) => s.id === id);
-        if (source) openIncomeSourceModal({ source, sources, accounts: flatAccounts(), onSaved: reload });
+        if (source) openFonteRendaModal({ source, sources, accounts: flatAccounts(), onSaved: reload });
       });
     });
 
@@ -178,7 +178,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-source"]').addEventListener("click", () => {
-      openIncomeSourceModal({ sources, accounts: flatAccounts(), onSaved: reload });
+      openFonteRendaModal({ sources, accounts: flatAccounts(), onSaved: reload });
     });
   }
 

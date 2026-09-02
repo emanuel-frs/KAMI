@@ -1,6 +1,6 @@
 import * as carreiraApi from "../api/carreira.js";
 import { escapeHtml } from "../components/format.js";
-import { openEducationModal } from "../modals/education-modal.js";
+import { openFormacaoModal } from "../modals/formacao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 
@@ -76,7 +76,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-education");
         const education = educations.find((e) => e.id === id);
-        if (education) openEducationModal({ education, onSaved: reload });
+        if (education) openFormacaoModal({ education, onSaved: reload });
       });
     });
 
@@ -89,7 +89,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-education"]').addEventListener("click", () => {
-      openEducationModal({ onSaved: reload });
+      openFormacaoModal({ onSaved: reload });
     });
   }
 

@@ -1,6 +1,6 @@
 /**
- * Splash de abertura — item 1 do plano de onboarding (plano-onboarding-kami.md,
- * etapa 1: "Abertura kami").
+ * Splash de abertura — item 1 do plano de onboarding
+ * (etapa 1: "Abertura kami").
  *
  * Tela cheia preta com a palavra "kami" em ASCII (mesma arte do banner do
  * README, fonte ANSI Shadow — tipografia do próprio sistema, não é imagem

@@ -16,9 +16,6 @@
  */
 
 /* ==================== RESUMO ==================== */
-.financas-resumo{
-  display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;
-}
 .resumo-card{
   flex:1; min-width:180px; border:1px solid var(--border-soft); background:var(--card);
   padding:12px 14px;
@@ -27,14 +24,6 @@
 .resumo-card .rc-value{ font-size:18px; color:var(--text-bright); letter-spacing:0.3px; }
 .resumo-card.possui .rc-value{ color:var(--accent); }
 .resumo-card.a-pagar .rc-value{ color:var(--amber); }
-
-/* ==================== LAYOUT FIXO DA PÁGINA (sem grid — decisão 17) ==================== */
-/* financas.js empilha os .card verticalmente; NÃO usa .widget-grid
-   (isso é exclusivo do dashboard configurável de perfil/núcleo). Os
-   .card/.card-head/.card-body abaixo são as classes globais já usadas
-   em todo o resto do app (ver widgets.css/card-base.css) — não recriar
-   um wrapper próprio aqui, só o conteúdo interno de cada bloco. */
-.financas-stack{ display:flex; flex-direction:column; gap:16px; }
 
 /* ==================== WALLET (accordion banco→conta) ==================== */
 .wallet-stack{ display:flex; flex-direction:column; gap:9px; }
@@ -59,13 +48,16 @@
   /* decisão: sem borda ao redor do ícone */
 }
 .bank-icon pre{ margin:0; white-space:pre; color:#fff; line-height:1; text-align:center; }
-.bank-icon .bank-fallback{ font-size:8px; color:var(--text-bright); font-weight:700; letter-spacing:0.3px; }
+.bank-icon .ph{ font-size:8px; color:var(--text-bright); font-weight:700; letter-spacing:0.3px; }
 .bank-name{
   font-size:12px; color:var(--text-bright); letter-spacing:0.3px; flex:1; min-width:0;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .bank-count{ font-size:10px; color:var(--text-faint); border:1px solid var(--border-soft); padding:1px 6px; flex:0 0 auto; }
 .bank-item.expanded .bank-count{ color:var(--accent); border-color:var(--accent-dim); }
+.bank-edit, .bank-remove{ color:var(--text-faint); font-size:12px; cursor:pointer; opacity:0.6; flex:0 0 auto; }
+.bank-edit:hover{ color:var(--accent); opacity:1; }
+.bank-remove:hover{ color:var(--red); opacity:1; }
 
 .bank-accounts{ overflow-y:auto; border-top:1px dashed var(--border-soft); }
 .bank-account{ padding:10px 14px; position:relative; }
@@ -181,7 +173,7 @@
 }
 .sub-toggle.paga{ border-color:var(--accent); color:var(--accent); }
 
-/* tag "gerou transação real" — item 6 do mapa de problemas: aparece só
+/* tag "gerou transação real" — item 6: aparece só
    quando marcar como paga de fato descontou de uma conta vinculada, em
    vez de só marcar o lembrete. */
 .sub-tx-tag{

@@ -6,7 +6,7 @@ import {
   contributeGoal,
   listContributions,
 } from "../api/metas.js";
-import { listBanks } from "../api/wallet.js";
+import { listBanks } from "../api/carteira.js";
 import { listTracks } from "../api/aprendizado.js";
 import { listCareerEducations } from "../api/carreira.js";
 import { escapeHtml, fmtDateBR, fmtMoney } from "../components/format.js";

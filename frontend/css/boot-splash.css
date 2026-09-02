@@ -1,4 +1,4 @@
-/* ---------- boot splash (plano-onboarding-kami.md, etapa 1) ----------
+/* ---------- boot splash (etapa 1 do onboarding) ----------
    Tela cheia preta com "kami" em ASCII, tocada em todo boot do app.
    z-index abaixo da textura de scanline do body (999, base.css) pra
    receber o mesmo tratamento visual do resto do app; acima de tudo o

@@ -12,7 +12,7 @@ import { icon } from "../components/icons.js";
  * subscription-modal.js: sem conta vinculada, a conta fixa continua
  * sendo só lembrete; com conta vinculada, marcar como paga passa a
  * poder gerar uma transação real (ver widgets/contas-fixas.js e
- * app/finance_utils.py — item 6 do mapa de problemas).
+ * app/finance_utils.py — item 6).
  */
 
 let modalEl = null;
@@ -75,13 +75,13 @@ async function submitFixedBill(wrap) {
     showErrorModal(err.message, editingBill ? "erro ao salvar conta fixa" : "erro ao criar conta fixa");
     return;
   }
-  closeFixedBillModal();
+  closeContaFixaModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeFixedBillModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeFixedBillModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeContaFixaModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeContaFixaModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitFixedBill(wrap));
 }
 
@@ -92,7 +92,7 @@ function wireModal(wrap) {
  *   `accounts` — contas já achatadas (com bankNome), pro select de conta
  *   vinculada — mesmo formato usado em subscription-modal.js.
  */
-export function openFixedBillModal({ bill = null, accounts = [], onSaved } = {}) {
+export function openContaFixaModal({ bill = null, accounts = [], onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingBill = bill || null;
@@ -117,6 +117,6 @@ export function openFixedBillModal({ bill = null, accounts = [], onSaved } = {})
   modalEl.classList.add("open");
 }
 
-export function closeFixedBillModal() {
+export function closeContaFixaModal() {
   modalEl?.classList.remove("open");
 }

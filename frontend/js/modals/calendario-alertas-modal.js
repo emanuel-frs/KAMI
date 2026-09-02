@@ -31,17 +31,17 @@ function buildModal() {
     </div>
   `;
   document.body.appendChild(wrap);
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeCalendarAlertsModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeCalendarAlertsModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeCalendarioAlertasModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeCalendarioAlertasModal(); });
   return wrap;
 }
 
-export function closeCalendarAlertsModal() {
+export function closeCalendarioAlertasModal() {
   modalEl?.classList.remove("open");
 }
 
 /** @param {{ alerts: Array, todayStr: string, onSelect: (info: {module: string, type: string, recordId: string}) => void }} opts */
-export function openCalendarAlertsModal({ alerts, todayStr, onSelect } = {}) {
+export function openCalendarioAlertasModal({ alerts, todayStr, onSelect } = {}) {
   modalEl = modalEl || buildModal();
   onSelectCb = onSelect;
 
@@ -77,7 +77,7 @@ export function openCalendarAlertsModal({ alerts, todayStr, onSelect } = {}) {
     listEl.querySelectorAll(".cal-alert-item").forEach((row) => {
       row.addEventListener("click", () => {
         const { module, type, recordId } = row.dataset;
-        closeCalendarAlertsModal();
+        closeCalendarioAlertasModal();
         if (module && type && recordId) onSelectCb?.({ module, type, recordId });
       });
     });

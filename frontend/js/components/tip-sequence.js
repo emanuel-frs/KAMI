@@ -1,8 +1,7 @@
 import { icon } from "./icons.js";
 
 /**
- * Motor genérico de dicas contextuais por tela (etapa 5,
- * plano-onboarding-kami.md).
+ * Motor genérico de dicas contextuais por tela (etapa 5).
  *
  * Escurece a tela inteira exceto o elemento em destaque, mostra um
  * balão de texto apontando pra ele, e obriga o usuário a avançar

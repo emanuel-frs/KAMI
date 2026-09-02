@@ -166,8 +166,3 @@ export function startCalendarNotifications({ onNavigate } = {}) {
   runCheck();
   intervalId = setInterval(runCheck, CHECK_INTERVAL_MS);
 }
-
-export function stopCalendarNotifications() {
-  clearInterval(intervalId);
-  intervalId = null;
-}

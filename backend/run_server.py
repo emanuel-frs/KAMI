@@ -12,7 +12,7 @@ espera, o que não existe mais depois que o código foi empacotado.
 Este script chama uvicorn.run() programaticamente, sem reload, e é o
 alvo que o PyInstaller compila (ver kami-backend.spec).
 
-Porta (ALINHAMENTO.md 2.5): por padrão, deixa o SO escolher uma porta
+Porta: por padrão, deixa o SO escolher uma porta
 livre em vez de fixar 8000 — o app roda 100% local (nada externo
 depende de uma porta previsível), então isso elimina o risco de a
 porta 8000 já estar ocupada por outro processo na máquina do usuário.

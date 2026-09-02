@@ -31,12 +31,17 @@ from app.database import new_id
 
 
 def create_saida_transaction(db, conta, amount: float, category: str, description: str,
-                              forma_pagamento: str = None, date: str = None) -> str:
+                              forma_pagamento: str = None, date: str = None,
+                              formas_permitidas=None) -> str:
     """Cria uma transação 'saida' pra `conta`, atualiza saldo_atual/
     fatura_atual de acordo, e devolve o id da transação criada.
     Levanta HTTPException 422 nos mesmos casos que POST /financas/transactions
     (conta sem saldo nem crédito, ambíguo sem forma_pagamento, saldo/limite
-    insuficiente)."""
+    insuficiente).
+
+    `formas_permitidas`: se vier, restringe quais formas de pagamento são
+    aceitas pra essa chamada específica (ex: metas.py só aceita saldo,
+    nunca crédito — não faz sentido conceitual pagar meta no cartão)."""
     if conta["possui_saldo"] and conta["possui_credito"]:
         if forma_pagamento not in ("saldo", "credito"):
             raise HTTPException(
@@ -49,6 +54,13 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
         forma_pagamento = "saldo"
     else:
         raise HTTPException(status_code=422, detail="essa conta não possui saldo nem crédito cadastrado")
+
+    if formas_permitidas is not None and forma_pagamento not in formas_permitidas:
+        permitidas_str = " ou ".join(sorted(formas_permitidas))
+        raise HTTPException(
+            status_code=422,
+            detail=f"essa operação só aceita pagamento por {permitidas_str}, não por {forma_pagamento}",
+        )
 
     if forma_pagamento == "saldo":
         saldo_atual = conta["saldo_atual"] or 0

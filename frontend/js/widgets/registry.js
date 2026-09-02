@@ -1,5 +1,5 @@
 /**
- * Catálogo de widgets (decisão 17) — ALINHAMENTO.md 2.6.
+ * Catálogo de widgets (decisão 17).
  *
  * Até aqui isso era uma cópia manual de app/widgets.py (backend), com
  * o comentário admitindo "precisa ficar em sync manualmente com o
@@ -30,7 +30,7 @@ const COMPONENT_PATHS = {
   log: "./log.js",
   registrar: "./registrar.js",
   achievements: "./achievements.js",
-  wallet: "./wallet.js",
+  carteira: "./carteira.js",
   financas_resumo: "./financas-resumo.js",
   financas_renda: "./financas-renda.js",
   financas_registros: "./financas-registros.js",

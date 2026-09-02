@@ -1,6 +1,6 @@
 /**
- * Gera os passos de uma sequência de dicas contextuais (etapa 5,
- * plano-onboarding-kami.md) A PARTIR do que está de fato no grid da
+ * Gera os passos de uma sequência de dicas contextuais (etapa 5)
+ * A PARTIR do que está de fato no grid da
  * tela agora — em vez de uma lista fixa de seletores escrita à mão.
  *
  * Por quê: uma lista fixa (o que nucleo-tips.js fazia antes) presume

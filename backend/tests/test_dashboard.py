@@ -6,10 +6,13 @@
 """
 
 
-def test_get_layout_empty_screen_returns_empty_list(client):
+def test_get_layout_seeds_default_for_financas(client):
     resp = client.get("/api/dashboard/financas")
     assert resp.status_code == 200
-    assert resp.json() == []
+    body = resp.json()
+    assert [w["widget_type"] for w in body] == [
+        "carteira", "financas_resumo", "financas_registros",
+    ]
 
 
 def test_get_layout_seeds_default_for_nucleo(client):
@@ -94,10 +97,10 @@ def test_put_layout_rejects_unknown_widget_type(client):
 
 
 def test_put_layout_rejects_widget_not_allowed_on_screen(client):
-    # 'wallet' só é permitido em 'financas', não em 'nucleo'
+    # 'carteira' só é permitido em 'financas', não em 'nucleo'
     resp = client.put(
         "/api/dashboard/nucleo",
-        json={"widgets": [{"widget_type": "wallet", "width": 2}]},
+        json={"widgets": [{"widget_type": "carteira", "width": 2}]},
     )
     assert resp.status_code == 422
 
@@ -163,7 +166,11 @@ def test_put_layout_screens_are_independent(client):
         json={"widgets": [{"widget_type": "log", "width": 4}]},
     )
     resp = client.get("/api/dashboard/financas")
-    assert resp.json() == []
+    # financas tem layout padrão próprio (seedado, não vazio) — o que
+    # importa aqui é que ele não foi afetado pelo PUT em nucleo.
+    assert [w["widget_type"] for w in resp.json()] == [
+        "carteira", "financas_resumo", "financas_registros",
+    ]
 
 
 def test_put_layout_persists_config_json(client):

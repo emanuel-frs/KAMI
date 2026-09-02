@@ -58,7 +58,6 @@ Regras de negócio (v2 — NOVO nesta versão):
         de contribuição some) — dinheiro que já saiu da conta é fato
         financeiro real.
 """
-import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -66,6 +65,7 @@ from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
 from app.actions import register_action
+from app.finance_utils import create_saida_transaction
 
 router = APIRouter()
 
@@ -230,30 +230,6 @@ def _goal_row_to_out(db, row) -> dict:
         "linked_education_id": row["linked_education_id"],
         "linked_education_name": linked_education_name,
     }
-
-
-def _create_goal_transaction(db, conta_row, amount: float, description: str) -> str:
-    """
-    Cria a transação real de saída (categoria 'metas') que representa uma
-    contribuição financeira paga de uma conta de verdade — debita saldo e
-    devolve o id da transação criada, pra ficar referenciada em
-    goal_contributions.transaction_id. Sempre 'saldo' (nunca crédito — pagar
-    uma meta no cartão não faz sentido conceitual aqui) e sempre na data de
-    hoje (a contribuição é um evento "agora", não retroativo).
-    """
-    tx_id = new_id()
-    hoje = datetime.date.today().isoformat()
-    db.execute(
-        "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, 'saida', 'metas', ?, 'saldo', NULL, NULL, ?)",
-        (tx_id, description, amount, conta_row["id"], hoje),
-    )
-    db.execute(
-        "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
-        (amount, conta_row["id"]),
-    )
-    return tx_id
 
 
 def sync_learning_goals(db, track_id: str) -> None:
@@ -604,14 +580,12 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
                 raise HTTPException(status_code=422, detail="conta não encontrada")
             if not conta["possui_saldo"]:
                 raise HTTPException(status_code=422, detail="essa conta não possui saldo")
-            saldo_atual = conta["saldo_atual"] or 0
-            if payload.amount > saldo_atual:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"saldo insuficiente: disponível R$ {saldo_atual:.2f}, tentando contribuir R$ {payload.amount:.2f}",
-                )
-            transaction_id = _create_goal_transaction(
-                db, conta, payload.amount, f'meta: {row["title"]}'
+            transaction_id = create_saida_transaction(
+                db, conta, payload.amount,
+                category="metas",
+                description=f'meta: {row["title"]}',
+                forma_pagamento="saldo",
+                formas_permitidas=("saldo",),
             )
 
     db.execute(

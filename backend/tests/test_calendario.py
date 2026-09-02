@@ -81,7 +81,7 @@ def test_debt_appears_only_in_its_due_month(client):
 
 def test_subscription_appears_and_reflects_payment_status(client):
     sub = client.post(
-        "/api/wallet/subscriptions",
+        "/api/carteira/subscriptions",
         json={"nome": "Streaming", "valor_esperado": 30.0, "dia_cobranca": 12},
     ).json()
 
@@ -92,9 +92,9 @@ def test_subscription_appears_and_reflects_payment_status(client):
     assert events[0]["status"] == "pendente"
     assert events[0]["amount"] == 30.0
 
-    periods = client.get("/api/wallet/subscriptions/periods", params={"month": "2026-03"}).json()
+    periods = client.get("/api/carteira/subscriptions/periods", params={"month": "2026-03"}).json()
     period = next(p for p in periods if p["subscription_id"] == sub["id"])
-    client.put(f"/api/wallet/subscriptions/periods/{period['id']}/pay", json={"valor_pago": 32.0})
+    client.put(f"/api/carteira/subscriptions/periods/{period['id']}/pay", json={"valor_pago": 32.0})
 
     resp2 = client.get("/api/calendario/events", params={"month": "2026-03"})
     events2 = [e for e in resp2.json() if e["type"] == "assinatura"]
@@ -104,7 +104,7 @@ def test_subscription_appears_and_reflects_payment_status(client):
 
 def test_inactive_subscription_is_excluded(client):
     client.post(
-        "/api/wallet/subscriptions",
+        "/api/carteira/subscriptions",
         json={"nome": "Cancelada", "valor_esperado": 20.0, "dia_cobranca": 8, "active": False},
     )
     resp = client.get("/api/calendario/events", params={"month": "2026-03"})
@@ -113,7 +113,7 @@ def test_inactive_subscription_is_excluded(client):
 
 def test_compra_parcelada_appears_only_during_installment_window(client):
     client.post(
-        "/api/wallet/compras-parceladas",
+        "/api/carteira/compras-parceladas",
         json={
             "nome": "presente", "valor_total": 300, "num_parcelas": 3,
             "mes_primeira_parcela": "2026-03",

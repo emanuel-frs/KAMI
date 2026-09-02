@@ -124,7 +124,7 @@ async function submitEvent(wrap) {
     showErrorModal(err.message, editingEvent ? "erro ao salvar evento" : "erro ao criar evento");
     return;
   }
-  closeCalendarEventModal();
+  closeCalendarioEventoModal();
   await onSavedCb?.();
 }
 
@@ -145,13 +145,13 @@ async function deleteEvent(wrap) {
     showErrorModal(err.message, "erro ao remover evento");
     return;
   }
-  closeCalendarEventModal();
+  closeCalendarioEventoModal();
   await onDeletedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeCalendarEventModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeCalendarEventModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeCalendarioEventoModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeCalendarioEventoModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitEvent(wrap));
   wrap.querySelector('[data-action="delete"]').addEventListener("click", () => deleteEvent(wrap));
 }
@@ -161,7 +161,7 @@ function wireModal(wrap) {
  *   `event` — registro cru de calendar_events; se informado, abre em modo edição.
  *   `date` — pré-preenche a data em modo criação (ex: dia selecionado no calendário).
  */
-export function openCalendarEventModal({ event = null, date = null, onSaved, onDeleted } = {}) {
+export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   onDeletedCb = onDeleted;
@@ -190,6 +190,6 @@ export function openCalendarEventModal({ event = null, date = null, onSaved, onD
   modalEl.querySelector("#cem-title").focus();
 }
 
-export function closeCalendarEventModal() {
+export function closeCalendarioEventoModal() {
   modalEl?.classList.remove("open");
 }

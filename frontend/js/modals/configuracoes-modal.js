@@ -1,7 +1,6 @@
 /**
  * Modal de configurações — aberto pelo ícone de engrenagem no rodapé
- * da sidebar (fora de qualquer tela, ver ALINHAMENTO.md 2.1 do
- * alinhamento de UX). Mesmo padrão singleton dos outros modais (ver
+ * da sidebar (fora de qualquer tela, ver alinhamento de UX geral). Mesmo padrão singleton dos outros modais (ver
  * err-modal.js).
  *
  * A partir de configuracoes_plano.md: modal com layout sidebar (lista
@@ -15,10 +14,10 @@
  * modal antigo (export/import/reset) — só mudou de lugar, sem
  * mudança de comportamento nenhuma:
  *   - exportar dados: baixa um .json com o dump completo do banco
- *     (GET /api/system/export)
+ *     (GET /api/sistema/export)
  *   - importar dados: sobrescreve TODAS as configurações e dados
  *     atuais com o conteúdo de um .json exportado antes (POST
- *     /api/system/import) — mesmo padrão de CONFIRMAÇÃO do reset
+ *     /api/sistema/import) — mesmo padrão de CONFIRMAÇÃO do reset
  *     (digitar uma palavra pra habilitar o botão + modal de
  *     confirmação explícito antes de executar), mas com um visual
  *     diferente (.settings-warning, âmbar) em vez do vermelho da
@@ -26,7 +25,7 @@
  *     definitivo. O modal de confirmação final (a última etapa antes
  *     de executar) segue vermelho igual ao do reset — é ali que o
  *     alerta "isso não tem volta" realmente importa.
- *   - zona de perigo: reset completo (POST /api/system/reset),
+ *   - zona de perigo: reset completo (POST /api/sistema/reset),
  *     exige digitar a palavra "excluir" pra habilitar o botão — o
  *     backend também exige essa palavra no corpo da requisição, então
  *     a validação do frontend é conveniência de UX, não a única
@@ -76,7 +75,7 @@
  * atrás de um botão "+ nova conta" (mesmo padrão de toggle
  * mostrar/esconder, não um modal separado).
  */
-import { exportData, importData, resetData } from "../api/system.js";
+import { exportData, importData, resetData } from "../api/sistema.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
 import {
   listEmailAccounts,
@@ -343,9 +342,9 @@ function switchTab(wrap, tabId) {
 
 function wireModal(wrap) {
   wrap.querySelectorAll('[data-action="close"]').forEach((el) =>
-    el.addEventListener("click", () => { if (!busy) closeSettingsModal(); })
+    el.addEventListener("click", () => { if (!busy) closeConfiguracoesModal(); })
   );
-  wrap.addEventListener("click", (e) => { if (e.target === wrap && !busy) closeSettingsModal(); });
+  wrap.addEventListener("click", (e) => { if (e.target === wrap && !busy) closeConfiguracoesModal(); });
 
   wrap.querySelectorAll(".cfg-tab").forEach((el) =>
     el.addEventListener("click", () => switchTab(wrap, el.dataset.tab))
@@ -364,7 +363,7 @@ function wireModal(wrap) {
 
 // ── aba aparência ──────────────────────────────────────────────────────
 // (sem wire-up fixo aqui: os swatches são recriados a cada abertura do
-// modal via renderAccentSwatches(), chamada em openSettingsModal() —
+// modal via renderAccentSwatches(), chamada em openConfiguracoesModal() —
 // precisa ser assim porque o accent_color atual só é conhecido depois
 // de buscar o perfil, que é async e não pode travar buildModal().)
 function renderAccentSwatches(wrap, currentColor) {
@@ -413,7 +412,7 @@ async function selectAccentColor(wrap, btn) {
 // ── aba perfil ───────────────────────────────────────────────────────
 // (mesmo padrão da aba aparência: os dados atuais só são conhecidos
 // depois de buscar o perfil, então o preenchimento de verdade acontece
-// em renderPerfilTab(), chamada em openSettingsModal() — wirePerfilTab()
+// em renderPerfilTab(), chamada em openConfiguracoesModal() — wirePerfilTab()
 // aqui embaixo só liga os listeners, que não dependem do profile ainda
 // carregado.)
 function renderPerfilTab(wrap, profile) {
@@ -465,10 +464,10 @@ function wirePerfilTab(wrap) {
     // primeiro na sessão). Só esse caminho fecha/reabre Configurações;
     // o atalho do avatar no widget de perfil (widgets/profile.js) não
     // passa onClose e continua abrindo/fechando normalmente, sozinho.
-    closeSettingsModal();
+    closeConfiguracoesModal();
     openAvatarModal({
       currentAscii: avatarPre.textContent,
-      onClose: () => openSettingsModal("perfil"),
+      onClose: () => openConfiguracoesModal("perfil"),
       onSave: async (ascii) => {
         try {
           await updateAvatar(ascii);
@@ -530,7 +529,7 @@ function wirePerfilTab(wrap) {
 // ── aba notificações ─────────────────────────────────────────────────
 // (mesmo padrão da aba aparência: estado atual só é conhecido depois
 // de buscar o perfil, então o preenchimento de verdade acontece em
-// renderNotificacoesTab(), chamada em openSettingsModal() —
+// renderNotificacoesTab(), chamada em openConfiguracoesModal() —
 // wireNotificacoesTab() aqui embaixo só liga os listeners, que já
 // aplicam e persistem na hora, sem botão "salvar".)
 function renderNotificacoesTab(wrap, profile) {
@@ -574,7 +573,7 @@ function wireNotificacoesTab(wrap) {
 // segunda superfície de UI pras mesmas três credenciais, ver cabeçalho
 // do arquivo. Status do token/chave e a lista de contas são buscados
 // toda vez que o modal abre, junto com o profile, em
-// openSettingsModal().)
+// openConfiguracoesModal().)
 function renderGithubBadge(wrap, configured) {
   const badge = wrap.querySelector("#cfg-github-badge");
   badge.innerHTML = configured
@@ -1041,7 +1040,7 @@ async function handleReset(wrap) {
  *   Default "aparencia" (primeira aba). backup-reminder.js passa
  *   "backup" explicitamente pra levar direto à seção de export.
  */
-export async function openSettingsModal(tabId = "aparencia") {
+export async function openConfiguracoesModal(tabId = "aparencia") {
   modalEl = modalEl || buildModal();
 
   switchTab(modalEl, TABS.some((t) => t.id === tabId) ? tabId : "aparencia");
@@ -1122,6 +1121,6 @@ export async function openSettingsModal(tabId = "aparencia") {
   await loadChavesAccounts(modalEl);
 }
 
-export function closeSettingsModal() {
+export function closeConfiguracoesModal() {
   modalEl?.classList.remove("open");
 }

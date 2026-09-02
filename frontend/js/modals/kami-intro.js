@@ -5,8 +5,8 @@ import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
 import { icon } from "../components/icons.js";
 
 /**
- * Diálogo de boas-vindas + criação de personagem (plano-onboarding-kami.md,
- * etapas 2 e 3).
+ * Diálogo de boas-vindas + criação de personagem (etapas 2 e 3
+ * do onboarding).
  *
  * Substitui o antigo modal de setup (formulário de 3 passos num modal
  * central) por uma caixa de diálogo única, no rodapé da tela, estilo RPG:

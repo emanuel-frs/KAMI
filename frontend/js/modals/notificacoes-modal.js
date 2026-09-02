@@ -7,7 +7,7 @@ import { refreshMutedAccounts } from "../pages/organizacao.js";
 import { setPendingFocus } from "../components/pending-focus.js";
 import { refreshNotificationBell } from "../components/notification-bell.js";
 import { navigateTo } from "../components/navigate.js";
-import { accountColor } from "../components/account-color.js";
+import { emailAccountColor } from "../components/email-account-color.js";
 import { store } from "../state/store.js";
 
 /**
@@ -76,8 +76,8 @@ function buildModal() {
     </div>
   `;
   document.body.appendChild(wrap);
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeNotificationsModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeNotificationsModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeNotificacoesModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeNotificacoesModal(); });
   return wrap;
 }
 
@@ -118,7 +118,7 @@ function renderAlerts() {
     row.addEventListener("click", () => {
       const { module, type, recordId } = row.dataset;
       if (!module || !type || !recordId) return;
-      closeNotificationsModal();
+      closeNotificacoesModal();
       setPendingFocus(type, recordId);
       navigateTo(module);
     });
@@ -193,7 +193,7 @@ function emailItemHtml(e) {
   return `
     <div class="nbell-item unread" data-id="${e.id}" data-tooltip="marcar como lida e abrir">
       <span class="nbell-dot" aria-hidden="true"></span>
-      <span class="nbell-avatar" style="--chip-color:${accountColor(e.account_id)};">${emailInitial(e.sender)}</span>
+      <span class="nbell-avatar" style="--chip-color:${emailAccountColor(e.account_id)};">${emailInitial(e.sender)}</span>
       <span class="nbell-main">
         <span class="nbell-top">
           <span class="nbell-subject">${escapeHtml(e.subject || "(sem assunto)")}</span>
@@ -209,7 +209,7 @@ function emailItemHtml(e) {
 function onEmailClick(cacheId) {
   const email = emails.find((e) => e.id === cacheId);
   if (!email) return;
-  closeNotificationsModal();
+  closeNotificacoesModal();
   navigateTo("organizacao", { tab: "email", accountId: email.account_id, focusEmailId: email.id });
 }
 
@@ -273,11 +273,11 @@ async function loadEmailData() {
   }
 }
 
-export function closeNotificationsModal() {
+export function closeNotificacoesModal() {
   modalEl?.classList.remove("open");
 }
 
-export async function openNotificationsModal() {
+export async function openNotificacoesModal() {
   modalEl = modalEl || buildModal();
   emailsExpanded = false;
   modalEl.classList.add("open");
@@ -307,12 +307,4 @@ export async function openNotificationsModal() {
   ]);
   if (showAlerts) renderAlerts();
   if (showEmail) renderEmailSection();
-}
-
-/** Contagem combinada pra badges externas (sino da sidebar, etc.) —
- * recarrega os dois conjuntos de dados sem precisar o modal estar
- * aberto. */
-export async function fetchNotificationsCount() {
-  await Promise.all([loadCalendarData(), loadEmailData()]);
-  return { alerts: alerts.length, emails: unreadEmails().length };
 }

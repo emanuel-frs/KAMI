@@ -112,7 +112,7 @@ def update_onboarding(payload: OnboardingUpdate, db=Depends(get_db)):
 @router.get("/tips", response_model=ScreenTipsOut)
 def get_screen_tips_seen(db=Depends(get_db)):
     """
-    Etapa 5 (plano-onboarding-kami.md): granularidade por tela, separada
+    Etapa 5: granularidade por tela, separada
     do onboarding_completed acima (que é só o tour geral). Devolve as
     telas cuja sequência de dicas contextuais já foi vista ou pulada —
     o frontend usa isso pra decidir se dispara a sequência automática

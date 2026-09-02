@@ -1,5 +1,5 @@
 // Gráfico de progresso de uma meta ao longo do tempo — "queda de quanto
-// falta" por contribuição (item 3.3 do ALINHAMENTO.md). Mesmo estilo
+// falta" por contribuição (item 3.3). Mesmo estilo
 // hand-rolled SVG dos gráficos de Finanças (reaproveita .chart-svg/
 // .chart-area/.chart-line/.chart-dot/.chart-fluxo-labels de
 // widget-financas-extra-graficos.css — nenhuma classe nova de SVG aqui).

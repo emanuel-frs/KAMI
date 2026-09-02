@@ -4,9 +4,8 @@ import { startTipSequence } from "../components/tip-sequence.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
- * Dicas contextuais do Núcleo (etapa 5, plano-onboarding-kami.md) — a
- * primeira tela a ganhar o mecanismo, por ser a mais central/visitada
- * (seção 6 do doc).
+ * Dicas contextuais do Núcleo (etapa 5) — a
+ * primeira tela a ganhar o mecanismo, por ser a mais central/visitada.
  *
  * Os passos são gerados na hora a partir do que está de fato no grid
  * (ver widget-tips.js) — não é mais uma lista fixa de seletores. Isso

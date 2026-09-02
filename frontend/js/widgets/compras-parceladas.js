@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -9,7 +9,7 @@ import { icon } from "../components/icons.js";
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem
  * calculada do backend (calendário + ajuste manual). Os botões de seta
- * chamam walletApi.ajustarParcelasCompra pra adiantar/desfazer um
+ * chamam carteiraApi.ajustarParcelasCompra pra adiantar/desfazer um
  * adiantamento — não mexe em fatura/saldo, só no rótulo de progresso
  * (a reserva no limite já foi feita inteira na criação da compra).
  *
@@ -18,9 +18,12 @@ import { icon } from "../components/icons.js";
  * mês no formato "nome (parcela X/N) — R$ valor", como um item de
  * fatura de banco de verdade — calculada on the fly no backend
  * (GET /compras-parceladas/mes), sem mexer em saldo/fatura de novo
- * (já foi reservado na criação) e sem depender do estado de
- * ajuste_parcelas mostrado na primeira seção (são visões diferentes:
- * "progresso atual" vs "o que cai em cada mês").
+ * (já foi reservado na criação). Essa conta LEVA EM CONTA o
+ * ajuste_parcelas atual (ver _parcela_no_mes em routers/wallet.py:
+ * raw_parcela = elapsed + 1 + ajuste_parcelas) — não é independente da
+ * primeira seção; um adiantamento/estorno feito ali também desloca qual
+ * parcela aparece aqui. São visões diferentes ("progresso atual" vs "o
+ * que cai em cada mês"), mas compartilham o mesmo ajuste como entrada.
  */
 
 function currentMonthStr() {
@@ -61,8 +64,8 @@ export async function render(el, widget) {
   async function reload() {
     try {
       [compras, banks] = await Promise.all([
-        walletApi.listComprasParceladas(),
-        walletApi.listBanks(),
+        carteiraApi.listComprasParceladas(),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar compras parceladas: ${err.message}</div>`;
@@ -73,7 +76,7 @@ export async function render(el, widget) {
 
   async function reloadFatura() {
     try {
-      faturaItens = await walletApi.listComprasParceladasMes(faturaMes);
+      faturaItens = await carteiraApi.listComprasParceladasMes(faturaMes);
     } catch (err) {
       faturaItens = [];
     }
@@ -156,7 +159,7 @@ export async function render(el, widget) {
           "remover essa compra parcelada? isso desfaz a reserva no limite, se tinha conta vinculada.",
           { title: "remover compra parcelada", confirmText: "remover", danger: true }
         ))) return;
-        await walletApi.deleteCompraParcelada(btn.getAttribute("data-remove-compra"));
+        await carteiraApi.deleteCompraParcelada(btn.getAttribute("data-remove-compra"));
         await reload();
         window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
       });
@@ -167,7 +170,7 @@ export async function render(el, widget) {
         const delta = Number(btn.getAttribute("data-adjust"));
         const compraId = btn.getAttribute("data-compra");
         try {
-          await walletApi.ajustarParcelasCompra(compraId, delta);
+          await carteiraApi.ajustarParcelasCompra(compraId, delta);
         } catch (err) {
           showErrorModal(err.message, "erro ao ajustar parcela");
           return;

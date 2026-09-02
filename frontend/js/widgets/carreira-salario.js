@@ -1,6 +1,6 @@
 import * as carreiraApi from "../api/carreira.js";
 import { escapeHtml } from "../components/format.js";
-import { openSalaryModal } from "../modals/salary-modal.js";
+import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { attachChartTooltip } from "../charts/chart-tooltip.js";
@@ -133,7 +133,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-salary");
         const record = records.find((r) => r.id === id);
-        if (record) openSalaryModal({ record, onSaved: reload });
+        if (record) openSalarioModal({ record, onSaved: reload });
       });
     });
 
@@ -146,7 +146,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-salary"]').addEventListener("click", () => {
-      openSalaryModal({ onSaved: reload });
+      openSalarioModal({ onSaved: reload });
     });
   }
 

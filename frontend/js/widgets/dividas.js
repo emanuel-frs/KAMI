@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { escapeHtml } from "../components/format.js";
-import { openDebtModal } from "../modals/debt-modal.js";
+import { openDividaModal } from "../modals/divida-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { enhanceSelect, destroyCustomSelect } from "../components/custom-select.js";
@@ -11,7 +11,7 @@ import { icon } from "../components/icons.js";
  * Widget "dívidas" — segue o mesmo padrão simples de financas-resumo.js
  * (sem paginação/filtro, lista tudo que vem de GET /debts). Status é
  * editável inline (select -> PUT), sem precisar reabrir o modal —
- * criar é a única ação que passa pelo modal (debt-modal.js).
+ * criar é a única ação que passa pelo modal (divida-modal.js).
  */
 
 function brl(v) {
@@ -75,7 +75,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-debt");
         const debt = debts.find((d) => d.id === id);
-        if (debt) openDebtModal({ debt, onSaved: reload });
+        if (debt) openDividaModal({ debt, onSaved: reload });
       });
     });
 
@@ -103,7 +103,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-debt"]').addEventListener("click", () => {
-      openDebtModal({ onSaved: reload });
+      openDividaModal({ onSaved: reload });
     });
 
     if (focusId) focusRow(el.querySelector(`[data-divida-id="${focusId}"]`), "divida");

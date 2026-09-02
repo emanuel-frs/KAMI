@@ -4,8 +4,7 @@ import { showToast } from "./toast.js";
 import { sendNativeNotification } from "./native-notify.js";
 
 /**
- * Agendador global de sync de e-mail (notificações v2,
- * kami-notificacoes-plano.md seção 4) — mesmo molde de
+ * Agendador global de sync de e-mail (notificações v2) — mesmo molde de
  * calendar-notifications.js: `setInterval` global iniciado uma vez em
  * app.js (boot()), independente da tela aberta. Antes disso, sync de
  * e-mail era 100% manual (clique em Organização).
@@ -44,7 +43,7 @@ const CHECK_INTERVAL_MS = 5 * 60_000; // 5min
 let intervalId = null;
 let navigateToModuleCb = null;
 
-// redesign da aba e-mail (plano-email-organizacao.md secao 7): a tela
+// redesign da aba e-mail: a tela
 // de Organização precisa saber se o sync global está rodando pra
 // nascer com o botão "sincronizar" já travado/girando quando o app
 // acabou de abrir (sem isso, tudo bem pra sempre teve, mas dava pra
@@ -152,9 +151,4 @@ export function startEmailSyncScheduler({ onNavigate } = {}) {
   navigateToModuleCb = onNavigate || null;
   runCheck();
   intervalId = setInterval(runCheck, CHECK_INTERVAL_MS);
-}
-
-export function stopEmailSyncScheduler() {
-  clearInterval(intervalId);
-  intervalId = null;
 }

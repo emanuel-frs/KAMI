@@ -17,7 +17,7 @@ def _create_account(
     dia_vencimento=10,
 ):
     """Cria um banco novo + uma conta dentro dele, retorna o dict da conta."""
-    bank = client.post("/api/wallet/banks", json={"nome": f"banco {nome}"}).json()
+    bank = client.post("/api/carteira/banks", json={"nome": f"banco {nome}"}).json()
     payload = {
         "nome": nome,
         "possui_saldo": possui_saldo,
@@ -29,7 +29,7 @@ def _create_account(
         payload["fatura_atual"] = fatura_atual
         payload["limite_total"] = limite_total
         payload["dia_vencimento"] = dia_vencimento
-    resp = client.post(f"/api/wallet/banks/{bank['id']}/accounts", json=payload)
+    resp = client.post(f"/api/carteira/banks/{bank['id']}/accounts", json=payload)
     assert resp.status_code == 200, resp.text
     return resp.json()
 
@@ -154,13 +154,13 @@ def test_pay_income_entry_with_conta_credits_saldo_real(client):
     body = resp.json()
     assert body["gerou_transacao"] is True
 
-    conta_after = client.get("/api/wallet/banks").json()
+    conta_after = client.get("/api/carteira/banks").json()
     acc = next(a for b in conta_after for a in b["accounts"] if a["id"] == conta["id"])
     assert acc["saldo_atual"] == 500
 
     unpay_resp = client.put(f"/api/financas/income-entries/{entry['id']}/unpay")
     assert unpay_resp.status_code == 200
-    conta_after_unpay = client.get("/api/wallet/banks").json()
+    conta_after_unpay = client.get("/api/carteira/banks").json()
     acc2 = next(a for b in conta_after_unpay for a in b["accounts"] if a["id"] == conta["id"])
     assert acc2["saldo_atual"] == 0
 
@@ -327,8 +327,8 @@ def test_delete_income_source_blocked_when_referenced_by_chain(client):
 
 # ==================== cadastros simples (fixed_bills / debts) ====================
 # credit_cards e subscriptions antigas saíram daqui — substituídas pelo
-# módulo wallet (ver test_wallet.py). fixed_bills/debts continuam fora de
-# escopo da wallet, então os testes deles não mudam.
+# módulo carteira (ver test_carteira.py). fixed_bills/debts continuam fora de
+# escopo da carteira, então os testes deles não mudam.
 
 
 def test_fixed_bill_crud(client):
@@ -419,7 +419,7 @@ def test_create_transaction_debits_saldo_on_saida(client):
         },
     )
     bank_id = conta["bank_id"]
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     bank = next(b for b in banks if b["id"] == bank_id)
     updated_conta = next(a for a in bank["accounts"] if a["id"] == conta["id"])
     assert updated_conta["saldo_atual"] == 500 - 120.5
@@ -496,7 +496,7 @@ def test_create_transaction_transferencia_interna_moves_saldo_between_contas(cli
     )
     assert resp.status_code == 200, resp.text
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     origem_after = next(a for a in all_accounts if a["id"] == origem["id"])
     destino_after = next(a for a in all_accounts if a["id"] == destino["id"])
@@ -522,7 +522,7 @@ def test_create_transaction_transferencia_externa_only_debits_origem(client):
     assert resp.status_code == 200, resp.text
     assert resp.json()["destino_externo"] == "fulano"
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     origem_after = next(a for a in all_accounts if a["id"] == origem["id"])
     assert origem_after["saldo_atual"] == 800
@@ -580,7 +580,7 @@ def test_create_transaction_saida_saldo_insuficiente_returns_422(client):
     assert "saldo insuficiente" in resp.json()["detail"]
 
     # saldo não pode ter sido descontado
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     updated = next(a for a in all_accounts if a["id"] == conta["id"])
     assert updated["saldo_atual"] == 100
@@ -602,7 +602,7 @@ def test_create_transaction_saida_saldo_exato_e_valido(client):
     )
     assert resp.status_code == 200, resp.text
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     updated = next(a for a in all_accounts if a["id"] == conta["id"])
     assert updated["saldo_atual"] == 0
@@ -628,7 +628,7 @@ def test_create_transaction_saida_limite_insuficiente_returns_422(client):
     assert resp.status_code == 422
     assert "limite insuficiente" in resp.json()["detail"]
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     updated = next(a for a in all_accounts if a["id"] == conta["id"])
     assert updated["fatura_atual"] == 900
@@ -653,7 +653,7 @@ def test_create_transaction_saida_dentro_do_limite_e_valido(client):
     )
     assert resp.status_code == 200, resp.text
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     updated = next(a for a in all_accounts if a["id"] == conta["id"])
     assert updated["fatura_atual"] == 1000
@@ -716,7 +716,7 @@ def test_create_transaction_transferencia_saldo_insuficiente_returns_422(client)
     assert resp.status_code == 422
     assert "saldo insuficiente" in resp.json()["detail"]
 
-    banks = client.get("/api/wallet/banks").json()
+    banks = client.get("/api/carteira/banks").json()
     all_accounts = [a for b in banks for a in b["accounts"]]
     origem_after = next(a for a in all_accounts if a["id"] == origem["id"])
     destino_after = next(a for a in all_accounts if a["id"] == destino["id"])

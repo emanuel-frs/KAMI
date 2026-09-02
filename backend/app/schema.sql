@@ -7,6 +7,12 @@
 -- Datas guardadas como TEXT ISO-8601 (SQLite não tem tipo DATE).
 -- ============================================================
 
+-- Convenção daqui pra frente: toda tabela/coluna NOVA nasce em português.
+-- Tabelas/colunas antigas em inglês (wallet_*, debts, income_sources,
+-- transactions e suas colunas description/amount/type/category/date) não
+-- são renomeadas retroativamente pra não exigir migration de dado já
+-- gravado em instalações existentes.
+
 PRAGMA foreign_keys = ON;
 
 -- ---------------- PERFIL (decisão 15) ----------------

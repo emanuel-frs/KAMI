@@ -1,6 +1,6 @@
 /**
  * Lembrete discreto de backup — reforça uma feature que já existe
- * (export/import em settings-modal.js) em vez de adicionar uma nova.
+ * (export/import em configuracoes-modal.js) em vez de adicionar uma nova.
  * Kami é local-first sem nuvem: a única proteção contra perda de dados
  * é o usuário lembrar de clicar em "baixar backup" por conta própria,
  * e hoje nada no app sugere isso.
@@ -18,7 +18,7 @@
  * backend).
  */
 import { icon } from "./icons.js";
-import { openSettingsModal } from "../modals/settings-modal.js";
+import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 
 const LIMIT_DAYS = 14;
 let dismissedThisSession = false;
@@ -50,7 +50,7 @@ function buildToast() {
   `;
   el.querySelector('[data-action="backup"]').addEventListener("click", () => {
     hideBackupReminder();
-    openSettingsModal("backup"); // pula direto pra aba de export, já que hoje o modal virou multi-aba (ver configuracoes_plano.md)
+    openConfiguracoesModal("backup"); // pula direto pra aba de export, já que hoje o modal virou multi-aba (ver configuracoes_plano.md)
   });
   el.querySelector('[data-action="dismiss"]').addEventListener("click", () => {
     dismissedThisSession = true;

@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
-import { openFixedBillModal } from "../modals/fixed-bill-modal.js";
+import { openContaFixaModal } from "../modals/conta-fixa-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
 import { openPayPeriodModal } from "../modals/pay-period-modal.js";
@@ -11,12 +11,11 @@ import { icon } from "../components/icons.js";
 
 /**
  * Widget "contas fixas". Cadastro (nome/valor/dia/conta/categoria)
- * continua CRUD simples via fixed-bill-modal.js — igual antes.
+ * continua CRUD simples via conta-fixa-modal.js — igual antes.
  *
  * A exibição mensal segue o MESMO padrão de financas-assinaturas.js:
  * instância por (conta fixa, mês) com toggle pago/não-pago
- * (GET/PUT /fixed-bills/periods, unificação do item 1 do mapa de
- * problemas).
+ * (GET/PUT /fixed-bills/periods, unificação do item 1).
  *
  * Marcar como paga pode gerar uma transação real (item 6) quando a
  * conta fixa tem conta_id vinculada — nesse caso abre
@@ -49,7 +48,7 @@ export async function render(el, widget) {
       [bills, periods, banks] = await Promise.all([
         financasApi.listFixedBills(),
         financasApi.listFixedBillPeriods(month),
-        walletApi.listBanks(),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar contas fixas: ${err.message}</div>`;
@@ -103,7 +102,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-bill");
         const bill = bills.find((b) => b.id === id);
-        if (bill) openFixedBillModal({ bill, accounts: flatAccounts(), onSaved: reload });
+        if (bill) openContaFixaModal({ bill, accounts: flatAccounts(), onSaved: reload });
       });
     });
 
@@ -151,7 +150,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-bill"]').addEventListener("click", () => {
-      openFixedBillModal({ accounts: flatAccounts(), onSaved: reload });
+      openContaFixaModal({ accounts: flatAccounts(), onSaved: reload });
     });
 
     // drill-down do Calendário: abre direto o modal de edição, além de
@@ -160,7 +159,7 @@ export async function render(el, widget) {
       const bill = bills.find((b) => b.id === focusId);
       if (bill) {
         focusRow(el.querySelector(`[data-conta-fixa-id="${focusId}"]`), "conta_fixa");
-        openFixedBillModal({ bill, accounts: flatAccounts(), onSaved: reload });
+        openContaFixaModal({ bill, accounts: flatAccounts(), onSaved: reload });
       }
     }
   }

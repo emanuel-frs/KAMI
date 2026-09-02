@@ -1,6 +1,6 @@
 import * as carreiraApi from "../api/carreira.js";
 import { escapeHtml } from "../components/format.js";
-import { openPositionModal } from "../modals/position-modal.js";
+import { openPosicaoModal } from "../modals/posicao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 
@@ -11,7 +11,7 @@ import { icon } from "../components/icons.js";
  * /posicoes), mas com um traço vertical conectando os cards pra dar
  * a leitura de linha do tempo. Criar é a única ação que credita XP
  * (ver routers/carreira.py); editar/remover passam pelo mesmo modal
- * de criação (position-modal.js) sem mexer em XP.
+ * de criação (posicao-modal.js) sem mexer em XP.
  *
  * Ordenação fina "estilo LinkedIn" (posições atuais sempre no topo,
  * agrupamento por empresa etc.) fica pro polish da Parte 5 — aqui é
@@ -63,7 +63,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-position");
         const position = positions.find((p) => p.id === id);
-        if (position) openPositionModal({ position, onSaved: reload });
+        if (position) openPosicaoModal({ position, onSaved: reload });
       });
     });
 
@@ -76,7 +76,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-position"]').addEventListener("click", () => {
-      openPositionModal({ onSaved: reload });
+      openPosicaoModal({ onSaved: reload });
     });
   }
 

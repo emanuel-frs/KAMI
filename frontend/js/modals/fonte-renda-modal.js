@@ -6,7 +6,7 @@ import { icon } from "../components/icons.js";
 /**
  * Modal "nova fonte de renda" / "editar fonte de renda" — mesmo padrão
  * dual singleton de fixed-bill-modal.js/subscription-modal.js. Fecha o
- * item 2 do mapa de problemas antigo: antes não existia CRUD nenhum pro
+ * item 2 do levantamento antigo de pendências: antes não existia CRUD nenhum pro
  * usuário criar/editar/remover fontes de renda (só 2 fontes fixas
  * hardcoded no seed). Agora é um cadastro genérico:
  *
@@ -230,13 +230,13 @@ async function submitIncomeSource(wrap) {
     showErrorModal(err.message, editingSource ? "erro ao salvar fonte de renda" : "erro ao criar fonte de renda");
     return;
   }
-  closeIncomeSourceModal();
+  closeFonteRendaModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeIncomeSourceModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeIncomeSourceModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeFonteRendaModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeFonteRendaModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitIncomeSource(wrap));
   wrap.querySelector("#ism-frequencia").addEventListener("change", () => updateTipoDataOptions(wrap));
   wrap.querySelector("#ism-tipo-data").addEventListener("change", (e) => updateFieldVisibility(wrap, e.target.value));
@@ -251,7 +251,7 @@ function wireModal(wrap) {
  *   `accounts` — contas já achatadas (com bankNome), mesmo formato usado
  *   em fixed-bill-modal.js.
  */
-export function openIncomeSourceModal({ source = null, sources = [], accounts = [], onSaved } = {}) {
+export function openFonteRendaModal({ source = null, sources = [], accounts = [], onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingSource = source || null;
@@ -289,6 +289,6 @@ export function openIncomeSourceModal({ source = null, sources = [], accounts = 
   modalEl.classList.add("open");
 }
 
-export function closeIncomeSourceModal() {
+export function closeFonteRendaModal() {
   modalEl?.classList.remove("open");
 }

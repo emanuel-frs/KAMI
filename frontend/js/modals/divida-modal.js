@@ -9,7 +9,7 @@ import { icon } from "../components/icons.js";
  * virar edição (PUT em vez de POST), pré-preenchido com os dados da
  * dívida. `PUT /debts/{id}` já existia no backend (usado pelo `<select>`
  * de status em dividas.js) — aqui só passa a editar TODOS os campos, não
- * só o status (item 4 do mapa de problemas).
+ * só o status (item 4).
  */
 
 let modalEl = null;
@@ -73,13 +73,13 @@ async function submitDebt(wrap) {
     showErrorModal(err.message, editingDebt ? "erro ao salvar dívida" : "erro ao criar dívida");
     return;
   }
-  closeDebtModal();
+  closeDividaModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeDebtModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeDebtModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeDividaModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeDividaModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitDebt(wrap));
 }
 
@@ -88,7 +88,7 @@ function wireModal(wrap) {
  *   `debt` — se informado, o modal abre em modo edição (PUT em vez de
  *   POST) pré-preenchido com os dados da dívida.
  */
-export function openDebtModal({ debt = null, onSaved } = {}) {
+export function openDividaModal({ debt = null, onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingDebt = debt || null;
@@ -107,6 +107,6 @@ export function openDebtModal({ debt = null, onSaved } = {}) {
   modalEl.classList.add("open");
 }
 
-export function closeDebtModal() {
+export function closeDividaModal() {
   modalEl?.classList.remove("open");
 }

@@ -1,6 +1,6 @@
 import { imageToAscii, fitAsciiText } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { icon } from "../components/icons.js";
 
@@ -11,7 +11,7 @@ import { icon } from "../components/icons.js";
  * chamar (evita um segundo fetch) e devolve controle via onSaved.
  *
  * Edição: passar `account` (+ `bankName` pra exibição) faz o modal virar
- * "editar conta" — troca criar/adicionar por PUT em walletApi.updateAccount
+ * "editar conta" — troca criar/adicionar por PUT em carteiraApi.updateAccount
  * e esconde o seletor de banco (mover uma conta de banco não é suportado
  * por ora; edição troca só os campos da própria conta).
  */
@@ -116,7 +116,7 @@ function renderBankPickList(wrap, banks) {
 
   // sem isso o ascii não aparece — <pre> precisa do font-size ajustado ao
   // espaço real do ícone. IMPORTANTE: isso só mede corretamente se o modal
-  // já estiver com a classe "open" aplicada (ver openAccountModal) — com o
+  // já estiver com a classe "open" aplicada (ver openContaModal) — com o
   // modal escondido (display:none) o container tem largura 0 e o texto
   // encolhe pro tamanho mínimo, ficando praticamente invisível.
   banks.forEach((b) => {
@@ -172,12 +172,12 @@ async function submitAccount(wrap) {
 
   if (editingAccount) {
     try {
-      await walletApi.updateAccount(editingAccount.id, payload);
+      await carteiraApi.updateAccount(editingAccount.id, payload);
     } catch (err) {
       showErrorModal(err.message, "erro ao salvar conta");
       return;
     }
-    closeAccountModal();
+    closeContaModal();
     await onSavedCb?.();
     return;
   }
@@ -187,7 +187,7 @@ async function submitAccount(wrap) {
     const bankNome = wrap.querySelector("#am-nb-name").value.trim();
     if (!bankNome) { showErrorModal("dá um nome pro banco.", "atenção"); return; }
     try {
-      const bank = await walletApi.createBank({ nome: bankNome, icon_ascii: pendingIconAscii });
+      const bank = await carteiraApi.createBank({ nome: bankNome, icon_ascii: pendingIconAscii });
       bankId = bank.id;
     } catch (err) {
       showErrorModal(err.message, "erro ao criar banco");
@@ -197,18 +197,18 @@ async function submitAccount(wrap) {
   if (!bankId) { showErrorModal("escolhe um banco.", "atenção"); return; }
 
   try {
-    await walletApi.createAccount(bankId, payload);
+    await carteiraApi.createAccount(bankId, payload);
   } catch (err) {
     showErrorModal(err.message, "erro ao criar conta");
     return;
   }
-  closeAccountModal();
+  closeContaModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeAccountModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeAccountModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeContaModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeContaModal(); });
 
   wrap.querySelector("#am-na-possui-saldo").addEventListener("change", () => updateFlagFields(wrap));
   wrap.querySelector("#am-na-possui-credito").addEventListener("change", () => updateFlagFields(wrap));
@@ -230,7 +230,7 @@ function wireModal(wrap) {
  *   de POST) pré-preenchido com os dados da conta; `bankName` é só pra
  *   exibição (o banco da conta não é editável por aqui).
  */
-export function openAccountModal({ banks, account = null, bankName = "", onSaved } = {}) {
+export function openContaModal({ banks, account = null, bankName = "", onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   pendingIconAscii = null;
@@ -278,6 +278,6 @@ export function openAccountModal({ banks, account = null, bankName = "", onSaved
   if (!editingAccount) renderBankPickList(modalEl, banks || []);
 }
 
-export function closeAccountModal() {
+export function closeContaModal() {
   modalEl?.classList.remove("open");
 }

@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
@@ -9,12 +9,11 @@ import { icon } from "../components/icons.js";
  * virar edição (PUT em vez de POST), pré-preenchido com os dados da
  * assinatura, incluindo o checkbox "ativa" (antes só existia
  * implicitamente via `active` no backend, sem UI pra desativar sem
- * deletar — item 1 do mapa de problemas).
+ * deletar — item 1).
  *
  * Conta é opcional — sem ela, a assinatura continua sendo só lembrete;
  * com ela, marcar como paga passa a poder gerar uma transação real (ver
- * widgets/financas-assinaturas.js e app/finance_utils.py — item 6 do
- * mapa de problemas antigo). `categoria` alimenta essa transação quando
+ * widgets/financas-assinaturas.js e app/finance_utils.py — item 6). `categoria` alimenta essa transação quando
  * gerada.
  */
 
@@ -70,21 +69,21 @@ async function submitSubscription(wrap) {
 
   try {
     if (editingSubscription) {
-      await walletApi.updateSubscription(editingSubscription.id, payload);
+      await carteiraApi.updateSubscription(editingSubscription.id, payload);
     } else {
-      await walletApi.createSubscription(payload);
+      await carteiraApi.createSubscription(payload);
     }
   } catch (err) {
     showErrorModal(err.message, editingSubscription ? "erro ao salvar assinatura" : "erro ao criar assinatura");
     return;
   }
-  closeSubscriptionModal();
+  closeAssinaturaModal();
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeSubscriptionModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeSubscriptionModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeAssinaturaModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeAssinaturaModal(); });
   wrap.querySelector('[data-action="save"]').addEventListener("click", () => submitSubscription(wrap));
 }
 
@@ -95,7 +94,7 @@ function wireModal(wrap) {
  *   `accounts` — contas já achatadas (com bankNome), mesmo formato usado
  *   em fixed-bill-modal.js.
  */
-export function openSubscriptionModal({ subscription = null, accounts = [], onSaved } = {}) {
+export function openAssinaturaModal({ subscription = null, accounts = [], onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   editingSubscription = subscription || null;
@@ -120,6 +119,6 @@ export function openSubscriptionModal({ subscription = null, accounts = [], onSa
   modalEl.classList.add("open");
 }
 
-export function closeSubscriptionModal() {
+export function closeAssinaturaModal() {
   modalEl?.classList.remove("open");
 }

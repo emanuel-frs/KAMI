@@ -17,7 +17,6 @@
 
 /* fallback CSS quando o JS ainda não rodou / grid não inicializado */
 .widget-grid > .card     { grid-column: span 2; align-self: start; }
-.widget-grid > .card.span2 { grid-column: span 4; }
 
 .wg-placeholder {
   border: 1px dashed var(--accent-dim);

@@ -218,8 +218,8 @@ def _migrate_goals_v2(conn: sqlite3.Connection) -> None:
 def _migrate_recorrentes_conta_transacao(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra bancos criados antes de fixed_bills/wallet_subscriptions
-    ganharem geração OPCIONAL de transação real ao marcar como pago (item 6
-    do mapa de problemas, resolvido junto com a unificação do item 1):
+    ganharem geração OPCIONAL de transação real ao marcar como pago (item 6,
+    resolvido junto com a unificação do item 1):
       - fixed_bills ganha conta_id (vínculo, igual wallet_subscriptions já
         tinha) e categoria (usada na transação gerada).
       - wallet_subscriptions ganha categoria (conta_id já existia).
@@ -359,8 +359,7 @@ def _migrate_muted_accounts(conn: sqlite3.Connection) -> None:
 def _migrate_email_accounts_sync_by_default(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra quem já tinha um kami.db criado antes da coluna
-    sync_by_default existir (redesign da aba e-mail — ver
-    plano-email-organizacao.md secao 3.1). Default 1 pra não quebrar
+    sync_by_default existir (redesign da aba e-mail). Default 1 pra não quebrar
     contas já cadastradas: continuam aparecendo pré-selecionadas na
     visualização combinada, como se sempre tivessem sido "padrão".
     """
@@ -404,6 +403,24 @@ def _migrate_drop_compra_parcelada_aplicacoes(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_rename_wallet_widget_type(conn: sqlite3.Connection) -> None:
+    """
+    Renomeia o widget_type 'wallet' pra 'carteira' em dashboard_widgets
+    (unificação de nomenclatura — rotas/módulo viraram /api/carteira e
+    app/routers/carteira.py, e a chave do catálogo em app/widgets.py
+    também virou 'carteira'). Sem essa migration, instalações já
+    existentes têm literalmente a string 'wallet' gravada na coluna
+    widget_type do sqlite do usuário — o frontend não teria mais como
+    resolver esse tipo (COMPONENT_PATHS/WIDGET_CATALOG só conhecem
+    'carteira' agora) e o widget de carteira sumiria do dashboard de
+    Finanças ao atualizar. Idempotente — UPDATE sem match nenhum é um
+    no-op silencioso, então rodar de novo em bancos já migrados não
+    faz nada.
+    """
+    conn.execute("UPDATE dashboard_widgets SET widget_type = 'carteira' WHERE widget_type = 'wallet'")
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -425,6 +442,7 @@ def init_db() -> None:
     _migrate_muted_accounts(conn)
     _migrate_email_accounts_sync_by_default(conn)
     _migrate_github_repos_source(conn)
+    _migrate_rename_wallet_widget_type(conn)
 
     _seed_defaults(conn)
 
@@ -509,6 +527,11 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
         # carreira_formacoes (Parte 3) — mesmo raciocínio, novas
         # instalações já nascem com o bloco de formação acadêmica visível.
         "carreira": ["carreira_perfil", "carreira_interesses", "carreira_posicoes", "carreira_formacoes"],
+        # financas nascia vazia de propósito (todos os 11 tipos do
+        # catálogo são opcionais aqui) — esta entrada dá um ponto de
+        # partida mínimo pra quem nunca configurou nada, sem tirar a
+        # liberdade de reconfigurar/remover tudo depois.
+        "financas": ["carteira", "financas_resumo", "financas_registros"],
     }
     cur.execute("SELECT COUNT(*) AS c FROM dashboard_widgets")
     if cur.fetchone()["c"] == 0:

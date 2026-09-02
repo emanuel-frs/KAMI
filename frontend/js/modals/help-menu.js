@@ -3,7 +3,7 @@ import { openOnboardingModal } from "./onboarding-modal.js";
 import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
 
 /**
- * Botão de ajuda (etapa 6, plano-onboarding-kami.md, seção 7) — ícone de
+ * Botão de ajuda (etapa 6, seção 7) — ícone de
  * interrogação ao lado do botão de configurações, sempre visível. Ao
  * tocar, mostra duas opções:
  *
@@ -13,8 +13,8 @@ import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
  *      perfil, só que acessível de qualquer tela).
  *   2. "rever dicas desta tela" — disponível nas telas que registram
  *      dicas contextuais via screen-tips-registry.js (etapa 5); hoje
- *      as 6 telas do v1 (perfil, núcleo, finanças, aprendizado,
- *      organização, metas) já têm. Fica desabilitada em vez de
+ *      as 7 telas do v1 (perfil, núcleo, finanças, aprendizado,
+ *      organização, metas, calendário) já têm. Fica desabilitada em vez de
  *      escondida como defesa pra qualquer tela futura que ainda não
  *      tenha registrado sua sequência de dicas, não porque falte
  *      cobertura hoje.

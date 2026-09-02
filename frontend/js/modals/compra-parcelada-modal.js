@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
@@ -79,9 +79,9 @@ async function submitCompraParcelada(wrap) {
 
   try {
     if (editingCompra) {
-      await walletApi.updateCompraParcelada(editingCompra.id, payload);
+      await carteiraApi.updateCompraParcelada(editingCompra.id, payload);
     } else {
-      await walletApi.createCompraParcelada(payload);
+      await carteiraApi.createCompraParcelada(payload);
     }
   } catch (err) {
     showErrorModal(err.message, editingCompra ? "erro ao salvar compra parcelada" : "erro ao criar compra parcelada");

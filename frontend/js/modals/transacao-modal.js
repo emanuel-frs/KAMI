@@ -139,15 +139,15 @@ async function submitTransaction(wrap) {
     showErrorModal(err.message, "erro ao lançar");
     return;
   }
-  closeTransactionModal();
+  closeTransacaoModal();
   window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
   window.dispatchEvent(new CustomEvent("kami:action-registered"));
   await onSavedCb?.();
 }
 
 function wireModal(wrap) {
-  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeTransactionModal));
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeTransactionModal(); });
+  wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeTransacaoModal));
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) closeTransacaoModal(); });
   wrap.querySelector("#tm-type").addEventListener("change", () => updateVisibility(wrap));
   wrap.querySelector("#tm-conta").addEventListener("change", () => updateVisibility(wrap));
   wrap.querySelector("#tm-destino-tipo").addEventListener("change", () => updateVisibility(wrap));
@@ -159,7 +159,7 @@ function wireModal(wrap) {
  *   `accounts` já achatadas com bankNome — ex: banks.flatMap(b =>
  *   b.accounts.map(a => ({ ...a, bankNome: b.nome }))).
  */
-export function openTransactionModal({ accounts, onSaved } = {}) {
+export function openTransacaoModal({ accounts, onSaved } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   accountsFlat = accounts || [];
@@ -178,6 +178,6 @@ export function openTransactionModal({ accounts, onSaved } = {}) {
   modalEl.classList.add("open");
 }
 
-export function closeTransactionModal() {
+export function closeTransacaoModal() {
   modalEl?.classList.remove("open");
 }

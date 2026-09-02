@@ -35,58 +35,6 @@
   scrollbar-width: thin;
 }
 
-.roadmap-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 8px 4px 12px 4px;
-}
-
-.roadmap-item {
-  border: 1px solid var(--border-soft);
-  background: var(--bg-alt);
-  padding: 10px 12px;
-  border-left: 3px solid var(--border-soft);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.1s;
-}
-.roadmap-item:hover {
-  border-left-color: var(--accent);
-  background: rgba(255,255,255,0.04);
-}
-.roadmap-item[data-status="concluido"] {
-  border-left-color: var(--accent);
-}
-.roadmap-item[data-status="esquecido"] {
-  border-left-color: var(--red);
-}
-
-.roadmap-item .top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.roadmap-item .name {
-  font-size: 12px;
-  color: var(--text-dim);
-  font-weight: 500;
-}
-.roadmap-item .status-icon {
-  font-weight: bold;
-}
-.roadmap-item .desc {
-  font-size: 10px;
-  color: var(--text-faint);
-  margin-top: 4px;
-}
-.roadmap-item .status-label {
-  font-size: 9px;
-  color: var(--text-faint);
-  margin-top: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
 /* Estilo dos itens da lista (mantido) */
 .apr-track-item {
   display: flex;
@@ -189,14 +137,6 @@
 textarea {
   resize: vertical;            /* permite redimensionar só na vertical */
   min-height: 60px;            /* altura mínima confortável (≈3 linhas) */
-}
-
-.apr-track-road{
-  display: flex;
-  height: 100%;
-  width: 100%;
-  padding: 20px 8px;
-  border: 1px dashed var(--border-soft);
 }
 
 /* ── roadmap timeline (trilhas de aprendizado) ────────────────────────────
