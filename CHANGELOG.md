@@ -4,6 +4,12 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] - 2026-09-01
+
+### Modificado
+- padroniza nomenclatura para PT-BR e aplica achados da auditoria de código
+
+
 ## [1.4.0] - 2026-08-30
 
 ### Adicionado
