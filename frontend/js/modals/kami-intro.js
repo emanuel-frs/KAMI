@@ -1,7 +1,7 @@
 import { updateProfile, updateAvatar } from "../api/perfil.js";
-import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
+import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../components/ascii.js";
 import { store } from "../state/store.js";
-import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
+import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-colors.js";
 import { icon } from "../components/icons.js";
 
 /**
@@ -53,35 +53,35 @@ const NAME_BEAT = 5;
 // text: string fixa ou função (draft) -> string, pra reagir ao que já foi
 // respondido (nome, cor). type controla o que aparece abaixo do texto.
 const BEATS = [
-  { type: "say", text: () => "oi. eu sou o kami." },
+  { type: "say", text: () => "Oi! Eu sou a kami." },
   {
     type: "say",
     text: () =>
-      "a partir de agora sou eu que vou te ajudar a organizar sua vida — carreira, finanças, aprendizado, metas, tudo num lugar só.",
+      "A partir de agora sou eu que vou te ajudar a organizar sua vida — carreira, finanças, aprendizado, metas, tudo num lugar só.",
   },
   {
     type: "say",
     text: () =>
-      "funciono como um jogo: toda ação que você registra vira xp num atributo, sobe de nível, desbloqueia conquistas. organizar deixa de ser chato.",
+      "Funciono como um jogo: toda ação que você registra vira xp num atributo, sobe de nível, desbloqueia conquistas. Organizar deixa de ser chato.",
   },
   {
     type: "say",
     text: () =>
-      "e pode ficar tranquilo(a): tudo roda aqui, na sua máquina. nada sai daqui, sem servidor, sem conta pra criar.",
+      "E pode ficar tranquilo(a): tudo roda aqui, na sua máquina. nada sai daqui, sem servidor, sem conta pra criar.",
   },
-  { type: "say", text: () => "aliás, falando nisso — eu nem sei seu nome ainda." },
+  { type: "say", text: () => "Aliás, falando nisso — eu nem sei seu nome ainda..." },
   { type: "ask-name", text: () => "como posso te chamar?" },
-  { type: "say", text: () => `prazer, ${draft.display_name || "então"}.` },
-  { type: "ask-color", text: () => "agora... qual cor combina com você?" },
-  { type: "say", text: () => `gostei, ${accentLabel(draft.accent_color)}.` },
+  { type: "say", text: () => `Prazer, ${draft.display_name || "então"}.` },
+  { type: "ask-color", text: () => "Agora... qual cor combina com você?" },
+  { type: "say", text: () => `Gostei, ${accentLabel(draft.accent_color)}.` },
   {
     type: "ask-avatar",
     text: () =>
-      "por último — quer gerar um avatar em ascii a partir de uma foto? é rápido, e dá pra pular se preferir.",
+      "Por último — quer gerar um avatar em ascii a partir de uma foto? é rápido, e dá pra pular se preferir.",
   },
   {
     type: "say-end",
-    text: () => `prontinho, ${draft.display_name || "então"}. bora dar uma volta pelo sistema?`,
+    text: () => `Prontinho, ${draft.display_name || "então"}. Bora dar uma volta pelo sistema?`,
   },
 ];
 
@@ -93,6 +93,7 @@ function buildOverlay() {
   wrap.id = "kami-intro";
   wrap.innerHTML = `
     <div class="ki-stage">
+      <img class="ki-avatar-hero" src="assets/logos/logo-kami.gif" alt="kami" draggable="false">
       <div class="ki-box" role="dialog" aria-modal="true" aria-label="kami">
         <div class="ki-box-head">
           <span class="ki-speaker">kami<span class="ki-cursor"></span></span>
@@ -256,6 +257,7 @@ function buildColorControls(container, hintEl) {
         b.classList.toggle("ki-swatch--sel", b === btn)
       );
       document.documentElement.style.setProperty("--accent", draft.accent_color);
+      setAvatarHero(draft.accent_color);
       canTapAdvance = true;
       hintEl.innerHTML = `toque para continuar ${icon("chevron-right", { size: 11 })}`;
       hintEl.style.visibility = "visible";
@@ -314,18 +316,19 @@ function buildAvatarControls(container) {
   }
 
   function loadFile(file) {
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
+    // sem showErrorModal aqui de propósito — onboarding não empilha
+    // modal de erro nesse ponto do fluxo; pior caso, o usuário só
+    // tenta outra imagem. onLoad vem de loadImageFile (ascii.js), que
+    // decide validade pelo decode real do arquivo, não por
+    // `file.type`/extensão (ver comentário lá — é o que causava a foto
+    // às vezes "não aparecer" sem erro nenhum).
+    loadImageFile(file, {
+      onLoad: (img) => {
         currentImg = img;
         colField.style.display = "";
         renderAscii();
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+      },
+    });
   }
 
   [fileInput, colsRange, okBtn, skipBtn].forEach((el) =>
@@ -355,6 +358,14 @@ function buildAvatarControls(container) {
     draft.avatar_ascii = null;
     goTo(beatIndex + 1);
   });
+}
+
+// ─── avatar do topo (troca de cor junto com o accent escolhido) ───────────
+function setAvatarHero(hex) {
+  const img = overlayEl?.querySelector(".ki-avatar-hero");
+  if (!img) return;
+  const src = accentAvatar(hex);
+  if (img.getAttribute("src") !== src) img.setAttribute("src", src);
 }
 
 // ─── navegação ─────────────────────────────────────────────────────────────
@@ -454,5 +465,6 @@ export function openKamiIntro(onDone) {
   draft.accent_color = "#8fbf8f";
   draft.avatar_ascii = null;
   overlayEl.classList.add("open");
+  setAvatarHero(draft.accent_color);
   renderBeat(0);
 }

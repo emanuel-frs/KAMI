@@ -1,4 +1,4 @@
-import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
+import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../components/ascii.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
@@ -131,13 +131,13 @@ function wireModal(wrap) {
   }
 
   function loadFile(file) {
-    if (!file || !file.type.startsWith("image/")) return;
-    const img = new Image();
-    img.onload = () => {
-      currentImg = img;
-      render();
-    };
-    img.src = URL.createObjectURL(file);
+    loadImageFile(file, {
+      onLoad: (img) => {
+        currentImg = img;
+        render();
+      },
+      onInvalid: () => showErrorModal("não consegui abrir esse arquivo como imagem — tente outro.", "atenção"),
+    });
   }
 
   fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));

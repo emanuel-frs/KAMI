@@ -1,4 +1,4 @@
-import { imageToAscii, fitAsciiText } from "../components/ascii.js";
+import { imageToAscii, fitAsciiText, loadImageFile } from "../components/ascii.js";
 import { escapeHtml } from "../components/format.js";
 import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
@@ -140,18 +140,18 @@ function renderBankPickList(wrap, banks) {
 }
 
 function loadBankIconFile(wrap, file) {
-  if (!file || !file.type.startsWith("image/")) return;
-  const img = new Image();
-  img.onload = () => {
-    const { ascii } = imageToAscii(img, { cols: 46 });
-    pendingIconAscii = ascii;
-    const prev = wrap.querySelector("#am-nb-preview");
-    prev.innerHTML = '<pre id="am-nb-preview-pre"></pre>';
-    const pre = wrap.querySelector("#am-nb-preview-pre");
-    pre.textContent = ascii;
-    fitAsciiText(pre, ascii, { container: prev, maxHeight: 36, maxFont: 6, minFont: 0.35, paddingX: 4, paddingY: 4 });
-  };
-  img.src = URL.createObjectURL(file);
+  loadImageFile(file, {
+    onLoad: (img) => {
+      const { ascii } = imageToAscii(img, { cols: 46 });
+      pendingIconAscii = ascii;
+      const prev = wrap.querySelector("#am-nb-preview");
+      prev.innerHTML = '<pre id="am-nb-preview-pre"></pre>';
+      const pre = wrap.querySelector("#am-nb-preview-pre");
+      pre.textContent = ascii;
+      fitAsciiText(pre, ascii, { container: prev, maxHeight: 36, maxFont: 6, minFont: 0.35, paddingX: 4, paddingY: 4 });
+    },
+    onInvalid: () => showErrorModal("não consegui abrir esse arquivo como imagem — tente outro.", "atenção"),
+  });
 }
 
 async function submitAccount(wrap) {

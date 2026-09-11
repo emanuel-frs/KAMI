@@ -11,17 +11,21 @@
  */
 
 export const ACCENT_OPTIONS = [
-  { value: "#8fbf8f", label: "verde fósforo (padrão)" },
-  { value: "#b3a06a", label: "âmbar" },
-  { value: "#8fa8bf", label: "azul acinzentado" },
-  { value: "#b06060", label: "vermelho fosco" },
-  { value: "#c9c9c9", label: "cinza claro (mono puro)" },
-  { value: "#c9a0dc", label: "lilás" },
-  { value: "#e0c15a", label: "dourado" },
-  { value: "#5ac8c8", label: "turquesa" },
-  { value: "#e08fa0", label: "coral" },
+  { value: "#8fbf8f", label: "verde fósforo (padrão)", avatar: "assets/logos/logo-kami.gif" },
+  { value: "#b3a06a", label: "âmbar", avatar: "assets/logos/logo-kami-ambar.gif" },
+  { value: "#8fa8bf", label: "azul acinzentado", avatar: "assets/logos/logo-kami-azul.gif" },
+  { value: "#b06060", label: "vermelho fosco", avatar: "assets/logos/logo-kami-vermelho.gif" },
+  { value: "#c9c9c9", label: "cinza claro (mono puro)", avatar: "assets/logos/logo-kami-cinza.gif" },
+  { value: "#c9a0dc", label: "lilás", avatar: "assets/logos/logo-kami-lilas.gif" },
+  { value: "#e0c15a", label: "dourado", avatar: "assets/logos/logo-kami-dourado.gif" },
+  { value: "#5ac8c8", label: "turquesa", avatar: "assets/logos/logo-kami-turquesa.gif" },
+  { value: "#e08fa0", label: "coral", avatar: "assets/logos/logo-kami-coral.gif" },
 ];
 
 export function accentLabel(hex) {
   return ACCENT_OPTIONS.find((o) => o.value === hex)?.label ?? hex;
+}
+
+export function accentAvatar(hex) {
+  return ACCENT_OPTIONS.find((o) => o.value === hex)?.avatar ?? ACCENT_OPTIONS[0].avatar;
 }

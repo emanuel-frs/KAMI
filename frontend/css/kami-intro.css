@@ -16,10 +16,21 @@
 .ki-stage {
   height: 100%;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding: 0 16px 34px;
+  gap: 18px;
+  padding: 0 16px 24px;
   cursor: pointer;
+}
+
+.ki-avatar-hero {
+  width: 192px;
+  height: 192px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 120ms ease;
 }
 
 .ki-box {

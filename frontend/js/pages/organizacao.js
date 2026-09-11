@@ -43,7 +43,7 @@ import { subscribeSyncState, isSyncRunning } from "../components/email-sync-sche
 import { emailAccountColor } from "../components/email-account-color.js";
 
 const state = {
-  tab: "links",
+  tab: "github",
   links: [],
   repos: [],
   accounts: [],
@@ -227,7 +227,7 @@ export function unmount() {
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
-  state.tab = "links";
+  state.tab = "github";
   state.selectedAccountIds = new Set();
   state.emails = [];
   state.emailQuery = "";
@@ -253,19 +253,12 @@ function template() {
     <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="links">links</div>
-      <div class="tab" data-tab="github">github</div>
+      <div class="tab on" data-tab="github">github</div>
       <div class="tab" data-tab="email">e-mail</div>
+      <div class="tab" data-tab="links">links</div>
     </div>
 
-    <div id="org-panel-links">
-      <div class="card">
-        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
-        <div class="card-body" id="org-linkgroups"></div>
-      </div>
-    </div>
-
-    <div id="org-panel-github" style="display:none;">
+    <div id="org-panel-github">
       <div class="card">
         <div class="card-head">
           repositórios
@@ -298,6 +291,13 @@ function template() {
           </div>
           <div id="org-emails"></div>
         </div>
+      </div>
+    </div>
+
+    <div id="org-panel-links" style="display:none;">
+      <div class="card">
+        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
+        <div class="card-body" id="org-linkgroups"></div>
       </div>
     </div>
 

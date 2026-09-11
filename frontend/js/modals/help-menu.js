@@ -13,8 +13,8 @@ import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
  *      perfil, só que acessível de qualquer tela).
  *   2. "rever dicas desta tela" — disponível nas telas que registram
  *      dicas contextuais via screen-tips-registry.js (etapa 5); hoje
- *      as 7 telas do v1 (perfil, núcleo, finanças, aprendizado,
- *      organização, metas, calendário) já têm. Fica desabilitada em vez de
+ *      as 8 telas do v1 (perfil, núcleo, finanças, aprendizado,
+ *      organização, metas, calendário, carreira) já têm. Fica desabilitada em vez de
  *      escondida como defesa pra qualquer tela futura que ainda não
  *      tenha registrado sua sequência de dicas, não porque falte
  *      cobertura hoje.

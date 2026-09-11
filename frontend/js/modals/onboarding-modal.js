@@ -201,9 +201,9 @@ const STEPS = [
       </div>`,
   },
   {
-    title: (ctx) => `calendário — é só uma prévia, ${ctx.name}`,
+    title: () => "calendário",
     desc: () =>
-      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve.',
     illustration: () => `
       <div class="ob-illus ob-illus--calendario">
         <div class="ob-illus-row ob-attr-row">
@@ -217,6 +217,26 @@ const STEPS = [
         <div class="ob-illus-row ob-attr-row">
           <span class="ob-attr">${icon("star", { size: 9 })} concluiu "fundamentos de python"</span>
           <span class="ob-attr-xp">há 2 dias</span>
+        </div>
+      </div>`,
+  },
+  {
+    title: (ctx) => `carreira — é só uma prévia, ${ctx.name}`,
+    desc: () =>
+      'área atual e área-meta, interesses profissionais, linha do tempo de posições (empresa, cargo, período), formação acadêmica e evolução salarial com gráfico. cada posição, formação concluída ou salário registrado também vira xp no núcleo — o mesmo padrão que você viu nas outras telas. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+    illustration: () => `
+      <div class="ob-illus ob-illus--carreira">
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">área atual → meta</span>
+          <span class="ob-attr-xp">dev jr → dev pleno</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("check", { size: 9 })} backend developer · acme corp</span>
+          <span class="ob-attr-xp">+80 xp</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("trending-up", { size: 9 })} evolução salarial</span>
+          <span class="ob-attr-xp">R$ 6.200</span>
         </div>
       </div>`,
   },
