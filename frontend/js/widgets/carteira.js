@@ -17,11 +17,11 @@ function pctLimite(a) {
 function bankIconInner(bank) {
   if (bank.icon_ascii) return `<pre>${escapeHtml(bank.icon_ascii)}</pre>`;
   const fallback = bank.nome.slice(0, 2).toUpperCase();
-  return `<span class="ph">${fallback}</span>`;
+  return `<span class="ph">${escapeHtml(fallback)}</span>`;
 }
 function accountCardHtml(bank, a) {
-  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="editar conta">${icon("pencil", { size: 11 })}</span>`;
-  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta">${icon("x", { size: 11 })}</span>`;
+  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="editar conta" aria-label="editar conta">${icon("pencil", { size: 11 })}</span>`;
+  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta" aria-label="remover conta">${icon("x", { size: 11 })}</span>`;
   let saldoBlock = "";
   if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>saldo atual</span><b>${brl(a.saldo_atual)}</b></div>`;
   let creditoBlock = "";
@@ -37,7 +37,7 @@ function accountCardHtml(bank, a) {
   if (!a.possui_saldo && !a.possui_credito) saldoBlock = `<div class="ba-empty-flags">sem saldo nem crédito configurado</div>`;
   return `
     <div class="bank-account">
-      <div class="ba-head"><span class="ba-name">${escapeHtml(a.nome)}</span><span class="ba-actions">${editBtn}${removeBtn}</span></div>
+      <div class="ba-head"><span class="ba-name" data-tooltip="${escapeHtml(a.nome)}">${escapeHtml(a.nome)}</span><span class="ba-actions">${editBtn}${removeBtn}</span></div>
       ${saldoBlock}${creditoBlock}
     </div>`;
 }
@@ -65,10 +65,10 @@ export async function render(el, widget) {
             <div class="bank-item${expanded ? " expanded" : ""}" data-bank-id="${b.id}">
               <div class="bank-head" data-toggle-bank="${b.id}">
                 <div class="bank-icon">${bankIconInner(b)}</div>
-                <div class="bank-name">${escapeHtml(b.nome)}</div>
+                <div class="bank-name" data-tooltip="${escapeHtml(b.nome)}">${escapeHtml(b.nome)}</div>
                 <div class="bank-count">${b.accounts.length}</div>
-                <span class="bank-edit" data-edit-bank="${b.id}" data-tooltip="renomear banco">${icon("pencil", { size: 11 })}</span>
-                <span class="bank-remove" data-remove-bank="${b.id}" data-tooltip="apagar banco">${icon("x", { size: 11 })}</span>
+                <span class="bank-edit" data-edit-bank="${b.id}" data-tooltip="renomear banco" aria-label="renomear banco">${icon("pencil", { size: 11 })}</span>
+                <span class="bank-remove" data-remove-bank="${b.id}" data-tooltip="apagar banco" aria-label="apagar banco">${icon("x", { size: 11 })}</span>
               </div>
               ${accountsHtml}
             </div>`;

@@ -33,7 +33,7 @@ function buildModal() {
       <div class="modal-head"><span id="pm-title">informar valor</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
-          <label id="pm-label"></label>
+          <label id="pm-label" for="pm-input"></label>
           <input type="text" id="pm-input">
         </div>
         <div class="form-actions">

@@ -529,7 +529,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = "span 12";
 
     const removeBtn = def.removable !== false
-      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget">${icon("x", { size: 11 })}</span>`
+      ? `<span class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget" aria-label="remover widget">${icon("x", { size: 11 })}</span>`
       : "";
 
     card.innerHTML = `

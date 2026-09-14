@@ -95,8 +95,8 @@ export async function render(el, widget) {
           return `
             <div class="sub-row${s.active ? (paga ? " paga" : "") : " inactive"}" data-assinatura-id="${s.id}">
               <div class="sub-top">
-                <span class="sub-name" data-edit-sub="${s.id}">${escapeHtml(s.nome)}</span>
-                <span class="sub-remove" data-remove-sub="${s.id}" data-tooltip="remover assinatura">${icon("x", { size: 11 })}</span>
+                <span class="sub-name" data-edit-sub="${s.id}" data-tooltip="${escapeHtml(s.nome)}">${escapeHtml(s.nome)}</span>
+                <span class="sub-remove" data-remove-sub="${s.id}" data-tooltip="remover assinatura" aria-label="remover assinatura">${icon("x", { size: 11 })}</span>
               </div>
               <div class="sub-meta">
                 <span class="sub-valor">${brl(valor)}</span>
@@ -104,7 +104,7 @@ export async function render(el, widget) {
                 ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="gerou uma transação real, descontada da conta">R$</span>` : ""}
                 ${s.active
                   ? `<button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"
-                      data-tooltip="${tooltip}">
+                      data-tooltip="${tooltip}" aria-label="${tooltip}">
                       ${paga ? "pago" : "marcar pago"}
                     </button>`
                   : `<span class="cf-inactive-tag">inativa</span>`}

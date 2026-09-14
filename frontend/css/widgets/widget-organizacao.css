@@ -162,7 +162,7 @@
   background: var(--bg);
   margin-right: 8px;
 }
-.tab:hover { color: var(--text-dim); border-color: var(--border); }
+.tab:hover { color: var(--text-dim); border-color: var(--border-interactive); }
 .tab.on {
   color: var(--accent);
   border-color: var(--accent-dim);
@@ -487,7 +487,7 @@
   cursor: pointer;
   user-select: none;
 }
-.email-account-chip:hover { border-color: var(--border); color: var(--text-dim); }
+.email-account-chip:hover { border-color: var(--border-interactive); color: var(--text-dim); }
 .email-account-chip.on {
   color: var(--text-bright);
   border-color: var(--chip-color, var(--accent-dim));
@@ -516,12 +516,22 @@
   cursor: pointer;
   background: var(--bg);
 }
-.email-filter-opt:hover { color: var(--text-dim); border-color: var(--border); }
+.email-filter-opt:hover { color: var(--text-dim); border-color: var(--border-interactive); }
 .email-filter-opt.on {
   color: var(--accent);
   border-color: var(--accent-dim);
   background: var(--bg-alt);
 }
+/* contagem por filtro (tudo/não lidos/silenciados) — mesma escala de
+   tamanho/peso do .goal-type-tag em widget-metas.css, sem borda própria
+   pra não duplicar a moldura que o .email-filter-opt já tem. */
+.email-filter-count {
+  margin-left: 3px;
+  font-size: 8.5px;
+  letter-spacing: 0.3px;
+  color: var(--text-faint);
+}
+.email-filter-opt.on .email-filter-count { color: var(--accent-dim); }
 
 /* selo de conta virou a cor do próprio avatar do e-mail (--chip-color,
    ver .email-avatar acima) — não uma tag cheia por item, que destoava

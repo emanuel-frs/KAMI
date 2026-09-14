@@ -2,6 +2,7 @@ import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "nova compra parcelada" / "editar compra parcelada" — mesmo
@@ -33,17 +34,17 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">nova compra parcelada</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>nome</label><input type="text" id="cpm-nome" placeholder="ex: notebook, geladeira..."></div>
+        <div class="field"><label for="cpm-nome">nome</label><input type="text" id="cpm-nome" placeholder="ex: notebook, geladeira..."></div>
         <div class="field-row">
-          <div class="field"><label>valor total</label><input type="number" id="cpm-valor" placeholder="0.00"></div>
-          <div class="field"><label>número de parcelas</label><input type="number" id="cpm-parcelas" min="1" placeholder="12"></div>
+          <div class="field"><label for="cpm-valor">valor total</label><input type="number" id="cpm-valor" placeholder="0.00"></div>
+          <div class="field"><label for="cpm-parcelas">número de parcelas</label><input type="number" id="cpm-parcelas" min="1" placeholder="12"></div>
         </div>
         <div class="field">
-          <label>mês da 1ª parcela</label>
+          <label for="cpm-mes">mês da 1ª parcela</label>
           <input type="text" id="cpm-mes" placeholder="YYYY-MM">
         </div>
         <div class="field">
-          <label>conta (opcional — soma a parcela na fatura dela todo mês)</label>
+          <label for="cpm-conta">conta (opcional — soma a parcela na fatura dela todo mês)</label>
           <select id="cpm-conta"><option value="">— nenhuma —</option></select>
         </div>
         <div class="form-actions">
@@ -121,7 +122,7 @@ export function openCompraParceladaModal({ compra = null, accounts = [], onSaved
   modalEl.querySelector("#cpm-mes").value = editingCompra?.mes_primeira_parcela || currentMonthStr();
   modalEl.querySelector("#cpm-conta").innerHTML =
     `<option value="">— nenhuma —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#cpm-conta").value = editingCompra?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#cpm-conta"));
   modalEl.classList.add("open");

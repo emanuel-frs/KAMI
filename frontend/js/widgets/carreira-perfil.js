@@ -49,8 +49,8 @@ export async function render(el, widget) {
       <div class="edit-mode">
         <div style="flex:1 1 100%; display:flex; flex-direction:column; gap:12px;">
           <div class="field-row">
-            <div class="field"><label>área atual</label><input type="text" id="cp-atual" maxlength="80" value="${escapeHtml(profile.area_atual ?? "")}" placeholder="ex: desenvolvimento backend"></div>
-            <div class="field"><label>área-meta</label><input type="text" id="cp-meta" maxlength="80" value="${escapeHtml(profile.area_meta ?? "")}" placeholder="ex: arquitetura de software"></div>
+            <div class="field"><label for="cp-atual">área atual</label><input type="text" id="cp-atual" maxlength="80" value="${escapeHtml(profile.area_atual ?? "")}" placeholder="ex: desenvolvimento backend"></div>
+            <div class="field"><label for="cp-meta">área-meta</label><input type="text" id="cp-meta" maxlength="80" value="${escapeHtml(profile.area_meta ?? "")}" placeholder="ex: arquitetura de software"></div>
           </div>
           <div style="display:flex; gap:6px; justify-content:flex-end;">
             <button type="button" class="btn sm" data-action="cancel">cancelar</button>

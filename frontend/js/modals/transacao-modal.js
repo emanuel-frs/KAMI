@@ -2,6 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "novo lançamento" — entrada/saída/transferência. Recebe as
@@ -24,7 +25,7 @@ function buildModal() {
       <div class="modal-head">novo lançamento <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
-          <label>tipo</label>
+          <label for="tm-type">tipo</label>
           <select id="tm-type">
             <option value="entrada">entrada</option>
             <option value="saida">saída</option>
@@ -32,41 +33,41 @@ function buildModal() {
           </select>
         </div>
         <div class="field">
-          <label>descrição</label>
+          <label for="tm-desc">descrição</label>
           <input type="text" id="tm-desc" placeholder="ex: mercado, salário...">
         </div>
         <div class="field-row">
-          <div class="field"><label>valor</label><input type="number" id="tm-amount" placeholder="0.00"></div>
-          <div class="field"><label>data</label><input type="text" id="tm-date" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="tm-amount">valor</label><input type="number" id="tm-amount" placeholder="0.00"></div>
+          <div class="field"><label for="tm-date">data</label><input type="text" id="tm-date" placeholder="YYYY-MM-DD"></div>
         </div>
         <div class="field" id="tm-category-field">
-          <label>categoria</label>
+          <label for="tm-category">categoria</label>
           <input type="text" id="tm-category" placeholder="ex: alimentacao, transporte...">
         </div>
         <div class="field">
-          <label>conta</label>
+          <label for="tm-conta">conta</label>
           <select id="tm-conta"></select>
         </div>
         <div class="field" id="tm-forma-pagamento-field" style="display:none;">
-          <label>forma de pagamento</label>
+          <label for="tm-forma-pagamento">forma de pagamento</label>
           <select id="tm-forma-pagamento">
             <option value="saldo">saldo</option>
             <option value="credito">crédito</option>
           </select>
         </div>
         <div class="field" id="tm-destino-tipo-field" style="display:none;">
-          <label>destino</label>
+          <label for="tm-destino-tipo">destino</label>
           <select id="tm-destino-tipo">
             <option value="interna">conta cadastrada</option>
             <option value="externa">externo (pix, saque...)</option>
           </select>
         </div>
         <div class="field" id="tm-conta-destino-field" style="display:none;">
-          <label>conta de destino</label>
+          <label for="tm-conta-destino">conta de destino</label>
           <select id="tm-conta-destino"></select>
         </div>
         <div class="field" id="tm-destino-externo-field" style="display:none;">
-          <label>destino (texto livre)</label>
+          <label for="tm-destino-externo">destino (texto livre)</label>
           <input type="text" id="tm-destino-externo" placeholder="ex: fulano, saque...">
         </div>
 
@@ -104,7 +105,7 @@ function updateVisibility(wrap) {
 }
 
 function populateContaSelects(wrap) {
-  const opts = accountsFlat.map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+  const opts = accountsFlat.map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   wrap.querySelector("#tm-conta").innerHTML = opts;
   wrap.querySelector("#tm-conta-destino").innerHTML = opts;
   refreshCustomSelect(wrap.querySelector("#tm-conta"));

@@ -106,7 +106,7 @@ function renderAlerts() {
       return `
         <div class="cal-alert-item${diff < 0 ? " overdue" : ""}" data-module="${escapeHtml(e.module)}" data-type="${escapeHtml(e.type)}" data-record-id="${escapeHtml(recordId)}">
           <span class="cal-alert-dot" style="--type-color:${meta.color}">${icon(meta.icon, { size: 18 })}</span>
-          <span class="cal-alert-title">${escapeHtml(e.title)}</span>
+          <span class="cal-alert-title" data-tooltip="${escapeHtml(e.title)}">${escapeHtml(e.title)}</span>
           ${amountHtml}
           <span class="cal-alert-due">${dueLabel}</span>
         </div>
@@ -196,11 +196,11 @@ function emailItemHtml(e) {
       <span class="nbell-avatar" style="--chip-color:${emailAccountColor(e.account_id)};">${emailInitial(e.sender)}</span>
       <span class="nbell-main">
         <span class="nbell-top">
-          <span class="nbell-subject">${escapeHtml(e.subject || "(sem assunto)")}</span>
+          <span class="nbell-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
           <span class="nbell-time">${fmtRelDate(e.received_at)}</span>
         </span>
-        <span class="nbell-sender">${escapeHtml(e.sender)}</span>
-        ${e.body_preview ? `<span class="nbell-preview">${escapeHtml(e.body_preview)}</span>` : ""}
+        <span class="nbell-sender" data-tooltip="${escapeHtml(e.sender)}">${escapeHtml(e.sender)}</span>
+        ${e.body_preview ? `<span class="nbell-preview" data-tooltip="${escapeHtml(e.body_preview)}">${escapeHtml(e.body_preview)}</span>` : ""}
       </span>
       <span class="icon-btn nbell-mute" data-action="notif-mute-account" data-account-id="${escapeHtml(e.account_id)}" data-tooltip="silenciar esta conta">${icon("bell-off", { size: 12 })}</span>
     </div>`;

@@ -55,8 +55,8 @@ export async function render(el, widget) {
         ${debts.length ? debts.map((d) => `
           <div class="divida-row${d.status === "paga" ? " paga" : ""}" data-divida-id="${d.id}">
             <div class="divida-top">
-              <span class="divida-desc" data-edit-debt="${d.id}">${escapeHtml(d.description)}</span>
-              <span class="divida-remove" data-remove-debt="${d.id}" data-tooltip="remover dívida">${icon("x", { size: 11 })}</span>
+              <span class="divida-desc" data-edit-debt="${d.id}" data-tooltip="${escapeHtml(d.description)}">${escapeHtml(d.description)}</span>
+              <span class="divida-remove" data-remove-debt="${d.id}" data-tooltip="remover dívida" aria-label="remover dívida">${icon("x", { size: 11 })}</span>
             </div>
             ${d.counterparty ? `<div class="divida-counterparty">${escapeHtml(d.counterparty)}</div>` : ""}
             <div class="divida-meta">

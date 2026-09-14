@@ -43,25 +43,25 @@ function buildModal() {
       <div class="modal-head"><span class="modal-head-title">nova formação</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label>curso</label><input type="text" id="em-curso" placeholder="ex: ciência da computação"></div>
-          <div class="field"><label>instituição</label><input type="text" id="em-instituicao" placeholder="ex: usp"></div>
+          <div class="field"><label for="em-curso">curso</label><input type="text" id="em-curso" placeholder="ex: ciência da computação"></div>
+          <div class="field"><label for="em-instituicao">instituição</label><input type="text" id="em-instituicao" placeholder="ex: usp"></div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label>nível</label>
+            <label for="em-nivel">nível</label>
             <select id="em-nivel">
               ${NIVEIS.map((n) => `<option value="${n.value}">${n.label}</option>`).join("")}
             </select>
           </div>
           <div class="field">
-            <label>status</label>
+            <label for="em-status">status</label>
             <select id="em-status">
               ${STATUSES.map((s) => `<option value="${s.value}">${s.label}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>previsão de conclusão (opcional)</label><input type="text" id="em-previsao" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="em-previsao">previsão de conclusão (opcional)</label><input type="text" id="em-previsao" placeholder="YYYY-MM-DD"></div>
         </div>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>

@@ -83,7 +83,7 @@
   background: transparent;
   border: 1px solid var(--border-soft);
 }
-.ob-btn-prev:hover { color: var(--text); border-color: var(--border); }
+.ob-btn-prev:hover { color: var(--text); border-color: var(--border-interactive); }
 
 .ob-dots {
   display: flex;

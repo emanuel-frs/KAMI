@@ -96,15 +96,15 @@ export async function render(el, widget) {
           return `
             <div class="registro-row">
               <div class="r-top">
-                <div class="registro-desc">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
+                <div class="registro-desc" data-tooltip="${escapeHtml(t.description)}">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
                 <div class="registro-valor ${t.type}">${sinal} ${brl(t.amount)}</div>
               </div>
               <div class="r-meta">
                 <div class="registro-conta-col">
                   <div class="r-bank-icon">${bankIcon}</div>
                   <div class="registro-conta-names">
-                    <span class="r-bank-name">${bankName}</span>
-                    <span class="r-account-name">${accountName}</span>
+                    <span class="r-bank-name" data-tooltip="${bankName}">${bankName}</span>
+                    <span class="r-account-name" data-tooltip="${accountName}">${accountName}</span>
                   </div>
                 </div>
                 <div class="registro-date">${formatDate(t.date)}</div>

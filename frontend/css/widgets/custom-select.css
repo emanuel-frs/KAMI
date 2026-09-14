@@ -24,7 +24,7 @@
   justify-content: space-between;
   gap: 8px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-interactive);
   color: var(--text);
   font-family: var(--font);
   font-size: 12px;
@@ -37,7 +37,11 @@
   white-space: nowrap;
 }
 .csel-trigger:hover { border-color: var(--accent-dim); color: var(--text-bright); }
-.csel-trigger:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.csel-trigger:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
 /* seta — desenhada em CSS puro, não é um glyph de fonte/emoji do SO */
 .csel-trigger::after {

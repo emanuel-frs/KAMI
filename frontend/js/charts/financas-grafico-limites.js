@@ -33,7 +33,7 @@ export async function render(el, widget) {
           return `
             <div class="lim-row">
               <div class="lim-top">
-                <span class="lim-label">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
+                <span class="lim-label" data-tooltip="${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
                 <span class="lim-pct">${pct}%</span>
               </div>
               <div class="lim-bar-track"><div class="bar-fill lim-${nivel}" style="width:${pct}%;"></div></div>

@@ -94,6 +94,7 @@ import {
   deleteSearchKey,
 } from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
+import { showToast } from "../components/toast.js";
 import { escapeHtml } from "../components/format.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
@@ -236,13 +237,13 @@ function buildChavesPanel() {
         </div>
         <div id="cfg-acc-form-wrap" style="display:none; margin-top:10px;">
           <input type="hidden" id="cfg-acc-edit-id">
-          <div class="field"><label>apelido</label><input type="text" id="cfg-acc-label" placeholder="ex: gmail pessoal"></div>
+          <div class="field"><label for="cfg-acc-label">apelido</label><input type="text" id="cfg-acc-label" placeholder="ex: gmail pessoal"></div>
           <div class="field-row">
-            <div class="field"><label>host imap</label><input type="text" id="cfg-acc-host" placeholder="imap.gmail.com"></div>
-            <div class="field" style="max-width:110px;"><label>porta</label><input type="number" id="cfg-acc-port" value="993"></div>
+            <div class="field"><label for="cfg-acc-host">host imap</label><input type="text" id="cfg-acc-host" placeholder="imap.gmail.com"></div>
+            <div class="field" style="max-width:110px;"><label for="cfg-acc-port">porta</label><input type="number" id="cfg-acc-port" value="993"></div>
           </div>
-          <div class="field"><label>usuário</label><input type="text" id="cfg-acc-username" placeholder="voce@gmail.com"></div>
-          <div class="field"><label>senha de app <span id="cfg-acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="cfg-acc-password" placeholder="••••••••"></div>
+          <div class="field"><label for="cfg-acc-username">usuário</label><input type="text" id="cfg-acc-username" placeholder="voce@gmail.com"></div>
+          <div class="field"><label for="cfg-acc-password">senha de app <span id="cfg-acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="cfg-acc-password" placeholder="••••••••"></div>
           <label class="acc-default-toggle"><input type="checkbox" id="cfg-acc-sync-by-default" checked> ${icon("star", { size: 12 })} conta padrão (já vem selecionada ao abrir organização)</label>
           <div id="cfg-acc-error" style="display:none; color:var(--red); font-size:10.5px; margin:8px 0;"></div>
           <div class="form-actions">
@@ -281,11 +282,11 @@ function buildBackupPanel() {
         <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
         <p class="settings-note">nota: senha de e-mail, token do github e chave de busca são salvos criptografados com uma chave que fica só nesta instalação. se este backup for de <strong>outra máquina</strong>, esses três campos não vêm junto — o resto dos dados restaura normalmente, mas você vai precisar reconfigurar essas credenciais em organização.</p>
         <div class="field">
-          <label>arquivo de backup (.json)</label>
+          <label for="sm-import-file">arquivo de backup (.json)</label>
           <input type="file" id="sm-import-file" accept="application/json,.json">
         </div>
         <div class="field">
-          <label>digite <strong>${IMPORT_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="sm-import-confirm">digite <strong>${IMPORT_WORD}</strong> pra habilitar o botão abaixo</label>
           <input type="text" id="sm-import-confirm" placeholder="${IMPORT_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
@@ -297,7 +298,7 @@ function buildBackupPanel() {
         <h4>zona de perigo</h4>
         <p class="settings-desc">apaga TODOS os seus dados e devolve o Kami ao estado de instalação nova. não tem como desfazer — exporte um backup antes, se quiser guardar algo.</p>
         <div class="field">
-          <label>digite <strong>${RESET_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="sm-reset-confirm">digite <strong>${RESET_WORD}</strong> pra habilitar o botão abaixo</label>
           <input type="text" id="sm-reset-confirm" placeholder="${RESET_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
@@ -369,8 +370,10 @@ function wireModal(wrap) {
 function renderAccentSwatches(wrap, currentColor) {
   const container = wrap.querySelector("#cfg-accent-swatches");
   container.innerHTML = ACCENT_OPTIONS.map((c) => {
-    const sel = c.value === currentColor ? " ki-swatch--sel" : "";
-    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="background:${c.value};" aria-label="${c.label}"></button>`;
+    const isSel = c.value === currentColor;
+    const sel = isSel ? " ki-swatch--sel" : "";
+    const check = icon("check", { size: 12, className: "swatch-check" });
+    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}" aria-pressed="${isSel}">${check}</button>`;
   }).join("");
 
   container.querySelectorAll(".ki-swatch").forEach((btn) => {
@@ -383,9 +386,11 @@ async function selectAccentColor(wrap, btn) {
   const statusEl = wrap.querySelector("#cfg-accent-status");
   const color = btn.dataset.color;
 
-  wrap.querySelectorAll(".ki-swatch").forEach((b) =>
-    b.classList.toggle("ki-swatch--sel", b === btn)
-  );
+  wrap.querySelectorAll(".ki-swatch").forEach((b) => {
+    const isSel = b === btn;
+    b.classList.toggle("ki-swatch--sel", isSel);
+    b.setAttribute("aria-pressed", String(isSel));
+  });
   statusEl.textContent = "";
   statusEl.classList.remove("settings-status--visible");
 
@@ -924,6 +929,18 @@ async function handleExport(wrap) {
 
     statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)`;
     statusEl.classList.add("settings-status--visible");
+
+    // confirmação visível mesmo se o usuário já tiver trocado de aba/fechado
+    // o modal antes de reparar no status inline acima — ponto levantado na
+    // auditoria (download acontece em silêncio, sem feedback destacado).
+    // Sem integração de diálogo "salvar como" nativo do Tauri no projeto
+    // (só existe o plugin de abrir URL externa, ver open-external.js), então
+    // o toast simples resolve — o navegador/webview decide onde salvar.
+    showToast({
+      title: "backup salvo",
+      message: `${filename} — confira sua pasta de downloads`,
+      iconName: "check",
+    });
   } catch (err) {
     showErrorModal(err.message, "erro ao exportar dados");
   } finally {

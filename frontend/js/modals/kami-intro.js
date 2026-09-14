@@ -244,7 +244,7 @@ function confirmName(value) {
 function buildColorControls(container, hintEl) {
   const swatches = ACCENT_OPTIONS.map((c) => {
     const sel = c.value === draft.accent_color ? " ki-swatch--sel" : "";
-    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="background:${c.value};" aria-label="${c.label}"></button>`;
+    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}"></button>`;
   }).join("");
 
   container.innerHTML = `<div class="ki-swatches">${swatches}</div>`;
@@ -272,7 +272,7 @@ function buildAvatarControls(container) {
       <div class="ki-avatar-controls">
         <input type="file" id="ki-av-file" accept="image/*">
         <div class="ki-av-col-field" id="ki-av-col-field" style="display:none">
-          <label>largura: <b id="ki-av-cols-val">70</b></label>
+          <label for="ki-av-cols">largura: <b id="ki-av-cols-val">70</b></label>
           <input type="range" id="ki-av-cols" min="30" max="120" value="70">
         </div>
         <p class="ki-av-hint">arraste uma imagem ou use o campo acima. a foto original nunca é salva.</p>

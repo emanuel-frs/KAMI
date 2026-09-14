@@ -15,23 +15,23 @@ export async function render(el, widget) {
 
   el.innerHTML = `
     <div class="field">
-      <label>descrição</label>
-      <input type="text" class="reg-desc" placeholder="o que você fez?">
+      <label for="reg-desc">descrição</label>
+      <input type="text" class="reg-desc" id="reg-desc" placeholder="o que você fez?">
     </div>
     <div class="field-row">
       <div class="field">
-        <label>categoria</label>
-        <select class="reg-cat">
+        <label for="reg-cat">categoria</label>
+        <select class="reg-cat" id="reg-cat">
           ${active.map((a) => `<option value="${a.name}">${a.name}</option>`).join("")}
         </select>
       </div>
       <div class="field">
-        <label>xp</label>
-        <input type="number" class="reg-xp" value="10" min="1">
+        <label for="reg-xp">xp</label>
+        <input type="number" class="reg-xp" id="reg-xp" value="10" min="1">
       </div>
       <div class="field">
-        <label>impacto (1-5)</label>
-        <input type="number" class="reg-impact" value="3" min="1" max="5">
+        <label for="reg-impact">impacto (1-5)</label>
+        <input type="number" class="reg-impact" id="reg-impact" value="3" min="1" max="5">
       </div>
     </div>
     <button class="btn primary reg-submit wg-anchor-bottom">registrar ação</button>

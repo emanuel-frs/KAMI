@@ -24,14 +24,14 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">nova dívida</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>descrição</label><input type="text" id="dm-desc" placeholder="ex: empréstimo, parcelamento..."></div>
-        <div class="field"><label>credor (opcional)</label><input type="text" id="dm-counterparty" placeholder="ex: banco x, fulano..."></div>
+        <div class="field"><label for="dm-desc">descrição</label><input type="text" id="dm-desc" placeholder="ex: empréstimo, parcelamento..."></div>
+        <div class="field"><label for="dm-counterparty">credor (opcional)</label><input type="text" id="dm-counterparty" placeholder="ex: banco x, fulano..."></div>
         <div class="field-row">
-          <div class="field"><label>valor</label><input type="number" id="dm-amount" placeholder="0.00"></div>
-          <div class="field"><label>vencimento (opcional)</label><input type="text" id="dm-due" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="dm-amount">valor</label><input type="number" id="dm-amount" placeholder="0.00"></div>
+          <div class="field"><label for="dm-due">vencimento (opcional)</label><input type="text" id="dm-due" placeholder="YYYY-MM-DD"></div>
         </div>
         <div class="field">
-          <label>status</label>
+          <label for="dm-status">status</label>
           <select id="dm-status">
             <option value="aberta">aberta</option>
             <option value="paga">paga</option>

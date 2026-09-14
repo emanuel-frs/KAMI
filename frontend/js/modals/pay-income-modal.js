@@ -29,8 +29,8 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>valor recebido</label><input type="number" id="pim-valor" placeholder="0.00"></div>
-        <div class="field"><label>data</label><input type="date" id="pim-data"></div>
+        <div class="field"><label for="pim-valor">valor recebido</label><input type="number" id="pim-valor" placeholder="0.00"></div>
+        <div class="field"><label for="pim-data">data</label><input type="date" id="pim-data"></div>
         <p class="ppm-conta-info" id="pim-conta-info"></p>
         <div class="form-actions">
           <button class="btn sm" data-action="cancel">cancelar</button>

@@ -2,6 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "nova conta fixa" / "editar conta fixa" — mesmo padrão singleton
@@ -27,16 +28,16 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">nova conta fixa</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>nome</label><input type="text" id="fbm-name" placeholder="ex: aluguel, internet..."></div>
+        <div class="field"><label for="fbm-name">nome</label><input type="text" id="fbm-name" placeholder="ex: aluguel, internet..."></div>
         <div class="field-row">
-          <div class="field"><label>valor</label><input type="number" id="fbm-amount" placeholder="0.00"></div>
-          <div class="field"><label>dia de vencimento</label><input type="number" id="fbm-due-day" min="1" max="31" placeholder="10"></div>
+          <div class="field"><label for="fbm-amount">valor</label><input type="number" id="fbm-amount" placeholder="0.00"></div>
+          <div class="field"><label for="fbm-due-day">dia de vencimento</label><input type="number" id="fbm-due-day" min="1" max="31" placeholder="10"></div>
         </div>
         <div class="field">
-          <label>conta vinculada (opcional — habilita descontar automaticamente)</label>
+          <label for="fbm-conta">conta vinculada (opcional — habilita descontar automaticamente)</label>
           <select id="fbm-conta"><option value="">— nenhuma, só lembrete —</option></select>
         </div>
-        <div class="field"><label>categoria (opcional)</label><input type="text" id="fbm-categoria" placeholder="ex: moradia, contas fixas..."></div>
+        <div class="field"><label for="fbm-categoria">categoria (opcional)</label><input type="text" id="fbm-categoria" placeholder="ex: moradia, contas fixas..."></div>
         <label class="account-flag"><input type="checkbox" id="fbm-active" checked> ativa</label>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>
@@ -110,7 +111,7 @@ export function openContaFixaModal({ bill = null, accounts = [], onSaved } = {})
 
   modalEl.querySelector("#fbm-conta").innerHTML =
     `<option value="">— nenhuma, só lembrete —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#fbm-conta").value = editingBill?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#fbm-conta"));
 

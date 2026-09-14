@@ -148,6 +148,17 @@ cd backend
 pytest
 ```
 
+Os testes unitários e de integração leve do frontend usam o runner nativo
+do Node.js e `jsdom` somente para os testes que precisam de DOM:
+
+```bash
+# na raiz do projeto, uma vez
+npm install
+
+# executa a suíte do frontend
+npm test
+```
+
 ## ► Empacotar (build de produção)
 
 O Kami roda como um binário instalável (.deb/.rpm no Linux, .exe no

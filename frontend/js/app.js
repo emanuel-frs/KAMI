@@ -57,7 +57,15 @@ async function showPage(name, opts) {
   currentPageModule?.unmount?.();
 
   document.querySelectorAll(".nav-link").forEach((el) => {
-    el.classList.toggle("active", el.dataset.page === name);
+    const isActive = el.dataset.page === name;
+    el.classList.toggle("active", isActive);
+    // aria-current="page" em paralelo à classe, pra leitor de tela saber
+    // qual item corresponde à página atual (sem afetar o visual).
+    if (isActive) {
+      el.setAttribute("aria-current", "page");
+    } else {
+      el.removeAttribute("aria-current");
+    }
   });
 
   const mod = await PAGES[name]();
@@ -69,7 +77,18 @@ async function showPage(name, opts) {
 function wireNav() {
   document.querySelectorAll(".nav-link[data-page]").forEach((el) => {
     if (el.classList.contains("disabled")) return; // pós-mvp
+
     el.addEventListener("click", () => showPage(el.dataset.page));
+
+    // acessibilidade via teclado: Enter/Space disparam a mesma navegação
+    // do clique (item desabilitado fica de fora — permanece focável pelo
+    // tabindex do HTML, mas não temos listener de ação nele).
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar") {
+        ev.preventDefault(); // evita rolar a página no Space
+        showPage(el.dataset.page);
+      }
+    });
   });
 }
 

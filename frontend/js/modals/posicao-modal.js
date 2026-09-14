@@ -27,25 +27,25 @@ function buildModal() {
       <div class="modal-head"><span class="modal-head-title">nova posição</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label>empresa</label><input type="text" id="pm-company" placeholder="ex: acme ltda"></div>
-          <div class="field"><label>cargo</label><input type="text" id="pm-role" placeholder="ex: dev backend pleno"></div>
+          <div class="field"><label for="pm-company">empresa</label><input type="text" id="pm-company" placeholder="ex: acme ltda"></div>
+          <div class="field"><label for="pm-role">cargo</label><input type="text" id="pm-role" placeholder="ex: dev backend pleno"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>área (opcional)</label><input type="text" id="pm-area" placeholder="ex: engenharia"></div>
+          <div class="field"><label for="pm-area">área (opcional)</label><input type="text" id="pm-area" placeholder="ex: engenharia"></div>
           <div class="field">
-            <label>tipo de vínculo</label>
+            <label for="pm-employment-type">tipo de vínculo</label>
             <select id="pm-employment-type">
               ${EMPLOYMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>início</label><input type="text" id="pm-start" placeholder="YYYY-MM-DD"></div>
-          <div class="field"><label>fim (opcional — em branco = atual)</label><input type="text" id="pm-end" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-start">início</label><input type="text" id="pm-start" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-end">fim (opcional — em branco = atual)</label><input type="text" id="pm-end" placeholder="YYYY-MM-DD"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>fim de contrato previsto (opcional)</label><input type="text" id="pm-contract-end" placeholder="YYYY-MM-DD"></div>
-          <div class="field"><label>próxima revisão salarial prevista (opcional)</label><input type="text" id="pm-salary-review" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-contract-end">fim de contrato previsto (opcional)</label><input type="text" id="pm-contract-end" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-salary-review">próxima revisão salarial prevista (opcional)</label><input type="text" id="pm-salary-review" placeholder="YYYY-MM-DD"></div>
         </div>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>

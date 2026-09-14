@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "filtrar assinaturas" — mesmo padrão de registro-filter-modal.js.
@@ -20,11 +21,11 @@ function buildModal() {
       <div class="modal-head">filtrar assinaturas <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
-          <label>conta</label>
+          <label for="afm-conta">conta</label>
           <select id="afm-conta"><option value="">— todas —</option></select>
         </div>
         <div class="field">
-          <label>status (mês atual)</label>
+          <label for="afm-status">status (mês atual)</label>
           <select id="afm-status">
             <option value="">— todos —</option>
             <option value="paga">paga</option>
@@ -72,7 +73,7 @@ export function openAssinaturaFilterModal({ accounts, current, onApply } = {}) {
 
   const contaSel = modalEl.querySelector("#afm-conta");
   contaSel.innerHTML = `<option value="">— todas —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
 
   contaSel.value = current?.contaId || "";
   modalEl.querySelector("#afm-status").value = current?.status || "";

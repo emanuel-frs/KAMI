@@ -42,14 +42,14 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">novo evento</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>título</label><input type="text" id="cem-title" placeholder="ex: consulta, reunião, viagem..."></div>
+        <div class="field"><label for="cem-title">título</label><input type="text" id="cem-title" placeholder="ex: consulta, reunião, viagem..."></div>
         <div class="field-row">
-          <div class="field"><label>data</label><input type="date" id="cem-date"></div>
-          <div class="field"><label>hora (opcional)</label><input type="time" id="cem-time"></div>
+          <div class="field"><label for="cem-date">data</label><input type="date" id="cem-date"></div>
+          <div class="field"><label for="cem-time">hora (opcional)</label><input type="time" id="cem-time"></div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label>repetir</label>
+            <label for="cem-recurrence">repetir</label>
             <select id="cem-recurrence">
               <option value="none">não repete</option>
               <option value="daily">diariamente</option>
@@ -59,17 +59,17 @@ function buildModal() {
             </select>
           </div>
           <div class="field" id="cem-until-field">
-            <label>repetir até (opcional)</label>
+            <label for="cem-until">repetir até (opcional)</label>
             <input type="date" id="cem-until">
           </div>
         </div>
         <div class="field">
-          <label>lembrete</label>
+          <label for="cem-reminder">lembrete</label>
           <select id="cem-reminder">
             ${REMINDER_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join("")}
           </select>
         </div>
-        <div class="field"><label>notas (opcional)</label><textarea id="cem-notes" rows="2" placeholder="detalhes, endereço, link..."></textarea></div>
+        <div class="field"><label for="cem-notes">notas (opcional)</label><textarea id="cem-notes" rows="2" placeholder="detalhes, endereço, link..."></textarea></div>
         <div class="form-actions" id="cem-actions">
           <button class="btn sm danger cal-event-delete-btn" data-action="delete" id="cem-delete-btn" hidden>excluir</button>
           <button class="btn sm" data-action="close">cancelar</button>

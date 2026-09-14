@@ -108,12 +108,12 @@ function buildGoalModal() {
       </div>
       <div class="modal-body">
         <div class="field">
-          <label>título</label>
+          <label for="goal-title-input">título</label>
           <input type="text" id="goal-title-input" placeholder="ex: fundo de emergência">
         </div>
         <div class="field-row">
           <div class="field">
-            <label>tipo</label>
+            <label for="goal-type-input">tipo</label>
             <select id="goal-type-input">
               ${GOAL_TYPES_MANUAL.map((t) => `<option value="${t}">${GOAL_TYPE_LABELS[t]}</option>`).join("")}
               <option value="aprendizado">aprendizado (trilha)</option>
@@ -121,7 +121,7 @@ function buildGoalModal() {
             </select>
           </div>
           <div class="field">
-            <label>peso (xp)</label>
+            <label for="goal-weight-input">peso (xp)</label>
             <select id="goal-weight-input">
               <option value="baixo">baixo</option>
               <option value="medio">médio</option>
@@ -132,33 +132,33 @@ function buildGoalModal() {
         </div>
 
         <div class="field" id="goal-track-field">
-          <label>trilha</label>
+          <label for="goal-track-input">trilha</label>
           <select id="goal-track-input"></select>
         </div>
 
         <div class="field" id="goal-education-field">
-          <label>formação</label>
+          <label for="goal-education-input">formação</label>
           <select id="goal-education-input"></select>
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label id="goal-target-label">alvo</label>
+            <label id="goal-target-label" for="goal-target-input">alvo</label>
             <input type="number" id="goal-target-input" placeholder="5000" min="0.01" step="0.01">
           </div>
           <div class="field">
-            <label>prazo (opcional)</label>
+            <label for="goal-deadline-input">prazo (opcional)</label>
             <input type="date" id="goal-deadline-input">
           </div>
         </div>
 
         <div class="field" id="goal-unit-label-field">
-          <label>unidade (opcional)</label>
+          <label for="goal-unit-label-input">unidade (opcional)</label>
           <input type="text" id="goal-unit-label-input" placeholder="ex: kg, páginas...">
         </div>
 
         <div class="field" id="goal-conta-field">
-          <label>conta padrão (opcional)</label>
+          <label for="goal-conta-input">conta padrão (opcional)</label>
           <select id="goal-conta-input"></select>
         </div>
 
@@ -397,22 +397,22 @@ function buildContributeModal() {
       </div>
       <div class="modal-body">
         <div class="field" id="goal-contribute-origem-field">
-          <label>de onde vem esse valor?</label>
+          <label for="goal-contribute-origem-input">de onde vem esse valor?</label>
           <select id="goal-contribute-origem-input">
             <option value="conta">de uma conta (sai o saldo de verdade)</option>
             <option value="externo">externo (presente, ajuda de terceiro...)</option>
           </select>
         </div>
         <div class="field" id="goal-contribute-conta-field">
-          <label>conta</label>
+          <label for="goal-contribute-conta-input">conta</label>
           <select id="goal-contribute-conta-input"></select>
         </div>
         <div class="field">
-          <label id="goal-contribute-amount-label">valor</label>
+          <label id="goal-contribute-amount-label" for="goal-contribute-amount">valor</label>
           <input type="number" id="goal-contribute-amount" min="0.01" step="0.01">
         </div>
         <div class="field">
-          <label>nota (opcional)</label>
+          <label for="goal-contribute-note">nota (opcional)</label>
           <input type="text" id="goal-contribute-note" placeholder="ex: sobrou do salário desse mês">
         </div>
         <div class="goal-contribute-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
@@ -532,7 +532,7 @@ function goalCardHtml(goal) {
   return `
     <div class="card goal-card${isDone ? " done" : ""}" data-goal-id="${goal.id}">
       <div class="card-head">
-        <span class="goal-title">${escapeHtml(goal.title)}</span>
+        <span class="goal-title" data-tooltip="${escapeHtml(goal.title)}">${escapeHtml(goal.title)}</span>
         <span class="goal-type-tag">${GOAL_TYPE_LABELS[goal.type] || goal.type}</span>
         <span class="goal-weight-tag goal-weight-${goal.weight}">${goal.weight}</span>
         <span class="push goal-card-icons">

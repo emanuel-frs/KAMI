@@ -9,8 +9,8 @@ export async function render(el, widget) {
   el.innerHTML = `
     <div class="field-row" style="margin-bottom:8px;">
       <div class="field">
-        <label>período</label>
-        <select class="log-period">
+        <label for="log-period">período</label>
+        <select class="log-period" id="log-period">
           <option value="all">tudo</option>
           <option value="7">7 dias</option>
           <option value="30">30 dias</option>

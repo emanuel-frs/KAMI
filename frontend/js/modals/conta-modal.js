@@ -24,7 +24,7 @@ let pendingBankIsNew = false;
 let editingAccount = null;
 
 function bankIconInnerFallback(b) {
-  return `<span class="ph">${b.nome.slice(0, 2).toUpperCase()}</span>`;
+  return `<span class="ph">${escapeHtml(b.nome.slice(0, 2).toUpperCase())}</span>`;
 }
 
 function buildModal() {
@@ -45,11 +45,11 @@ function buildModal() {
         </div>
         <div class="bank-new-fields" id="am-bank-new-fields">
           <div class="field">
-            <label>nome do banco</label>
+            <label for="am-nb-name">nome do banco</label>
             <input type="text" id="am-nb-name" placeholder="ex: inter, c6, will bank...">
           </div>
           <div class="field">
-            <label>imagem / logo (vira ícone em ascii)</label>
+            <label for="am-nb-file">imagem / logo (vira ícone em ascii)</label>
             <div class="al-drop" id="am-nb-drop">
               <div class="al-preview" id="am-nb-preview"><span class="ph">sem<br>imagem</span></div>
               <div style="flex:1; min-width:0;">
@@ -62,7 +62,7 @@ function buildModal() {
 
         <hr class="rule">
         <div class="field">
-          <label>nome da conta</label>
+          <label for="am-na-name">nome da conta</label>
           <input type="text" id="am-na-name" placeholder="ex: conta corrente, cartão físico...">
         </div>
 
@@ -72,14 +72,14 @@ function buildModal() {
         </div>
 
         <div class="account-saldo-fields" id="am-account-saldo-fields">
-          <div class="field"><label>saldo atual</label><input type="number" id="am-na-saldo" placeholder="0"></div>
+          <div class="field"><label for="am-na-saldo">saldo atual</label><input type="number" id="am-na-saldo" placeholder="0"></div>
         </div>
         <div class="account-credito-fields" id="am-account-credito-fields">
           <div class="field-row">
-            <div class="field"><label>fatura atual</label><input type="number" id="am-na-fatura" placeholder="0"></div>
-            <div class="field"><label>limite total</label><input type="number" id="am-na-limite" placeholder="1000"></div>
+            <div class="field"><label for="am-na-fatura">fatura atual</label><input type="number" id="am-na-fatura" placeholder="0"></div>
+            <div class="field"><label for="am-na-limite">limite total</label><input type="number" id="am-na-limite" placeholder="1000"></div>
           </div>
-          <div class="field"><label>dia de vencimento</label><input type="number" id="am-na-venc" min="1" max="31" placeholder="10"></div>
+          <div class="field"><label for="am-na-venc">dia de vencimento</label><input type="number" id="am-na-venc" min="1" max="31" placeholder="10"></div>
         </div>
 
         <div class="form-actions">

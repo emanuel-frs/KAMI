@@ -36,7 +36,7 @@ export async function render(el, widget) {
                   (i) => `
               <span class="ci-tag">
                 ${escapeHtml(i.tag)}
-                <span class="ci-tag-remove" data-remove="${i.id}" data-tooltip="remover">${icon("x", { size: 10 })}</span>
+                <span class="ci-tag-remove" data-remove="${i.id}" data-tooltip="remover" aria-label="remover">${icon("x", { size: 10 })}</span>
               </span>`
                 )
                 .join("")
@@ -45,7 +45,7 @@ export async function render(el, widget) {
       </div>
       <div class="ci-add-row">
         <input type="text" id="ci-new-tag" maxlength="40" placeholder="adicionar interesse (ex: backend, gestão, produto)">
-        <button type="button" class="btn sm" data-action="add" data-tooltip="adicionar">${icon("plus", { size: 12 })}</button>
+        <button type="button" class="btn sm" data-action="add" data-tooltip="adicionar" aria-label="adicionar">${icon("plus", { size: 12 })}</button>
       </div>
     `;
     wire();

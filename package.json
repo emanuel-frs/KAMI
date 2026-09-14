@@ -1,0 +1,11 @@
+{
+  "name": "kami-frontend-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/frontend/**/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

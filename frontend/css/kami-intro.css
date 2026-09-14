@@ -146,13 +146,34 @@
 .ki-swatch {
   width: 26px;
   height: 26px;
+  background: var(--swatch-color);
   border: 2px solid transparent;
   cursor: pointer;
-  transition: border-color 0.1s, transform 0.1s;
+  transition: border-color 0.1s, background-color 0.1s, transform 0.1s;
   outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .ki-swatch:hover { transform: scale(1.12); }
-.ki-swatch--sel { border-color: var(--text); }
+/* selecionado: inverte o preenchimento (vira a cor de fundo do sistema,
+   var(--bg)) e usa a própria cor do swatch na borda + no check — em vez
+   de uma borda genérica var(--text) + ícone var(--bg) por cima do
+   preenchimento sólido. O "furo" no fundo chama mais atenção que uma
+   borda fina, e ainda deixa claro QUAL cor está selecionada (a cor migra
+   pro contorno/ícone em vez de sumir). */
+.ki-swatch--sel {
+  background: var(--bg);
+  border-color: var(--swatch-color);
+}
+.ki-swatch .swatch-check {
+  opacity: 0;
+  color: var(--swatch-color);
+  pointer-events: none;
+}
+.ki-swatch--sel .swatch-check { opacity: 1; }
+.ki-swatch--sel .swatch-check { opacity: 1; }
 
 /* ── passo avatar ─────────────────────────────────────────────────────── */
 .ki-avatar-grid {

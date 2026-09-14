@@ -49,8 +49,8 @@ export async function render(el, widget) {
             <div class="cp-dot"></div>
             <div class="cp-content">
               <div class="cp-top">
-                <span class="cp-role" data-edit-position="${p.id}">${escapeHtml(p.role)}</span>
-                <span class="cp-remove" data-remove-position="${p.id}" data-tooltip="remover posição">${icon("x", { size: 11 })}</span>
+                <span class="cp-role" data-edit-position="${p.id}" data-tooltip="${escapeHtml(p.role)}">${escapeHtml(p.role)}</span>
+                <span class="cp-remove" data-remove-position="${p.id}" data-tooltip="remover posição" aria-label="remover posição">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-company">${escapeHtml(p.company)}${p.area ? ` · ${escapeHtml(p.area)}` : ""}${p.employment_type ? ` · ${escapeHtml(p.employment_type)}` : ""}</div>
               <div class="cp-dates">${formatDate(p.start_date)} — ${p.end_date ? formatDate(p.end_date) : "atual"}</div>

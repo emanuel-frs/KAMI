@@ -79,8 +79,8 @@ export async function render(el, widget) {
           return `
             <div class="conta-fixa-row${b.active ? (paga ? " paga" : "") : " inactive"}" data-conta-fixa-id="${b.id}">
               <div class="cf-top">
-                <span class="cf-name" data-edit-bill="${b.id}">${escapeHtml(b.name)}</span>
-                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa">${icon("x", { size: 11 })}</span>
+                <span class="cf-name" data-edit-bill="${b.id}" data-tooltip="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa" aria-label="remover conta fixa">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cf-meta">
                 <span class="cf-valor">${brl(valor)}</span>
@@ -88,7 +88,7 @@ export async function render(el, widget) {
                 ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="gerou uma transação real, descontada da conta">R$</span>` : ""}
                 ${b.active
                   ? `<button class="cf-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-bill-id="${b.id}"
-                      data-tooltip="${tooltip}">
+                      data-tooltip="${tooltip}" aria-label="${tooltip}">
                       ${paga ? "paga" : "marcar paga"}
                     </button>`
                   : `<span class="cf-inactive-tag">inativa</span>`}

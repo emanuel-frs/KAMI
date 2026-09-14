@@ -118,7 +118,7 @@ export async function render(el, widget) {
             <div class="cs-row" data-record-id="${r.id}">
               <div class="cs-top">
                 <span class="cs-amount" data-edit-salary="${r.id}">${money(r.amount, r.currency)}</span>
-                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="remover registro">${icon("x", { size: 11 })}</span>
+                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="remover registro" aria-label="remover registro">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cs-meta">${formatDate(r.date)}${r.employment_type ? ` · ${escapeHtml(r.employment_type)}` : ""}${r.reason ? ` · ${escapeHtml(r.reason)}` : ""}</div>
             </div>`).join("") : `<div class="wallet-empty">nenhum registro salarial ainda.</div>`}

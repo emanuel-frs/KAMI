@@ -28,13 +28,13 @@ function buildModal() {
       <div class="modal-head"><span class="modal-head-title">novo registro salarial</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label>valor</label><input type="text" id="sm-amount" placeholder="ex: 8500.00"></div>
-          <div class="field"><label>moeda</label><input type="text" id="sm-currency" placeholder="BRL"></div>
+          <div class="field"><label for="sm-amount">valor</label><input type="text" id="sm-amount" placeholder="ex: 8500.00"></div>
+          <div class="field"><label for="sm-currency">moeda</label><input type="text" id="sm-currency" placeholder="BRL"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>data</label><input type="text" id="sm-date" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="sm-date">data</label><input type="text" id="sm-date" placeholder="YYYY-MM-DD"></div>
           <div class="field">
-            <label>tipo de vínculo (opcional)</label>
+            <label for="sm-employment-type">tipo de vínculo (opcional)</label>
             <select id="sm-employment-type">
               <option value="">—</option>
               ${EMPLOYMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
@@ -42,8 +42,8 @@ function buildModal() {
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>posição vinculada (opcional)</label><select id="sm-position"><option value="">nenhuma</option></select></div>
-          <div class="field"><label>motivo (opcional)</label><input type="text" id="sm-reason" placeholder="ex: reajuste anual"></div>
+          <div class="field"><label for="sm-position">posição vinculada (opcional)</label><select id="sm-position"><option value="">nenhuma</option></select></div>
+          <div class="field"><label for="sm-reason">motivo (opcional)</label><input type="text" id="sm-reason" placeholder="ex: reajuste anual"></div>
         </div>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>

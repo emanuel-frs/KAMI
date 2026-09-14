@@ -52,15 +52,15 @@ function buildModal() {
             <div>
               <div class="al-drop" id="av-drop">
                 <div class="field">
-                  <label>foto (não é salva — só o resultado em texto)</label>
+                  <label for="av-file">foto (não é salva — só o resultado em texto)</label>
                   <input type="file" id="av-file" accept="image/*">
                 </div>
                 <div class="field">
-                  <label>largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
+                  <label for="av-cols">largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
                   <input type="range" id="av-cols" min="30" max="120" value="70" style="accent-color:var(--accent); width:100%;">
                 </div>
                 <div class="field">
-                  <label>rampa de caracteres</label>
+                  <label for="av-ramp">rampa de caracteres</label>
                   <select id="av-ramp">
                     <option value="detalhada">detalhada</option>
                     <option value="simples">simples</option>

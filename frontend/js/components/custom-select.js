@@ -68,7 +68,11 @@ const CSS = `
   white-space: nowrap;
 }
 .csel-trigger:hover { border-color: var(--accent-dim); color: var(--text-bright); }
-.csel-trigger:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.csel-trigger:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
 .csel-trigger::after {
   content: "";
@@ -298,6 +302,8 @@ function render(select, opts) {
   const current = optsList.find((o) => o.value === select.value) || optsList[0];
 
   ui.trigger.textContent = current ? current.label : "";
+  if (current && current.label) ui.trigger.setAttribute("data-tooltip", current.label);
+  else ui.trigger.removeAttribute("data-tooltip");
   ui.trigger.disabled = select.disabled;
   ui.wrap.classList.toggle("disabled", select.disabled);
 
@@ -307,6 +313,7 @@ function render(select, opts) {
     item.className = "csel-item" + (o.value === select.value ? " on" : "") + (o.disabled ? " disabled" : "");
     item.setAttribute("role", "option");
     item.textContent = o.label;
+    if (o.label) item.setAttribute("data-tooltip", o.label);
     if (!o.disabled) {
       item.addEventListener("click", (e) => {
         e.stopPropagation();

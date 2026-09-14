@@ -2,6 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "nova fonte de renda" / "editar fonte de renda" — mesmo padrão
@@ -57,11 +58,11 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">nova fonte de renda</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>nome</label><input type="text" id="ism-nome" placeholder="ex: salário, freelance..."></div>
-        <div class="field"><label>valor</label><input type="number" id="ism-valor" placeholder="0.00"></div>
+        <div class="field"><label for="ism-nome">nome</label><input type="text" id="ism-nome" placeholder="ex: salário, freelance..."></div>
+        <div class="field"><label for="ism-valor">valor</label><input type="number" id="ism-valor" placeholder="0.00"></div>
 
         <div class="field">
-          <label>frequência</label>
+          <label for="ism-frequencia">frequência</label>
           <select id="ism-frequencia">
             <option value="mensal">mensal</option>
             <option value="quinzenal">quinzenal</option>
@@ -71,43 +72,43 @@ function buildModal() {
         </div>
 
         <div class="field" id="ism-tipo-data-field">
-          <label>como calcular a data</label>
+          <label for="ism-tipo-data">como calcular a data</label>
           <select id="ism-tipo-data"></select>
         </div>
 
         <div class="field" id="ism-dia-mes-field" style="display:none;">
-          <label>dia do mês</label>
+          <label for="ism-dia-mes">dia do mês</label>
           <input type="number" id="ism-dia-mes" min="1" max="31" placeholder="5">
         </div>
 
         <div class="field" id="ism-nth-dia-util-field" style="display:none;">
-          <label>N-ésimo dia útil</label>
+          <label for="ism-nth-dia-util">N-ésimo dia útil</label>
           <input type="number" id="ism-nth-dia-util" min="1" placeholder="5">
         </div>
 
         <div class="field-row" id="ism-intervalo-fields" style="display:none;">
-          <div class="field"><label>a cada quantos dias</label><input type="number" id="ism-intervalo-dias" min="1" placeholder="7"></div>
-          <div class="field"><label>a partir de</label><input type="date" id="ism-data-base"></div>
+          <div class="field"><label for="ism-intervalo-dias">a cada quantos dias</label><input type="number" id="ism-intervalo-dias" min="1" placeholder="7"></div>
+          <div class="field"><label for="ism-data-base">a partir de</label><input type="date" id="ism-data-base"></div>
         </div>
 
         <div class="field-row" id="ism-offset-fields" style="display:none;">
           <div class="field">
-            <label>depende de</label>
+            <label for="ism-fonte-referencia">depende de</label>
             <select id="ism-fonte-referencia"></select>
           </div>
-          <div class="field"><label>+ dias úteis</label><input type="number" id="ism-offset-dias" min="0" placeholder="15"></div>
+          <div class="field"><label for="ism-offset-dias">+ dias úteis</label><input type="number" id="ism-offset-dias" min="0" placeholder="15"></div>
         </div>
 
         <div class="field" id="ism-data-avulsa-field" style="display:none;">
-          <label>data</label>
+          <label for="ism-data-avulsa">data</label>
           <input type="date" id="ism-data-avulsa">
         </div>
 
         <div class="field">
-          <label>conta vinculada (opcional — habilita creditar automaticamente)</label>
+          <label for="ism-conta">conta vinculada (opcional — habilita creditar automaticamente)</label>
           <select id="ism-conta"><option value="">— nenhuma, só lembrete —</option></select>
         </div>
-        <div class="field"><label>categoria (opcional)</label><input type="text" id="ism-categoria" placeholder="ex: salário, freelance..."></div>
+        <div class="field"><label for="ism-categoria">categoria (opcional)</label><input type="text" id="ism-categoria" placeholder="ex: salário, freelance..."></div>
         <label class="account-flag"><input type="checkbox" id="ism-active" checked> ativa</label>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>
@@ -161,7 +162,7 @@ function populateFonteReferenciaOptions(wrap, sources) {
   const select = wrap.querySelector("#ism-fonte-referencia");
   const options = (sources || []).filter((s) => !editingSource || s.id !== editingSource.id);
   select.innerHTML = options.length
-    ? options.map((s) => `<option value="${s.id}">${s.nome}</option>`).join("")
+    ? options.map((s) => `<option value="${s.id}">${escapeHtml(s.nome)}</option>`).join("")
     : `<option value="">— nenhuma outra fonte cadastrada —</option>`;
   refreshCustomSelect(select);
 }
@@ -282,7 +283,7 @@ export function openFonteRendaModal({ source = null, sources = [], accounts = []
 
   modalEl.querySelector("#ism-conta").innerHTML =
     `<option value="">— nenhuma, só lembrete —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#ism-conta").value = editingSource?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#ism-conta"));
 

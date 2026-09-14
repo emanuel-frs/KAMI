@@ -363,7 +363,7 @@ function renderDayPanel() {
             <span class="cal-event-dot${milestone ? " milestone" : ""}" style="--type-color:${meta.color}">${icon(meta.icon, { size: 20 })}</span>
             <span class="cal-event-type">${escapeHtml(meta.label)}</span>
             ${e.time ? `<span class="cal-event-time">${icon("clock", { size: 10 })}${escapeHtml(e.time)}</span>` : ""}
-            <span class="cal-event-title">${escapeHtml(title)}</span>
+            <span class="cal-event-title" data-tooltip="${escapeHtml(title)}">${escapeHtml(title)}</span>
             ${statusHtml}
             ${amountHtml}
             ${xpHtml}

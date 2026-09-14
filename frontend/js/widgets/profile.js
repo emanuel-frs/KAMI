@@ -73,7 +73,7 @@ export async function render(el, widget) {
 
   el.innerHTML = `
     <div class="view-mode">
-      <div class="pw-avatar-btn" data-tooltip="ver/editar avatar">
+      <div class="pw-avatar-btn" data-tooltip="ver/editar avatar" aria-label="ver/editar avatar">
         <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
       </div>
       <div style="flex:1 1 200px; min-width:0;">

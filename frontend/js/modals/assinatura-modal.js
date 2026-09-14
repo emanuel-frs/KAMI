@@ -2,6 +2,7 @@ import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "nova assinatura" / "editar assinatura" — mesmo padrão dual
@@ -29,16 +30,16 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head"><span class="modal-head-title">nova assinatura</span> <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
-        <div class="field"><label>nome</label><input type="text" id="sm-nome" placeholder="ex: streaming, academia..."></div>
+        <div class="field"><label for="sm-nome">nome</label><input type="text" id="sm-nome" placeholder="ex: streaming, academia..."></div>
         <div class="field-row">
-          <div class="field"><label>valor esperado</label><input type="number" id="sm-valor" placeholder="0.00"></div>
-          <div class="field"><label>dia de cobrança</label><input type="number" id="sm-dia" min="1" max="31" placeholder="10"></div>
+          <div class="field"><label for="sm-valor">valor esperado</label><input type="number" id="sm-valor" placeholder="0.00"></div>
+          <div class="field"><label for="sm-dia">dia de cobrança</label><input type="number" id="sm-dia" min="1" max="31" placeholder="10"></div>
         </div>
         <div class="field">
-          <label>conta vinculada (opcional — habilita descontar automaticamente)</label>
+          <label for="sm-conta">conta vinculada (opcional — habilita descontar automaticamente)</label>
           <select id="sm-conta"><option value="">— nenhuma, só lembrete —</option></select>
         </div>
-        <div class="field"><label>categoria (opcional)</label><input type="text" id="sm-categoria" placeholder="ex: streaming, assinaturas..."></div>
+        <div class="field"><label for="sm-categoria">categoria (opcional)</label><input type="text" id="sm-categoria" placeholder="ex: streaming, assinaturas..."></div>
         <label class="account-flag"><input type="checkbox" id="sm-active" checked> ativa</label>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>
@@ -112,7 +113,7 @@ export function openAssinaturaModal({ subscription = null, accounts = [], onSave
 
   modalEl.querySelector("#sm-conta").innerHTML =
     `<option value="">— nenhuma, só lembrete —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#sm-conta").value = editingSubscription?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#sm-conta"));
 

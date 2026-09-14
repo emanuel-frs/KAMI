@@ -98,21 +98,21 @@ export async function render(el, widget) {
           return `
             <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}" data-parcela-id="${c.id}">
               <div class="cp-top">
-                <span class="cp-nome" data-edit-compra="${c.id}">${escapeHtml(c.nome)}</span>
-                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
+                <span class="cp-nome" data-edit-compra="${c.id}" data-tooltip="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</span>
+                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)" aria-label="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-meta">
                 <div class="cp-parcela-adjust">
-                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
+                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento" aria-label="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
                   <span class="cp-parcela">${c.parcela_atual}/${c.num_parcelas}${ajusteTag}${c.quitada ? " · quitada" : ""}</span>
-                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
+                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela" aria-label="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
                 </div>
                 <div class="cp-valor-stack">
                   <span class="cp-valor">${brl(c.valor_parcela)}</span>
                   <span class="cp-valor-total">de ${brl(c.valor_total)}</span>
                 </div>
               </div>
-              <div class="cp-conta">${contaLabel}</div>
+              <div class="cp-conta" data-tooltip="${contaLabel}">${contaLabel}</div>
             </div>`;
         }).join("") : `<div class="wallet-empty">nenhuma compra parcelada cadastrada.</div>`}
       </div>
@@ -129,7 +129,7 @@ export async function render(el, widget) {
         <div class="cp-fatura-list">
           ${faturaItens.length ? faturaItens.map((f) => `
             <div class="cp-fatura-row">
-              <span class="cp-fatura-nome">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
+              <span class="cp-fatura-nome" data-tooltip="${escapeHtml(f.nome)}">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
               <span class="cp-fatura-valor">${brl(f.valor_parcela)}</span>
             </div>`).join("") : `<div class="wallet-empty">nenhuma compra parcelada ativa em ${monthLabel(faturaMes)}.</div>`}
         </div>

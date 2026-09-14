@@ -74,8 +74,8 @@ export async function render(el, widget) {
         return `
           <div class="renda-row inactive" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta"><span class="cf-inactive-tag">inativa</span></div>
           </div>`;
@@ -84,8 +84,8 @@ export async function render(el, widget) {
         return `
           <div class="renda-row" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta"><span class="renda-data">sem ocorrência este mês</span></div>
           </div>`;
@@ -98,14 +98,14 @@ export async function render(el, widget) {
         return `
           <div class="renda-row${pago ? " pago" : ""}" data-renda-id="${e.id}" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
               <span class="renda-valor">${brl(e.amount)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta">
               <span class="renda-data">${pago ? formatDate(e.paid_date) : `previsto ${formatDate(e.expected_date)}`}</span>
               ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="gerou uma transação real, creditada na conta">R$</span>` : ""}
-              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}">
+              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}" aria-label="${tooltip}">
                 ${pago ? "pago" : "marcar paga"}
               </button>
             </div>
