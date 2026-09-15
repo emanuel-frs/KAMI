@@ -12,6 +12,7 @@ import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
+import { wireModalAccessibility } from "./components/modal-accessibility.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
@@ -187,6 +188,7 @@ async function boot() {
   wireHelpButton();
   wireNotificationBell();
   wireModalEscapeClose();
+  wireModalAccessibility();
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
