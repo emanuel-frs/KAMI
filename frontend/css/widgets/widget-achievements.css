@@ -18,7 +18,6 @@
 .card[data-manual="1"] .ach-grid {
   max-height: none;
 }
-.ach-grid.ach-grid-lg { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
 .ach {
   border: 1px solid var(--border-soft);
   background: var(--bg-alt);

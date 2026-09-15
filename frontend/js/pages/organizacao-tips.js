@@ -4,12 +4,14 @@ import { startTipSequence } from "../components/tip-sequence.js";
 import { switchTab } from "./organizacao.js";
 
 /**
- * Dicas contextuais de Organização (etapa 5, plano-onboarding-kami.md,
+ * Dicas contextuais de Organização (etapa 5,
  * seção 8 item 5). Segunda das três telas de layout fixo — mesmo
  * modelo de lista manual de Metas (metas-tips.js), mas com uma
- * complicação nova: três abas fixas (links/github/e-mail), e só a aba
- * ativa fica com `display` visível — as outras duas somem via CSS
- * (ver switchTab() em organizacao.js), embora continuem no DOM.
+ * complicação nova: três abas fixas (github/e-mail/links — nessa
+ * ordem, espelhando a barra de abas depois do reordenamento pra
+ * github primeiro), e só a aba ativa fica com `display` visível — as
+ * outras duas somem via CSS (ver switchTab() em organizacao.js),
+ * embora continuem no DOM.
  *
  * Isso quebra o destaque de qualquer passo que aponte pra dentro de
  * uma aba que não seja a ativa no momento: document.querySelector
@@ -23,15 +25,15 @@ import { switchTab } from "./organizacao.js";
  * ANTES do próprio passo ser posicionado — não dá pra confiar que o
  * passo anterior já deixou a aba certa ativa, porque o replay manual
  * ("rever dicas desta tela") pode começar com o usuário em qualquer
- * aba, não só "links" (a aba padrão só vale pra quem acabou de montar
- * a tela). `switchTab` é idempotente (trocar pra uma aba já ativa não
- * faz nada), então não custa nada incluir o onEnter em mais de um
- * passo do mesmo grupo.
+ * aba, não só "github" (a aba padrão só vale pra quem acabou de
+ * montar a tela). `switchTab` é idempotente (trocar pra uma aba já
+ * ativa não faz nada), então não custa nada incluir o onEnter em mais
+ * de um passo do mesmo grupo.
  *
  * Os pills da barra de abas (`.tab[data-tab="..."]`) ficam de fora
  * dessa exigência — a barra em si nunca é escondida, só os painéis de
  * conteúdo abaixo dela — por isso os passos que apontam pra um pill
- * (ex: apresentar a aba github antes de entrar nela) não precisam de
+ * (ex: apresentar a aba email antes de entrar nela) não precisam de
  * onEnter.
  *
  * Nenhum passo aqui usa advanceOn:"interact" em cima de um botão que
@@ -41,8 +43,8 @@ import { switchTab } from "./organizacao.js";
  * modal faz o passo seguinte tentar se posicionar por baixo dele).
  * Aqui isso importa ainda mais: são três botões de "+ adicionar" (um
  * por aba), todos abrindo modal — só o da última aba percorrida
- * (e-mail) pode ser ensinado com clique de verdade; os outros dois só
- * informam.
+ * (links, agora que a ordem virou github → e-mail → links) pode ser
+ * ensinado com clique de verdade; os outros dois só informam.
  */
 const SCREEN = "organizacao";
 
@@ -64,17 +66,10 @@ const STEPS = [
   // ─── visão geral das abas ─────────────────────────────────────────────
   {
     selector: ".tabs",
-    text: "organização guarda três tipos de fonte — links, repositórios do github e e-mail — cada um na sua aba.",
+    text: "organização guarda três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
   },
 
-  // ─── aba: links ────────────────────────────────────────────────────────
-  {
-    onEnter: () => switchTab("links"),
-    selector: '[data-action="open-link-modal"]',
-    text: "\"+ adicionar link\" cadastra um atalho novo. a categoria é livre — você escolhe os nomes, e os links viram grupos por categoria aqui embaixo.",
-  },
-
-  // ─── aba: github ───────────────────────────────────────────────────────
+  // ─── aba: github (padrão ao entrar na tela) ────────────────────────────
   {
     selector: '.tab[data-tab="github"]',
     text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github.",
@@ -93,14 +88,21 @@ const STEPS = [
   // ─── aba: e-mail ───────────────────────────────────────────────────────
   {
     selector: '.tab[data-tab="email"]',
-    text: "e a última aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local.",
+    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local.",
   },
+  {
+    onEnter: () => switchTab("email"),
+    selector: '[data-action="open-manage-accounts-modal"]',
+    text: '"gerenciar contas" é onde tudo acontece: adicionar uma conta nova (host e porta imap, usuário, e uma senha de app — não a sua senha normal; gmail, outlook etc. geram essa senha separada nas configurações de segurança), silenciar ou remover as existentes. dá pra ter várias contas, e marcar quais ficam selecionadas por padrão sempre que você abrir a tela.',
+  },
+
+  // ─── aba: links ────────────────────────────────────────────────────────
   {
     // ensinar a usar — abre modal, então precisa ser o ÚLTIMO passo da
     // sequência inteira (ver comentário no topo do arquivo)
-    onEnter: () => switchTab("email"),
-    selector: '[data-action="open-account-modal"]',
-    text: "toda conta de e-mail nova começa aqui.",
+    onEnter: () => switchTab("links"),
+    selector: '[data-action="open-link-modal"]',
+    text: "\"+ adicionar link\" cadastra um atalho novo. a categoria é livre — você escolhe os nomes, e os links viram grupos por categoria aqui embaixo.",
     advanceOn: "interact",
   },
 ];

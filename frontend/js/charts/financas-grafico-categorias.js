@@ -49,7 +49,7 @@ export async function render(el, widget) {
         ${categories.length ? categories.map((c) => `
           <div class="cat-row">
             <div class="cat-top">
-              <span class="cat-label">${escapeHtml(c.category)}</span>
+              <span class="cat-label" data-tooltip="${escapeHtml(c.category)}">${escapeHtml(c.category)}</span>
               <span class="cat-valor">${brl(c.total)}</span>
             </div>
             <div class="cat-bar-track"><div class="bar-fill" style="width:${((c.total / max) * 100).toFixed(1)}%;"></div></div>

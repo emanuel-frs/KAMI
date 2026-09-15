@@ -1,6 +1,6 @@
 import { listEmailCache } from "../api/organizacao.js";
 import { icon } from "./icons.js";
-import { openNotificationsModal } from "../modals/notifications-modal.js";
+import { openNotificacoesModal } from "../modals/notificacoes-modal.js";
 import { store } from "../state/store.js";
 
 /**
@@ -8,7 +8,7 @@ import { store } from "../state/store.js";
  * configurações) — montado uma vez em app.js (boot()).
  *
  * Notificações v2.1: o sino em si virou só um botão + badge — clicar
- * nele abre modals/notifications-modal.js (calendário + e-mail juntos
+ * nele abre modals/notificacoes-modal.js (calendário + e-mail juntos
  * no mesmo lugar). Antes disso este arquivo também desenhava um
  * popover próprio só com e-mail (`.nbell-pop`, ancorado tipo tooltip
  * no botão), que cortava na tela em telas menores por causa desse
@@ -68,7 +68,7 @@ export function wireNotificationBell() {
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    openNotificationsModal();
+    openNotificacoesModal();
   });
 
   // recontagem sempre que o perfil mudar — cobre tanto o carregamento

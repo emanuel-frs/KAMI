@@ -1,8 +1,11 @@
 """
 Módulo Dashboard — layout de widgets configuráveis (decisão 17).
 
-Persiste o layout (quais widgets, ordem, largura) das telas 'perfil'
-e 'nucleo'. Widgets não-removíveis do catálogo (ex: 'profile') fazem
+Persiste o layout (quais widgets, ordem, largura) das telas com dashboard
+configurável — hoje 'perfil', 'nucleo', 'financas' e 'carreira' (ver
+KNOWN_SCREENS logo abaixo; ao adicionar uma tela nova, essa lista é a
+única coisa que precisa mudar aqui). Widgets não-removíveis do catálogo
+(ex: 'profile') fazem
 parte da tabela como qualquer outro — só não podem ser omitidos de
 um replace de layout, já que o usuário não pode removê-los pela UI.
 

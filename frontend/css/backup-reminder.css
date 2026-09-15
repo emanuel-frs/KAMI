@@ -58,6 +58,14 @@
   font-family: var(--font);
 }
 .backup-reminder-close:hover { color: var(--text-bright); }
+/* botão nativo, mas sem a classe .btn (que já ganhou o reforço em
+   forms.css) — sem isto ficava só no outline default do navegador,
+   inconsistente com o resto do tema. */
+.backup-reminder-close:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
 @media (max-width: 520px) {
   .backup-reminder-toast {

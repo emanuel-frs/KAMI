@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
 
 function brl(v) {
@@ -11,7 +11,7 @@ export async function render(el, widget) {
   async function reload() {
     let banks;
     try {
-      banks = await walletApi.listBanks();
+      banks = await carteiraApi.listBanks();
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar limites: ${err.message}</div>`;
       return;
@@ -33,7 +33,7 @@ export async function render(el, widget) {
           return `
             <div class="lim-row">
               <div class="lim-top">
-                <span class="lim-label">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
+                <span class="lim-label" data-tooltip="${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</span>
                 <span class="lim-pct">${pct}%</span>
               </div>
               <div class="lim-bar-track"><div class="bar-fill lim-${nivel}" style="width:${pct}%;"></div></div>

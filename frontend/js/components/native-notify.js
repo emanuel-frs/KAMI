@@ -6,18 +6,17 @@
  * silencioso nesse caso, e quem chama não precisa checar `isTauri` toda
  * vez.
  *
- * IMPORTANTE — requer trabalho do lado Rust que este pacote (frontend/
- * + backend/) não inclui, porque src-tauri/ não faz parte deste repo:
- *   1. `cargo add tauri-plugin-notification` dentro de src-tauri/
- *   2. registrar o plugin em src-tauri/src/main.rs (ou lib.rs):
+ * Lado Rust (src-tauri/) já está com tudo que isso precisa:
+ *   1. tauri-plugin-notification adicionado em src-tauri/Cargo.toml
+ *   2. plugin registrado em src-tauri/src/main.rs:
  *        .plugin(tauri_plugin_notification::init())
- *   3. adicionar a permissão em src-tauri/capabilities/default.json:
- *        "notification:default"
- *   4. confirmar que tauri.conf.json mantém app.withGlobalTauri = true
- *      (já é o caso — ver titlebar.js — então window.__TAURI__.notification
- *      aparece automaticamente depois do passo 2, sem import npm).
- * Sem esses 4 passos, window.__TAURI__.notification simplesmente não
- * existe e o app cai no toast in-app (ver calendar-notifications.js) —
+ *   3. permissão "notification:default" em src-tauri/capabilities/default.json
+ *   4. tauri.conf.json com app.withGlobalTauri = true (ver titlebar.js) —
+ *      é o que faz window.__TAURI__.notification aparecer sozinho depois
+ *      do passo 2, sem import npm.
+ * Se algum dia window.__TAURI__.notification não existir mesmo assim
+ * (build sem algum desses passos, ou versão do plugin desalinhada), o
+ * app cai sozinho no toast in-app (ver calendar-notifications.js) —
  * funciona igual, só sem o popup do SO.
  */
 
@@ -65,6 +64,3 @@ export async function sendNativeNotification({ title, body = "" } = {}) {
   }
 }
 
-export function isNativeNotificationAvailable() {
-  return Boolean(api());
-}

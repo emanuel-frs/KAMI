@@ -6,7 +6,7 @@ import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/s
 
 // Sem title/tag/description -> createDashboardPage não renderiza page-head.
 //
-// onReady (etapa 5, plano-onboarding-kami.md): dispara a checagem das
+// onReady (etapa 5): dispara a checagem das
 // dicas contextuais assim que o grid monta, e de novo via
 // store.subscribe("profile") sempre que o perfil mudar — necessário
 // porque no primeiro boot o Núcleo já monta ANTES do onboarding geral

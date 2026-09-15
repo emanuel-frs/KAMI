@@ -3,7 +3,7 @@ import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
 
 /**
- * Dicas contextuais de Metas (etapa 5, plano-onboarding-kami.md,
+ * Dicas contextuais de Metas (etapa 5,
  * seção 8 item 5). Primeira das três telas de layout fixo (a tela em
  * si que valida a abordagem antes de espalhar pra Organização e
  * Aprendizado — ver discussão que motivou este arquivo).

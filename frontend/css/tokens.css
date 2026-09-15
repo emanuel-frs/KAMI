@@ -21,6 +21,13 @@
   --card: #0d0d0d;
   --border: #3c3c3c;
   --border-soft: #242424;
+  /* --border-interactive: mesma família visual de --border, só que
+     calibrada pra ≥3:1 contra --bg (WCAG 1.4.11), usada apenas nos
+     contornos que demarcam um componente interativo (input, botão,
+     dropdown, tab/chip clicável, dropzone). --border continua
+     #3c3c3c pra divisores e containers puramente decorativos — ver
+     auditoria de contraste em frontend/css/*.css. */
+  --border-interactive: #5c5c5c;
 
   --accent: #8fbf8f;       /* default — sobrescrito por accent_color do perfil */
   --accent-dim: color-mix(in srgb, var(--accent) 58%, black);
@@ -31,7 +38,14 @@
   --text: #c9c9c9;
   --text-bright: #f2f2f2;
   --text-dim: #8a8a8a;
-  --text-faint: #4d4d4d;
+  /* #4d4d4d tinha ≈2,5:1 contra --bg — abaixo do mínimo de 4,5:1 do
+     WCAG 2.1 AA pra texto normal (era usado majoritariamente como
+     texto de verdade: labels, placeholders, timestamps, branch da
+     sidebar etc.). #757575 dá ≈4,56:1. As duas exceções puramente
+     decorativas que usam esse token como preenchimento (o ícone
+     chevron em card-base.css e o "cp-dot" de widget-carreira.css)
+     clareiam junto, mas continuam sutis e não quebram a paleta. */
+  --text-faint: #757575;
 
   --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
 }

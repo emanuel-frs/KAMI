@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
-import { openIncomeSourceModal } from "../modals/income-source-modal.js";
+import { openFonteRendaModal } from "../modals/fonte-renda-modal.js";
 import { openPayIncomeModal } from "../modals/pay-income-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -9,7 +9,7 @@ import { icon } from "../components/icons.js";
 
 /**
  * Widget "renda recorrente" (financas_renda) — v2: fecha o item 2 do
- * mapa de problemas antigo (o backend só tinha 2 fontes fixas
+ * levantamento antigo de pendências (o backend só tinha 2 fontes fixas
  * hardcoded, sem CRUD nenhum). Agora:
  *   - lista TODAS as fontes ativas, uma ocorrência por linha (uma
  *     fonte com tipo_data='intervalo_dias' semanal pode ter várias
@@ -18,7 +18,7 @@ import { icon } from "../components/icons.js";
  *     contas-fixas.js, item 5);
  *   - toggle "marcar paga" abre pay-income-modal.js (valor editável,
  *     credita saldo real se a fonte tem conta_id vinculada);
- *   - "+ fonte de renda" abre income-source-modal.js pro CRUD completo.
+ *   - "+ fonte de renda" abre fonte-renda-modal.js pro CRUD completo.
  *
  * Deliberadamente fora do Calendário por enquanto (ver comentário em
  * app/routers/calendario.py) — só aparece aqui em Finanças.
@@ -53,7 +53,7 @@ export async function render(el, widget) {
       [sources, entries, banks] = await Promise.all([
         financasApi.listIncomeSources(),
         financasApi.getIncomeEntries(month),
-        walletApi.listBanks(),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar renda: ${err.message}</div>`;
@@ -74,8 +74,8 @@ export async function render(el, widget) {
         return `
           <div class="renda-row inactive" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta"><span class="cf-inactive-tag">inativa</span></div>
           </div>`;
@@ -84,8 +84,8 @@ export async function render(el, widget) {
         return `
           <div class="renda-row" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta"><span class="renda-data">sem ocorrência este mês</span></div>
           </div>`;
@@ -98,14 +98,14 @@ export async function render(el, widget) {
         return `
           <div class="renda-row${pago ? " pago" : ""}" data-renda-id="${e.id}" data-fonte-id="${source.id}">
             <div class="renda-top">
-              <span class="renda-label" data-edit-source="${source.id}">${escapeHtml(source.nome)}</span>
+              <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
               <span class="renda-valor">${brl(e.amount)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta">
               <span class="renda-data">${pago ? formatDate(e.paid_date) : `previsto ${formatDate(e.expected_date)}`}</span>
               ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="gerou uma transação real, creditada na conta">R$</span>` : ""}
-              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}">
+              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}" aria-label="${tooltip}">
                 ${pago ? "pago" : "marcar paga"}
               </button>
             </div>
@@ -126,7 +126,7 @@ export async function render(el, widget) {
       label.addEventListener("click", () => {
         const id = label.getAttribute("data-edit-source");
         const source = sources.find((s) => s.id === id);
-        if (source) openIncomeSourceModal({ source, sources, accounts: flatAccounts(), onSaved: reload });
+        if (source) openFonteRendaModal({ source, sources, accounts: flatAccounts(), onSaved: reload });
       });
     });
 
@@ -178,7 +178,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-source"]').addEventListener("click", () => {
-      openIncomeSourceModal({ sources, accounts: flatAccounts(), onSaved: reload });
+      openFonteRendaModal({ sources, accounts: flatAccounts(), onSaved: reload });
     });
   }
 

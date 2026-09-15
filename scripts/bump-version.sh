@@ -39,6 +39,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION_FILE="$ROOT_DIR/VERSION"
 CHANGELOG_FILE="$ROOT_DIR/CHANGELOG.md"
+README_FILE="$ROOT_DIR/README.md"
 
 DRY_RUN=false
 NO_TAG=false
@@ -151,6 +152,19 @@ fi
 # --- escreve VERSION ---------------------------------------------------
 echo "$NEW_VERSION" > "$VERSION_FILE"
 
+# --- sincroniza o badge de versão no README.md -----------------------------
+# só troca o padrão exato `vX.Y.Z` (o badge no topo do arquivo) — não mexe
+# em outras versões citadas no README (ex: `cargo install tauri-cli
+# --version "^2"`), já que essas não são a versão do Kami.
+if [ -f "$README_FILE" ]; then
+  if grep -qE '`v[0-9]+\.[0-9]+\.[0-9]+`' "$README_FILE"; then
+    sed -i -E "s/\`v[0-9]+\.[0-9]+\.[0-9]+\`/\`v${NEW_VERSION}\`/" "$README_FILE"
+    echo "README.md -> badge atualizado pra v${NEW_VERSION}"
+  else
+    echo "aviso: não achei o badge \`vX.Y.Z\` no README.md — confira manualmente" >&2
+  fi
+fi
+
 # --- escreve/atualiza CHANGELOG.md -----------------------------------------
 if [ ! -f "$CHANGELOG_FILE" ]; then
   cat > "$CHANGELOG_FILE" <<EOF
@@ -175,7 +189,7 @@ echo "VERSION -> $NEW_VERSION"
 echo "CHANGELOG.md atualizado"
 
 # --- commit + tag ------------------------------------------------------
-git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE"
+git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE"
 git -C "$ROOT_DIR" commit -m "chore(release): v${NEW_VERSION}"
 
 if ! $NO_TAG; then

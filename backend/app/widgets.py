@@ -62,7 +62,7 @@ WIDGET_CATALOG = {
         "max_span": 6,
         "default_span": 4,
     },
-    "wallet": {
+    "carteira": {
         "label": "wallet — bancos e contas",
         "screens": ["financas"],
         "removable": True,

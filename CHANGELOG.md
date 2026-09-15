@@ -4,6 +4,22 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] - 2026-09-14
+
+### Adicionado
+- aprimora acessibilidade e movimentação de widgets
+- aprimorar acessibilidade e melhorar formulários de widgets
+
+### Outros
+- Adição de dicas de carreira contextuais e recurso de logotipo
+
+
+## [1.5.0] - 2026-09-01
+
+### Modificado
+- padroniza nomenclatura para PT-BR e aplica achados da auditoria de código
+
+
 ## [1.4.0] - 2026-08-30
 
 ### Adicionado

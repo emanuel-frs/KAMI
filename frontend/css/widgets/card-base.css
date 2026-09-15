@@ -123,8 +123,51 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
      igual o texto ficava alinhado com o resto do card-head */
   display: inline-flex;
   align-items: center;
+  /* é um <button> (reordenação por teclado, ver grid.js attachDragHandle)
+     — reset dos estilos de botão nativo pra continuar parecendo o
+     mesmo ícone "solto" de antes, sem fundo/borda/padding de <button>. */
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
 }
 .drag-handle:hover { color: var(--accent); }
+
+/* foco visível da alça (navegação por Tab) — mesmo padrão de
+   outline+box-shadow usado em .btn:focus-visible (ver forms.css), só
+   que sem outline-offset positivo (o ícone é pequeno e fica colado no
+   canto do card-head, um offset grande vazaria por cima do texto do
+   título). */
+.drag-handle:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 2px;
+  color: var(--accent);
+}
+
+/* ── reordenação por teclado (widgets/grid.js) ───────────────────────────
+ * .kw-grabbed é aplicada no .card "pego" via Enter/Espaço na alça —
+ * equivalente por teclado de estar sendo arrastado com o mouse
+ * (.dragging-card), reaproveita o mesmo destaque visual pra não criar
+ * uma segunda linguagem de "isto está sendo movido". Diferença: o
+ * card continua no fluxo normal do grid (não vira position:fixed como
+ * no drag de mouse), porque aqui ele precisa continuar participando do
+ * layout normalmente enquanto o usuário movimenta ele passo a passo.
+ */
+.card.kw-preselected {
+  border: 1px dashed var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.widget-grid.wg-keyboard-mode > .card:focus {
+  outline: none;
+}
+
+.card.kw-grabbed {
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 26px rgba(0, 0, 0, .35);
+  border-color: var(--accent);
+}
 
 .wg-size-badge {
   position: absolute;
@@ -186,8 +229,7 @@ body.kami-dragging * { cursor: grabbing !important; user-select: none !important
 .card[data-manual="1"] .resize-reset { display: flex; }
 .resize-reset:hover { color: var(--accent); }
 
-/* Bloqueio durante a sequência de dicas contextuais (etapa 5,
-   plano-onboarding-kami.md) — o card em destaque fica exposto pelo
+/* Bloqueio durante a sequência de dicas contextuais (etapa 5) — o card em destaque fica exposto pelo
    spotlight (ver tip-sequence.css), mas não pode ser arrastado,
    redimensionado ou removido enquanto o tour roda por cima dele. */
 .widget-grid.wg-tips-locked .drag-handle,
@@ -203,7 +245,6 @@ body.kami-resizing * { user-select: none !important; cursor: nwse-resize !import
 /* ── modo visualização / edição ──────────────────────────────────────────── */
 .card[data-editable] .edit-mode { display: none; }
 .card[data-editable].editing .view-mode { display: none; }
-.card[data-editable] .card-head .mode-toggle-btn { margin-left: auto; }
 
 /* min-height de segurança pro modo de edição — o ajuste "de verdade" do
    tamanho do card (grid-row-end) é feito via JS (profile.js), isso aqui

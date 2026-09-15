@@ -3,10 +3,12 @@ Módulo Organização (v1).
 
 Três fontes, conforme decisão de arquitetura:
   - links:  cadastro simples, agrupado por categoria (CRUD puro, sem API externa)
-  - github: 1+ repositórios, status sincronizado via API pública do GitHub
-            (sem autenticação — só repositórios públicos, rate limit de 60 req/h
-            por IP no v1; se isso for um problema, decisão futura é adicionar
-            um token pessoal via header Authorization). Repositórios têm uma
+  - github: 1+ repositórios, status sincronizado via API do GitHub. Sem
+            token cadastrado, usa autenticação anônima (só repositórios
+            públicos, rate limit de 60 req/h por IP). Com token pessoal
+            cadastrado (ver PUT /github-token), autentica via header
+            Authorization — libera repositórios privados do usuário e um
+            limite de requisições bem maior. Repositórios têm uma
             coluna `source`: 'manual' (cadastrados um a um por aqui) ou 'auto'
             (importados automaticamente ao salvar/trocar o token — ver
             PUT /github-token e _auto_import_repos). Trocar o token remove só
@@ -16,7 +18,7 @@ Três fontes, conforme decisão de arquitetura:
             fica reservado pro pós-mvp); senha de app guardada criptografada
             (ver app/crypto.py)
 
-A busca rápida (org-search no mockup, ver ALINHAMENTO.md 4.1) usa a
+A busca rápida (org-search no mockup) usa a
 API da Tavily (https://tavily.com) — free tier real (1000
 créditos/mês, sem cartão), e já devolve um "answer" resumido pronto
 além dos links, o que evita ter que montar esse resumo aqui a partir
@@ -29,6 +31,8 @@ no duckduckgo" como antes.
 Endpoints:
   GET    /api/organizacao/links                    lista links (filtro opcional por categoria)
   POST   /api/organizacao/links                     cria link
+  PUT    /api/organizacao/links/{id}                edita link (todos os campos opcionais,
+                                                     mesmo padrão de PUT /email-accounts/{id})
   DELETE /api/organizacao/links/{id}                remove link
 
   GET    /api/organizacao/github-repos              lista repos cadastrados (com cache atual)
@@ -104,7 +108,7 @@ GITHUB_REPOS_MAX_PAGES = 20
 
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 # quantos resultados a tavily devolve por busca — painel mostra resumo
-# em destaque + uma lista curta (ver ALINHAMENTO.md 4.1, ajustado após
+# em destaque + uma lista curta (ajustado após
 # feedback: resumo sozinho já respondia buscas simples e a lista de 6
 # ficava repetitiva)
 SEARCH_RESULT_MAX = 3
@@ -124,6 +128,15 @@ class LinkIn(BaseModel):
 
 class LinkOut(LinkIn):
     id: str
+
+
+class LinkUpdate(BaseModel):
+    """Todos os campos opcionais — mesmo padrão de EmailAccountUpdate acima:
+    só reescreve o que vier no payload, sem obrigar o cliente a reenviar
+    tudo pra editar só um campo."""
+    title: Optional[str] = None
+    url: Optional[str] = None
+    category: Optional[str] = None
 
 
 class GithubRepoIn(BaseModel):
@@ -284,6 +297,25 @@ def create_link(payload: LinkIn, db=Depends(get_db)):
     )
 
     return {"id": link_id, **payload.model_dump()}
+
+
+@router.put("/links/{link_id}", response_model=LinkOut)
+def update_link(link_id: str, payload: LinkUpdate, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM links WHERE id = ?", (link_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="link não encontrado")
+
+    title = payload.title if payload.title is not None else row["title"]
+    url = payload.url if payload.url is not None else row["url"]
+    category = payload.category if payload.category is not None else row["category"]
+
+    db.execute(
+        "UPDATE links SET title = ?, url = ?, category = ? WHERE id = ?",
+        (title, url, category, link_id),
+    )
+    db.commit()
+
+    return dict(db.execute("SELECT * FROM links WHERE id = ?", (link_id,)).fetchone())
 
 
 @router.delete("/links/{link_id}", status_code=204)
@@ -1013,7 +1045,7 @@ def get_commit_activity(repo_id: str, db=Depends(get_db)):
 
 
 # ==================== busca (tavily) ====================
-# ver ALINHAMENTO.md 4.1 — resumo inline da busca no lugar de só abrir
+# resumo inline da busca no lugar de só abrir
 # o duckduckgo em nova aba. Mesmo padrão de config opcional-mas-
 # obrigatória-pra-funcionar do token do github: sem chave salva, o
 # endpoint /search devolve 422 e o frontend cai pro link externo.

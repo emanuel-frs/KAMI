@@ -6,7 +6,7 @@ import { store } from "../state/store.js";
 
 /**
  * Modal de onboarding (item 15.6, decisão 25 — REVISADA; texto
- * reescrito por completo na etapa 4 do plano-onboarding-kami.md).
+ * reescrito por completo na etapa 4 do onboarding).
  *
  * Formato: tour multi-step (vários modais em sequência, um passo por
  * módulo/conceito). Cada passo tem uma mini-ilustração estática (HTML/CSS
@@ -25,8 +25,8 @@ import { store } from "../state/store.js";
  *   desconectados.
  * - Último passo (calendário) deixa claro que isso é só uma prévia, e
  *   que cada tela vai ter dicas mais detalhadas na hora de usar de
- *   verdade (etapa 5, screen-tips-registry.js — calendário ainda não
- *   tem dicas próprias registradas, só as outras 6 telas do v1).
+ *   verdade (etapa 5, screen-tips-registry.js — calendário já tem
+ *   dicas próprias registradas, junto com as outras 6 telas do v1).
  *
  * Comportamento (mantido):
  * - Abre automaticamente no primeiro boot, encadeado depois da etapa 2/3
@@ -201,9 +201,9 @@ const STEPS = [
       </div>`,
   },
   {
-    title: (ctx) => `calendário — é só uma prévia, ${ctx.name}`,
+    title: () => "calendário",
     desc: () =>
-      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve.',
     illustration: () => `
       <div class="ob-illus ob-illus--calendario">
         <div class="ob-illus-row ob-attr-row">
@@ -217,6 +217,26 @@ const STEPS = [
         <div class="ob-illus-row ob-attr-row">
           <span class="ob-attr">${icon("star", { size: 9 })} concluiu "fundamentos de python"</span>
           <span class="ob-attr-xp">há 2 dias</span>
+        </div>
+      </div>`,
+  },
+  {
+    title: (ctx) => `carreira — é só uma prévia, ${ctx.name}`,
+    desc: () =>
+      'área atual e área-meta, interesses profissionais, linha do tempo de posições (empresa, cargo, período), formação acadêmica e evolução salarial com gráfico. cada posição, formação concluída ou salário registrado também vira xp no núcleo — o mesmo padrão que você viu nas outras telas. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+    illustration: () => `
+      <div class="ob-illus ob-illus--carreira">
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">área atual → meta</span>
+          <span class="ob-attr-xp">dev jr → dev pleno</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("check", { size: 9 })} backend developer · acme corp</span>
+          <span class="ob-attr-xp">+80 xp</span>
+        </div>
+        <div class="ob-illus-row ob-attr-row">
+          <span class="ob-attr">${icon("trending-up", { size: 9 })} evolução salarial</span>
+          <span class="ob-attr-xp">R$ 6.200</span>
         </div>
       </div>`,
   },
@@ -266,15 +286,12 @@ function renderStep(step) {
   modalEl.querySelector("#ob-desc").textContent = s.desc(ctx);
   modalEl.querySelector("#ob-illus-wrap").innerHTML = s.illustration(ctx);
 
-  // dots
   const dotsEl = modalEl.querySelector("#ob-dots");
   dotsEl.innerHTML = STEPS.map((_, i) => `<span class="ob-dot${i === step ? " ob-dot--on" : ""}"></span>`).join("");
 
-  // botão anterior
   const prevBtn = modalEl.querySelector("#ob-btn-prev");
   prevBtn.style.display = step === 0 ? "none" : "";
 
-  // botão próximo / finalizar
   const nextBtn = modalEl.querySelector("#ob-btn-next");
   const isLast = step === total - 1;
   nextBtn.innerHTML = isLast ? `${icon("check", { size: 13 })} começar a usar` : `próximo ${icon("arrow-right", { size: 13 })}`;
@@ -283,7 +300,6 @@ function renderStep(step) {
 
 function wireModal(wrap) {
   wrap.querySelector('[data-action="close"]').addEventListener("click", () => closeOnboardingModal());
-  // backdrop click
   wrap.addEventListener("click", (e) => {
     if (e.target === wrap) closeOnboardingModal();
   });

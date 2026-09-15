@@ -55,9 +55,9 @@ def _metas_xp(client):
 
 def _create_account(client, nome="conta teste", saldo_atual=100):
     """Cria um banco novo + uma conta com saldo, pros testes de conexão com Finanças."""
-    bank = client.post("/api/wallet/banks", json={"nome": f"banco {nome}"}).json()
+    bank = client.post("/api/carteira/banks", json={"nome": f"banco {nome}"}).json()
     resp = client.post(
-        f"/api/wallet/banks/{bank['id']}/accounts",
+        f"/api/carteira/banks/{bank['id']}/accounts",
         json={"nome": nome, "possui_saldo": True, "saldo_atual": saldo_atual, "possui_credito": False},
     )
     assert resp.status_code == 200, resp.text
@@ -417,7 +417,7 @@ def test_financeira_contribute_externo_does_not_touch_account(client):
     )
     assert resp.status_code == 200
 
-    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    account_after = client.get("/api/carteira/banks").json()[0]["accounts"][0]
     assert account_after["saldo_atual"] == 500  # não mexeu
 
     contributions = client.get(f"/api/metas/{goal['id']}/contributions").json()
@@ -434,7 +434,7 @@ def test_financeira_contribute_conta_creates_real_transaction(client):
     )
     assert resp.status_code == 200
 
-    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    account_after = client.get("/api/carteira/banks").json()[0]["accounts"][0]
     assert account_after["saldo_atual"] == 450  # debitou
 
     contributions = client.get(f"/api/metas/{goal['id']}/contributions").json()
@@ -456,7 +456,7 @@ def test_financeira_contribute_conta_falls_back_to_linked_conta(client):
         f"/api/metas/{goal['id']}/contribute", json={"amount": 50, "origem": "conta"}
     )
     assert resp.status_code == 200
-    account_after = client.get("/api/wallet/banks").json()[0]["accounts"][0]
+    account_after = client.get("/api/carteira/banks").json()[0]["accounts"][0]
     assert account_after["saldo_atual"] == 450
 
 

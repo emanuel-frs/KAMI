@@ -10,7 +10,13 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 160; /* acima do backup-reminder-toast (150), abaixo de modal (200) */
+  z-index: 220; /* acima de .modal-backdrop (200) e do dropdown custom-select
+                   dentro de modal (210, ver widgets/custom-select.css) —
+                   precisa aparecer por cima mesmo quando disparado por uma
+                   ação dentro de um modal aberto (ex: export de backup em
+                   configuracoes-modal.js), não só nas notificações de
+                   calendário/lembrete que rodam sem modal. Continua abaixo
+                   de tip-sequence (260) e kami-intro (300). */
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
@@ -40,6 +46,11 @@
 }
 .toast-item.clickable { cursor: pointer; }
 .toast-item.clickable:hover { border-color: var(--accent-dim); }
+.toast-item.clickable:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
 .toast-icon {
   flex: 0 0 auto;
@@ -79,6 +90,14 @@
   font-family: var(--font);
 }
 .toast-close:hover { color: var(--text-bright); }
+/* mesmo caso do .backup-reminder-close (backup-reminder.css) — botão
+   nativo sem .btn, então sem isto só teria o outline default do
+   navegador em vez do indicador temático. */
+.toast-close:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
 @media (max-width: 520px) {
   .toast-stack {

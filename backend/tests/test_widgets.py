@@ -1,4 +1,4 @@
-"""Testes do router app/routers/widgets.py (ALINHAMENTO.md 2.6)."""
+"""Testes do router app/routers/widgets.py."""
 from app.widgets import WIDGET_CATALOG
 
 

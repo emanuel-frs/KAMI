@@ -36,4 +36,3 @@ export const listCareerSalaryRecords = () => get("/api/carreira/salarios");
 export const createCareerSalaryRecord = (data) => post("/api/carreira/salarios", data);
 export const updateCareerSalaryRecord = (id, data) => put(`/api/carreira/salarios/${id}`, data);
 export const deleteCareerSalaryRecord = (id) => del(`/api/carreira/salarios/${id}`);
-export const getCareerSalaryStats = () => get("/api/carreira/salarios/estatisticas");

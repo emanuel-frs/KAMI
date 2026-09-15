@@ -16,16 +16,14 @@ export const TYPE_META = {
   acao: { label: "ação", color: "var(--accent-dim)", icon: "zap" },
   // único tipo com CRUD próprio (calendar_events) — cor default abaixo,
   // mas cada evento pode sobrescrever via campo `color` (ver
-  // modals/calendar-event-modal.js); a grade/legenda usam o default.
+  // modals/calendario-evento-modal.js); a grade/legenda usam o default.
   evento: { label: "evento", color: "#7fa8d9", icon: "calendar-days" },
+  contrato_fim: { label: "fim de contrato", color: "var(--red)", icon: "clock" },
+  revisao_salarial: { label: "revisão salarial", color: "var(--amber)", icon: "trending-up" },
 };
 
 export function typeColor(type) {
   return TYPE_META[type]?.color || "var(--accent)";
-}
-
-export function typeIcon(type) {
-  return TYPE_META[type]?.icon || "circle-help";
 }
 
 // ─── alertas "vencendo em breve" ────────────────────────────────────────
@@ -35,7 +33,7 @@ export function typeIcon(type) {
 //
 // só entram no alerta os tipos com um estado "em aberto" reconhecível.
 // conta_fixa segue o mesmo padrão de instância mensal + status
-// pendente/paga que assinatura já tinha (item 1 do mapa de problemas).
+// pendente/paga que assinatura já tinha (item 1).
 export function isPendingAlertEvent(e) {
   switch (e.type) {
     case "divida":
@@ -45,6 +43,12 @@ export function isPendingAlertEvent(e) {
       return e.status === "pendente";
     case "meta":
       return e.status !== "concluida";
+    case "contrato_fim":
+    case "revisao_salarial":
+      // sem status próprio (não tem "concluído"/"pago") — a simples
+      // presença no calendário dentro da janela de alerta já significa
+      // que ainda está por vir, mesmo critério de "evento" abaixo
+      return true;
     default:
       return false;
   }

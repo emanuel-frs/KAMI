@@ -40,10 +40,10 @@ import { showConfirmModal } from "../modals/confirm-modal.js";
 import { refreshNotificationBell } from "../components/notification-bell.js";
 import { showToast } from "../components/toast.js";
 import { subscribeSyncState, isSyncRunning } from "../components/email-sync-scheduler.js";
-import { accountColor } from "../components/account-color.js";
+import { emailAccountColor } from "../components/email-account-color.js";
 
 const state = {
-  tab: "links",
+  tab: "github",
   links: [],
   repos: [],
   accounts: [],
@@ -89,7 +89,7 @@ let accountsSelectionInitialized = false;
  * @param {HTMLElement} container
  * @param {{ tab?: string, accountId?: string, focusEmailId?: string }} [opts] -
  *   ver components/navigate.js. Usado pelo modal de notificações
- *   (modals/notifications-modal.js) pra abrir Organização já na aba de
+ *   (modals/notificacoes-modal.js) pra abrir Organização já na aba de
  *   e-mail, com a conta certa selecionada e o e-mail clicado aberto —
  *   sem isso o clique caía sempre na aba "links" (bug reportado: botões
  *   de ver/silenciar iam pra Organização, mas na aba errada).
@@ -180,7 +180,7 @@ async function applyFocus(opts) {
  * `is_muted` por e-mail a partir de muted_accounts, então só recarregar
  * o array antigo com renderEmails() não bastava — o item continuava com
  * o is_muted de antes de silenciar) e redesenha — chamado por
- * modals/notifications-modal.js depois de silenciar uma conta por lá,
+ * modals/notificacoes-modal.js depois de silenciar uma conta por lá,
  * pra essa tela refletir na hora se já estiver montada, em vez de só
  * atualizar no próximo mount() (sair/entrar na tela).
  */
@@ -194,7 +194,7 @@ export async function refreshMutedAccounts() {
 
 /**
  * Marca localmente como lidos os e-mails cujos ids vieram do store
- * "emailsMarkedRead" (publicado por modals/notifications-modal.js ao
+ * "emailsMarkedRead" (publicado por modals/notificacoes-modal.js ao
  * clicar em "marcar todos como lidos") — sem isso, essa tela só
  * refletiria a mudança no próximo mount() (sair/entrar de novo).
  * Reflete só o que já está em state.emails; nada aqui obriga um
@@ -227,7 +227,7 @@ export function unmount() {
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
-  state.tab = "links";
+  state.tab = "github";
   state.selectedAccountIds = new Set();
   state.emails = [];
   state.emailQuery = "";
@@ -245,27 +245,20 @@ export function unmount() {
 function template() {
   return `
     <div class="search-row">
-      <input type="text" id="org-search" placeholder="buscar na web...">
+      <input type="text" id="org-search" placeholder="buscar na web..." aria-label="buscar na web">
       <button class="btn sm" data-action="org-search">buscar</button>
-      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca">${icon("x", { size: 13 })}</button>
-      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca">${icon("key", { size: 13 })}</button>
+      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca" aria-label="limpar busca">${icon("x", { size: 13 })}</button>
+      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca" aria-label="configurar chave de busca">${icon("key", { size: 13 })}</button>
     </div>
     <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="links">links</div>
-      <div class="tab" data-tab="github">github</div>
+      <div class="tab on" data-tab="github">github</div>
       <div class="tab" data-tab="email">e-mail</div>
+      <div class="tab" data-tab="links">links</div>
     </div>
 
-    <div id="org-panel-links">
-      <div class="card">
-        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
-        <div class="card-body" id="org-linkgroups"></div>
-      </div>
-    </div>
-
-    <div id="org-panel-github" style="display:none;">
+    <div id="org-panel-github">
       <div class="card">
         <div class="card-head">
           repositórios
@@ -283,21 +276,28 @@ function template() {
         <div class="card-head">
           e-mails
           <span class="push"></span>
-          <button type="button" class="btn icon-btn-square" id="org-email-sync-btn" data-action="sync-selected-accounts" data-tooltip="sincronizar">${icon("refresh-cw", { size: 13 })}</button>
+          <button type="button" class="btn icon-btn-square" id="org-email-sync-btn" data-action="sync-selected-accounts" data-tooltip="sincronizar" aria-label="sincronizar">${icon("refresh-cw", { size: 13 })}</button>
           <button type="button" class="btn sm" data-action="open-manage-accounts-modal">${icon("settings", { size: 12 })} gerenciar contas</button>
         </div>
         <div class="card-body">
           <div class="email-search-row">
-            <input type="text" id="org-email-search" placeholder="buscar por assunto ou remetente...">
+            <input type="text" id="org-email-search" placeholder="buscar por assunto ou remetente..." aria-label="buscar e-mails por assunto ou remetente">
           </div>
           <div class="email-account-chips" id="org-account-chips"></div>
           <div class="email-filter-row" id="org-email-filter">
-            <span class="email-filter-opt on" data-filter="all">tudo</span>
-            <span class="email-filter-opt" data-filter="unread">não lidos</span>
-            <span class="email-filter-opt" data-filter="muted">silenciados</span>
+            <span class="email-filter-opt on" data-filter="all">tudo <span class="email-filter-count" id="org-email-filter-count-all">0</span></span>
+            <span class="email-filter-opt" data-filter="unread">não lidos <span class="email-filter-count" id="org-email-filter-count-unread">0</span></span>
+            <span class="email-filter-opt" data-filter="muted">silenciados <span class="email-filter-count" id="org-email-filter-count-muted">0</span></span>
           </div>
           <div id="org-emails"></div>
         </div>
+      </div>
+    </div>
+
+    <div id="org-panel-links" style="display:none;">
+      <div class="card">
+        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
+        <div class="card-body" id="org-linkgroups"></div>
       </div>
     </div>
 
@@ -313,15 +313,16 @@ function template() {
       </div>
     </div>
 
-    <!-- MODAL: novo link -->
+    <!-- MODAL: novo/editar link -->
     <div class="modal-backdrop" id="link-modal">
       <div class="modal">
-        <div class="modal-head">novo link <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
+        <div class="modal-head"><span id="link-modal-title">novo link</span> <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
         <div class="modal-body">
-          <div class="field"><label>título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
-          <div class="field"><label>url</label><input type="text" id="link-url" placeholder="https://..."></div>
-          <div class="field"><label>categoria</label><input type="text" id="link-cat" placeholder="geral"></div>
-          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link">+ adicionar link</button>
+          <input type="hidden" id="link-edit-id" value="">
+          <div class="field"><label for="link-title">título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
+          <div class="field"><label for="link-url">url</label><input type="text" id="link-url" placeholder="https://..."></div>
+          <div class="field"><label for="link-cat">categoria</label><input type="text" id="link-cat" placeholder="geral"></div>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link" id="link-save-btn">+ adicionar link</button>
         </div>
       </div>
     </div>
@@ -332,7 +333,7 @@ function template() {
         <div class="modal-head">conectar repositório <span class="close" data-action="close-repo-modal">${icon("x")}</span></div>
         <div class="modal-body">
           <div class="field">
-            <label>repositório</label>
+            <label for="repo-full-name">repositório</label>
             <input type="text" id="repo-full-name" placeholder="usuario/repositorio (ou cole a url do github)">
           </div>
           <div class="page-sub" style="margin:0 0 8px 0; font-size:10px;">só repositórios públicos — api sem autenticação, limite de 60 req/h.</div>
@@ -348,13 +349,13 @@ function template() {
         <div class="modal-head">conta de e-mail <span class="close" data-action="close-account-modal">${icon("x")}</span></div>
         <div class="modal-body">
           <input type="hidden" id="acc-edit-id">
-          <div class="field"><label>apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
+          <div class="field"><label for="acc-label">apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
           <div class="field-row">
-            <div class="field"><label>host imap</label><input type="text" id="acc-host" placeholder="imap.gmail.com"></div>
-            <div class="field" style="max-width:110px;"><label>porta</label><input type="number" id="acc-port" value="993"></div>
+            <div class="field"><label for="acc-host">host imap</label><input type="text" id="acc-host" placeholder="imap.gmail.com"></div>
+            <div class="field" style="max-width:110px;"><label for="acc-port">porta</label><input type="number" id="acc-port" value="993"></div>
           </div>
-          <div class="field"><label>usuário</label><input type="text" id="acc-username" placeholder="voce@gmail.com"></div>
-          <div class="field"><label>senha de app <span id="acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="acc-password" placeholder="••••••••"></div>
+          <div class="field"><label for="acc-username">usuário</label><input type="text" id="acc-username" placeholder="voce@gmail.com"></div>
+          <div class="field"><label for="acc-password">senha de app <span id="acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="acc-password" placeholder="••••••••"></div>
           <label class="acc-default-toggle"><input type="checkbox" id="acc-sync-by-default" checked> ${icon("star", { size: 12 })} conta padrão (já vem selecionada ao abrir a tela)</label>
           <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-account">salvar conta</button>
         </div>
@@ -381,7 +382,7 @@ function template() {
               sem chave configurada, o botão "buscar" mostra um link pra
               abrir a busca no duckduckgo em vez do resumo.
             </div>
-            <div class="field"><label>chave</label><input type="password" id="search-key-input" placeholder="tvly-..."></div>
+            <div class="field"><label for="search-key-input">chave</label><input type="password" id="search-key-input" placeholder="tvly-..."></div>
             <div id="search-key-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
             <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-search-key">salvar chave</button>
             <button class="btn sm" style="width:100%;" data-action="delete-search-key">remover chave</button>
@@ -400,7 +401,7 @@ function template() {
               contents/metadata), o kami passa a ver repositórios privados e
               sobe pra 5000 req/h.
             </div>
-            <div class="field"><label>token</label><input type="password" id="gh-token-input" placeholder="github_pat_..."></div>
+            <div class="field"><label for="gh-token-input">token</label><input type="password" id="gh-token-input" placeholder="github_pat_..."></div>
             <div id="gh-token-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
             <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-github-token">salvar token</button>
             <button class="btn sm" style="width:100%;" data-action="delete-github-token">remover token</button>
@@ -441,7 +442,7 @@ function bindEvents(container) {
     if (action === "org-search-clear") orgSearchClear();
     if (action === "open-link-modal") openLinkModal();
     if (action === "close-link-modal") closeLinkModal();
-    if (action === "save-link") handleAddLink();
+    if (action === "save-link") handleSaveLink();
     if (action === "open-repo-modal") openRepoModal();
     if (action === "close-repo-modal") closeRepoModal();
     if (action === "save-repo") handleAddRepo();
@@ -463,6 +464,9 @@ function bindEvents(container) {
 
     const openLink = e.target.closest("[data-open-link]")?.dataset.openLink;
     if (openLink) openExternal(openLink);
+
+    const linkEditId = e.target.closest("[data-edit-link]")?.dataset.editLink;
+    if (linkEditId) openLinkModal(linkEditId);
 
     const linkId = e.target.closest("[data-delete-link]")?.dataset.deleteLink;
     if (linkId) handleDeleteLink(linkId);
@@ -681,8 +685,9 @@ function renderLinks() {
           return `
             <div class="linkrow">
               <img class="favicon" src="https://www.google.com/s2/favicons?domain=${escapeAttr(domain)}" alt="">
-              <span class="lr-title" data-open-link="${escapeAttr(l.url)}">${escapeHtml(l.title)}</span>
+              <span class="lr-title" data-open-link="${escapeAttr(l.url)}" data-tooltip="${escapeHtml(l.title)}">${escapeHtml(l.title)}</span>
               <span class="lr-go" data-open-link="${escapeAttr(l.url)}">${icon("external-link", { size: 11 })}</span>
+              <span class="lr-edit" data-tooltip="editar" aria-label="editar" data-edit-link="${l.id}">${icon("pencil", { size: 12 })}</span>
               <span class="lr-delete" data-delete-link="${l.id}">${icon("x")}</span>
             </div>`;
         })
@@ -692,15 +697,30 @@ function renderLinks() {
     .join("");
 }
 
-function openLinkModal() {
-  ["link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+function openLinkModal(linkId) {
+  const titleEl = rootEl.querySelector("#link-modal-title");
+  const saveBtn = rootEl.querySelector("#link-save-btn");
+  if (linkId) {
+    const l = state.links.find((x) => x.id === linkId);
+    rootEl.querySelector("#link-edit-id").value = l.id;
+    rootEl.querySelector("#link-title").value = l.title;
+    rootEl.querySelector("#link-url").value = l.url;
+    rootEl.querySelector("#link-cat").value = l.category;
+    titleEl.textContent = "editar link";
+    saveBtn.textContent = "salvar link";
+  } else {
+    ["link-edit-id", "link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
+    titleEl.textContent = "novo link";
+    saveBtn.textContent = "+ adicionar link";
+  }
   rootEl.querySelector("#link-modal").classList.add("open");
 }
 function closeLinkModal() {
   rootEl.querySelector("#link-modal").classList.remove("open");
 }
 
-async function handleAddLink() {
+async function handleSaveLink() {
+  const editId = rootEl.querySelector("#link-edit-id").value;
   const title = rootEl.querySelector("#link-title").value.trim();
   const url = rootEl.querySelector("#link-url").value.trim();
   const category = rootEl.querySelector("#link-cat").value.trim() || "geral";
@@ -708,7 +728,11 @@ async function handleAddLink() {
     showErrorModal("preencha título e url.", "atenção");
     return;
   }
-  await api.createLink({ title, url, category });
+  if (editId) {
+    await api.updateLink(editId, { title, url, category });
+  } else {
+    await api.createLink({ title, url, category });
+  }
   closeLinkModal();
   await loadLinks();
   renderLinks();
@@ -795,8 +819,8 @@ function repoCardHtml(r) {
           <span class="repo-source-badge ${r.source === "auto" ? "auto" : "manual"}" data-tooltip="${r.source === "auto" ? `importado automaticamente${r.owner_login ? ` (${escapeHtml(r.owner_login)})` : ""}` : "cadastrado manualmente"}">${r.source === "auto" ? "auto" : "manual"}</span>
         </span>
         <span class="rc-actions">
-          <span class="icon-btn" data-tooltip="ressincronizar" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
-          <span class="icon-btn danger" data-tooltip="remover" data-delete-repo="${r.id}">${icon("x")}</span>
+          <span class="icon-btn" data-tooltip="ressincronizar" aria-label="ressincronizar" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
+          <span class="icon-btn danger" data-tooltip="remover" aria-label="remover" data-delete-repo="${r.id}">${icon("x")}</span>
         </span>
       </div>
       ${stats}
@@ -1000,10 +1024,10 @@ function renderAccounts() {
           <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}${muted ? ` · <span class="email-muted-tag">${icon("bell-off", { size: 9 })} silenciada</span>` : ""}</span>
         </div>
         <div class="org-account-actions">
-          <span class="icon-btn" data-tooltip="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
-          <span class="icon-btn${syncing ? " is-syncing" : ""}" data-tooltip="${syncing ? "sincronizando..." : "sincronizar"}" data-sync-account="${syncing ? "" : a.id}">${icon("refresh-cw", { size: 12 })}</span>
-          <span class="icon-btn" data-tooltip="editar" data-edit-account="${a.id}">${icon("pencil", { size: 12 })}</span>
-          <span class="icon-btn" data-tooltip="remover" data-delete-account="${a.id}">${icon("x")}</span>
+          <span class="icon-btn" data-tooltip="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" aria-label="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
+          <span class="icon-btn${syncing ? " is-syncing" : ""}" data-tooltip="${syncing ? "sincronizando..." : "sincronizar"}" aria-label="${syncing ? "sincronizando..." : "sincronizar"}" data-sync-account="${syncing ? "" : a.id}">${icon("refresh-cw", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="editar" aria-label="editar" data-edit-account="${a.id}">${icon("pencil", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="remover" aria-label="remover" data-delete-account="${a.id}">${icon("x")}</span>
         </div>
       </div>`;
     })
@@ -1030,12 +1054,12 @@ function renderAccountChips() {
   wrap.innerHTML = state.accounts
     .map((a) => {
       const on = state.selectedAccountIds.has(a.id);
-      const color = accountColor(a.id);
+      const color = emailAccountColor(a.id);
       return `
-      <span class="email-account-chip${on ? " on" : ""}" data-account-chip="${a.id}" style="--chip-color:${color};" data-tooltip="${on ? "remover da visualização" : "adicionar à visualização"}">
+      <span class="email-account-chip${on ? " on" : ""}" data-account-chip="${a.id}" style="--chip-color:${color};" data-tooltip="${on ? "remover da visualização" : "adicionar à visualização"}" aria-label="${on ? "remover da visualização" : "adicionar à visualização"}">
         <span class="email-account-chip-dot"></span>
         ${escapeHtml(a.label)}
-        <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
+        <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}" aria-label="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
       </span>`;
     })
     .join("");
@@ -1262,7 +1286,27 @@ async function loadMutedAccounts() {
   state.mutedAccounts = await api.listMutedAccounts();
 }
 
+// atualiza os números entre parênteses nos botões de filtro (tudo/não
+// lidos/silenciados) a partir do mesmo cache state.emails usado pra
+// montar a lista — sem round-trip novo ao backend, mesma lógica de
+// filtragem usada logo abaixo.
+function renderEmailFilterCounts() {
+  const countAllEl = rootEl.querySelector("#org-email-filter-count-all");
+  if (!countAllEl) return;
+
+  const emails = state.emails || [];
+  const countAll = emails.length;
+  const countUnread = emails.filter((e) => !e.is_read && !e.is_muted).length;
+  const countMuted = emails.filter((e) => e.is_muted).length;
+
+  countAllEl.textContent = `(${countAll})`;
+  rootEl.querySelector("#org-email-filter-count-unread").textContent = `(${countUnread})`;
+  rootEl.querySelector("#org-email-filter-count-muted").textContent = `(${countMuted})`;
+}
+
 function renderEmails() {
+  renderEmailFilterCounts();
+
   const wrap = rootEl.querySelector("#org-emails");
   if (!wrap) return;
 
@@ -1304,17 +1348,17 @@ function renderEmails() {
 
   wrap.innerHTML = visible
     .map((e) => {
-      const color = accountColor(e.account_id);
+      const color = emailAccountColor(e.account_id);
       return `
       <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}">
         <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(accountLabel(e.account_id))}">${emailInitial(e.sender)}</div>
         <div class="email-main">
           <div class="email-top">
-            <span class="email-subject">${escapeHtml(e.subject || "(sem assunto)")}</span>
+            <span class="email-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
             <span class="email-tag">${e.is_muted ? "silenciado" : e.is_read ? "" : "novo"}</span>
           </div>
           <div class="email-sender">de: ${escapeHtml(e.sender)}</div>
-          <div class="email-preview">${escapeHtml(e.body_preview || "")}</div>
+          <div class="email-preview" data-tooltip="${escapeHtml(e.body_preview || "")}">${escapeHtml(e.body_preview || "")}</div>
         </div>
         <div class="email-meta">${fmtDateTimeBR(e.received_at)}</div>
       </div>`;
@@ -1337,7 +1381,7 @@ function openEmailModal(cacheId) {
   const body = rootEl.querySelector("#email-modal-body");
   body.innerHTML = `
     <div class="email-detail-field"><label>assunto</label><div class="val subject">${escapeHtml(email.subject || "(sem assunto)")}</div></div>
-    <div class="vm-row"><span class="k">de</span><span class="v">${escapeHtml(email.sender)}</span></div>
+    <div class="vm-row"><span class="k">de</span><span class="v" data-tooltip="${escapeHtml(email.sender)}">${escapeHtml(email.sender)}</span></div>
     <div class="vm-row"><span class="k">recebido em</span><span class="v">${fmtDateTimeBR(email.received_at)}</span></div>
     <div class="email-detail-field" style="margin-top:10px;"><label>prévia (texto puro — sem resumo por ia no v1)</label>
       <div class="val preview">${escapeHtml(email.body_preview || "sem prévia disponível.")}</div>

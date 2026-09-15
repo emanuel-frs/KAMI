@@ -43,10 +43,24 @@ export function showToast({ title, message = "", iconName = "bell-ring", duratio
 
   if (onClick) {
     el.classList.add("clickable");
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
     el.addEventListener("click", (e) => {
       if (e.target.closest(".toast-close")) return;
       onClick();
       dismiss();
+    });
+    // div não é focável/ativável por teclado por padrão (ver
+    // role="button"+tabindex acima, que só resolve a metade da
+    // navegação) — sem isto quem usa teclado conseguia dar Tab até
+    // aqui mas nunca conseguia "clicar" de fato.
+    el.addEventListener("keydown", (e) => {
+      if (e.target.closest(".toast-close")) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+        dismiss();
+      }
     });
   }
 

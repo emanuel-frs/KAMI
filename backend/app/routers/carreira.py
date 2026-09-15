@@ -667,9 +667,11 @@ def get_salary_stats(db=Depends(get_db)):
         if registros_da_posicao:
             crescimento_posicao_atual_pct = _pct_change(registros_da_posicao[0]["amount"], ultimo["amount"])
 
-    # maior salto: maior diferença absoluta entre registros consecutivos
-    # (ordenados por data) — reporta o valor do salto, o % e quando
-    # aconteceu (data do registro "depois" do salto)
+    # maior salto: maior diferença COM SINAL entre registros consecutivos
+    # (ordenados por data) — não é valor absoluto, então sempre prioriza o
+    # maior AUMENTO salarial; um corte maior em módulo não vence um aumento
+    # menor. Reporta o valor do salto, o % e quando aconteceu (data do
+    # registro "depois" do salto).
     maior_salto = None
     for anterior, atual in zip(rows, rows[1:]):
         diff = atual["amount"] - anterior["amount"]

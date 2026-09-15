@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -10,7 +10,7 @@ export async function render(el, widget) {
   async function reload() {
     let summary;
     try {
-      summary = await walletApi.getWalletSummary();
+      summary = await carteiraApi.getWalletSummary();
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar resumo: ${err.message}</div>`;
       return;

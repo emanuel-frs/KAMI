@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /**
  * Modal "filtrar registros" — mesmo padrão singleton dos outros modais
@@ -20,15 +21,15 @@ function buildModal() {
       <div class="modal-head">filtrar registros <span class="close" data-action="close">${icon("x")}</span></div>
       <div class="modal-body">
         <div class="field">
-          <label>conta</label>
+          <label for="rfm-conta">conta</label>
           <select id="rfm-conta"><option value="">— todas —</option></select>
         </div>
         <div class="field">
-          <label>categoria</label>
+          <label for="rfm-categoria">categoria</label>
           <select id="rfm-categoria"><option value="">— todas —</option></select>
         </div>
         <div class="field">
-          <label>tipo</label>
+          <label for="rfm-tipo">tipo</label>
           <select id="rfm-tipo">
             <option value="">— todos —</option>
             <option value="entrada">entrada</option>
@@ -83,7 +84,7 @@ export function openRegistroFilterModal({ accounts, categories, current, onApply
 
   const contaSel = modalEl.querySelector("#rfm-conta");
   contaSel.innerHTML = `<option value="">— todas —</option>` +
-    (accounts || []).map((a) => `<option value="${a.id}">${a.bankNome} — ${a.nome}</option>`).join("");
+    (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
 
   const catSel = modalEl.querySelector("#rfm-categoria");
   catSel.innerHTML = `<option value="">— todas —</option>` +

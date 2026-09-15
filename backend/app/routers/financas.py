@@ -413,6 +413,14 @@ def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db
             description=f"renda: {source['nome']}",
             date=paid_date,
         )
+        register_action(
+            db,
+            description=f"recebeu renda: {source['nome']}",
+            categories=["financas"],
+            xp=2,
+            impact=2,
+            source="financas",
+        )
 
     # se o valor recebido for diferente do cadastrado, o usuário pode ter
     # pedido pra atualizar o valor da fonte pra frente (ver
@@ -740,6 +748,14 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
             description=f"conta fixa: {bill['name']}",
             forma_pagamento=payload.forma_pagamento,
         )
+        register_action(
+            db,
+            description=f"pagou conta fixa: {bill['name']}",
+            categories=["financas"],
+            xp=2,
+            impact=2,
+            source="financas",
+        )
 
     db.execute(
         "UPDATE fixed_bill_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
@@ -828,53 +844,34 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
     forma_pagamento = payload.forma_pagamento
     conta_destino_id = None
     destino_externo = None
+    tx_id = None
 
     if payload.type == "entrada":
-        if not conta["possui_saldo"]:
-            raise HTTPException(status_code=422, detail="essa conta não possui saldo pra receber uma entrada")
+        # reaproveita finance_utils.py (mesma função usada por
+        # pay_income_entry) em vez de duplicar a lógica de UPDATE de
+        # saldo aqui — validações/erros idênticos aos de antes.
         forma_pagamento = None
-        db.execute(
-            "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
-            (payload.amount, conta["id"]),
+        tx_id = create_entrada_transaction(
+            db, conta, payload.amount,
+            category=payload.category,
+            description=payload.description,
+            date=payload.date,
         )
 
     elif payload.type == "saida":
-        if conta["possui_saldo"] and conta["possui_credito"]:
-            if forma_pagamento not in ("saldo", "credito"):
-                raise HTTPException(
-                    status_code=422,
-                    detail="essa conta tem saldo e crédito — informe 'forma_pagamento' ('saldo' ou 'credito')",
-                )
-        elif conta["possui_credito"]:
-            forma_pagamento = "credito"
-        elif conta["possui_saldo"]:
-            forma_pagamento = "saldo"
-        else:
-            raise HTTPException(status_code=422, detail="essa conta não possui saldo nem crédito cadastrado")
-
-        if forma_pagamento == "saldo":
-            saldo_atual = conta["saldo_atual"] or 0
-            if payload.amount > saldo_atual:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"saldo insuficiente: disponível R$ {saldo_atual:.2f}, tentando gastar R$ {payload.amount:.2f}",
-                )
-            db.execute(
-                "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
-                (payload.amount, conta["id"]),
-            )
-        else:
-            if conta["limite_total"] is not None:
-                disponivel = conta["limite_total"] - (conta["fatura_atual"] or 0)
-                if payload.amount > disponivel:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, tentando gastar R$ {payload.amount:.2f}",
-                    )
-            db.execute(
-                "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) + ? WHERE id = ?",
-                (payload.amount, conta["id"]),
-            )
+        # idem, reaproveitando create_saida_transaction (mesma função
+        # usada por pay_fixed_bill_period/pay_period) em vez de
+        # reimplementar a escolha de forma_pagamento e o débito de
+        # saldo/fatura na mão.
+        tx_id = create_saida_transaction(
+            db, conta, payload.amount,
+            category=payload.category,
+            description=payload.description,
+            forma_pagamento=forma_pagamento,
+            date=payload.date,
+        )
+        tx_row = db.execute("SELECT forma_pagamento FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+        forma_pagamento = tx_row["forma_pagamento"]
 
     else:  # transferencia
         if not conta["possui_saldo"]:
@@ -911,16 +908,17 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
         else:
             destino_externo = payload.destino_externo
 
-    tx_id = new_id()
-    db.execute(
-        "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            tx_id, payload.description, payload.amount, payload.type, payload.category,
-            conta["id"], forma_pagamento, conta_destino_id, destino_externo, payload.date,
-        ),
-    )
+        tx_id = new_id()
+        db.execute(
+            "INSERT INTO transactions "
+            "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                tx_id, payload.description, payload.amount, payload.type, payload.category,
+                conta["id"], forma_pagamento, conta_destino_id, destino_externo, payload.date,
+            ),
+        )
+
     db.commit()
 
     register_action(

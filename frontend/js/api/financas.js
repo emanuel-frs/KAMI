@@ -25,8 +25,7 @@ export const updateFixedBill = (billId, data) => put(`/api/financas/fixed-bills/
 export const deleteFixedBill = (billId) => del(`/api/financas/fixed-bills/${billId}`);
 
 // contas fixas — instância mensal (mesmo padrão de pay/unpay de
-// assinaturas, ver api/wallet.js — unificação do item 1 do mapa de
-// problemas). Marcar como paga pode gerar uma transação real
+// assinaturas, ver api/carteira.js — unificação do item 1). Marcar como paga pode gerar uma transação real
 // (item 6): `payload` aceita { valor_pago?, forma_pagamento?,
 // gerar_transacao? } — ver modals/pay-period-modal.js pra como montar
 // isso a partir da UI.
@@ -54,5 +53,5 @@ export const getSummary = (month) => get(`/api/financas/summary?month=${month}`)
 // NOTA: listCreditCards/createCreditCard/deleteCreditCard e
 // listSubscriptions/createSubscription/deleteSubscription foram REMOVIDOS
 // daqui — os endpoints /credit-cards e /subscriptions antigos não existem
-// mais em financas.py. A wallet (bancos/contas) e as assinaturas novas
-// (com toggle pago/mês) estão em api/wallet.js.
+// mais em financas.py. A carteira (bancos/contas) e as assinaturas novas
+// (com toggle pago/mês) estão em api/carteira.js.

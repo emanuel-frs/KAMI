@@ -3,7 +3,7 @@ import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
 
 /**
- * Dicas contextuais de Aprendizado (etapa 5, plano-onboarding-kami.md,
+ * Dicas contextuais de Aprendizado (etapa 5,
  * seção 8 item 5). Terceira e última das telas de layout fixo — mesmo
  * modelo manual de passos de Metas/Organização (metas-tips.js,
  * organizacao-tips.js), puxando mais pro lado "ensinar a usar"

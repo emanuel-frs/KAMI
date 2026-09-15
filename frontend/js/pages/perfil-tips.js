@@ -4,7 +4,7 @@ import { startTipSequence } from "../components/tip-sequence.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
- * Dicas contextuais do Perfil (etapa 5, plano-onboarding-kami.md,
+ * Dicas contextuais do Perfil (etapa 5,
  * seção 8 item 5 — "espalhar as dicas contextuais pelas telas
  * restantes"). Segunda tela a ganhar o mecanismo, reaproveitando o
  * mesmo motor dinâmico do Núcleo (widget-tips.js): os passos vêm do

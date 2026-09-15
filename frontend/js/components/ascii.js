@@ -19,6 +19,32 @@ const CHAR_ASPECT = 0.55;
 
 let measureCanvas = null;
 
+/**
+ * Carrega um File como imagem, sem tentar adivinhar antes se é "imagem
+ * válida" por `file.type` ou pela extensão do nome. A primeira versão
+ * disso checava `file.type.startsWith("image/")`, que falha em silêncio
+ * quando o navegador/webview não preenche o MIME corretamente (visto
+ * com JPEGs em alguns ambientes — PNG detectado certo, JPEG chegando
+ * com `file.type` vazio). Uma segunda tentativa caiu pra checar a
+ * extensão do nome do arquivo, mas isso também quebra pra um arquivo
+ * sem extensão nenhuma que é um JPEG de verdade por dentro (caso real
+ * reportado: arquivo chamado só "fgdgdfgdfg", sem ".jpg", conteúdo
+ * JPEG válido).
+ *
+ * A única fonte de verdade confiável é o próprio decodificador de
+ * imagem do navegador — que lê os bytes, não o nome nem um header
+ * HTTP. Por isso: sempre tenta carregar via <img>, e só reporta erro
+ * (via `onInvalid`) se o decode falhar de verdade (`img.onerror`).
+ * Nenhuma pré-checagem de tipo/extensão acontece mais antes disso.
+ */
+export function loadImageFile(file, { onLoad, onInvalid } = {}) {
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => onLoad?.(img);
+  img.onerror = () => onInvalid?.();
+  img.src = URL.createObjectURL(file);
+}
+
 export function measureMonoCharWidth(fontFamily, fontSizePx) {
   measureCanvas = measureCanvas || document.createElement("canvas");
   const ctx = measureCanvas.getContext("2d");

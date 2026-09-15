@@ -1,6 +1,6 @@
 """
 Módulo Widgets — expõe o catálogo fixo de widgets (app/widgets.py) pra
-quem consome a API (ALINHAMENTO.md 2.6).
+quem consome a API.
 
 Endpoints:
   GET /api/widgets/catalog   devolve o WIDGET_CATALOG inteiro

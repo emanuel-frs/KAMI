@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capacidades da janela principal do Kami — inclui permissão pra rodar o sidecar do backend (decisão 19).",
+  "description": "Capacidades da janela principal do Kami. O sidecar do backend (decisão 19) é iniciado direto pelo Rust em src-tauri/src/main.rs via app.shell().sidecar(...).spawn() dentro do setup() — isso não passa pela ponte de IPC/capabilities, então a janela (webview) não precisa de shell:allow-execute pra isso e a permissão foi removida por princípio de menor privilégio (auditoria de segurança).",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,16 +9,6 @@
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-start-dragging",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "binaries/kami-backend",
-          "sidecar": true,
-          "args": true
-        }
-      ]
-    },
     {
       "identifier": "opener:allow-open-url",
       "allow": [

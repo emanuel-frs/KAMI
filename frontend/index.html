@@ -6,7 +6,7 @@
 <title>Kami</title>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/wallet.css">
+<link rel="stylesheet" href="css/carteira.css">
 <link rel="stylesheet" href="css/widgets/grid.css">
 <link rel="stylesheet" href="css/widgets/card-base.css">
 <link rel="stylesheet" href="css/widgets/forms.css">
@@ -49,23 +49,23 @@
   <!-- .sidebar-brand removido -->
 
   <div class="nav-tree" id="nav-tree">
-    <div class="nav-link" data-page="perfil"><span class="branch">├─</span>perfil</div>
-    <div class="nav-link" data-page="nucleo"><span class="branch">├─</span>núcleo</div>
-    <div class="nav-link" data-page="financas"><span class="branch">├─</span>finanças</div>
-    <div class="nav-link" data-page="aprendizado"><span class="branch">├─</span>aprendizado</div>
-    <div class="nav-link" data-page="organizacao"><span class="branch">├─</span>organização</div>
-    <div class="nav-link" data-page="metas"><span class="branch">├─</span>metas pessoais</div>
-    <div class="nav-link" data-page="calendario"><span class="branch">├─</span>calendário</div>
-    <div class="nav-link" data-page="carreira"><span class="branch">├─</span>carreira</div>
-    <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve"><span class="branch">└─</span>assistente kami</div>
+    <div class="nav-link" data-page="perfil" role="link" tabindex="0"><span class="branch">├─</span>perfil</div>
+    <div class="nav-link" data-page="nucleo" role="link" tabindex="0"><span class="branch">├─</span>núcleo</div>
+    <div class="nav-link" data-page="financas" role="link" tabindex="0"><span class="branch">├─</span>finanças</div>
+    <div class="nav-link" data-page="aprendizado" role="link" tabindex="0"><span class="branch">├─</span>aprendizado</div>
+    <div class="nav-link" data-page="organizacao" role="link" tabindex="0"><span class="branch">├─</span>organização</div>
+    <div class="nav-link" data-page="metas" role="link" tabindex="0"><span class="branch">├─</span>metas pessoais</div>
+    <div class="nav-link" data-page="calendario" role="link" tabindex="0"><span class="branch">├─</span>calendário</div>
+    <div class="nav-link" data-page="carreira" role="link" tabindex="0"><span class="branch">├─</span>carreira</div>
+    <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve" role="link" tabindex="0" aria-disabled="true"><span class="branch">└─</span>assistente kami<span class="nav-badge-soon">em breve</span></div>
   </div>
 
   <div class="sidebar-footer">
     <pre class="mini-avatar" id="sidebar-avatar">sem avatar ainda — configure no módulo perfil.</pre>
     <div class="sidebar-footer-actions">
-      <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda"></button>
-      <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações"></button>
-      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda" aria-label="ajuda"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações" aria-label="notificações"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações" aria-label="configurações"></button>
     </div>
   </div>
 </nav>

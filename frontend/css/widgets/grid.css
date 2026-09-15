@@ -17,7 +17,6 @@
 
 /* fallback CSS quando o JS ainda não rodou / grid não inicializado */
 .widget-grid > .card     { grid-column: span 2; align-self: start; }
-.widget-grid > .card.span2 { grid-column: span 4; }
 
 .wg-placeholder {
   border: 1px dashed var(--accent-dim);
@@ -82,4 +81,103 @@
   font-size: 10.5px;
   color: var(--text-faint);
   text-align: center;
+}
+
+/* ── botão de ajuda "atalhos de teclado" (widgets/grid.js) ───────────────
+ * Inserido via JS no boot do grid — de preferência dentro da própria
+ * .wg-toolbar (mesma barra do "+ adicionar widget", ver dashboard.js),
+ * senão como fallback solto logo acima do grid (.wg-kw-help-btn-standalone).
+ * Mesmo visual/tamanho dos outros ícones de ação do app (ex: botão de
+ * ajuda da sidebar, help-menu.js).
+ */
+.wg-kw-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: auto;
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.wg-kw-help-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+.wg-kw-help-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.wg-kw-help-btn-standalone {
+  margin-bottom: 8px;
+}
+
+/* ── anúncio de posição pra leitor de tela (widgets/grid.js) ─────────────
+ * Região aria-live compartilhada por todas as instâncias do grid,
+ * criada sob demanda e reaproveitada (mesmo padrão singleton dos
+ * modais) — anuncia a nova posição a cada movimento por teclado e as
+ * mudanças de estado (selecionado/confirmado/cancelado). Escondida
+ * visualmente sem usar display:none (isso tiraria do "accessibility
+ * tree" e o leitor de tela pararia de anunciar).
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── modal de atalhos (modals/widget-shortcuts-modal.js) ─────────────────
+ * Reaproveita .modal-backdrop/.modal/.modal-head/.modal-body/.em-message
+ * de base.css — só o conteúdo específico (lista de atalhos + <kbd>) fica
+ * aqui, junto do resto do CSS do grid de widgets.
+ */
+.wg-shortcuts-intro,
+.wg-shortcuts-note {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.wg-shortcuts-note { margin-top: 12px; color: var(--text-faint); }
+.wg-shortcuts-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  color: var(--text-faint);
+}
+.wg-shortcuts-list { margin: 12px 0 0; }
+.wg-shortcuts-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.wg-shortcuts-row:last-child { border-bottom: none; }
+.wg-shortcuts-row dt {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+.wg-shortcuts-row dd {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+kbd {
+  font-family: var(--font);
+  font-size: 9.5px;
+  padding: 2px 5px;
+  border: 1px solid var(--border-interactive);
+  border-bottom-width: 2px;
+  background: var(--bg-alt);
+  color: var(--text-bright);
+  white-space: nowrap;
 }

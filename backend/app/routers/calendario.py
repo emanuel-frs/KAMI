@@ -8,12 +8,17 @@ Endpoint único, read-only, agregador de eventos de outros módulos:
 Cada evento vem de uma fonte diferente, sem tabela própria:
   - conta_fixa        fixed_bills/fixed_bill_periods (financas) — due_day
                        clamped ao fim do mês, status pendente/paga (mesmo
-                       padrão de assinatura, ver item 1 do mapa de problemas)
+                       padrão de assinatura, ver item 1)
   - divida            debts (financas)             — só se due_date cai no mês
   - assinatura        wallet_subscriptions/periods  — status pendente/paga
   - parcela           compras_parceladas           — só durante a janela de parcelas
   - meta              goals                         — só se tiver deadline no mês
   - acao              action_logs (núcleo)          — uma entrada por ação registrada
+  - contrato_fim      career_positions (carreira)   — expected_contract_end, só para
+                       posições ainda em aberto (end_date IS NULL); uma posição já
+                       encerrada não tem mais contrato pra vencer
+  - revisao_salarial  career_positions (carreira)   — expected_salary_review, mesma
+                       condição de contrato_fim acima
 
 (renda/salário deliberadamente fora daqui — ideia melhor pra isso ainda
 não implementada, ver conversa; income_entries/income_sources têm widget
@@ -31,7 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
-from app.routers.wallet import _months_between
+from app.business_days import months_between
 
 router = APIRouter()
 
@@ -221,7 +226,7 @@ def _parcela_events(db, month_str: str) -> List[dict]:
     rows = db.execute("SELECT * FROM compras_parceladas").fetchall()
     events = []
     for r in rows:
-        parcela_numero = _months_between(r["mes_primeira_parcela"], month_str) + 1
+        parcela_numero = months_between(r["mes_primeira_parcela"], month_str) + 1
         if parcela_numero < 1 or parcela_numero > r["num_parcelas"]:
             continue
         valor_parcela = r["valor_total"] / r["num_parcelas"]
@@ -251,6 +256,46 @@ def _meta_events(db, month_str: str) -> List[dict]:
             "module": "metas",
             "amount": None,
             "status": r["status"],
+        }
+        for r in rows
+    ]
+
+
+def _contrato_events(db, month_str: str) -> List[dict]:
+    rows = db.execute(
+        "SELECT * FROM career_positions WHERE end_date IS NULL "
+        "AND expected_contract_end IS NOT NULL AND substr(expected_contract_end,1,7) = ?",
+        (month_str,),
+    ).fetchall()
+    return [
+        {
+            "id": f"contrato_fim:{r['id']}",
+            "date": r["expected_contract_end"],
+            "type": "contrato_fim",
+            "title": f"fim de contrato: {r['role']} na {r['company']}",
+            "module": "carreira",
+            "amount": None,
+            "status": None,
+        }
+        for r in rows
+    ]
+
+
+def _revisao_salarial_events(db, month_str: str) -> List[dict]:
+    rows = db.execute(
+        "SELECT * FROM career_positions WHERE end_date IS NULL "
+        "AND expected_salary_review IS NOT NULL AND substr(expected_salary_review,1,7) = ?",
+        (month_str,),
+    ).fetchall()
+    return [
+        {
+            "id": f"revisao_salarial:{r['id']}",
+            "date": r["expected_salary_review"],
+            "type": "revisao_salarial",
+            "title": f"revisão salarial: {r['role']} na {r['company']}",
+            "module": "carreira",
+            "amount": None,
+            "status": None,
         }
         for r in rows
     ]
@@ -342,6 +387,8 @@ def get_events(month: str, db=Depends(get_db)):
     events += _meta_events(db, month)
     events += _acao_events(db, month)
     events += _evento_events(db, year, mo, month)
+    events += _contrato_events(db, month)
+    events += _revisao_salarial_events(db, month)
 
     events.sort(key=lambda e: (e["date"], e.get("time") or ""))
     return events

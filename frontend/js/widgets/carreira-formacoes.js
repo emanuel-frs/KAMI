@@ -1,6 +1,6 @@
 import * as carreiraApi from "../api/carreira.js";
 import { escapeHtml } from "../components/format.js";
-import { openEducationModal } from "../modals/education-modal.js";
+import { openFormacaoModal } from "../modals/formacao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 
@@ -60,9 +60,9 @@ export async function render(el, widget) {
         ${educations.length ? educations.map((e) => `
           <div class="ce-row status-${e.status}" data-education-id="${e.id}">
             <div class="ce-top">
-              <span class="ce-curso" data-edit-education="${e.id}">${escapeHtml(e.curso)}</span>
+              <span class="ce-curso" data-edit-education="${e.id}" data-tooltip="${escapeHtml(e.curso)}">${escapeHtml(e.curso)}</span>
               <span class="ce-status-tag ce-status-${e.status}">${STATUS_LABELS[e.status] || e.status}</span>
-              <span class="ce-remove" data-remove-education="${e.id}" data-tooltip="remover formação">${icon("x", { size: 11 })}</span>
+              <span class="ce-remove" data-remove-education="${e.id}" data-tooltip="remover formação" aria-label="remover formação">${icon("x", { size: 11 })}</span>
             </div>
             <div class="ce-instituicao">${escapeHtml(e.instituicao)} · ${NIVEL_LABELS[e.nivel] || e.nivel}</div>
             ${e.previsao_conclusao && e.status === "em_andamento"
@@ -76,7 +76,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-education");
         const education = educations.find((e) => e.id === id);
-        if (education) openEducationModal({ education, onSaved: reload });
+        if (education) openFormacaoModal({ education, onSaved: reload });
       });
     });
 
@@ -89,7 +89,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-education"]').addEventListener("click", () => {
-      openEducationModal({ onSaved: reload });
+      openFormacaoModal({ onSaved: reload });
     });
   }
 

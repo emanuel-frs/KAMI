@@ -4,27 +4,29 @@ import { startTipSequence } from "../components/tip-sequence.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
- * Dicas contextuais de Finanças (etapa 5, plano-onboarding-kami.md,
- * seção 8 item 5). Terceira tela, e a primeira SEM layout padrão
- * (DEFAULT_LAYOUTS não tem entrada "financas" em database.py) — todos
- * os 11 tipos do catálogo (app/widgets.py) são opcionais, então um
- * usuário novo chega aqui com o grid inteiramente vazio.
+ * Dicas contextuais de Finanças (etapa 5,
+ * seção 8 item 5). Terceira tela — agora com um layout padrão mínimo
+ * (DEFAULT_LAYOUTS tem uma entrada "financas" em database.py com os
+ * widgets carteira/financas_resumo/financas_registros), mas o usuário
+ * pode remover tudo manualmente e chegar aqui com o grid vazio, então o
+ * fallback abaixo continua útil.
  *
  * Isso muda o papel do passo "adicionar widget" em relação ao Núcleo/
  * Perfil: lá ele é só um extra no fim ("esse painel também é seu").
- * Aqui, se o grid estiver vazio na primeira visita — o caso comum —,
- * ele é o ÚNICO passo que existe (buildWidgetSteps não gera nada pra
- * varrer, já que não há nenhum `.card[data-widget]` no DOM ainda). Sem
- * ele, quem chegasse com a tela vazia veria a sequência inteira
- * terminar sem mostrar nada (ver startTipSequence em tip-sequence.js:
- * `resolved.length === 0` chama onFinish() direto) e a tela ficaria
- * marcada como "vista" sem nunca ter ensinado nada — daí ele ser
- * obrigatório aqui, diferente de ser só um nice-to-have.
+ * Aqui, se o grid estiver vazio na primeira visita — hoje um caso raro,
+ * já que o layout padrão pré-popula a tela, mas ainda possível se o
+ * usuário remover tudo —, ele é o ÚNICO passo que existe (buildWidgetSteps
+ * não gera nada pra varrer, já que não há nenhum `.card[data-widget]` no
+ * DOM ainda). Sem ele, quem chegasse com a tela vazia veria a sequência
+ * inteira terminar sem mostrar nada (ver startTipSequence em
+ * tip-sequence.js: `resolved.length === 0` chama onFinish() direto) e a
+ * tela ficaria marcada como "vista" sem nunca ter ensinado nada — daí ele
+ * ser obrigatório aqui, diferente de ser só um nice-to-have.
  */
 const SCREEN = "financas";
 
 const WIDGET_TEXTS = {
-  wallet: "seus bancos e contas — saldo, cartão de crédito, o que cada um tiver.",
+  carteira: "seus bancos e contas — saldo, cartão de crédito, o que cada um tiver.",
   financas_resumo: "visão rápida: quanto você tem versus quanto ainda precisa pagar.",
   financas_renda: "suas fontes de renda cadastradas — marque como paga quando cair na conta.",
   financas_registros: "todo lançamento do mês, com filtro por conta e por status.",

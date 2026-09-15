@@ -1,4 +1,4 @@
-import * as walletApi from "../api/wallet.js";
+import * as carteiraApi from "../api/carteira.js";
 import { escapeHtml } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -9,7 +9,7 @@ import { icon } from "../components/icons.js";
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem
  * calculada do backend (calendário + ajuste manual). Os botões de seta
- * chamam walletApi.ajustarParcelasCompra pra adiantar/desfazer um
+ * chamam carteiraApi.ajustarParcelasCompra pra adiantar/desfazer um
  * adiantamento — não mexe em fatura/saldo, só no rótulo de progresso
  * (a reserva no limite já foi feita inteira na criação da compra).
  *
@@ -18,9 +18,12 @@ import { icon } from "../components/icons.js";
  * mês no formato "nome (parcela X/N) — R$ valor", como um item de
  * fatura de banco de verdade — calculada on the fly no backend
  * (GET /compras-parceladas/mes), sem mexer em saldo/fatura de novo
- * (já foi reservado na criação) e sem depender do estado de
- * ajuste_parcelas mostrado na primeira seção (são visões diferentes:
- * "progresso atual" vs "o que cai em cada mês").
+ * (já foi reservado na criação). Essa conta LEVA EM CONTA o
+ * ajuste_parcelas atual (ver _parcela_no_mes em routers/wallet.py:
+ * raw_parcela = elapsed + 1 + ajuste_parcelas) — não é independente da
+ * primeira seção; um adiantamento/estorno feito ali também desloca qual
+ * parcela aparece aqui. São visões diferentes ("progresso atual" vs "o
+ * que cai em cada mês"), mas compartilham o mesmo ajuste como entrada.
  */
 
 function currentMonthStr() {
@@ -61,8 +64,8 @@ export async function render(el, widget) {
   async function reload() {
     try {
       [compras, banks] = await Promise.all([
-        walletApi.listComprasParceladas(),
-        walletApi.listBanks(),
+        carteiraApi.listComprasParceladas(),
+        carteiraApi.listBanks(),
       ]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar compras parceladas: ${err.message}</div>`;
@@ -73,7 +76,7 @@ export async function render(el, widget) {
 
   async function reloadFatura() {
     try {
-      faturaItens = await walletApi.listComprasParceladasMes(faturaMes);
+      faturaItens = await carteiraApi.listComprasParceladasMes(faturaMes);
     } catch (err) {
       faturaItens = [];
     }
@@ -95,21 +98,21 @@ export async function render(el, widget) {
           return `
             <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}" data-parcela-id="${c.id}">
               <div class="cp-top">
-                <span class="cp-nome" data-edit-compra="${c.id}">${escapeHtml(c.nome)}</span>
-                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
+                <span class="cp-nome" data-edit-compra="${c.id}" data-tooltip="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</span>
+                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)" aria-label="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-meta">
                 <div class="cp-parcela-adjust">
-                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
+                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento" aria-label="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
                   <span class="cp-parcela">${c.parcela_atual}/${c.num_parcelas}${ajusteTag}${c.quitada ? " · quitada" : ""}</span>
-                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
+                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela" aria-label="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
                 </div>
                 <div class="cp-valor-stack">
                   <span class="cp-valor">${brl(c.valor_parcela)}</span>
                   <span class="cp-valor-total">de ${brl(c.valor_total)}</span>
                 </div>
               </div>
-              <div class="cp-conta">${contaLabel}</div>
+              <div class="cp-conta" data-tooltip="${contaLabel}">${contaLabel}</div>
             </div>`;
         }).join("") : `<div class="wallet-empty">nenhuma compra parcelada cadastrada.</div>`}
       </div>
@@ -126,7 +129,7 @@ export async function render(el, widget) {
         <div class="cp-fatura-list">
           ${faturaItens.length ? faturaItens.map((f) => `
             <div class="cp-fatura-row">
-              <span class="cp-fatura-nome">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
+              <span class="cp-fatura-nome" data-tooltip="${escapeHtml(f.nome)}">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
               <span class="cp-fatura-valor">${brl(f.valor_parcela)}</span>
             </div>`).join("") : `<div class="wallet-empty">nenhuma compra parcelada ativa em ${monthLabel(faturaMes)}.</div>`}
         </div>
@@ -156,7 +159,7 @@ export async function render(el, widget) {
           "remover essa compra parcelada? isso desfaz a reserva no limite, se tinha conta vinculada.",
           { title: "remover compra parcelada", confirmText: "remover", danger: true }
         ))) return;
-        await walletApi.deleteCompraParcelada(btn.getAttribute("data-remove-compra"));
+        await carteiraApi.deleteCompraParcelada(btn.getAttribute("data-remove-compra"));
         await reload();
         window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
       });
@@ -167,7 +170,7 @@ export async function render(el, widget) {
         const delta = Number(btn.getAttribute("data-adjust"));
         const compraId = btn.getAttribute("data-compra");
         try {
-          await walletApi.ajustarParcelasCompra(compraId, delta);
+          await carteiraApi.ajustarParcelasCompra(compraId, delta);
         } catch (err) {
           showErrorModal(err.message, "erro ao ajustar parcela");
           return;

@@ -1,6 +1,6 @@
 import * as carreiraApi from "../api/carreira.js";
 import { escapeHtml } from "../components/format.js";
-import { openSalaryModal } from "../modals/salary-modal.js";
+import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { attachChartTooltip } from "../charts/chart-tooltip.js";
@@ -118,7 +118,7 @@ export async function render(el, widget) {
             <div class="cs-row" data-record-id="${r.id}">
               <div class="cs-top">
                 <span class="cs-amount" data-edit-salary="${r.id}">${money(r.amount, r.currency)}</span>
-                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="remover registro">${icon("x", { size: 11 })}</span>
+                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="remover registro" aria-label="remover registro">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cs-meta">${formatDate(r.date)}${r.employment_type ? ` · ${escapeHtml(r.employment_type)}` : ""}${r.reason ? ` · ${escapeHtml(r.reason)}` : ""}</div>
             </div>`).join("") : `<div class="wallet-empty">nenhum registro salarial ainda.</div>`}
@@ -133,7 +133,7 @@ export async function render(el, widget) {
       el2.addEventListener("click", () => {
         const id = el2.getAttribute("data-edit-salary");
         const record = records.find((r) => r.id === id);
-        if (record) openSalaryModal({ record, onSaved: reload });
+        if (record) openSalarioModal({ record, onSaved: reload });
       });
     });
 
@@ -146,7 +146,7 @@ export async function render(el, widget) {
     });
 
     el.querySelector('[data-action="add-salary"]').addEventListener("click", () => {
-      openSalaryModal({ onSaved: reload });
+      openSalarioModal({ onSaved: reload });
     });
   }
 

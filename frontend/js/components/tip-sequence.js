@@ -1,8 +1,7 @@
 import { icon } from "./icons.js";
 
 /**
- * Motor genérico de dicas contextuais por tela (etapa 5,
- * plano-onboarding-kami.md).
+ * Motor genérico de dicas contextuais por tela (etapa 5).
  *
  * Escurece a tela inteira exceto o elemento em destaque, mostra um
  * balão de texto apontando pra ele, e obriga o usuário a avançar
@@ -63,7 +62,7 @@ function buildDom() {
     <div class="tip-balloon">
       <div class="tip-balloon-head">
         <span class="tip-step-label"></span>
-        <span class="tip-skip" data-action="skip">pular tudo</span>
+        <span class="tip-skip" data-action="skip" role="button" tabindex="0">pular tudo</span>
       </div>
       <p class="tip-text"></p>
       <div class="tip-balloon-foot">
@@ -79,7 +78,18 @@ function buildDom() {
   // absorve o clique — o "buraco" do meio não tem elemento, então
   // cliques ali já passam direto sem precisar de handler nenhum)
   root.querySelectorAll(".tip-shade").forEach((el) => el.addEventListener("click", (e) => e.stopPropagation()));
-  root.querySelector('[data-action="skip"]').addEventListener("click", () => finish());
+  const skipEl = root.querySelector('[data-action="skip"]');
+  skipEl.addEventListener("click", () => finish());
+  // .tip-skip é um <span>, não um <button> nativo — precisa do próprio
+  // handler de teclado pra responder a Enter/Espaço como um botão de
+  // verdade responderia sozinho (ver auditoria de foco: role="button"+
+  // tabindex="0" só cobrem a semântica/navegação, não a ativação).
+  skipEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      finish();
+    }
+  });
   root.querySelector(".tip-next-btn").addEventListener("click", () => advance());
   return root;
 }

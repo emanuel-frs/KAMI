@@ -25,7 +25,11 @@ export function fmtMoney(v) {
 
 /** Escapa texto livre (descrições, títulos) antes de inserir via innerHTML. */
 export function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
+  return String(str ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
 }

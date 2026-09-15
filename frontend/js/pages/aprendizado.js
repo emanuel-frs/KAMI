@@ -78,7 +78,7 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
         <div class="roadmap-box">
           ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
           <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}">
-          <span class="roadmap-title" data-id="${m.id}">${escapeHtml(m.title)}</span>
+          <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
           ${editable
             ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
             : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">${icon("chevron-right", { size: 14 })}</span>`
@@ -87,8 +87,8 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
             <div class="roadmap-expanded">
               ${m.description ? `<div class="roadmap-expanded-desc">${escapeHtml(m.description)}</div>` : ''}
               <div class="field">
-                <label>notas</label>
-                <textarea class="ms-notes-textarea" data-id="${m.id}" rows="4" style="width:100%; resize:vertical;">${escapeHtml(m.notes || '')}</textarea>
+                <label for="ms-notes-${m.id}">notas</label>
+                <textarea class="ms-notes-textarea" id="ms-notes-${m.id}" data-id="${m.id}" rows="4" style="width:100%; resize:vertical;">${escapeHtml(m.notes || '')}</textarea>
               </div>
               <div style="display:flex; gap:8px; margin-top:8px;">
                 <button type="button" class="btn primary sm" data-action="save-notes-inline" data-id="${m.id}">salvar</button>
@@ -194,11 +194,11 @@ function buildTrackModal() {
       </div>
       <div class="modal-body">
         <div class="field">
-          <label>nome da trilha</label>
+          <label for="track-name-input">nome da trilha</label>
           <input type="text" id="track-name-input" placeholder="ex: programação">
         </div>
         <div class="field">
-          <label>descrição</label>
+          <label for="track-description-input">descrição</label>
           <textarea id="track-description-input" placeholder="ex: Aprenda programação do zero"></textarea>
         </div>
         <div style="display:flex; gap:8px; margin-top:4px; align-items:center;">
@@ -210,7 +210,7 @@ function buildTrackModal() {
 
         <div id="track-import-section" style="display:none; margin-top:16px; border-top:1px dashed var(--border-soft); padding-top:12px;">
           <div class="field">
-            <label>json da trilha</label>
+            <label for="track-import-json">json da trilha</label>
             <textarea id="track-import-json" rows="8" placeholder='{"name":"Rust","general_goal":"...","modules":[{"title":"sintaxe","description":"..."}]}'></textarea>
           </div>
           <div style="display:flex; gap:8px;">
@@ -393,7 +393,7 @@ function openMilestoneModal(milestoneId, mode = "view") {
         <div class="val">${ms.description ? escapeHtml(ms.description) : '<span style="color:var(--text-faint)">(vazio)</span>'}</div>
       </div>
       <div class="field">
-        <label>notas</label>
+        <label for="ms-notes-textarea">notas</label>
         <textarea id="ms-notes-textarea" rows="4" style="resize:vertical;width:100%;">${ms.notes || ''}</textarea>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border-soft);padding-top:12px;">
@@ -420,11 +420,11 @@ function openMilestoneModal(milestoneId, mode = "view") {
   } else {
     body.innerHTML = `
       <div class="field">
-        <label>nome</label>
+        <label for="ms-edit-name">nome</label>
         <input type="text" id="ms-edit-name" value="${escapeHtml(ms.title)}">
       </div>
       <div class="field">
-        <label>descrição</label>
+        <label for="ms-edit-desc">descrição</label>
         <textarea id="ms-edit-desc" rows="3">${ms.description || ''}</textarea>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -487,11 +487,11 @@ function buildNewMilestoneModal() {
       </div>
       <div class="modal-body">
         <div class="field">
-          <label>nome</label>
+          <label for="new-ms-name">nome</label>
           <input type="text" id="new-ms-name" placeholder="ex: Git">
         </div>
         <div class="field">
-          <label>descrição</label>
+          <label for="new-ms-desc">descrição</label>
           <textarea id="new-ms-desc" rows="3"></textarea>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px;">

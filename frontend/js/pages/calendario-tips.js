@@ -3,7 +3,7 @@ import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
 
 /**
- * Dicas contextuais do Calendário (etapa 5, plano-onboarding-kami.md).
+ * Dicas contextuais do Calendário (etapa 5).
  * Última das seis telas v1 a ganhar isso — ficou de fora do rollout
  * original (ver comentário antigo em screen-tips-registry.js) por ser
  * considerada um tutorial mais complexo na época; na prática a tela

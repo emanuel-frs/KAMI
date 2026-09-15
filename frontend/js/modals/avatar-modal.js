@@ -1,4 +1,4 @@
-import { imageToAscii, fitAsciiText, ASCII_RAMPS } from "../components/ascii.js";
+import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../components/ascii.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
@@ -52,15 +52,15 @@ function buildModal() {
             <div>
               <div class="al-drop" id="av-drop">
                 <div class="field">
-                  <label>foto (não é salva — só o resultado em texto)</label>
+                  <label for="av-file">foto (não é salva — só o resultado em texto)</label>
                   <input type="file" id="av-file" accept="image/*">
                 </div>
                 <div class="field">
-                  <label>largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
+                  <label for="av-cols">largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
                   <input type="range" id="av-cols" min="30" max="120" value="70" style="accent-color:var(--accent); width:100%;">
                 </div>
                 <div class="field">
-                  <label>rampa de caracteres</label>
+                  <label for="av-ramp">rampa de caracteres</label>
                   <select id="av-ramp">
                     <option value="detalhada">detalhada</option>
                     <option value="simples">simples</option>
@@ -131,13 +131,13 @@ function wireModal(wrap) {
   }
 
   function loadFile(file) {
-    if (!file || !file.type.startsWith("image/")) return;
-    const img = new Image();
-    img.onload = () => {
-      currentImg = img;
-      render();
-    };
-    img.src = URL.createObjectURL(file);
+    loadImageFile(file, {
+      onLoad: (img) => {
+        currentImg = img;
+        render();
+      },
+      onInvalid: () => showErrorModal("não consegui abrir esse arquivo como imagem — tente outro.", "atenção"),
+    });
   }
 
   fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
