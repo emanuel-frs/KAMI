@@ -94,8 +94,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Kami ${{ github.ref_name }}"
           releaseBody: "Ver CHANGELOG.md para o detalhamento desta versão."
-          # true = cria como rascunho pra você revisar/publicar manualmente
-          # depois; troque pra false quando confiar no fluxo e quiser
-          # publicação automática direto no push da tag.
-          releaseDraft: true
+          # A tag já representa uma versão revisada; publicar automaticamente
+          # evita deixar a versão correta invisível na página de Releases.
+          releaseDraft: false
           prerelease: false
