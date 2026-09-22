@@ -28,7 +28,7 @@ function buildModal() {
   wrap.id = "subscription-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova assinatura</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova assinatura</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="sm-nome">nome</label><input type="text" id="sm-nome" placeholder="ex: streaming, academia..."></div>
         <div class="field-row">

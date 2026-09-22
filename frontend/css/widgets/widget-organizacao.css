@@ -34,6 +34,19 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes org-sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* girar sem parar é o tipo de animação que prefers-reduced-motion
+     pede pra evitar — troca por um pulso de opacidade, que ainda
+     comunica "processando" sem a rotação contínua. */
+  .org-account-actions .icon-btn.is-syncing svg,
+  #org-email-sync-btn.is-syncing svg {
+    animation: org-sync-pulse 1.1s ease-in-out infinite;
+  }
+}
 
 /* ── conta silenciada (notificações v2.1 — silenciar é por CONTA
    inteira agora, não mais por remetente individual; ver o botão de

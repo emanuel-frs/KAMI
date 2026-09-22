@@ -59,14 +59,15 @@ function buildDom() {
     <div class="tip-shade tip-shade--left"></div>
     <div class="tip-shade tip-shade--right"></div>
     <div class="tip-highlight"></div>
-    <div class="tip-balloon">
+    <div class="tip-balloon" role="dialog" aria-modal="true" aria-label="dicas da tela">
+      <div class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
       <div class="tip-balloon-head">
         <span class="tip-step-label"></span>
         <span class="tip-skip" data-action="skip" role="button" tabindex="0">pular tudo</span>
       </div>
       <p class="tip-text"></p>
       <div class="tip-balloon-foot">
-        <span class="tip-interact-hint">toque no elemento em destaque para continuar</span>
+        <span class="tip-interact-hint">toque (ou Enter, com o foco nele) no elemento em destaque para continuar</span>
         <button type="button" class="btn sm primary tip-next-btn">
           próximo ${icon("arrow-right", { size: 12 })}
         </button>
@@ -92,6 +93,80 @@ function buildDom() {
   });
   root.querySelector(".tip-next-btn").addEventListener("click", () => advance());
   return root;
+}
+
+// ─── teclado / foco ─────────────────────────────────────────────────────
+// Antes a sequência não mexia no foco: o balão ia pro fim do <body>, então
+// quem usa teclado tinha que atravessar a página inteira com Tab só pra
+// chegar no "próximo" — na prática só o "pular tudo" estava ao alcance.
+// Agora: o foco entra no balão a cada passo, Tab fica preso nos controles
+// da dica, Enter/Espaço avançam e Esc equivale a "pular tudo".
+
+function isKeyboardFocusable(el) {
+  if (!el || el.disabled) return false;
+  return el.matches('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+}
+
+function isNativeControl(el) {
+  return el instanceof Element && !!el.closest("button, input, textarea, select, a[href], [contenteditable]");
+}
+
+function isShown(el) {
+  return !!el && el.style.display !== "none";
+}
+
+function focusCycle() {
+  const { root, currentTarget, keyboardTarget } = active;
+  const list = [];
+  if (keyboardTarget && currentTarget && document.contains(currentTarget)) list.push(currentTarget);
+  const skip = root.querySelector(".tip-skip");
+  const next = root.querySelector(".tip-next-btn");
+  if (skip) list.push(skip);
+  if (isShown(next)) list.push(next);
+  return list;
+}
+
+function focusCurrentStep() {
+  if (!active) return;
+  const { root, currentTarget, keyboardTarget } = active;
+  const next = root.querySelector(".tip-next-btn");
+  if (keyboardTarget && currentTarget) currentTarget.focus({ preventScroll: true });
+  else if (isShown(next)) next.focus({ preventScroll: true });
+  else root.querySelector(".tip-skip")?.focus({ preventScroll: true });
+}
+
+function onKeydown(e) {
+  if (!active) return;
+
+  if (e.key === "Escape") {
+    // mesmo efeito de "pular tudo"; stopPropagation pra o Esc não fechar
+    // também um modal que esteja por baixo (modal-escape.js).
+    e.preventDefault();
+    e.stopPropagation();
+    finish();
+    return;
+  }
+
+  if (e.key === "Tab") {
+    const list = focusCycle();
+    if (list.length === 0) return;
+    e.preventDefault();
+    const idx = list.indexOf(document.activeElement);
+    const nextIdx = idx === -1 ? (e.shiftKey ? list.length - 1 : 0) : (idx + (e.shiftKey ? -1 : 1) + list.length) % list.length;
+    list[nextIdx].focus({ preventScroll: true });
+    return;
+  }
+
+  // Enter/Espaço com o foco solto (body) ou no próprio balão avançam o
+  // passo — botões e o elemento em destaque cuidam de si (clique nativo).
+  if ((e.key === "Enter" || e.key === " " || e.key === "Spacebar") && !e.repeat && !isNativeControl(e.target)) {
+    const step = active.steps[active.index];
+    const next = active.root.querySelector(".tip-next-btn");
+    if (step && isShown(next)) {
+      e.preventDefault();
+      advance();
+    }
+  }
 }
 
 function titlebarHeight() {
@@ -194,13 +269,28 @@ function renderStep() {
 
   step.onEnter?.();
 
+  // Passo "interact" só depende do clique no elemento em destaque. Se
+  // esse elemento não for alcançável por teclado (ex.: um <div> clicável
+  // sem tabindex), quem usa teclado ficaria travado — então nesse caso
+  // o "próximo" aparece também, como saída.
+  const liveTarget = document.querySelector(step.selector);
+  const keyboardTarget = isInteract && isKeyboardFocusable(liveTarget);
+  active.keyboardTarget = keyboardTarget;
+
   const nextBtn = root.querySelector(".tip-next-btn");
   const hint = root.querySelector(".tip-interact-hint");
-  nextBtn.style.display = isInteract ? "none" : "";
+  const showNext = !isInteract || !keyboardTarget;
+  nextBtn.style.display = showNext ? "" : "none";
   hint.style.display = isInteract ? "" : "none";
-  if (!isInteract) {
+  if (showNext) {
     nextBtn.innerHTML = isLast ? `${icon("check", { size: 12 })} entendi` : `próximo ${icon("arrow-right", { size: 12 })}`;
   }
+
+  // anuncia o passo inteiro de uma vez (o foco vai pro botão, que sozinho
+  // não leria o texto da dica)
+  root.querySelector('[role="status"]').textContent =
+    `passo ${index + 1} de ${total}. ${step.text}` +
+    (isInteract ? (keyboardTarget ? " Ative o elemento em destaque para continuar." : "") : "");
 
   positionAll();
   // positionAll() pode ter avançado a sequência de novo (elemento deste
@@ -217,6 +307,8 @@ function renderStep() {
       active.interactCleanup = () => target.removeEventListener("click", onInteract);
     }
   }
+
+  focusCurrentStep();
 }
 
 function tick() {
@@ -243,11 +335,19 @@ function advance() {
 
 function finish() {
   if (!active) return;
-  const { root, onFinish, rafId } = active;
+  const { root, onFinish, rafId, opener } = active;
   active.interactCleanup?.();
   cancelAnimationFrame(rafId);
+  document.removeEventListener("keydown", onKeydown, true);
+  // só devolve o foco se ele ainda é "nosso" (dentro da dica ou solto no
+  // body) — se o clique no alvo já abriu um modal e o foco foi pra lá,
+  // não rouba.
+  const focusIsOurs = !document.activeElement || document.activeElement === document.body || root.contains(document.activeElement);
   root.remove();
   active = null;
+  if (focusIsOurs && opener && document.contains(opener) && typeof opener.focus === "function") {
+    opener.focus({ preventScroll: true });
+  }
   onFinish?.();
 }
 
@@ -265,6 +365,8 @@ export function startTipSequence(steps, { onFinish } = {}) {
     return;
   }
 
+  const prev = document.activeElement;
+  const opener = prev && prev !== document.body ? prev : null;
   const root = buildDom();
 
   active = {
@@ -275,7 +377,12 @@ export function startTipSequence(steps, { onFinish } = {}) {
     rafId: null,
     currentTarget: null,
     interactCleanup: null,
+    keyboardTarget: false,
+    opener,
   };
+
+  // capture: pega Tab/Esc/Enter antes dos handlers da página por baixo
+  document.addEventListener("keydown", onKeydown, true);
 
   renderStep();
   // reposiciona a cada frame enquanto a sequência estiver na tela —

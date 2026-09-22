@@ -149,7 +149,7 @@ def test_reset_reseeds_fresh_install_defaults(client):
 
     dashboard_nucleo = client.get("/api/dashboard/nucleo").json()
     assert [w["widget_type"] for w in dashboard_nucleo] == [
-        "attributes", "priorities", "log", "registrar", "achievements",
+        "achievements", "registrar", "attributes", "log", "priorities",
     ]
 
     achievements = client.get("/api/nucleo/achievements").json()

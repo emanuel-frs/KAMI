@@ -62,6 +62,14 @@ WIDGET_CATALOG = {
         "max_span": 6,
         "default_span": 4,
     },
+    "perfil_atividade": {
+        "label": "atividade — últimos meses",
+        "screens": ["perfil"],
+        "removable": True,
+        "min_span": 2,
+        "max_span": 6,
+        "default_span": 3,
+    },
     "carteira": {
         "label": "wallet — bancos e contas",
         "screens": ["financas"],

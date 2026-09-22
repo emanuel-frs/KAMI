@@ -121,6 +121,33 @@
   color: var(--text-faint);
   letter-spacing: 0.03em;
   animation: ki-hint-pulse 1.4s ease-in-out infinite;
+  /* agora é um <button> real (Enter/Espaço avançam) — zera o visual nativo */
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ki-advance-hint:hover { color: var(--text-dim); }
+.ki-advance-hint:focus-visible {
+  color: var(--accent);
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  animation: none;
+  opacity: 1;
+}
+.ki-box:focus { outline: none; } /* o diálogo só recebe foco programático (tabindex=-1) */
+.ki-btn-skip:focus-visible,
+.ki-btn-back:focus-visible {
+  color: var(--text-bright);
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ki-advance-hint { animation: none; opacity: 1; }
+  /* mesmo caso do cursor da titlebar (base.css): fica sólido em vez de
+     piscar — item 5 das pendências ("cursor piscando... sem essa opção") */
+  .ki-cursor { animation: none; }
 }
 @keyframes ki-hint-pulse {
   0%, 100% { opacity: 0.45; }
@@ -157,6 +184,10 @@
   padding: 0;
 }
 .ki-swatch:hover { transform: scale(1.12); }
+.ki-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 /* selecionado: inverte o preenchimento (vira a cor de fundo do sistema,
    var(--bg)) e usa a própria cor do swatch na borda + no check — em vez
    de uma borda genérica var(--text) + ícone var(--bg) por cima do

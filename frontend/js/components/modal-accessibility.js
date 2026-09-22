@@ -65,7 +65,11 @@ function dialogOf(backdropEl, config) {
 }
 
 function isVisible(el) {
-  return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  if (!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)) return false;
+  // visibility:hidden mantém o tamanho no layout mas não aceita foco —
+  // sem esta checagem o focus trap tentaria focar botões escondidos
+  // (ex.: o "continuar" do kami-intro enquanto o texto ainda digita).
+  return getComputedStyle(el).visibility !== "hidden";
 }
 
 function focusableIn(container) {
@@ -98,6 +102,21 @@ function ensureAria(backdropEl, dialogEl) {
     dialogEl.querySelector(".modal-head");
   if (!titleEl) return;
 
+  // Fallback: título é texto solto dentro do próprio .modal-head, que
+  // agora também contém o <button class="close" aria-label="fechar">.
+  // Usar o .modal-head inteiro em aria-labelledby faria o nome do
+  // diálogo virar "novo lançamento fechar" — então monta o rótulo só
+  // com o texto, sem o botão.
+  if (titleEl.classList.contains("modal-head")) {
+    const clone = titleEl.cloneNode(true);
+    clone.querySelectorAll(".close, svg").forEach((n) => n.remove());
+    const label = clone.textContent.replace(/\s+/g, " ").trim();
+    if (label) {
+      dialogEl.setAttribute("aria-label", label);
+      return;
+    }
+  }
+
   if (!titleEl.id) {
     titleIdSeq += 1;
     titleEl.id = `${backdropEl.id || "modal"}-generated-title-${titleIdSeq}`;
@@ -106,7 +125,24 @@ function ensureAria(backdropEl, dialogEl) {
 }
 
 function moveFocusIn(dialogEl) {
-  const [first] = focusableIn(dialogEl);
+  const focusables = focusableIn(dialogEl);
+
+  // Diálogos podem escolher onde o foco entra com [data-autofocus]
+  // (no próprio diálogo ou num descendente) — ex.: kami-intro, onde o
+  // primeiro botão focável é "pular" e Enter não deveria pulá-lo sem querer.
+  const preferred = dialogEl.matches("[data-autofocus]")
+    ? dialogEl
+    : dialogEl.querySelector("[data-autofocus]");
+  if (preferred && isVisible(preferred)) {
+    preferred.focus();
+    return;
+  }
+
+  // Sem preferência: o primeiro focável que NÃO seja o X de fechar —
+  // o X é o primeiro elemento do DOM de quase todo modal, mas o foco
+  // inicial tem que cair no primeiro campo/ação útil (senão abrir "nova
+  // conta" deixaria o cursor no botão de fechar em vez do campo nome).
+  const first = focusables.find((el) => !el.matches(".modal-head .close")) || focusables[0];
   if (first) {
     first.focus();
     return;

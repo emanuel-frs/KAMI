@@ -9,6 +9,8 @@ import { store } from "../state/store.js";
 import { maybeStartCalendarioTips, replayCalendarioTips } from "./calendario-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
+import { announce } from "../components/a11y.js";
+import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -71,6 +73,7 @@ const STATUS_LABELS = {
 };
 
 const WEEKDAY_LABELS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const WEEKDAY_LONG_LABELS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 const MONTH_LABELS = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -78,6 +81,7 @@ const MONTH_LABELS = [
 
 // ─── estado ──────────────────────────────────────────────────────────────
 let containerEl = null;
+let shortcutsToken = null;
 let viewYear = 0;
 let viewMonth = 0; // 1-12
 let selectedDate = null; // 'YYYY-MM-DD'
@@ -88,6 +92,8 @@ let activeFilters = new Set(); // tipos selecionados para filtrar; vazio = todos
 let resizeObserver = null;
 let unsubscribeProfile = null;
 let currentReplayFn = null;
+let focusedDate = null; // "cursor" da grade, independente do dia selecionado (setas movem isto)
+let wantsGridFocus = false; // true quando a navegação por teclado disparou o redesenho (setas/PageUp/PageDown)
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -223,8 +229,13 @@ function renderGrid() {
     const dow = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
     const isWeekend = dow === 0 || dow === 6;
 
+    const dow2 = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
+    const ariaLabel = `${WEEKDAY_LONG_LABELS[dow2]}, ${day} de ${MONTH_LABELS[viewMonth - 1]}` +
+      (isToday ? " — hoje" : "") +
+      (dayEvents.length ? `, ${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : ", sem eventos");
     html += `
-      <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateStr}">
+      <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateStr}"
+        role="button" tabindex="-1" aria-label="${escapeHtml(ariaLabel)}"${isToday ? ' aria-current="date"' : ""}>
         <div class="cal-day-num">${day}</div>
         <div class="cal-day-chips">${chips}</div>
       </div>
@@ -238,10 +249,22 @@ function renderGrid() {
   }
 
   gridEl.innerHTML = html;
+  updateGridRovingTabindex();
+
+  // depois de um redesenho disparado pela navegação por teclado (setas,
+  // PageUp/PageDown, Home/End), o foco some com o innerHTML — devolve pro
+  // dia que virou o "cursor" da grade. Cliques e outros redesenhos não
+  // mexem no foco (senão selecionar com o mouse puxaria o foco de volta
+  // pra grade sem o usuário ter pedido).
+  if (wantsGridFocus) {
+    wantsGridFocus = false;
+    gridEl.querySelector(`[data-date="${focusedDate}"]`)?.focus();
+  }
 
   gridEl.querySelectorAll(".cal-day:not(.cal-day-filler)").forEach((cell) => {
     cell.addEventListener("click", () => {
       selectedDate = cell.dataset.date;
+      focusedDate = cell.dataset.date;
       activeFilters.clear();
       renderGrid();
       renderDayPanel();
@@ -266,6 +289,85 @@ function renderGrid() {
   });
 }
 
+// ─── grade: cursor de teclado (roving tabindex + setas) ─────────────────
+// Só o dia "focado no momento" (focusedDate, se estiver visível — senão o
+// selecionado, senão hoje, senão o dia 1) entra na ordem de Tab; os outros
+// ~34 ficam com tabindex="-1" e são alcançados pelas setas. Sem isso, tabular
+// até o painel do dia custaria uma volta por cada célula da grade.
+function updateGridRovingTabindex() {
+  const gridEl = containerEl?.querySelector("#cal-grid");
+  if (!gridEl) return;
+  const cells = [...gridEl.querySelectorAll(".cal-day:not(.cal-day-filler)")];
+  if (!cells.length) return;
+  const wanted =
+    cells.find((c) => c.dataset.date === focusedDate) ||
+    cells.find((c) => c.dataset.date === selectedDate) ||
+    cells.find((c) => c.classList.contains("today")) ||
+    cells[0];
+  cells.forEach((c) => (c.tabIndex = c === wanted ? 0 : -1));
+}
+
+function parseDateStr(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return { y, m, d };
+}
+
+function addDays(dateStr, delta) {
+  const { y, m, d } = parseDateStr(dateStr);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+}
+
+/** Move o cursor por dias (setas) ou meses (PageUp/PageDown), cruzando de
+ * mês quando preciso — troca de mês recarrega os eventos (loadMonth), então
+ * o foco só volta depois que a grade nova terminar de desenhar (ver
+ * `wantsGridFocus` em renderGrid). Mover dentro do mesmo mês não recarrega
+ * nada: só troca o "cursor" e foca a célula, sem redesenhar a grade. */
+function moveGridCursor(newDate) {
+  const { y, m } = parseDateStr(newDate);
+  focusedDate = newDate;
+  if (y === viewYear && m === viewMonth) {
+    updateGridRovingTabindex();
+    containerEl.querySelector(`#cal-grid [data-date="${newDate}"]`)?.focus();
+    return;
+  }
+  wantsGridFocus = true;
+  viewYear = y;
+  viewMonth = m;
+  loadMonth();
+}
+
+function onGridKeydown(e) {
+  const cell = e.target.closest(".cal-day:not(.cal-day-filler)");
+  if (!cell) return;
+  const date = cell.dataset.date;
+  const DELTA = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+  if (e.key in DELTA) {
+    e.preventDefault();
+    moveGridCursor(addDays(date, DELTA[e.key]));
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+    const { y, m, d } = parseDateStr(date);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=domingo … 6=sábado, mesma base da grade
+    moveGridCursor(addDays(date, e.key === "Home" ? -dow : 6 - dow));
+  } else if (e.key === "PageUp" || e.key === "PageDown") {
+    e.preventDefault();
+    const { y, m, d } = parseDateStr(date);
+    const dir = e.key === "PageUp" ? -1 : 1;
+    let ny = y, nm = m + dir;
+    if (nm > 12) { nm = 1; ny += 1; } else if (nm < 1) { nm = 12; ny -= 1; }
+    const clampedDay = Math.min(d, daysInMonth(ny, nm));
+    moveGridCursor(`${ny}-${pad2(nm)}-${pad2(clampedDay)}`);
+  } else if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+    e.preventDefault();
+    selectedDate = date;
+    focusedDate = date;
+    wantsGridFocus = true; // Enter/Espaço só troca a seleção — o cursor tem que continuar na grade
+    renderGrid();
+    renderDayPanel();
+  }
+}
+
 // ─── render: painel do dia selecionado ──────────────────────────────────
 function fmtSelectedDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -286,6 +388,9 @@ function renderDayPanel() {
 
   headEl.textContent = fmtSelectedDateLabel(selectedDate);
   const dayEvents = eventsByDate.get(selectedDate) || [];
+  // quem está no teclado tem o foco na grade, não no painel — sem isso não
+  // saberia que o painel ao lado mudou de conteúdo até tabular até lá.
+  announce(`${fmtSelectedDateLabel(selectedDate)}: ${dayEvents.length ? `${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : "nenhum evento"}.`);
 
   if (!dayEvents.length) {
     filtersEl.innerHTML = "";
@@ -424,6 +529,7 @@ function shiftMonth(delta) {
     year -= 1;
   }
   selectedDate = null;
+  focusedDate = `${year}-${pad2(month)}-01`;
   activeFilters.clear();
   goToMonth(year, month);
 }
@@ -431,6 +537,7 @@ function shiftMonth(delta) {
 function goToToday() {
   const t = todayParts();
   selectedDate = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+  focusedDate = selectedDate;
   goToMonth(t.year, t.month);
 }
 
@@ -446,10 +553,33 @@ function renderLegend() {
 // ─── montagem / desmontagem ──────────────────────────────────────────────
 export async function mount(container) {
   containerEl = container;
+
+  // Registrado ANTES do innerHTML/primeiro await, mesmo motivo do
+  // dashboard.js: as ações não dependem de nada assíncrono (chamam
+  // handleNewEventClick/goToToday direto, que por sua vez buscam os
+  // elementos quando rodam, não agora), então não precisa de `when`.
+  shortcutsToken = registerScreenShortcuts({
+    name: "calendário",
+    actions: [
+      // "N" de "novo", mesma tecla de "nova trilha"/"novo widget" nas
+      // outras telas (aprendizado.js, dashboard.js).
+      { code: "KeyN", label: "novo evento", run: () => handleNewEventClick() },
+      // "T" de "today/hoje" — pula pro mês/dia atual sem PageUp/PageDown repetido.
+      { code: "KeyT", label: "ir para hoje", run: () => goToToday() },
+    ],
+    hints: [
+      { combos: [["←"], ["→"], ["↑"], ["↓"]], label: "na grade: mover o cursor entre os dias" },
+      { combos: [["Home"], ["End"]], label: "na grade: ir ao primeiro/último dia da semana" },
+      { combos: [["Page Up"], ["Page Down"]], label: "na grade: mês anterior/próximo" },
+      { combos: [["Enter"], ["Espaço"]], label: "na grade: selecionar o dia focado" },
+    ],
+  });
+
   const t = todayParts();
   viewYear = t.year;
   viewMonth = t.month;
   selectedDate = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+  focusedDate = selectedDate;
 
   container.innerHTML = `
     <div class="cal-toolbar">
@@ -486,6 +616,7 @@ export async function mount(container) {
   container.querySelector("#cal-next").addEventListener("click", () => shiftMonth(1));
   container.querySelector("#cal-today-btn").addEventListener("click", goToToday);
   container.querySelector("#cal-new-event-btn").addEventListener("click", handleNewEventClick);
+  container.querySelector("#cal-grid").addEventListener("keydown", onGridKeydown);
 
   await loadMonth();
 
@@ -499,6 +630,8 @@ export async function mount(container) {
 
 export function unmount() {
   cancelActiveTipSequence();
+  clearScreenShortcuts(shortcutsToken);
+  shortcutsToken = null;
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);

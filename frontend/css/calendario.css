@@ -474,3 +474,17 @@
   margin-top: 8px;
   align-self: flex-start;
 }
+/* ── foco por teclado ─────────────────────────────────────────────────────
+ * .cal-day usa roving tabindex (só um por vez tem tabindex=0 — ver
+ * updateGridRovingTabindex em js/pages/calendario.js); .cal-event-row ganha
+ * role/tabindex em runtime (ver js/components/clickable-a11y.js). Mesmo
+ * padrão de anel usado no resto do app. */
+.cal-day:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.cal-event-row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}

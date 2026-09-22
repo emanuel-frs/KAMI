@@ -12,18 +12,29 @@ import {
 } from "../api/aprendizado.js";
 import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
+import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { getLog } from "../api/nucleo.js";
 import { store } from "../state/store.js";
 import { maybeStartAprendizadoTips, replayAprendizadoTips } from "./aprendizado-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { makeFocusable, announce } from "../components/a11y.js";
+import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
 let tracks = [];
 let milestones = [];
 let selectedTrackId = null;
+// Foco por teclado: as listas são redesenhadas via innerHTML a cada
+// mudança (selecionar, reordenar, marcar módulo...), o que derruba o foco
+// pro <body>. Estas variáveis guardam "quem tinha o foco" entre o
+// desenho antigo e o novo, e o render devolve o foco no elemento
+// equivalente.
+let pendingTrackFocusId = null;
+let pendingRoadmapFocus = null; // { kind: "ms-checkbox" | "roadmap-title" | "roadmap-expand-btn", id }
+let shortcutsToken = null;
 let editingTrack = false;
 let currentMilestoneId = null;
 let selectedNodeId = null;
@@ -77,7 +88,7 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
         <div class="roadmap-connector"></div>
         <div class="roadmap-box">
           ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
-          <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}">
+          <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="concluído: ${escapeHtml(m.title)}">
           <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
           ${editable
             ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
@@ -117,7 +128,7 @@ function buildConfirmModal() {
     <div class="modal" style="max-width:400px;">
       <div class="modal-head">
         <span id="confirm-modal-title">confirmar</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div id="confirm-modal-text" style="font-size:12px;color:var(--text-dim);line-height:1.5;margin-bottom:16px;"></div>
@@ -190,7 +201,7 @@ function buildTrackModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="track-modal-title">nova trilha</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -354,7 +365,7 @@ function buildMilestoneModal() {
     <div class="modal" style="max-width:520px;">
       <div class="modal-head">
         <span id="ms-modal-title">módulo</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body" id="ms-modal-body">
         <!-- dynamic content -->
@@ -459,6 +470,16 @@ function openMilestoneModal(milestoneId, mode = "view") {
           closeMilestoneModal();
           await refreshTracks();
           await refreshMilestones();
+          // item 5 das pendências ("foco depois de excluir... cai no
+          // <body>"): fechar o modal devolveria o foco pro botão
+          // "editar" que o abriu, mas refreshMilestones() já
+          // reconstruiu a timeline por baixo — reaproveita o mesmo
+          // fallback do atalho Alt+R (shortcutFocusRoadmap): primeiro
+          // módulo restante, ou o placeholder de "adicionar" se a
+          // trilha ficou vazia.
+          announce(`módulo "${ms.title}" excluído`);
+          const roadmapBody = containerEl.querySelector('#apr-detail-body');
+          (roadmapBody?.querySelector('.roadmap-title') || roadmapBody?.querySelector('.roadmap-add-placeholder'))?.focus();
         } catch (err) {
           showErrorModal(err.message, "erro ao excluir");
         }
@@ -483,7 +504,7 @@ function buildNewMilestoneModal() {
     <div class="modal" style="max-width:480px;">
       <div class="modal-head">
         <span>novo módulo</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -539,82 +560,47 @@ function closeNewMilestoneModal() {
   if (newMilestoneModalEl) newMilestoneModalEl.classList.remove("open");
 }
 
-// ─── Modal de "expandir mapa" (mantido, mas sem botão de acesso) ──────
-let expandModalEl = null;
-
-function buildExpandModal() {
-  const wrap = document.createElement("div");
-  wrap.className = "modal-backdrop";
-  wrap.id = "expand-modal";
-  wrap.innerHTML = `
-    <div class="modal" style="max-width:800px;max-height:80vh;">
-      <div class="modal-head">
-        <span>mapa completo</span>
-        <span class="close" data-action="close">${icon("x")}</span>
-      </div>
-      <div class="modal-body" id="expand-body" style="overflow-y:auto;"></div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-  wrap.querySelector('[data-action="close"]').addEventListener("click", closeExpandModal);
-  wrap.addEventListener("click", (e) => {
-    if (e.target === wrap) closeExpandModal();
-  });
-  return wrap;
-}
-
-function openExpandModal() {
-  if (!expandModalEl) expandModalEl = buildExpandModal();
-  const body = expandModalEl.querySelector("#expand-body");
-  if (!selectedTrackId) return;
-  const track = getTrack(selectedTrackId);
-  if (!track) return;
-  let html = `<div style="padding:4px 0 12px;font-size:14px;font-weight:500;">${escapeHtml(track.name)}</div>`;
-  html += renderRoadmapTimeline(milestones, { editable: false, listId: 'milestone-list' });
-  body.innerHTML = html;
-  enableCanvasPan(body.querySelector('#milestone-list-canvas'), body.querySelector('#milestone-list-scroll'));
-  body.querySelectorAll('.roadmap-title, .roadmap-arrow').forEach(el => {
-    el.addEventListener('click', () => openMilestoneModal(el.dataset.id, 'view'));
-  });
-  body.querySelectorAll('.ms-checkbox').forEach(cb => {
-    cb.addEventListener('change', async () => {
-      const id = cb.dataset.id;
-      const newStatus = cb.checked ? 'concluido' : 'pendente';
-      try {
-        await updateMilestone(id, { status: newStatus });
-        await refreshMilestones();
-        await refreshTracks();
-        heatmapEntries = null;
-        await renderAprHeatmap();
-        openExpandModal();
-      } catch (err) {
-        showErrorModal(err.message, "erro ao atualizar");
-        cb.checked = !cb.checked;
-      }
-    });
-  });
-  expandModalEl.classList.add("open");
-}
-
-function closeExpandModal() {
-  if (expandModalEl) expandModalEl.classList.remove("open");
-}
-
 // ─── Renderização ─────────────────────────────────────────────────────────
+
+function captureTrackFocus(listEl) {
+  const a = document.activeElement;
+  if (!listEl || !a || !listEl.contains(a)) return;
+  const item = a.closest(".apr-track-item");
+  if (item) pendingTrackFocusId = item.dataset.trackId;
+}
+
+function restoreTrackFocus(listEl) {
+  if (!pendingTrackFocusId) return;
+  const id = pendingTrackFocusId;
+  pendingTrackFocusId = null;
+  const el = [...listEl.querySelectorAll(".apr-track-item")].find((x) => x.dataset.trackId === id);
+  if (el) el.focus();
+}
 
 function renderTracks() {
   const listEl = containerEl.querySelector("#apr-tracks-list");
+  captureTrackFocus(listEl);
   if (!tracks.length) {
+    pendingTrackFocusId = null;
+    listEl.removeAttribute("role");
+    listEl.removeAttribute("aria-label");
     listEl.innerHTML = `<div class="empty-state">nenhuma trilha criada.</div>`;
     return;
   }
   const sorted = [...tracks].sort((a, b) => a.position - b.position);
+  // lista de seleção única: 1 parada de Tab (a trilha selecionada, ou a
+  // primeira) e setas percorrem as demais — ver setupListEvents().
+  listEl.setAttribute("role", "listbox");
+  listEl.setAttribute("aria-label", "trilhas de aprendizado");
+  const tabStopId = sorted.some((t) => t.id === selectedTrackId) ? selectedTrackId : sorted[0].id;
   listEl.innerHTML = sorted.map(track => {
     const pct = track.progress_pct ?? 0;
     const isSelected = selectedTrackId === track.id;
     return `
-      <div class="apr-track-item${isSelected ? " selected" : ""}" data-track-id="${track.id}">
-        <span class="apr-track-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>
+      <div class="apr-track-item${isSelected ? " selected" : ""}" data-track-id="${track.id}"
+           role="option" aria-selected="${isSelected}" tabindex="${track.id === tabStopId ? 0 : -1}"
+           aria-label="${escapeHtml(track.name)}, ${Math.round(pct)}%">
+        <span class="apr-track-drag-dot" data-tooltip="arrastar" aria-hidden="true">${icon("grip", { size: 12 })}</span>
         <div class="apr-track-item-body">
           <div class="apr-track-info">
             <span class="apr-track-name">${escapeHtml(track.name)}</span>
@@ -628,6 +614,7 @@ function renderTracks() {
     `;
   }).join("");
   setupTracksDragAndDrop();
+  restoreTrackFocus(listEl);
   if (selectedTrackId) {
     renderMilestones();
   } else {
@@ -642,7 +629,20 @@ function renderTracks() {
   }
 }
 
+function captureRoadmapFocus() {
+  const a = document.activeElement;
+  const body = containerEl?.querySelector("#apr-detail-body");
+  if (!a || !body || !body.contains(a) || !a.dataset || !a.dataset.id) return;
+  for (const kind of ["ms-checkbox", "roadmap-title", "roadmap-expand-btn"]) {
+    if (a.classList.contains(kind)) {
+      pendingRoadmapFocus = { kind, id: a.dataset.id };
+      return;
+    }
+  }
+}
+
 async function renderMilestones() {
+  captureRoadmapFocus();
   const headerEl = containerEl.querySelector("#apr-detail-header");
   const bodyEl = containerEl.querySelector("#apr-detail-body");
   if (headerEl) headerEl.style.display = '';
@@ -723,6 +723,7 @@ async function renderMilestones() {
     });
   });
 
+  wireRoadmapKeyboard(bodyEl, '#milestone-list', { editable: false });
   setupDragAndDrop();
 }
 
@@ -771,6 +772,14 @@ function renderTrackEditMode() {
         if (left) left.style.display = '';
         const grid = containerEl.querySelector('.apr-grid');
         if (grid) grid.style.gridTemplateColumns = '40% 1fr';
+        // item 5 das pendências ("foco depois de excluir... cai no
+        // <body>"): o botão que tinha o foco (#btn-delete-track) acabou
+        // de sumir com o headerEl.innerHTML = ''. "+ adicionar trilha"
+        // é o único alvo estável (sempre existe, é a próxima ação óbvia
+        // depois de deletar) — announce() cobre quem usa leitor de tela
+        // mesmo que o foco em si não fale "trilha deletada" sozinho.
+        announce(`trilha "${track.name}" deletada`);
+        containerEl.querySelector('#apr-add-track')?.focus();
       } catch (err) {
         showErrorModal(err.message, "erro ao deletar");
       }
@@ -820,33 +829,6 @@ function renderTrackEditMode() {
   // Edição inline do título (clique duas vezes ou clique após selecionar)
   wireInlineTitleEdit(bodyEl, '#edit-milestone-list');
 
-  // Botões editar e excluir módulo
-  bodyEl.querySelectorAll('#edit-milestone-list .ms-edit-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      openMilestoneModal(id, 'edit');
-    });
-  });
-
-  bodyEl.querySelectorAll('#edit-milestone-list .ms-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      const ms = milestones.find(m => m.id === id);
-      if (!ms) return;
-      openConfirmModal(`Excluir módulo "${ms.title}"?`, async () => {
-        try {
-          await deleteMilestone(id);
-          await refreshMilestones();
-          await refreshTracks();
-        } catch (err) {
-          showErrorModal(err.message, "erro ao excluir");
-        }
-      });
-    });
-  });
-
   // Expansão ao clicar no ícone de seta (chevron-down, ver icons.js)
   bodyEl.querySelectorAll('#edit-milestone-list .roadmap-expand-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -889,11 +871,22 @@ function renderTrackEditMode() {
   trackNameEl.addEventListener('dblclick', () => {
     startTrackNameEdit(trackNameEl, track);
   });
+  // dblclick não tem equivalente no teclado — Enter faz o mesmo
+  makeFocusable(trackNameEl, {
+    label: `renomear trilha: ${track.name}`,
+    onActivate: () => startTrackNameEdit(trackNameEl, track),
+  });
 
   const trackGoalEl = headerEl.querySelector('.track-goal-display');
   trackGoalEl.addEventListener('dblclick', () => {
     startTrackGoalEdit(trackGoalEl, track);
   });
+  makeFocusable(trackGoalEl, {
+    label: 'editar descrição da trilha',
+    onActivate: () => startTrackGoalEdit(trackGoalEl, track),
+  });
+
+  wireRoadmapKeyboard(bodyEl, '#edit-milestone-list', { editable: true });
 
   // Drag and drop no modo edição
   setupDragAndDropEdit();
@@ -910,6 +903,9 @@ function startTrackGoalEdit(displayEl, track) {
     </div>
   `;
   displayEl.replaceWith(wrap);
+  wrap.querySelectorAll('.icon-btn').forEach((b) =>
+    makeFocusable(b, { label: b.classList.contains('confirm') ? 'salvar' : 'cancelar' })
+  );
   const textarea = wrap.querySelector('textarea');
   textarea.focus();
 
@@ -933,6 +929,148 @@ function startTrackGoalEdit(displayEl, track) {
   textarea.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') cancel();
   });
+}
+
+// ─── Teclado no roadmap (módulos) ─────────────────────────────────────────
+
+async function moveMilestoneByKeyboard(id, delta) {
+  const ids = milestones.map((m) => m.id);
+  const from = ids.indexOf(id);
+  const to = from + delta;
+  if (from === -1 || to < 0 || to >= ids.length) return;
+  ids.splice(from, 1);
+  ids.splice(to, 0, id);
+  try {
+    await reorderMilestones(selectedTrackId, ids);
+    milestones = ids.map((x) => milestones.find((m) => m.id === x)).filter(Boolean);
+    pendingRoadmapFocus = { kind: 'roadmap-title', id };
+    renderMilestones();
+    announce(`módulo movido para a posição ${to + 1} de ${ids.length}`);
+    await refreshTracks();
+  } catch (err) {
+    showErrorModal(err.message, "erro ao reordenar");
+  }
+}
+
+/**
+ * Deixa o roadmap utilizável só com teclado. Chamado a cada render
+ * (o corpo é reescrito via innerHTML), depois que o HTML já existe.
+ *  - títulos: focáveis; Enter/Espaço abrem os detalhes (vista) ou
+ *    renomeiam direto (edição — o "clique 1 seleciona, clique 2 renomeia"
+ *    do mouse existe só pra evitar edição acidental);
+ *  - ↑/↓ movem o foco entre os títulos, Home/End vão às pontas,
+ *    Shift+↑/↓ reordenam o módulo (alternativa ao arrastar);
+ *  - botão de expandir (edição) e "adicionar módulo": focáveis;
+ *  - seta "ver detalhes" da vista: escondida do leitor de tela e fora do
+ *    Tab — faz exatamente o mesmo que o título, seria parada dupla.
+ */
+function wireRoadmapKeyboard(bodyEl, listSelector, { editable }) {
+  const listEl = bodyEl.querySelector(listSelector);
+  if (!listEl) return;
+
+  listEl.querySelectorAll('.roadmap-node').forEach((node) => {
+    const id = node.dataset.milestoneId;
+    const name = milestones.find((m) => m.id === id)?.title || 'módulo';
+
+    const title = node.querySelector('.roadmap-title');
+    if (title) {
+      if (editable) {
+        makeFocusable(title, { label: `renomear módulo: ${name}`, onActivate: () => startInlineEdit(title, id) });
+      } else {
+        makeFocusable(title, { label: `abrir detalhes: ${name}` });
+      }
+    }
+    const arrow = node.querySelector('.roadmap-arrow');
+    if (arrow) arrow.setAttribute('aria-hidden', 'true');
+    const dragDot = node.querySelector('.roadmap-drag-dot');
+    if (dragDot) dragDot.setAttribute('aria-hidden', 'true');
+
+    const expandBtn = node.querySelector('.roadmap-expand-btn');
+    if (expandBtn) {
+      const open = expandedMilestoneId === id;
+      makeFocusable(expandBtn, { label: `${open ? 'recolher' : 'expandir'} módulo: ${name}`, expanded: open });
+    }
+  });
+
+  const placeholder = listEl.querySelector('.roadmap-add-placeholder');
+  if (placeholder) makeFocusable(placeholder, { label: 'adicionar módulo' });
+
+  listEl.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('roadmap-title')) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const titles = [...listEl.querySelectorAll('.roadmap-title')];
+    const i = titles.indexOf(t);
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const d = e.key === 'ArrowDown' ? 1 : -1;
+      if (e.shiftKey) moveMilestoneByKeyboard(t.dataset.id, d);
+      else titles[i + d]?.focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      titles[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      titles[titles.length - 1]?.focus();
+    }
+  });
+
+  // devolve o foco ao que estava focado antes deste render
+  if (pendingRoadmapFocus) {
+    const { kind, id } = pendingRoadmapFocus;
+    pendingRoadmapFocus = null;
+    [...listEl.querySelectorAll('.' + kind)].find((x) => x.dataset.id === id)?.focus();
+  }
+}
+
+// ─── Atalhos de tela (Alt + tecla) ───────────────────────────────────────
+
+function enterTrackEditMode() {
+  editingTrack = true;
+  renderMilestones();
+  const left = containerEl.querySelector('.apr-left');
+  if (left) left.style.display = 'none';
+  const grid = containerEl.querySelector('.apr-grid');
+  if (grid) grid.style.gridTemplateColumns = '1fr';
+}
+
+function leaveTrackEditMode() {
+  containerEl.querySelector('#btn-back-from-edit')?.click();
+}
+
+function shortcutNewTrack() {
+  openTrackModal();
+}
+
+function shortcutToggleEdit() {
+  if (!selectedTrackId) return;
+  if (editingTrack) {
+    leaveTrackEditMode();
+    requestAnimationFrame(() => containerEl?.querySelector('#btn-edit-track')?.focus());
+  } else {
+    containerEl.querySelector('#btn-edit-track')?.click();
+    requestAnimationFrame(() => containerEl?.querySelector('#btn-back-from-edit')?.focus());
+  }
+}
+
+function shortcutNewMilestone() {
+  if (!selectedTrackId) return;
+  if (!editingTrack) enterTrackEditMode(); // mesmo caminho do "adicionar módulo" do estado vazio
+  expandedMilestoneId = null;
+  openNewMilestoneModal();
+}
+
+function shortcutFocusTracks() {
+  if (editingTrack) leaveTrackEditMode(); // a lista fica escondida durante a edição
+  const list = containerEl.querySelector('#apr-tracks-list');
+  const item = list?.querySelector('.apr-track-item[tabindex="0"]') || list?.querySelector('.apr-track-item');
+  (item || containerEl.querySelector('#apr-add-track'))?.focus();
+}
+
+function shortcutFocusRoadmap() {
+  const body = containerEl.querySelector('#apr-detail-body');
+  (body?.querySelector('.roadmap-title') || body?.querySelector('.roadmap-add-placeholder'))?.focus();
 }
 
 // ─── Drag and Drop ────────────────────────────────────────────────────────
@@ -1105,10 +1243,12 @@ function startTrackDrag(item, startEvent) {
 
 async function refreshTracks() {
   const listEl = containerEl.querySelector("#apr-tracks-list");
+  captureTrackFocus(listEl); // antes de "carregando…" apagar a lista (e o foco junto)
   listEl.innerHTML = '<div class="empty-state">carregando…</div>';
   try {
     tracks = await listTracks();
   } catch (err) {
+    pendingTrackFocusId = null;
     listEl.innerHTML = `<div class="empty-state">erro: ${err.message}</div>`;
     return;
   }
@@ -1214,6 +1354,7 @@ async function renderAprHeatmap() {
   monthsEl.style.gridTemplateColumns = `repeat(${weeks.length}, var(--hm-cell, 13px))`;
 
   let cellsHtml = '';
+  const altRows = []; // item 5 das pendências: equivalente em texto (mesmo padrão de perfil-atividade.js)
   weeks.forEach(week => {
     week.forEach(d => {
       if (d < jan1 || d > dec31) {
@@ -1225,13 +1366,30 @@ async function renderAprHeatmap() {
       const lvl = c >= 3 ? 3 : c === 2 ? 2 : c === 1 ? 1 : 0;
       const isMilestone = !!milestoneByDay[key];
       const [y, m, dd] = key.split('-');
-      const tip = `${dd}/${m}/${y}`
-        + (c ? ` · ${c} registro${c > 1 ? 's' : ''} em aprendizado` : ' · sem registro')
-        + (isMilestone ? ` · marco concluído: ${milestoneByDay[key].join('; ')}` : '');
+      const dataStr = `${dd}/${m}/${y}`;
+      const registroStr = c ? `${c} registro${c > 1 ? 's' : ''} em aprendizado` : 'sem registro';
+      const marcoStr = isMilestone ? `marco concluído: ${milestoneByDay[key].join('; ')}` : '';
+      const tip = `${dataStr} · ${registroStr}` + (marcoStr ? ` · ${marcoStr}` : '');
       cellsHtml += `<div class="hm-cell lvl-${lvl}${isMilestone ? ' milestone' : ''}" data-tooltip="${escapeHtml(tip)}"></div>`;
+      // dias sem nenhum registro e sem marco não agregam nada a uma
+      // leitura em texto de um ano inteiro (365 linhas "sem registro"
+      // seria pior que não ter tabela nenhuma) — só entram os dias com
+      // atividade de verdade.
+      if (c > 0 || isMilestone) altRows.push([dataStr, registroStr + (marcoStr ? ` · ${marcoStr}` : '')]);
     });
   });
   gridEl.innerHTML = cellsHtml;
+
+  const altEl = containerEl?.querySelector('#apr-heatmap-alt');
+  if (altEl) {
+    altEl.innerHTML = altRows.length
+      ? buildTextAltTable({
+          caption: `Atividade de aprendizado em ${heatmapYear} — dias com registro`,
+          headers: ['Data', 'Atividade'],
+          rows: altRows,
+        })
+      : `<p class="sr-only">nenhuma atividade de aprendizado registrada em ${heatmapYear}.</p>`;
+  }
 
   let monthsHtml = '';
   let lastMonth = -1;
@@ -1263,8 +1421,64 @@ async function refreshMilestones() {
 
 // ─── Eventos da lista de trilhas ────────────────────────────────────────
 
+async function moveTrackByKeyboard(id, delta) {
+  const ids = [...tracks].sort((a, b) => a.position - b.position).map((t) => t.id);
+  const from = ids.indexOf(id);
+  const to = from + delta;
+  if (from === -1 || to < 0 || to >= ids.length) return;
+  ids.splice(from, 1);
+  ids.splice(to, 0, id);
+  pendingTrackFocusId = id;
+  try {
+    tracks = await reorderTracks(ids);
+    renderTracks();
+    announce(`trilha movida para a posição ${to + 1} de ${ids.length}`);
+  } catch (err) {
+    pendingTrackFocusId = null;
+    showErrorModal(err.message, "erro ao reordenar trilhas");
+    renderTracks();
+  }
+}
+
+function focusTrackItem(items, index) {
+  const target = items[Math.max(0, Math.min(items.length - 1, index))];
+  if (!target) return;
+  items.forEach((el) => el.setAttribute("tabindex", el === target ? "0" : "-1"));
+  target.focus();
+}
+
+// Teclado na lista de trilhas (padrão listbox): setas movem o foco,
+// Home/End vão às pontas, Enter/Espaço selecionam (mesmo efeito do clique),
+// Shift+↑/↓ reordenam — alternativa por teclado ao arrastar pelo grip.
+function setupTrackListKeyboard(listEl) {
+  listEl.addEventListener("keydown", (e) => {
+    const item = e.target.closest(".apr-track-item");
+    if (!item || e.target !== item) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const items = [...listEl.querySelectorAll(".apr-track-item")];
+    const i = items.indexOf(item);
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const d = e.key === "ArrowDown" ? 1 : -1;
+      if (e.shiftKey) moveTrackByKeyboard(item.dataset.trackId, d);
+      else focusTrackItem(items, i + d);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusTrackItem(items, 0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusTrackItem(items, items.length - 1);
+    } else if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      item.click();
+    }
+  });
+}
+
 function setupListEvents() {
   const listEl = containerEl.querySelector("#apr-tracks-list");
+  setupTrackListKeyboard(listEl);
   listEl.addEventListener("click", async (e) => {
     const item = e.target.closest(".apr-track-item");
     if (!item) return;
@@ -1337,6 +1551,7 @@ function startInlineEdit(titleEl, id) {
       }
     }
     selectedNodeId = null;
+    pendingRoadmapFocus = { kind: 'roadmap-title', id };
     renderMilestones();
   };
   input.addEventListener('keydown', (e) => {
@@ -1356,6 +1571,9 @@ function startTrackNameEdit(displayEl, track) {
     <span class="icon-btn cancel" data-tooltip="cancelar">${icon("x")}</span>
   `;
   displayEl.replaceWith(wrap);
+  wrap.querySelectorAll('.icon-btn').forEach((b) =>
+    makeFocusable(b, { label: b.classList.contains('confirm') ? 'salvar' : 'cancelar' })
+  );
   const input = wrap.querySelector('input');
   input.focus();
   input.select();
@@ -1412,7 +1630,7 @@ export async function mount(container) {
       <div class="card-head">atividade — log de aprendizado agrupado por dia <span class="push" style="color:var(--text-faint); font-size:10px;">estilo contribution graph</span></div>
       <div class="card-body">
         <div class="apr-heatmap-card-inner">
-          <div class="apr-heatmap-main">
+          <div class="apr-heatmap-main" aria-hidden="true">
             <div class="apr-heatmap-months" id="apr-heatmap-months"></div>
             <div class="apr-heatmap-body">
               <div class="apr-heatmap-weekdays">
@@ -1433,8 +1651,13 @@ export async function mount(container) {
               </span>
             </div>
           </div>
+          <!-- fora do aria-hidden acima de propósito: são botões de
+               verdade (trocar de ano), não decoração — sumir com eles
+               do teclado/leitor de tela tiraria uma função real, não
+               só uma redundância visual. -->
           <div class="apr-heatmap-years" id="apr-heatmap-years"></div>
         </div>
+        <div id="apr-heatmap-alt"></div>
       </div>
     </div>
   `;
@@ -1471,6 +1694,23 @@ export async function mount(container) {
   // etapa 6: expõe o replay pro botão de ajuda global (screen-tips-registry.js)
   currentReplayFn = () => replayAprendizadoTips();
   registerScreenTipsReplay(currentReplayFn);
+
+  // atalhos da tela (lista aparece em Alt+H / menu de ajuda)
+  shortcutsToken = registerScreenShortcuts({
+    name: 'aprendizado',
+    actions: [
+      { code: 'KeyN', label: 'nova trilha', run: shortcutNewTrack },
+      { code: 'KeyE', label: 'editar a trilha selecionada (ou voltar da edição)', run: shortcutToggleEdit, when: () => !!selectedTrackId },
+      { code: 'KeyM', label: 'novo módulo na trilha selecionada', run: shortcutNewMilestone, when: () => !!selectedTrackId },
+      { code: 'KeyT', label: 'ir para a lista de trilhas', run: shortcutFocusTracks },
+      { code: 'KeyR', label: 'ir para os módulos da trilha (roadmap)', run: shortcutFocusRoadmap },
+    ],
+    hints: [
+      { combos: [['↑'], ['↓']], label: 'na lista de trilhas ou de módulos: mover o foco (Home / End vão ao primeiro / último)' },
+      { combos: [['Enter'], ['Espaço']], label: 'trilha: selecionar ou desmarcar · módulo: abrir detalhes (no modo edição, renomear)' },
+      { combos: [['Shift', '↑'], ['Shift', '↓']], label: 'mover a trilha ou o módulo de posição (alternativa ao arrastar)' },
+    ],
+  });
 }
 
 export function unmount() {
@@ -1482,11 +1722,14 @@ export function unmount() {
   clearTimeout(heatmapResizeTimer);
   if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);
   currentReplayFn = null;
+  clearScreenShortcuts(shortcutsToken);
+  shortcutsToken = null;
+  pendingTrackFocusId = null;
+  pendingRoadmapFocus = null;
   containerEl = null;
   closeTrackModal();
   closeMilestoneModal();
   closeNewMilestoneModal();
-  closeExpandModal();
   closeConfirmModal();
   editingTrack = false;
   selectedTrackId = null;

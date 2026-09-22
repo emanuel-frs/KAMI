@@ -32,7 +32,7 @@ function buildModal() {
   wrap.id = "compra-parcelada-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova compra parcelada</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova compra parcelada</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="cpm-nome">nome</label><input type="text" id="cpm-nome" placeholder="ex: notebook, geladeira..."></div>
         <div class="field-row">

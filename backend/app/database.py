@@ -509,40 +509,58 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
             (new_id(), "parte 2", 1300, parte1_id, 15),
         )
 
-    # dashboard: layout default por tela (decisão 17) — espelha o que já
-    # foi validado visualmente no protótipo (kami_telas_final.html)
+    # dashboard: layout default por tela (decisão 17) — espelha o layout
+    # pessoal do usuário (kami-backup-2026-09-18.json / dashboard_widgets),
+    # já com a largura (sextos da linha) e a altura (px, congelada no
+    # momento do backup) que ele mesmo ajustou na UI. Substitui o antigo
+    # layout genérico baseado só em default_span do WIDGET_CATALOG — aqui
+    # cada entrada é (widget_type, width, height); height=None cai de volta
+    # pra altura automática por conteúdo (ver grid.js), igual antes.
     DEFAULT_LAYOUTS = {
-        "perfil": ["profile", "attributes", "achievements"],
-        "nucleo": ["attributes", "priorities", "log", "registrar", "achievements"],
-        # carreira_perfil é removable:False (auto-injetado de qualquer
-        # forma por withRequiredWidgets no frontend, ver dashboard.js) —
-        # entra aqui também só pra já nascer na posição 1, antes de
-        # carreira_interesses (removable:True, que SÓ aparece de cara
-        # por estar listado aqui — sem isso a tela chegaria com só o
-        # bloco obrigatório e o usuário precisaria adicionar interesses
-        # manualmente pelo popover "+ adicionar widget").
-        # carreira_posicoes (Parte 2) entra aqui também pro mesmo efeito
-        # de carreira_interesses acima: sem isso, instalações novas só
-        # ganhariam a linha do tempo adicionando manualmente pelo popover.
-        # carreira_formacoes (Parte 3) — mesmo raciocínio, novas
-        # instalações já nascem com o bloco de formação acadêmica visível.
-        "carreira": ["carreira_perfil", "carreira_interesses", "carreira_posicoes", "carreira_formacoes"],
-        # financas nascia vazia de propósito (todos os 11 tipos do
-        # catálogo são opcionais aqui) — esta entrada dá um ponto de
-        # partida mínimo pra quem nunca configurou nada, sem tirar a
-        # liberdade de reconfigurar/remover tudo depois.
-        "financas": ["carteira", "financas_resumo", "financas_registros"],
+        "nucleo": [
+            ("achievements", 3, 396),
+            ("registrar", 3, 228),
+            ("attributes", 2, 308),
+            ("log", 2, 308),
+            ("priorities", 3, 140),
+        ],
+        "carreira": [
+            ("carreira_posicoes", 3, 420),
+            ("carreira_formacoes", 3, 256),
+            ("carreira_interesses", 2, 304),
+            ("carreira_salario", 2, 304),
+            ("carreira_perfil", 3, 140),
+        ],
+        "perfil": [
+            ("profile", 3, 196),
+            ("achievements", 3, 492),
+            ("attributes", 2, 280),
+            ("perfil_atividade", 2, 280),
+        ],
+        "financas": [
+            ("financas_resumo", 3, 156),
+            ("financas_grafico_fluxo", 2, 192),
+            ("financas_grafico_evolucao", 2, 192),
+            ("carteira", 3, 204),
+            ("financas_assinaturas", 2, 168),
+            ("dividas", 2, 168),
+            ("financas_registros", 2, 200),
+            ("financas_grafico_categorias", 2, 200),
+            ("financas_renda", 2, 236),
+            ("compras_parceladas", 2, 320),
+            ("financas_grafico_limites", 2, 152),
+            ("contas_fixas", 2, 168),
+        ],
     }
     cur.execute("SELECT COUNT(*) AS c FROM dashboard_widgets")
     if cur.fetchone()["c"] == 0:
-        for screen, widget_types in DEFAULT_LAYOUTS.items():
-            for position, widget_type in enumerate(widget_types):
-                default_span = WIDGET_CATALOG[widget_type]["default_span"]
+        for screen, widgets in DEFAULT_LAYOUTS.items():
+            for position, (widget_type, width, height) in enumerate(widgets):
                 cur.execute(
                     "INSERT INTO dashboard_widgets "
                     "(id, screen, widget_type, position, width, height, config_json) "
-                    "VALUES (?, ?, ?, ?, ?, NULL, NULL)",
-                    (new_id(), screen, widget_type, position, default_span),
+                    "VALUES (?, ?, ?, ?, ?, ?, NULL)",
+                    (new_id(), screen, widget_type, position, width, height),
                 )
 
     conn.commit()

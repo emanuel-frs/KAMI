@@ -1,5 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
+import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -69,19 +70,24 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="chart-fluxo-wrap">
-        <div class="chart-legend">
+        <div class="chart-legend" aria-hidden="true">
           <span class="legend-item"><span class="legend-dot entrada"></span>entrada</span>
           <span class="legend-item"><span class="legend-dot saida"></span>saída</span>
         </div>
         <div class="chart-fluxo">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg" aria-hidden="true">
           ${gridLines}
           ${bars}
         </svg>
-        <div class="chart-fluxo-labels">
+        <div class="chart-fluxo-labels" aria-hidden="true">
           ${months.map((m) => `<span>${monthAbbrev(m)}</span>`).join("")}
         </div>
         </div>
+        ${buildTextAltTable({
+          caption: "Entradas e saídas por mês nos últimos 6 meses",
+          headers: ["Mês", "Entrada", "Saída"],
+          rows: data.map((d, i) => [monthAbbrev(months[i]), brl(d.total_in), brl(d.total_out)]),
+        })}
       </div>
     `;
     attachChartTooltip(el.querySelector(".chart-fluxo-wrap"));

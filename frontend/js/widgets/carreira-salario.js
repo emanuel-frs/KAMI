@@ -83,7 +83,11 @@ function buildSalaryChart(records) {
 
   return `
     <div class="cs-chart-wrap">
-      <svg viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" class="chart-svg">
+      <!-- puramente redundante com .cs-list logo abaixo (mesmos dados:
+           data, valor, motivo) — item 5 das pendências, mas aqui não
+           precisa de tabela sr-only própria, só tirar o SVG decorativo
+           da árvore de acessibilidade. -->
+      <svg viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" class="chart-svg" aria-hidden="true">
         <path d="${areaPath}" class="chart-area"></path>
         <path d="${linePath}" class="chart-line"></path>
         ${dots}

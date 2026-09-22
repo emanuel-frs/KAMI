@@ -1,6 +1,7 @@
 import { icon } from "../components/icons.js";
 import { openOnboardingModal } from "./onboarding-modal.js";
 import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
+import { openShortcutsHelp } from "./shortcuts-help-modal.js";
 
 /**
  * Botão de ajuda (etapa 6, seção 7) — ícone de
@@ -37,10 +38,17 @@ function buildPop() {
     <button type="button" class="help-menu-item" data-action="screen-tips">
       ${icon("circle-help", { size: 12 })} rever dicas desta tela
     </button>
+    <button type="button" class="help-menu-item" data-action="shortcuts">
+      ${icon("key", { size: 12 })} atalhos de teclado (Alt+H)
+    </button>
   `;
   el.querySelector('[data-action="tour"]').addEventListener("click", () => {
     closePop();
     openOnboardingModal();
+  });
+  el.querySelector('[data-action="shortcuts"]').addEventListener("click", () => {
+    closePop();
+    openShortcutsHelp();
   });
   el.querySelector('[data-action="screen-tips"]').addEventListener("click", () => {
     const replay = getScreenTipsReplay();

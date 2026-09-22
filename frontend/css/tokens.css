@@ -32,7 +32,14 @@
   --accent: #8fbf8f;       /* default — sobrescrito por accent_color do perfil */
   --accent-dim: color-mix(in srgb, var(--accent) 58%, black);
   --amber: #b3a06a;
-  --red: #b06060;
+  /* #b06060 dava ≈4,69:1 contra --bg, mas caía pra ≈4,34:1 contra
+     --card (auditoria do item 5) — abaixo do mínimo de 4,5:1, e é
+     usado como cor de verdade em texto pequeno (10–11px): valor de
+     saída em finanças, prazo vencido no calendário, mensagem de erro,
+     módulo "esquecido" no roadmap. #b36767 é o mesmo tom, só um
+     pouco mais claro — ≈4,68:1 no pior caso (--card), folga maior
+     nos outros três fundos. */
+  --red: #b36767;
   --green: #7fd97f;
 
   --text: #c9c9c9;
@@ -41,11 +48,20 @@
   /* #4d4d4d tinha ≈2,5:1 contra --bg — abaixo do mínimo de 4,5:1 do
      WCAG 2.1 AA pra texto normal (era usado majoritariamente como
      texto de verdade: labels, placeholders, timestamps, branch da
-     sidebar etc.). #757575 dá ≈4,56:1. As duas exceções puramente
-     decorativas que usam esse token como preenchimento (o ícone
-     chevron em card-base.css e o "cp-dot" de widget-carreira.css)
-     clareiam junto, mas continuam sutis e não quebram a paleta. */
-  --text-faint: #757575;
+     sidebar etc.). #757575 dá ≈4,56:1 — MAS só contra --bg (#000000).
+     Auditoria (item 5 das pendências): a maioria dos widgets fica
+     dentro de .card, cujo fundo é --card (#0d0d0d), o mais claro dos
+     quatro tons de superfície do tema — e contra ele #757575 cai pra
+     ≈4,22:1, abaixo do mínimo, em textos de 9,5–11px (não é "texto
+     grande", então a exceção de 3:1 do WCAG não vale aqui). #7c7c7c
+     dá ≈4,66:1 contra --card (o pior caso), e folga maior contra
+     --bg-alt/--panel/--bg (que são mais escuros, logo têm ainda mais
+     contraste). Mantido longe o bastante de --text-dim (#8a8a8a) pra
+     não embaçar a hierarquia entre os dois tons.
+     Não conferido: fundos únicos de algum widget específico (cor fixa
+     fora dos 4 tokens de superfície) — se algum existir com texto
+     faint em cima, precisa de checagem à parte. */
+  --text-faint: #7c7c7c;
 
   --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
 }

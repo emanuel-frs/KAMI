@@ -103,6 +103,7 @@ import { icon } from "../components/icons.js";
 import { ACCENT_OPTIONS } from "../components/accent-colors.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { store } from "../state/store.js";
+import { prefersReducedMotion } from "../components/a11y.js";
 
 const RESET_WORD = "excluir";
 const IMPORT_WORD = "importar";
@@ -314,7 +315,7 @@ function buildModal() {
   wrap.id = "settings-modal";
   wrap.innerHTML = `
     <div class="modal cfg-modal">
-      <div class="modal-head">configurações <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head">configurações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body cfg-shell">
         <nav class="cfg-sidebar">${buildTabsHtml()}</nav>
         <div class="cfg-content">
@@ -687,7 +688,7 @@ function openChavesForm(wrap, accountId) {
   // o layout já recalculou a altura do form (display:none -> block)
   // antes de medir a posição de scroll.
   requestAnimationFrame(() => {
-    formWrap.scrollIntoView({ behavior: "smooth", block: "start" });
+    formWrap.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
   });
 }
 

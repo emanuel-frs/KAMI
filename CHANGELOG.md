@@ -4,6 +4,19 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.7.0] - 2026-09-21
+
+### Adicionado
+- atalhos globais, link para pular conteúdo e melhorias de acessibilidade
+- perfil de atividade e novos componentes de suporte aos gráficos
+
+### Corrigido
+- foco, navegação por teclado, textos alternativos e cores de destaque
+- interação dos modais, widgets e telas de calendário, metas e organização
+
+### Testes
+- cobertura adicional para acessibilidade, componentes, estado e fluxos de frontend
+
 ## [1.6.0] - 2026-09-14
 
 ### Adicionado
@@ -134,5 +147,4 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Atualizacao dos testes de financas e wallet
 - fase de lapidação final: titlebar, sidebar, ícones e reorganização do frontend
 - Initial commit
-
 

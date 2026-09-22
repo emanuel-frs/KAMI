@@ -22,7 +22,7 @@ export async function render(el, widget) {
         <span class="log-filter-label" style="display:block; font-size:12px; color:var(--text-bright); padding:6px 0;">todos</span>
       </div>
     </div>
-    <div class="log-list"></div>
+    <div class="log-list log-list--recent"></div>
   `;
 
   const listEl = el.querySelector(".log-list");

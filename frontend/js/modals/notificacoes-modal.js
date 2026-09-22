@@ -61,7 +61,7 @@ function buildModal() {
   wrap.id = "notifications-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">

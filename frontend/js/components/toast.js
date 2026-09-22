@@ -20,9 +20,21 @@ function ensureStack() {
   stackEl = document.createElement("div");
   stackEl.className = "toast-stack";
   stackEl.id = "toast-stack";
+  // região viva: leitores de tela anunciam cada toast novo sem mover o
+  // foco. "polite" espera o usuário terminar o que está sendo lido.
+  // aria-atomic=false → anuncia só o item adicionado, não a pilha toda.
+  stackEl.setAttribute("role", "status");
+  stackEl.setAttribute("aria-live", "polite");
+  stackEl.setAttribute("aria-atomic", "false");
+  stackEl.setAttribute("aria-relevant", "additions");
   document.body.appendChild(stackEl);
   return stackEl;
 }
+
+// Uma região viva só costuma anunciar mudanças depois de já existir no
+// DOM — se ela nascesse junto com o primeiro toast, esse primeiro aviso
+// passaria em branco. Cria a pilha vazia já no carregamento do módulo.
+if (typeof document !== "undefined" && document.body) ensureStack();
 
 /**
  * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void }} opts
@@ -77,6 +89,12 @@ export function showToast({ title, message = "", iconName = "bell-ring", duratio
 
   el.addEventListener("mouseenter", () => clearTimeout(hideTimer));
   el.addEventListener("mouseleave", scheduleHide);
+  // quem navega por teclado precisa da mesma pausa que o hover dá:
+  // sem isto o toast sumia (8s) enquanto o foco ainda estava nele.
+  el.addEventListener("focusin", () => clearTimeout(hideTimer));
+  el.addEventListener("focusout", (e) => {
+    if (!el.contains(e.relatedTarget)) scheduleHide();
+  });
   el.querySelector(".toast-close").addEventListener("click", dismiss);
 
   stack.appendChild(el);

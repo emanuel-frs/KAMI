@@ -1,5 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
+import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -72,15 +73,20 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="chart-evolucao">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg" aria-hidden="true">
           <line x1="0" y1="${zeroY.toFixed(1)}" x2="${W}" y2="${zeroY.toFixed(1)}" class="chart-grid-line" />
           <path d="${areaPath}" class="chart-area" />
           <path d="${linePath}" class="chart-line" />
           ${dots}
         </svg>
-        <div class="chart-fluxo-labels">
+        <div class="chart-fluxo-labels" aria-hidden="true">
           ${months.map((m) => `<span>${monthAbbrev(m)}</span>`).join("")}
         </div>
+        ${buildTextAltTable({
+          caption: "Evolução do saldo acumulado nos últimos 6 meses",
+          headers: ["Mês", "Saldo acumulado"],
+          rows: months.map((m, i) => [monthAbbrev(m), brl(points[i])]),
+        })}
       </div>
     `;
     attachChartTooltip(el.querySelector(".chart-evolucao"));

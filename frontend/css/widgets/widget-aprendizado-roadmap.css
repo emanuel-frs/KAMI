@@ -56,6 +56,10 @@
   border-left-color: var(--accent-dim);
   background: rgba(255, 255, 255, 0.04);
 }
+.apr-track-item:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
 .apr-track-item.selected {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--accent-dim);
@@ -219,8 +223,6 @@ textarea {
 
 .roadmap-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
 .roadmap-actions .icon-btn { color: var(--text-faint); cursor: pointer; font-size: 12px; }
-.roadmap-actions .ms-edit-btn:hover { color: var(--accent); }
-.roadmap-actions .ms-delete-btn:hover { color: var(--red); }
 
 /* ── concluído ── */
 .roadmap-node[data-visual="done"] .roadmap-box { background: var(--accent); border-color: var(--accent); }
@@ -260,7 +262,7 @@ textarea {
 .roadmap-canvas {
   position: relative;
   height: 100%;
-  max-height: 360px;
+  max-height: 260px;
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border-soft);
@@ -306,6 +308,11 @@ textarea {
 }
 .roadmap-add-placeholder:hover {
   border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.roadmap-add-placeholder:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
   color: var(--accent);
 }
 .roadmap-add-plus {
@@ -361,6 +368,16 @@ textarea {
   padding: 4px 8px 0;
 }
 
+/* foco visível — .roadmap-title vira alvo de Tab (role="button", ver
+   makeFocusable em a11y.js) tanto na lista comum quanto na expandida;
+   uma regra cobre as duas por classe. offset negativo porque o texto
+   é inline e não tem padding próprio pra "respirar" o outline. */
+.roadmap-title:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* seleção (passo intermediário antes de virar input de edição) */
 .roadmap-node.selected .roadmap-box {
   box-shadow: 0 0 0 2px var(--accent);
@@ -380,6 +397,16 @@ textarea {
   border-bottom: 0;
   background: transparent; /* sem fundo cinza */
   z-index: 10;
+}
+
+/* foco visível — .track-name-display e .track-goal-display viram alvo de
+   Tab no cabeçalho em modo edição (role="button", ver makeFocusable em
+   a11y.js); duplo-clique continua funcionando, isto só cobre Tab/Enter. */
+.track-name-display:focus-visible,
+.track-goal-display:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Estilo do input de edição do nome */
@@ -411,20 +438,29 @@ textarea {
 
 /* === Remove tooltip "barra" indesejada e melhora hover === */
 
-/* 1. Para o botão de expandir (e outros ícones no cabeçalho) */
-#btn-expand-map,
+/* 1. Para os ícones no cabeçalho */
 #btn-add-module,
 #btn-delete-track,
 #btn-back-from-edit {
   text-decoration: none !important;
-  outline: none !important;
-  box-shadow: none !important;
+  outline: none;
+  box-shadow: none;
   border: 1px solid var(--border-interactive); /* mantém a borda padrão, agora em contraste AA */
 }
 
+/* foco visível por teclado — o outline:none acima só suprime o anel padrão
+   do :focus por clique de mouse; :focus-visible (maior especificidade,
+   pseudo-classe some ao selector) sobrepõe e devolve o indicador, mesmo
+   padrão outline+box-shadow usado em .btn:focus-visible (forms.css). */
+#btn-add-module:focus-visible,
+#btn-delete-track:focus-visible,
+#btn-back-from-edit:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 /* 2. Remove qualquer pseudo-elemento extra que possa surgir no hover */
-#btn-expand-map::before,
-#btn-expand-map::after,
 #btn-add-module::before,
 #btn-add-module::after,
 #btn-delete-track::before,
@@ -440,7 +476,6 @@ textarea {
    Aparência/posição do tooltip vivem só no módulo JS agora. */
 
 /* 4. Remove qualquer sombra ou borda extra no hover dos botões do cabeçalho */
-#btn-expand-map:hover,
 #btn-add-module:hover,
 #btn-back-from-edit:hover {
   border-color: var(--accent);
@@ -467,6 +502,13 @@ textarea {
   font-size: 14px;
   cursor: pointer;
   flex-shrink: 0;
+}
+.roadmap-expand-btn:hover { color: var(--accent); }
+.roadmap-expand-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  color: var(--accent);
+  border-radius: 2px;
 }
 
 .roadmap-box {

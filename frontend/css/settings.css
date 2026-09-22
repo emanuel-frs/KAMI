@@ -11,7 +11,11 @@
 
 #settings-modal .modal.cfg-modal {
   width: min(720px, 94vw);
-  height: min(600px, 78vh);
+  /* 600px é o alvo, mas nunca mais que o espaço livre abaixo da titlebar
+     (mesma folga usada no modal de atalhos — ver help-menu.css). Antes
+     era só min(600px, 78vh), que em janelas de ~768px de altura podia
+     encostar/passar do fundo já que 78vh não descontava a titlebar. */
+  height: min(600px, calc(100vh - (var(--titlebar-h) + 12px) * 2));
   display: flex;
   flex-direction: column;
 }
@@ -86,7 +90,7 @@
 }
 
 @media (max-width: 560px) {
-  #settings-modal .modal.cfg-modal { max-height: min(600px, 88vh); }
+  #settings-modal .modal.cfg-modal { max-height: min(600px, calc(100vh - (var(--titlebar-h) + 12px) * 2)); }
   .cfg-shell { flex-direction: column; }
   .cfg-sidebar {
     flex: 0 0 auto;

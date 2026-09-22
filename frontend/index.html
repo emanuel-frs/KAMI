@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="css/widgets/widget-financas-extra.css">
 <link rel="stylesheet" href="css/widgets/widget-financas-extra-graficos.css">
 <link rel="stylesheet" href="css/widgets/widget-carreira.css">
+<link rel="stylesheet" href="css/widgets/widget-perfil-atividade.css">
 <link rel="stylesheet" href="css/calendario.css">
 <link rel="stylesheet" href="css/toast.css">
 <link rel="stylesheet" href="css/onboarding.css">
@@ -35,12 +36,14 @@
 </head>
 <body>
 
+<a href="#page-root" class="skip-link">pular para o conteúdo</a>
+
 <div class="titlebar" data-tauri-drag-region>
 <div class="titlebar-text" data-tauri-drag-region>kami<span class="cursor"></span></div>
 <div class="win-ctrls">
-<button class="win-ctrl-btn win-ctrl-minimize" id="win-minimize" title="minimizar"></button>
-<button class="win-ctrl-btn win-ctrl-maximize" id="win-maximize" title="maximizar"></button>
-<button class="win-ctrl-btn win-ctrl-close" id="win-close" title="fechar"></button>
+<button class="win-ctrl-btn win-ctrl-minimize" id="win-minimize" type="button" title="minimizar" aria-label="minimizar"></button>
+<button class="win-ctrl-btn win-ctrl-maximize" id="win-maximize" type="button" title="maximizar" aria-label="maximizar"></button>
+<button class="win-ctrl-btn win-ctrl-close" id="win-close" type="button" title="fechar" aria-label="fechar"></button>
 </div>
 </div>
 
@@ -52,11 +55,11 @@
     <div class="nav-link" data-page="perfil" role="link" tabindex="0"><span class="branch">├─</span>perfil</div>
     <div class="nav-link" data-page="nucleo" role="link" tabindex="0"><span class="branch">├─</span>núcleo</div>
     <div class="nav-link" data-page="financas" role="link" tabindex="0"><span class="branch">├─</span>finanças</div>
+    <div class="nav-link" data-page="carreira" role="link" tabindex="0"><span class="branch">├─</span>carreira</div>
     <div class="nav-link" data-page="aprendizado" role="link" tabindex="0"><span class="branch">├─</span>aprendizado</div>
     <div class="nav-link" data-page="organizacao" role="link" tabindex="0"><span class="branch">├─</span>organização</div>
     <div class="nav-link" data-page="metas" role="link" tabindex="0"><span class="branch">├─</span>metas pessoais</div>
     <div class="nav-link" data-page="calendario" role="link" tabindex="0"><span class="branch">├─</span>calendário</div>
-    <div class="nav-link" data-page="carreira" role="link" tabindex="0"><span class="branch">├─</span>carreira</div>
     <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve" role="link" tabindex="0" aria-disabled="true"><span class="branch">└─</span>assistente kami<span class="nav-badge-soon">em breve</span></div>
   </div>
 
@@ -65,13 +68,15 @@
     <div class="sidebar-footer-actions">
       <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda" aria-label="ajuda"></button>
       <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações" aria-label="notificações"></button>
-      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações" aria-label="configurações"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações (Alt+C)" aria-label="configurações" aria-keyshortcuts="Alt+C"></button>
     </div>
   </div>
 </nav>
 
-<main class="page" id="page-root">
-<!-- cada page module (js/pages/*.js) renderiza aqui via router -->
+<main class="page" id="page-root" tabindex="-1">
+<!-- cada page module (js/pages/*.js) renderiza aqui via router.
+     tabindex="-1": não entra na ordem de Tab, só existe pra poder
+     receber foco por script/fragmento — é o alvo do skip link acima. -->
 </main>
 </div>
 

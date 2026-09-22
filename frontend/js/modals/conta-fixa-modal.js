@@ -26,7 +26,7 @@ function buildModal() {
   wrap.id = "fixed-bill-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conta fixa</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova conta fixa</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="fbm-name">nome</label><input type="text" id="fbm-name" placeholder="ex: aluguel, internet..."></div>
         <div class="field-row">

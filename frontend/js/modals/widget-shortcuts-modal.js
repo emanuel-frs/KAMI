@@ -29,7 +29,7 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head">
         <span class="modal-head-title">atalhos de teclado — grid de widgets</span>
-        <span class="close" data-action="close" aria-label="fechar">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <p class="em-message wg-shortcuts-intro">
@@ -48,7 +48,19 @@ function buildModal() {
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
-            <dd>move o widget selecionado; pressione <kbd>Enter</kbd> para salvar</dd>
+            <dd>move o widget selecionado</dd>
+          </div>
+          <div class="wg-shortcuts-row">
+            <dt><kbd>Shift</kbd> + <kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt>
+            <dd>diminui ou aumenta a largura do widget</dd>
+          </div>
+          <div class="wg-shortcuts-row">
+            <dt><kbd>Shift</kbd> + <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
+            <dd>diminui ou aumenta a altura do widget</dd>
+          </div>
+          <div class="wg-shortcuts-row">
+            <dt><kbd>Enter</kbd></dt>
+            <dd>salva a posição e o tamanho ajustados</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Esc</kbd></dt>

@@ -18,7 +18,7 @@ function buildModal() {
   wrap.id = "registro-filter-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">filtrar registros <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head">filtrar registros <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
           <label for="rfm-conta">conta</label>
