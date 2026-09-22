@@ -1,6 +1,41 @@
 import { getLayout, saveLayout } from "../api/dashboard.js";
 import { initGrid, availableToAdd } from "../widgets/grid.js";
 import { WIDGET_CATALOG, loadWidgetCatalog } from "../widgets/registry.js";
+import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { announce } from "../components/a11y.js";
+
+/**
+ * Nome da tela como aparece em "nesta tela — …" no Alt+H (o `screen` é a
+ * chave técnica, sem acento).
+ */
+const SCREEN_LABELS = {
+  perfil: "perfil",
+  nucleo: "núcleo",
+  financas: "finanças",
+  carreira: "carreira",
+};
+
+/**
+ * Dicas do modo de teclado do grid de widgets (widgets/grid.js) pro
+ * Alt+H. São só informativas — não é Alt+tecla, o Ctrl+D e as setas já
+ * funcionam dentro do próprio grid — então entram como `hints`, não
+ * como `actions` (ver components/shortcuts.js). Ficam aqui, e não em
+ * cada página, porque o grid é o mesmo nas telas que usam
+ * createDashboardPage: registrar num lugar só cobre todas e evita que
+ * a lista fique diferente de uma tela pra outra.
+ *
+ * Se o comportamento de teclado em grid.js mudar (createKeyboardReorder),
+ * atualizar também esta lista e modals/widget-shortcuts-modal.js.
+ */
+const GRID_KEYBOARD_HINTS = [
+  { combos: [["Ctrl", "D"]], label: "entrar no modo de seleção de widgets" },
+  { combos: [["←"], ["→"], ["↑"], ["↓"]], label: "escolher ou mover o widget" },
+  { combos: [["Enter"]], label: "selecionar o widget · de novo: salvar" },
+  { combos: [["Shift", "←"], ["Shift", "→"]], label: "ajustar a largura" },
+  { combos: [["Shift", "↑"], ["Shift", "↓"]], label: "ajustar a altura" },
+  { combos: [["Esc"]], label: "sair do modo (cancela o que não foi salvo)" },
+  { combos: [["?"]], label: "explicação completa do modo de teclado" },
+];
 
 /**
  * Perfil, Núcleo e Finanças são as três telas com dashboard configurável
@@ -19,6 +54,8 @@ export function createDashboardPage(screen, options = {}) {
   let grid = null;
   let currentWidgets = [];
   let onDocClick = null;
+  let shortcutsToken = null;
+  let openCatalog = null; // abre o popover "+ adicionar widget" (Alt+N); só existe com a tela montada
 
   /**
    * Widgets com removable:false pro `screen` atual precisam SEMPRE
@@ -75,6 +112,21 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   async function mount(container) {
+    // Registrado ANTES do primeiro await de propósito: as dicas são
+    // estáticas (não dependem do grid já montado) e, se ficassem depois
+    // do await, uma navegação rápida poderia rodar o unmount() desta
+    // tela antes do registro — e o registro tardio sobrescreveria o da
+    // tela nova (clearScreenShortcuts só limpa o token que ainda é o atual).
+    shortcutsToken = registerScreenShortcuts({
+      name: SCREEN_LABELS[screen] || screen,
+      actions: [
+        // "N" de "novo", mesma tecla de "nova trilha" em aprendizado.
+        // `when`: só vale depois que o botão existe (o mount é assíncrono).
+        { code: "KeyN", label: "adicionar widget (abre a lista)", run: () => openCatalog?.(), when: () => !!openCatalog },
+      ],
+      hints: GRID_KEYBOARD_HINTS,
+    });
+
     // precisa estar resolvido antes de qualquer leitura de WIDGET_CATALOG
     // abaixo (withRequiredWidgets, initGrid, popover) — cacheado em
     // registry.js, então navegar entre perfil/núcleo/finanças não refaz
@@ -95,8 +147,10 @@ export function createDashboardPage(screen, options = {}) {
     container.innerHTML = `
       ${headHtml}
       <div class="wg-toolbar">
-        <button type="button" class="btn sm" id="${screen}-add-widget">+ adicionar widget</button>
-        <div class="wg-catalog-pop" id="${screen}-catalog-pop"></div>
+        <button type="button" class="btn sm" id="${screen}-add-widget"
+          aria-expanded="false" aria-controls="${screen}-catalog-pop" aria-keyshortcuts="Alt+N"
+          data-tooltip="adicionar widget (Alt+N)">+ adicionar widget</button>
+        <div class="wg-catalog-pop" id="${screen}-catalog-pop" role="group" aria-label="widgets disponíveis"></div>
       </div>
       <div id="${screen}-grid"></div>
     `;
@@ -121,23 +175,86 @@ export function createDashboardPage(screen, options = {}) {
 
     function renderPopover() {
       const options = availableToAdd(screen, currentWidgets);
+      // <button> (não <div>): entra na ordem de Tab e Enter/Espaço ativam
+      // sem nenhum código extra — antes só o clique do mouse funcionava.
       pop.innerHTML = options.length
         ? `<div class="wgc-head">adicionar widget</div>${options
             .map(
               (w) => `
-              <div class="wg-catalog-item" data-add="${w.type}">
+              <button type="button" class="wg-catalog-item" data-add="${w.type}">
                 <span>${w.label}</span>${w.cross_module ? '<span class="wgc-tag">cross-module</span>' : ""}
-              </div>`
+              </button>`
             )
             .join("")}`
-        : `<div class="wgc-head">adicionar widget</div><div class="wg-catalog-empty">todos os widgets disponíveis já estão na tela</div>`;
+        : `<div class="wgc-head">adicionar widget</div><div class="wg-catalog-empty" tabindex="-1">todos os widgets disponíveis já estão na tela</div>`;
     }
+
+    const popItems = () => [...pop.querySelectorAll(".wg-catalog-item")];
+    const isPopOpen = () => pop.classList.contains("open");
+
+    function openPop() {
+      renderPopover();
+      pop.classList.add("open");
+      addButton.setAttribute("aria-expanded", "true");
+      // o foco vai pro primeiro item (ou pro aviso de "lista vazia", que
+      // assim é lido pelo leitor de tela) — sem isso quem usa teclado abria
+      // a lista e o Tab seguia pro resto da página, sem entrar nela.
+      (popItems()[0] || pop.querySelector(".wg-catalog-empty"))?.focus();
+    }
+
+    function closePop({ returnFocus = false } = {}) {
+      if (!isPopOpen()) return;
+      pop.classList.remove("open");
+      addButton.setAttribute("aria-expanded", "false");
+      if (returnFocus) addButton.focus();
+    }
+
+    openCatalog = openPop;
 
     addButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      const opening = !pop.classList.contains("open");
-      if (opening) renderPopover();
-      pop.classList.toggle("open", opening);
+      if (isPopOpen()) closePop();
+      else openPop();
+    });
+
+    addButton.addEventListener("keydown", (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === "ArrowDown" && !isPopOpen()) {
+        e.preventDefault();
+        openPop();
+      } else if (e.key === "Escape" && isPopOpen()) {
+        e.preventDefault();
+        e.stopPropagation(); // o Esc é só do popover, não fecha modal/dicas por baixo
+        closePop();
+      }
+    });
+
+    pop.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closePop({ returnFocus: true });
+        return;
+      }
+      // Tab sai da lista: fecha e deixa o foco seguir o caminho normal
+      // (não usa focusout: no WebKit um botão clicado com o mouse pode não
+      // receber foco, e fechar no blur engoliria o clique no item).
+      if (e.key === "Tab") {
+        closePop();
+        return;
+      }
+      const items = popItems();
+      const i = items.indexOf(document.activeElement);
+      if (i === -1) return;
+      let next = null;
+      if (e.key === "ArrowDown") next = items[(i + 1) % items.length];
+      else if (e.key === "ArrowUp") next = items[(i - 1 + items.length) % items.length];
+      else if (e.key === "Home") next = items[0];
+      else if (e.key === "End") next = items[items.length - 1];
+      if (next) {
+        e.preventDefault();
+        next.focus();
+      }
     });
 
     pop.addEventListener("click", (e) => {
@@ -150,11 +267,14 @@ export function createDashboardPage(screen, options = {}) {
       ];
       grid.setWidgets(currentWidgets);
       saveLayout(screen, currentWidgets);
-      pop.classList.remove("open");
+      // o item clicado some junto com a lista — devolve o foco pro botão
+      // (senão cai no <body>) e conta pro leitor de tela o que aconteceu.
+      closePop({ returnFocus: true });
+      announce(`${catalogEntry.label} adicionado à tela.`);
     });
 
     onDocClick = (e) => {
-      if (!e.target.closest(".wg-toolbar")) pop.classList.remove("open");
+      if (!e.target.closest(".wg-toolbar")) closePop();
     };
     document.addEventListener("click", onDocClick);
 
@@ -165,6 +285,9 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   function unmount() {
+    clearScreenShortcuts(shortcutsToken);
+    shortcutsToken = null;
+    openCatalog = null;
     grid?.destroy();
     grid = null;
     if (onDocClick) document.removeEventListener("click", onDocClick);

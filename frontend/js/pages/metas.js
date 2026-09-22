@@ -20,6 +20,7 @@ import { store } from "../state/store.js";
 import { maybeStartMetasTips, replayMetasTips } from "./metas-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
+import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
@@ -49,6 +50,7 @@ function xpBonusFor(weight) {
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
+let shortcutsToken = null;
 let goals = [];
 // ids de metas com o painel de gráfico de progresso aberto — precisa
 // sobreviver a re-renders (ex: depois de uma contribuição), senão o
@@ -104,7 +106,7 @@ function buildGoalModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="goal-modal-title">nova meta</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -393,7 +395,7 @@ function buildContributeModal() {
     <div class="modal">
       <div class="modal-head">
         <span id="goal-contribute-title">contribuir</span>
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field" id="goal-contribute-origem-field">
@@ -695,6 +697,14 @@ async function refreshGoals() {
 
 export async function mount(container) {
   containerEl = container;
+
+  // "N" de "novo", mesma tecla de "nova trilha"/"novo widget"/"novo
+  // evento" nas outras telas (aprendizado.js, dashboard.js, calendario.js).
+  shortcutsToken = registerScreenShortcuts({
+    name: "metas pessoais",
+    actions: [{ code: "KeyN", label: "nova meta", run: () => openCreateGoalModal() }],
+  });
+
   container.innerHTML = `
     <div class="goals-toolbar">
       <button type="button" class="btn sm push" id="goals-add-btn">+ nova meta</button>
@@ -721,6 +731,8 @@ export async function mount(container) {
 
 export function unmount() {
   cancelActiveTipSequence();
+  clearScreenShortcuts(shortcutsToken);
+  shortcutsToken = null;
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   if (currentReplayFn) clearScreenTipsReplay(currentReplayFn);

@@ -3,6 +3,7 @@ import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../compo
 import { store } from "../state/store.js";
 import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-colors.js";
 import { icon } from "../components/icons.js";
+import { prefersReducedMotion } from "../components/a11y.js";
 
 /**
  * Diálogo de boas-vindas + criação de personagem (etapas 2 e 3
@@ -94,17 +95,22 @@ function buildOverlay() {
   wrap.innerHTML = `
     <div class="ki-stage">
       <img class="ki-avatar-hero" src="assets/logos/logo-kami.gif" alt="kami" draggable="false">
-      <div class="ki-box" role="dialog" aria-modal="true" aria-label="kami">
+      <div class="ki-box" role="dialog" aria-modal="true" aria-label="kami" tabindex="-1" data-autofocus>
         <div class="ki-box-head">
           <span class="ki-speaker">kami<span class="ki-cursor"></span></span>
           <button type="button" class="ki-btn-skip" id="ki-btn-skip">pular</button>
         </div>
         <div class="ki-box-body">
-          <p class="ki-question" id="ki-question"></p>
+          <!-- o texto visível é digitado letra a letra (efeito de máquina de
+               escrever), o que um leitor de tela leria caractere por
+               caractere — então o visível fica aria-hidden e o texto
+               completo vai de uma vez pela região viva abaixo. -->
+          <p class="ki-question" id="ki-question" aria-hidden="true"></p>
+          <div class="sr-only" id="ki-sr-live" role="status" aria-live="polite" aria-atomic="true"></div>
           <div class="ki-controls" id="ki-controls"></div>
           <div class="ki-footer-row">
             <button type="button" class="ki-btn-back" id="ki-btn-back" style="display:none">${icon("arrow-left", { size: 11 })} voltar</button>
-            <span class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">toque para continuar ${icon("chevron-right", { size: 11 })}</span>
+            <button type="button" class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">continuar ${icon("chevron-right", { size: 11 })}</button>
           </div>
         </div>
       </div>
@@ -112,6 +118,29 @@ function buildOverlay() {
   document.body.appendChild(wrap);
   wireStaticEvents(wrap);
   return wrap;
+}
+
+/**
+ * Avançar por teclado. O "toque em qualquer lugar" só existia pro mouse:
+ * nos passos de fala o único elemento focável era o "pular", então quem
+ * usa teclado só conseguia pular. Agora:
+ *   - o botão "continuar" (focado sozinho quando o texto termina de
+ *     aparecer) responde a Enter/Espaço nativamente;
+ *   - Enter/Espaço com o foco no próprio diálogo (ou solto no body)
+ *     também avança — e, durante a digitação, completa o texto na hora
+ *     (equivalente a clicar durante a digitação).
+ * Botões, inputs e links têm o comportamento nativo e ficam de fora,
+ * senão Enter em "pular" ou "confirmar" avançaria duas vezes.
+ */
+function onIntroKeydown(e) {
+  if (!overlayEl || !overlayEl.classList.contains("open")) return;
+  if (e.defaultPrevented || e.repeat) return;
+  if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t instanceof Element && t.closest("button, input, textarea, select, a[href], [contenteditable]")) return;
+  e.preventDefault(); // Espaço não rola a página
+  handleTapAdvance();
 }
 
 function wireStaticEvents(wrap) {
@@ -134,6 +163,17 @@ function wireStaticEvents(wrap) {
 function typeText(el, text, onComplete) {
   if (typing) typing.cancel();
   el.textContent = "";
+  // item 5 das pendências ("digitação... seguem sem essa opção"): pra
+  // quem pediu menos movimento, o texto aparece inteiro de uma vez —
+  // sem o efeito de máquina de escrever, que é puramente decorativo.
+  // A região sr-only (ki-sr-live) já entrega o texto completo de uma
+  // vez pra leitor de tela independente disso; aqui é só o visual.
+  if (prefersReducedMotion()) {
+    el.textContent = text;
+    typing = null;
+    onComplete?.();
+    return;
+  }
   let i = 0;
   const speed = 20;
   const intervalId = setInterval(() => {
@@ -171,11 +211,22 @@ function renderBeat(index) {
 
   canTapAdvance = false;
   hintEl.style.visibility = "hidden";
+  hintEl.innerHTML = `continuar ${icon("chevron-right", { size: 11 })}`;
   backBtn.style.display = index === 7 || index === 9 ? "" : "none";
   controlsEl.innerHTML = "";
   controlsEl.style.display = "none";
 
+  // os controles do beat anterior (e o próprio "continuar", agora
+  // escondido) sumiram — sem isto o foco caía no <body> e o Enter não
+  // chegava mais em lugar nenhum. Fica no diálogo até o texto terminar.
+  const box = overlayEl.querySelector(".ki-box");
+  const focused = document.activeElement;
+  if (index === 0 || !focused || focused === document.body || overlayEl.contains(focused)) {
+    box.focus({ preventScroll: true });
+  }
+
   const text = beat.text(draft);
+  overlayEl.querySelector("#ki-sr-live").textContent = text;
 
   typeText(questionEl, text, () => {
     onBeatTextRevealed(beat, controlsEl, hintEl);
@@ -186,12 +237,14 @@ function onBeatTextRevealed(beat, controlsEl, hintEl) {
   if (beat.type === "say") {
     canTapAdvance = true;
     hintEl.style.visibility = "visible";
+    hintEl.focus({ preventScroll: true });
     return;
   }
   if (beat.type === "say-end") {
     canTapAdvance = true;
     hintEl.style.visibility = "visible";
-    hintEl.innerHTML = `toque para começar ${icon("chevron-right", { size: 11 })}`;
+    hintEl.innerHTML = `começar ${icon("chevron-right", { size: 11 })}`;
+    hintEl.focus({ preventScroll: true });
     return;
   }
   controlsEl.style.display = "block";
@@ -208,6 +261,7 @@ function buildNameControls(container) {
         id="ki-input-nome"
         type="text"
         placeholder="seu nome ou apelido"
+        aria-label="seu nome ou apelido"
         maxlength="40"
         autocomplete="off"
         spellcheck="false"
@@ -244,7 +298,7 @@ function confirmName(value) {
 function buildColorControls(container, hintEl) {
   const swatches = ACCENT_OPTIONS.map((c) => {
     const sel = c.value === draft.accent_color ? " ki-swatch--sel" : "";
-    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}"></button>`;
+    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}" aria-pressed="${c.value === draft.accent_color ? "true" : "false"}"></button>`;
   }).join("");
 
   container.innerHTML = `<div class="ki-swatches">${swatches}</div>`;
@@ -253,16 +307,25 @@ function buildColorControls(container, hintEl) {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       draft.accent_color = btn.dataset.color;
-      container.querySelectorAll(".ki-swatch").forEach((b) =>
-        b.classList.toggle("ki-swatch--sel", b === btn)
-      );
+      container.querySelectorAll(".ki-swatch").forEach((b) => {
+        b.classList.toggle("ki-swatch--sel", b === btn);
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      overlayEl.querySelector("#ki-sr-live").textContent =
+        `${btn.getAttribute("aria-label")} selecionada. use "continuar" para seguir.`;
       document.documentElement.style.setProperty("--accent", draft.accent_color);
       setAvatarHero(draft.accent_color);
       canTapAdvance = true;
-      hintEl.innerHTML = `toque para continuar ${icon("chevron-right", { size: 11 })}`;
+      hintEl.innerHTML = `continuar ${icon("chevron-right", { size: 11 })}`;
       hintEl.style.visibility = "visible";
+      // o foco fica no swatch de propósito: quem navega por teclado
+      // pode experimentar outras cores antes de seguir (Tab chega no
+      // "continuar" logo depois dos swatches).
     });
   });
+
+  // foco inicial: a cor já escolhida (ou a primeira)
+  (container.querySelector(".ki-swatch--sel") || container.querySelector(".ki-swatch"))?.focus();
 }
 
 // ── passo avatar ─────────────────────────────────────────────────────────
@@ -270,7 +333,7 @@ function buildAvatarControls(container) {
   container.innerHTML = `
     <div class="ki-avatar-grid">
       <div class="ki-avatar-controls">
-        <input type="file" id="ki-av-file" accept="image/*">
+        <input type="file" id="ki-av-file" accept="image/*" aria-label="escolher uma imagem para o avatar">
         <div class="ki-av-col-field" id="ki-av-col-field" style="display:none">
           <label for="ki-av-cols">largura: <b id="ki-av-cols-val">70</b></label>
           <input type="range" id="ki-av-cols" min="30" max="120" value="70">
@@ -293,6 +356,7 @@ function buildAvatarControls(container) {
   const preview = container.querySelector("#ki-av-preview");
   const okBtn = container.querySelector("#ki-btn-av-ok");
   const skipBtn = container.querySelector("#ki-btn-av-skip");
+  fileInput.focus();
 
   function renderAscii() {
     if (!currentImg) return;
@@ -441,6 +505,7 @@ function applySidebarAvatar(ascii) {
 }
 
 function closeOverlay() {
+  document.removeEventListener("keydown", onIntroKeydown);
   overlayEl.classList.remove("open");
   const cb = onDoneCb;
   onDoneCb = null;
@@ -465,6 +530,8 @@ export function openKamiIntro(onDone) {
   draft.accent_color = "#8fbf8f";
   draft.avatar_ascii = null;
   overlayEl.classList.add("open");
+  document.removeEventListener("keydown", onIntroKeydown); // evita duplicar se reaberto
+  document.addEventListener("keydown", onIntroKeydown);
   setAvatarHero(draft.accent_color);
   renderBeat(0);
 }

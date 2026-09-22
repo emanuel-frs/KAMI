@@ -42,6 +42,12 @@ function buildToast() {
   const el = document.createElement("div");
   el.className = "backup-reminder-toast";
   el.id = "backup-reminder-toast";
+  // item 5 das pendências ("lembrete de backup (aria-live)"): sem isso
+  // o toast aparece silenciosamente pra quem usa leitor de tela — mesmo
+  // padrão polite/status já usado no toast-stack genérico (toast.js).
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.setAttribute("aria-atomic", "true");
   el.innerHTML = `
     ${icon("download", { size: 14 })}
     <span class="backup-reminder-text">faz tempo que você não exporta um backup dos seus dados</span>

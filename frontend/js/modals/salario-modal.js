@@ -25,7 +25,7 @@ function buildModal() {
   wrap.id = "salary-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">novo registro salarial</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">novo registro salarial</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field-row">
           <div class="field"><label for="sm-amount">valor</label><input type="text" id="sm-amount" placeholder="ex: 8500.00"></div>

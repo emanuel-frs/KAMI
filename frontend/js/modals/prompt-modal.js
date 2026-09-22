@@ -30,7 +30,7 @@ function buildModal() {
   wrap.id = "prompt-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="pm-title">informar valor</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
+      <div class="modal-head"><span id="pm-title">informar valor</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
           <label id="pm-label" for="pm-input"></label>

@@ -41,6 +41,28 @@ body::before {
 a { color: var(--text-bright); }
 ::selection { background: var(--text); color: #000; }
 
+/* ── skip link ("pular para o conteúdo", pendência 4) ────────────────
+ * Primeiro elemento do body (ver index.html) — fora da tela por
+ * padrão, só aparece com foco de teclado (Tab a partir do topo da
+ * página). z-index acima da titlebar (400) e da textura de scanline
+ * (999) pra nunca ficar coberto, não importa em qual tela. */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 1000;
+  background: var(--bg-alt);
+  color: var(--text-bright);
+  border: 1px solid var(--accent);
+  padding: 8px 14px;
+  font-size: 12px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
 /* ── scrollbar temática ────────────────────────────────────────────────
  * Antes usava var(--border)/var(--text-dim), cinza neutro igual o
  * scroll padrão do SO só que fininho — pouca diferença visual real.
@@ -146,6 +168,11 @@ a { color: var(--text-bright); }
   margin-left: 4px; vertical-align: -2px; animation: blink 1.1s steps(1) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  /* cursor fica sólido em vez de piscar — mantém a pista visual (marca
+     posição/atividade) sem o efeito de flash repetido */
+  .titlebar-text .cursor { animation: none; }
+}
 
 .layout {
   display: grid;
@@ -240,7 +267,14 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
    avatar), mantido aqui em vez de duplicado por tela. */
 .modal-backdrop {
   position: fixed;
-  top: 0;
+  /* começa abaixo da titlebar (34px, --titlebar-h) em vez de top:0 — a
+     titlebar tem z-index maior (400 > 200 daqui) e fica por cima de
+     qualquer coisa que caia atrás dela, então centralizar dentro do
+     viewport INTEIRO deixava a parte de cima de modais altos escondida.
+     Centralizando só na área visível abaixo da titlebar, esse corte não
+     acontece mais. Fora do Tauri --titlebar-h é 0 (ver titlebar.js), e
+     isto vira exatamente o top:0 de antes. */
+  top: var(--titlebar-h);
   right: 0;
   bottom: 0;
   left: 0;
@@ -253,6 +287,15 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
 .modal-backdrop.open { display: flex; }
 .modal {
   width: min(420px, 92vw);
+  /* segunda defesa: mesmo com o backdrop já começando abaixo da titlebar,
+     um modal com muito conteúdo (ex.: lançamento financeiro com vários
+     campos condicionais, em janela de 768px de altura) ainda podia passar
+     do fundo da tela. max-height + rolagem no próprio .modal é o fallback
+     genérico; modais com cabeçalho/rodapé fixos (atalhos, configurações)
+     têm um ajuste próprio mais fino que sobrepõe este (ver help-menu.css /
+     settings.css), então isto não muda a aparência deles. */
+  max-height: calc(100vh - (var(--titlebar-h) + 12px) * 2);
+  overflow-y: auto;
   border: 1px solid var(--border);
   background: var(--panel);
   box-shadow: 4px 4px 0 0 #000;
@@ -268,8 +311,27 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
   font-size: 12px;
   color: var(--text-bright);
 }
-.modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-faint); font-size: 14px; }
+.modal-head .close {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 14px;
+  /* é um <button> real (foco por teclado + leitor de tela) — zera o visual
+     nativo pra continuar idêntico ao antigo <span> */
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  font-family: inherit;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
 .modal-head .close:hover { color: var(--red); }
+.modal-head .close:focus-visible {
+  color: var(--red);
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
 .modal-body { padding: 14px; }
 .modal-tabs {
   display: flex;
@@ -346,4 +408,14 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
 }
 .kami-focus-flash {
   animation: kami-focus-flash 2s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* mesmo destaque (cor de foco), sem a oscilação animada — o JS que
+     aplica a classe (components/pending-focus.js) já remove sozinho
+     depois de ~2,2s, então o "flash" aqui vira só uma borda que acende
+     e apaga, sem transição. */
+  .kami-focus-flash {
+    animation: none;
+    border-color: var(--kami-focus-color, var(--accent));
+  }
 }

@@ -22,7 +22,7 @@ function buildModal() {
   wrap.id = "debt-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova dívida</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova dívida</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="dm-desc">descrição</label><input type="text" id="dm-desc" placeholder="ex: empréstimo, parcelamento..."></div>
         <div class="field"><label for="dm-counterparty">credor (opcional)</label><input type="text" id="dm-counterparty" placeholder="ex: banco x, fulano..."></div>

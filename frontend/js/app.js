@@ -10,6 +10,10 @@ import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
+import { wireShortcuts } from "./components/shortcuts.js";
+import { wireShortcutsHelp } from "./modals/shortcuts-help-modal.js";
+import { wireGlobalShortcuts } from "./components/global-shortcuts.js";
+import { wireSkipLink } from "./components/skip-link.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
@@ -182,10 +186,14 @@ async function boot() {
 
   store.subscribe("profile", applyProfileToSidebar);
 
+  wireSkipLink();
   wireNav();
   wireSettingsButton();
   wireSidebarAvatar();
   wireHelpButton();
+  wireShortcuts();
+  wireShortcutsHelp();
+  wireGlobalShortcuts();
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();

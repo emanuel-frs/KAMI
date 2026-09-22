@@ -33,7 +33,7 @@ function buildModal() {
   wrap.id = "account-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conta</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova conta</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field" id="am-bank-field">
           <label>banco</label>

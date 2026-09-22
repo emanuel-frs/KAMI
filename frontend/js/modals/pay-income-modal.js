@@ -27,7 +27,7 @@ function buildModal() {
   wrap.id = "pay-income-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="pim-valor">valor recebido</label><input type="number" id="pim-valor" placeholder="0.00"></div>
         <div class="field"><label for="pim-data">data</label><input type="date" id="pim-data"></div>

@@ -1,0 +1,84 @@
+/* ── atividade do perfil (perfil-atividade.js) — contribution graph ─────
+ * Grade CSS Grid pura (sem canvas/svg) — cada .pa-cell é uma div comum,
+ * uma coluna por semana (grid-auto-flow:column, 7 linhas fixas = dias
+ * da semana). O nível de intensidade (pa-lvl0..4) só troca a cor de
+ * fundo — é a mesma lógica visual de qualquer "contribution graph",
+ * só que sem dependência externa nenhuma.
+ *
+ * Visual espelhado no heatmap de aprendizado (widget-aprendizado-heatmap
+ * .css, classe .hm-cell): célula quadrada com borda fina, sem
+ * border-radius, base em --bg-alt/--border-soft e escala de intensidade
+ * em --accent-dim → --accent. Única diferença de propósito: aqui não
+ * existe o marcador de "marco concluído" (.hm-cell.milestone) — essa
+ * célula é só contagem de ações, sem conceito de marco.
+ */
+.pa-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.pa-months {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  min-width: 0;
+  font-size: 8px;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.pa-grid {
+  display: grid;
+  grid-auto-flow: column;
+  /* 7 linhas "auto" — cada uma encaixa na altura que o aspect-ratio da
+     célula pedir NAQUELA largura (que já é definida pelo 1fr das
+     colunas, vindo da largura do card). É o contrário do que causava
+     o vazamento antes: ali a largura tentava seguir uma altura fixa
+     (ou pior, os dois lados brigavam por aspect-ratio ao mesmo tempo);
+     aqui só a altura segue a largura, nunca o inverso — sem
+     dependência circular, e o bloquinho vira quadrado de verdade. */
+  grid-template-rows: repeat(7, auto);
+  gap: 3px;
+  min-width: 0;
+}
+
+.pa-cell {
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+}
+.pa-cell.pa-empty { background: transparent; border: none; }
+.pa-cell.pa-today { outline: 1px solid var(--text-faint); outline-offset: 1px; }
+
+.pa-lvl0 { background: var(--bg-alt); }
+.pa-lvl1 { background: var(--accent-dim); opacity: 0.5; border-color: transparent; }
+.pa-lvl2 { background: var(--accent-dim); opacity: 0.75; border-color: transparent; }
+.pa-lvl3 { background: var(--accent-dim); opacity: 0.9; border-color: transparent; }
+.pa-lvl4 { background: var(--accent); border-color: transparent; }
+
+.pa-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+.pa-scale {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.pa-swatch {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  border: 1px solid var(--border-soft);
+}
+.pa-swatch.pa-lvl1, .pa-swatch.pa-lvl2, .pa-swatch.pa-lvl3, .pa-swatch.pa-lvl4 {
+  border-color: transparent;
+}

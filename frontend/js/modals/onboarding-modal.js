@@ -37,6 +37,20 @@ import { store } from "../state/store.js";
  *   onboarding_completed = true no backend (idempotente).
  * - Fechar antes do último passo (via X) também marca como visto, pra
  *   não incomodar quem simplesmente não quer o tour.
+ *
+ * Acessibilidade (item 5 das pendências — "modal de onboarding" não
+ * revisado): modal-accessibility.js decora automaticamente qualquer
+ * `.modal-backdrop` (role/aria-modal/focus trap/devolução de foco), mas
+ * só herda aria-labelledby sozinho se achar um título dentro de
+ * `.modal-head` — aqui o `.modal-head` só tem o contador "1 / 8" (ver
+ * #ob-step-label), então o nome acessível do diálogo ia virar isso, não
+ * o título real do passo ("perfil", "finanças" etc.). Por isso
+ * aria-labelledby="ob-title" já vai fixo no markup, apontando pro <h2>
+ * de verdade. `.ob-text` com aria-live="polite" garante que trocar de
+ * passo (próximo/anterior) seja anunciado ao leitor de tela mesmo sem
+ * mover o foco pra fora do botão que disparou a troca; a ilustração
+ * (`#ob-illus-wrap`) é puramente decorativa/redundante com o texto, daí
+ * aria-hidden.
  */
 
 let modalEl = null;
@@ -249,14 +263,14 @@ function buildModal() {
   wrap.className = "modal-backdrop";
   wrap.id = "onboarding-modal";
   wrap.innerHTML = `
-    <div class="modal ob-modal" role="dialog" aria-modal="true">
+    <div class="modal ob-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title">
       <div class="modal-head">
         <span class="ob-step-label" id="ob-step-label"></span>
-        <span class="close" data-action="close" aria-label="fechar">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-body ob-body">
-        <div class="ob-illus-wrap" id="ob-illus-wrap"></div>
-        <div class="ob-text">
+        <div class="ob-illus-wrap" id="ob-illus-wrap" aria-hidden="true"></div>
+        <div class="ob-text" aria-live="polite">
           <h2 class="ob-title" id="ob-title"></h2>
           <p class="ob-desc" id="ob-desc"></p>
         </div>

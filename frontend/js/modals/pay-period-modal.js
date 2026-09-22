@@ -32,7 +32,7 @@ function buildModal() {
   wrap.id = "pay-period-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <span class="close" data-action="cancel">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="ppm-valor">valor pago</label><input type="number" id="ppm-valor" placeholder="0.00"></div>
         <p class="ppm-conta-info" id="ppm-conta-info"></p>

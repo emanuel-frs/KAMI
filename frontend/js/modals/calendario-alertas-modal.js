@@ -24,7 +24,7 @@ function buildModal() {
   wrap.id = "cal-alerts-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;vencendo em breve <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;vencendo em breve <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="cal-alerts-list" id="cal-alerts-modal-list"></div>
       </div>

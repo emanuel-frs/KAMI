@@ -1,16 +1,99 @@
-/* ── atributos (attributes.js) ─────────────────────────────────────────── */
-.attr-row {
+/* ── atributos (attributes.js) — radar pentagonal SVG pontilhado ────────
+ * .pg-wrap é `display:block` com `margin:0 auto` — centralização de
+ * bloco de verdade, não depende de o pai (.card-body) ser flex nem de
+ * align-self. `aspect-ratio` trava a proporção do pentágono (definida
+ * em user units no SVG, sem depender de métrica de fonte) qualquer que
+ * seja a largura real do widget.
+ */
+/* .pg-center ocupa todo o espaço que o .card-body der (cresce/encolhe
+   junto com ele — inclusive quando o card é redimensionado manualmente
+   pela alcinha ⋰) e centraliza o pentágono nesse espaço, nos dois
+   eixos. O tamanho do pentágono em si (.pg-wrap) é FIXO — não
+   acompanha o tamanho do card, só a posição dele muda. */
+.pg-center {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  padding: 4px;
+  justify-content: center;
 }
-.attr-row span.label { font-size: 11px; color: var(--text-dim); width: 98px; flex: 0 0 auto; }
-.attr-row .bar-track { flex: 1; margin: 0; }
-.attr-row b { font-size: 10px; color: var(--text-faint); width: 44px; text-align: right; }
-.attr-row.on { background: rgba(255, 255, 255, 0.04); }
-.attr-row.on .bar-fill { background: var(--accent); }
-.attr-row.on span.label { color: var(--accent); }
 
+.pg-wrap {
+  position: relative;
+  /* min() só entra em ação se o card for mais estreito que 168px (ex:
+     min_span bem pequeno) — fora isso o tamanho é sempre o mesmo,
+     independente do card estar no span mínimo, padrão ou redimensionado */
+  width: min(168px, 100%);
+  aspect-ratio: 120 / 104;
+}
+
+.pg-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pg-outer {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 0.9;
+  stroke-dasharray: 0.4 2.6;
+  stroke-linecap: round;
+}
+.pg-mid {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 0.7;
+  stroke-dasharray: 0.4 2.6;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.pg-inner {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 0.6;
+  stroke-dasharray: 0.4 2.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+.pg-spoke {
+  stroke: var(--text-faint);
+  stroke-width: 0.6;
+  stroke-dasharray: 0.4 2.2;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.pg-center-dot { fill: var(--text-faint); opacity: 0.7; }
+
+.pg-stipple { fill: var(--accent); opacity: 0.55; }
+
+.pg-data-poly {
+  fill: var(--accent);
+  fill-opacity: 0.08;
+  stroke: var(--accent);
+  stroke-width: 0.8;
+  stroke-dasharray: 0.4 1.6;
+  stroke-linecap: round;
+}
+.pg-data-dot { fill: var(--accent); }
+
+.pg-label {
+  position: absolute;
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.pg-label:hover { color: var(--text-bright); }
+.pg-label.on { color: var(--accent); }
+
+.pg-label.lbl-top { transform: translate(-50%, -145%); text-align: center; }
+.pg-label.lbl-ur  { transform: translate(-6%, -110%); }
+.pg-label.lbl-lr  { transform: translate(-6%, 25%); }
+.pg-label.lbl-ll  { transform: translate(-94%, 25%); }
+.pg-label.lbl-ul  { transform: translate(-94%, -110%); }

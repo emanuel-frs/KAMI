@@ -45,3 +45,132 @@
   cursor: default;
 }
 .help-menu-item .icon { flex: 0 0 auto; }
+
+.help-menu-item:focus-visible {
+  color: var(--text-bright);
+  background: var(--bg-alt);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── modal de atalhos (modals/shortcuts-help-modal.js) ─────────────────
+ * A lista em si reaproveita .wg-shortcuts-* de widgets/grid.css; aqui só
+ * o título de cada seção e o "ou" entre alternativas. */
+.ks-section {
+  margin: 14px 0 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+.ks-section:first-child { margin-top: 0; }
+.ks-or { font-size: 10px; color: var(--text-faint); padding: 0 3px; }
+
+/* subseção dentro de "em qualquer tela" (ex: "ir para uma tela") — mesma
+ * ideia de .ks-section, só mais discreta (cor neutra, sem letter-spacing
+ * extra), pra não competir em destaque com o título da coluna. */
+.ks-subsection {
+  margin: 12px 0 0;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+/* grade de navegação entre telas (Alt+1..8) — 8 linhas `.wg-shortcuts-row`
+ * inteiras repetindo "ir para" tomavam quase metade da coluna; em grade
+ * de 2 colunas cabe em 4 linhas, e o "ir para" comum já está no título
+ * da subseção (.ks-subsection), então cada item mostra só o nome da
+ * tela. */
+.ks-nav-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin-top: 7px;
+}
+.ks-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  padding: 2px 0;
+}
+.ks-nav-keys { display: flex; gap: 3px; flex: 0 0 auto; }
+.ks-nav-label { min-width: 0; }
+
+/* hints gerais (Tab/Enter/Esc) logo depois da grade de navegação — a
+ * borda tracejada de cima do primeiro <dt> (herdada de .wg-shortcuts-row)
+ * junto com a margem do dl já separa visualmente da grade acima. */
+.ks-hints-list { margin-top: 10px; }
+
+@media (max-width: 420px) {
+  .ks-nav-grid { grid-template-columns: 1fr; }
+}
+
+/* ── modal de atalhos: nunca passa da altura da janela ─────────────────
+ * O .modal genérico não tem max-height. O fundo é fixed e centraliza o
+ * conteúdo na janela INTEIRA, mas a titlebar (z-index 400, --titlebar-h)
+ * cobre os 34px de cima — então um modal alto demais tinha o título
+ * escondido por ela e o botão "entendi" cortado embaixo.
+ *
+ * Duas defesas, de propósito:
+ *  1) duas colunas (tela atual | em qualquer tela) — numa janela
+ *     1366×768 o conteúdo cabe inteiro, sem rolar;
+ *  2) se mesmo assim não couber (janela mais baixa, fonte maior), a lista
+ *     rola por dentro e o cabeçalho e o botão ficam fixos.
+ * Os seletores da rolagem usam o #id (e não uma classe colocada pelo JS)
+ * pra funcionar mesmo se o CSS e o JS estiverem em versões diferentes —
+ * foi exatamente o que cortava o botão "entendi" antes. */
+#shortcuts-help-modal .modal {
+  width: min(760px, 94vw);
+  /* mesma folga (titlebar + 12px) em cima e embaixo: o modal é centralizado */
+  max-height: calc(100vh - (var(--titlebar-h) + 12px) * 2);
+  display: flex;
+  flex-direction: column;
+}
+/* sem atalhos da tela: só a coluna "em qualquer tela", modal estreito */
+#shortcuts-help-modal .modal.ks-single { width: min(460px, 94vw); }
+#shortcuts-help-modal .modal.ks-single .ks-cols { grid-template-columns: 1fr; }
+#shortcuts-help-modal .modal-head { flex: 0 0 auto; }
+#shortcuts-help-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+#shortcuts-help-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px; /* respiro pra barra de rolagem não colar no texto */
+}
+#shortcuts-help-body:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+#shortcuts-help-modal .form-actions {
+  flex: 0 0 auto;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.ks-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+  align-items: start;
+}
+.ks-col { min-width: 0; } /* deixa o texto quebrar em vez de alargar a coluna */
+#shortcuts-help-modal .wg-shortcuts-list { margin-top: 8px; }
+#shortcuts-help-modal .wg-shortcuts-row { padding: 5px 0; }
+/* Uma linha com teclas demais deixava o <dt> (flex: 0 0 auto, em grid.css)
+ * maior que a coluna e espremia a descrição num fiapo de largura. O teto
+ * faz as teclas quebrarem de linha em vez de empurrar o texto pra fora. */
+#shortcuts-help-modal .wg-shortcuts-row dt { max-width: 60%; }
+#shortcuts-help-modal .wg-shortcuts-row dd { flex: 1 1 0; min-width: 0; }
+@media (max-width: 720px) {
+  .ks-cols { grid-template-columns: 1fr; }
+  .ks-col + .ks-col { margin-top: 14px; }
+}

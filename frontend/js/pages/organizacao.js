@@ -87,12 +87,15 @@ let accountsSelectionInitialized = false;
 
 /**
  * @param {HTMLElement} container
- * @param {{ tab?: string, accountId?: string, focusEmailId?: string }} [opts] -
+ * @param {{ tab?: string, accountId?: string, focusEmailId?: string, focusSearch?: boolean }} [opts] -
  *   ver components/navigate.js. Usado pelo modal de notificações
  *   (modals/notificacoes-modal.js) pra abrir Organização já na aba de
  *   e-mail, com a conta certa selecionada e o e-mail clicado aberto —
  *   sem isso o clique caía sempre na aba "links" (bug reportado: botões
  *   de ver/silenciar iam pra Organização, mas na aba errada).
+ *   `focusSearch` é usado pelo atalho global Alt+B (components/global-
+ *   shortcuts.js) pra dar foco em #org-search direto — o campo fica
+ *   fora das abas (sempre visível), então não precisa de `tab` junto.
  */
 export async function mount(container, opts) {
   rootEl = container;
@@ -154,6 +157,21 @@ export async function focus(opts) {
 async function applyFocus(opts) {
   if (!opts) return;
   if (opts.tab) switchTab(opts.tab);
+  if (opts.focusSearch) {
+    // campo de busca fica acima das abas, sempre visível — não depende
+    // de qual aba (github/e-mail/links) estava selecionada antes.
+    // Duplo requestAnimationFrame: um único rAF ainda cai no mesmo frame
+    // em que o layout/paint do WebKitGTK (Tauri no Linux) ainda não
+    // terminou de assentar depois do innerHTML/render — .focus() roda
+    // mas não "pega" (o elemento ainda não é considerado focável pelo
+    // engine nesse instante), então o Alt+B navegava/trocava de aba sem
+    // de fato focar o input, obrigando a clicar nele manualmente.
+    // Esperar dois frames garante que o primeiro paint já assentou antes
+    // de tentar focar.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => rootEl?.querySelector("#org-search")?.focus());
+    });
+  }
   if (opts.focusEmailId) {
     // adiciona a conta-alvo à visualização combinada (sem remover as
     // outras que já estavam ativas) e recarrega sempre os e-mails
@@ -245,7 +263,7 @@ export function unmount() {
 function template() {
   return `
     <div class="search-row">
-      <input type="text" id="org-search" placeholder="buscar na web..." aria-label="buscar na web">
+      <input type="text" id="org-search" placeholder="buscar na web..." aria-label="buscar na web" aria-keyshortcuts="Alt+B">
       <button class="btn sm" data-action="org-search">buscar</button>
       <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca" aria-label="limpar busca">${icon("x", { size: 13 })}</button>
       <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca" aria-label="configurar chave de busca">${icon("key", { size: 13 })}</button>
@@ -305,7 +323,7 @@ function template() {
          movido pra fora do fluxo principal de leitura, ver secao 4.2 do plano) -->
     <div class="modal-backdrop" id="manage-accounts-modal">
       <div class="modal">
-        <div class="modal-head">gerenciar contas de e-mail <span class="close" data-action="close-manage-accounts-modal">${icon("x")}</span></div>
+        <div class="modal-head">gerenciar contas de e-mail <button type="button" class="close" data-action="close-manage-accounts-modal" aria-label="fechar">${icon("x")}</button></div>
         <div class="modal-body">
           <button class="btn sm" style="width:100%; margin-bottom:10px;" data-action="open-account-modal">+ nova conta</button>
           <div id="org-accounts"></div>
@@ -316,7 +334,7 @@ function template() {
     <!-- MODAL: novo/editar link -->
     <div class="modal-backdrop" id="link-modal">
       <div class="modal">
-        <div class="modal-head"><span id="link-modal-title">novo link</span> <span class="close" data-action="close-link-modal">${icon("x")}</span></div>
+        <div class="modal-head"><span id="link-modal-title">novo link</span> <button type="button" class="close" data-action="close-link-modal" aria-label="fechar">${icon("x")}</button></div>
         <div class="modal-body">
           <input type="hidden" id="link-edit-id" value="">
           <div class="field"><label for="link-title">título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
@@ -330,7 +348,7 @@ function template() {
     <!-- MODAL: novo repositório -->
     <div class="modal-backdrop" id="repo-modal">
       <div class="modal">
-        <div class="modal-head">conectar repositório <span class="close" data-action="close-repo-modal">${icon("x")}</span></div>
+        <div class="modal-head">conectar repositório <button type="button" class="close" data-action="close-repo-modal" aria-label="fechar">${icon("x")}</button></div>
         <div class="modal-body">
           <div class="field">
             <label for="repo-full-name">repositório</label>
@@ -346,7 +364,7 @@ function template() {
     <!-- MODAL: nova/editar conta de e-mail -->
     <div class="modal-backdrop" id="account-modal">
       <div class="modal">
-        <div class="modal-head">conta de e-mail <span class="close" data-action="close-account-modal">${icon("x")}</span></div>
+        <div class="modal-head">conta de e-mail <button type="button" class="close" data-action="close-account-modal" aria-label="fechar">${icon("x")}</button></div>
         <div class="modal-body">
           <input type="hidden" id="acc-edit-id">
           <div class="field"><label for="acc-label">apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
@@ -365,7 +383,7 @@ function template() {
     <!-- MODAL: detalhe de e-mail -->
     <div class="modal-backdrop" id="email-modal">
       <div class="modal">
-        <div class="modal-head">e-mail <span class="close" data-action="close-email-modal">${icon("x")}</span></div>
+        <div class="modal-head">e-mail <button type="button" class="close" data-action="close-email-modal" aria-label="fechar">${icon("x")}</button></div>
         <div class="modal-body" id="email-modal-body"></div>
       </div>
     </div>
@@ -373,7 +391,7 @@ function template() {
     <!-- MODAL: chave de busca (tavily) -->
       <div class="modal-backdrop" id="search-key-modal">
         <div class="modal">
-          <div class="modal-head">chave de busca <span class="close" data-action="close-search-key-modal">${icon("x")}</span></div>
+          <div class="modal-head">chave de busca <button type="button" class="close" data-action="close-search-key-modal" aria-label="fechar">${icon("x")}</button></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
               necessária pro resumo inline de busca (item 4.1). crie uma
@@ -393,7 +411,7 @@ function template() {
     <!-- MODAL: token github -->
       <div class="modal-backdrop" id="github-token-modal">
         <div class="modal">
-          <div class="modal-head">token do github <span class="close" data-action="close-github-token-modal">${icon("x")}</span></div>
+          <div class="modal-head">token do github <button type="button" class="close" data-action="close-github-token-modal" aria-label="fechar">${icon("x")}</button></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
               opcional — sem token, só repositórios públicos e 60 req/h. com um

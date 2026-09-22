@@ -22,7 +22,7 @@ function buildModal() {
   wrap.id = "transaction-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">novo lançamento <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head">novo lançamento <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
           <label for="tm-type">tipo</label>

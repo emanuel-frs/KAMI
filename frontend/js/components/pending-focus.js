@@ -10,6 +10,7 @@
 // expira sozinho e não deixa nada pendurado.
 
 import { typeColor } from "./event-types.js";
+import { prefersReducedMotion } from "./a11y.js";
 
 let pending = null; // { type, id, ts }
 const TTL_MS = 6000;
@@ -41,7 +42,9 @@ export function consumePendingFocus(type) {
  */
 export function focusRow(el, type) {
   if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  // scroll "smooth" é movimento contínuo na tela — sem essa opção
+  // (item 5 das pendências), pula direto pra posição final.
+  el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
   el.style.setProperty("--kami-focus-color", typeColor(type));
   el.classList.add("kami-focus-flash");
   setTimeout(() => {

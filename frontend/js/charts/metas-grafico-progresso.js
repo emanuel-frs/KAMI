@@ -15,6 +15,7 @@
 // avança, ilustrando literalmente a queda de "quanto falta".
 
 import { attachChartTooltip } from "./chart-tooltip.js";
+import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 function fmtDateShort(iso) {
   const d = new Date(iso);
@@ -85,12 +86,17 @@ export function renderProgressChart(el, goal, contributions) {
 
   el.innerHTML = `
     <div class="chart-progresso">
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg" aria-hidden="true">
         <path d="${areaPath}" class="chart-area" />
         <path d="${linePath}" class="chart-line" />
         ${dots}
       </svg>
-      <div class="chart-fluxo-labels">${labelsHtml}</div>
+      <div class="chart-fluxo-labels" aria-hidden="true">${labelsHtml}</div>
+      ${buildTextAltTable({
+        caption: `Progresso de "${goal.title || "meta"}" nas últimas contribuições`,
+        headers: ["Data", "Falta"],
+        rows: points.map((p) => [p.label, fmtRemaining(p.remaining, goal.unit)]),
+      })}
     </div>
   `;
   attachChartTooltip(el.querySelector(".chart-progresso"));

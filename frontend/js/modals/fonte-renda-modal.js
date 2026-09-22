@@ -56,7 +56,7 @@ function buildModal() {
   wrap.id = "income-source-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova fonte de renda</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova fonte de renda</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="ism-nome">nome</label><input type="text" id="ism-nome" placeholder="ex: salário, freelance..."></div>
         <div class="field"><label for="ism-valor">valor</label><input type="number" id="ism-valor" placeholder="0.00"></div>

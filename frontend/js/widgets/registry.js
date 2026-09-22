@@ -30,6 +30,7 @@ const COMPONENT_PATHS = {
   log: "./log.js",
   registrar: "./registrar.js",
   achievements: "./achievements.js",
+  perfil_atividade: "./perfil-atividade.js",
   carteira: "./carteira.js",
   financas_resumo: "./financas-resumo.js",
   financas_renda: "./financas-renda.js",

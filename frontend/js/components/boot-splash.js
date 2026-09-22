@@ -16,6 +16,8 @@
  * (setup + tour na primeira vez, direto pro app nas seguintes).
  */
 
+import { prefersReducedMotion } from "./a11y.js";
+
 const ART = [
   "██╗  ██╗ █████╗ ███╗   ███╗ ██╗",
   "██║ ██╔╝██╔══██╗████╗ ████║ ██║",
@@ -39,6 +41,17 @@ const FLICKER_INTERVAL_MS = 35;
 const HOLD_MS = 2000; // pausa parada com a logo pronta, antes de dissolver
 const FADE_OUT_MS = 320; // fade do overlay inteiro ao final
 
+// versão pra quem pediu menos movimento no SO (prefers-reduced-motion) —
+// item 5 das pendências ("splash... seguem sem essa opção"). O scramble
+// de ruído e a varredura diagonal são puramente decorativos (setTimeout
+// em JS, não têm como ser cobertos por um @media no CSS); aqui a arte só
+// aparece/some inteira de uma vez, sem flicker nem stagger entre células.
+// O fade de opacidade do overlay (CSS, 320ms) continua — é só uma
+// transição de estado, não movimento contínuo, e ajuda a orientar quem
+// está trocando de tela mesmo sem a animação decorativa.
+const REDUCED_INITIAL_DELAY_MS = 200;
+const REDUCED_HOLD_MS = 900;
+
 let active = false;
 
 function randNoise() {
@@ -56,6 +69,13 @@ export function playBootSplash() {
       return;
     }
     active = true;
+
+    const reduced = prefersReducedMotion();
+    const initialDelay = reduced ? REDUCED_INITIAL_DELAY_MS : INITIAL_DELAY_MS;
+    const rowStep = reduced ? 0 : ROW_STEP_MS;
+    const colStep = reduced ? 0 : COL_STEP_MS;
+    const flickerTicks = reduced ? 0 : FLICKER_TICKS;
+    const hold = reduced ? REDUCED_HOLD_MS : HOLD_MS;
 
     const timers = [];
     const schedule = (fn, ms) => {
@@ -95,7 +115,7 @@ export function playBootSplash() {
         span.className = "boot-char";
         span.textContent = " ";
         pre.appendChild(span);
-        const delay = row * ROW_STEP_MS + col * COL_STEP_MS;
+        const delay = row * rowStep + col * colStep;
         maxDelay = Math.max(maxDelay, delay);
         cells.push({ span, finalChar: ch, delay });
       });
@@ -109,9 +129,14 @@ export function playBootSplash() {
 
     function materializeCell(cell) {
       cell.span.classList.add("boot-char--on");
+      if (flickerTicks === 0) {
+        cell.span.textContent = cell.finalChar;
+        cell.span.classList.add("boot-char--settled");
+        return;
+      }
       let ticks = 0;
       const flicker = () => {
-        if (ticks >= FLICKER_TICKS) {
+        if (ticks >= flickerTicks) {
           cell.span.textContent = cell.finalChar;
           cell.span.classList.add("boot-char--settled");
           return;
@@ -124,9 +149,15 @@ export function playBootSplash() {
     }
 
     function dissolveCell(cell) {
+      if (flickerTicks === 0) {
+        cell.span.textContent = " ";
+        cell.span.classList.remove("boot-char--settled");
+        cell.span.classList.remove("boot-char--on");
+        return;
+      }
       let ticks = 0;
       const flicker = () => {
-        if (ticks >= FLICKER_TICKS) {
+        if (ticks >= flickerTicks) {
           cell.span.textContent = " ";
           cell.span.classList.remove("boot-char--settled");
           cell.span.classList.remove("boot-char--on");
@@ -163,19 +194,19 @@ export function playBootSplash() {
     overlay.addEventListener("pointerdown", skip);
     window.addEventListener("keydown", skip, { once: false });
 
-    // segura em preto por INITIAL_DELAY_MS antes de começar — só depois
+    // segura em preto por initialDelay antes de começar — só depois
     // disso a varredura diagonal de materialização começa
     cells.forEach((cell) =>
-      schedule(() => materializeCell(cell), INITIAL_DELAY_MS + cell.delay)
+      schedule(() => materializeCell(cell), initialDelay + cell.delay)
     );
 
     // depois da última célula assentar (delay + flickers) + pausa parada
     // com a logo pronta, inicia a dissolução na mesma ordem/varredura
-    const materializeEnd = INITIAL_DELAY_MS + maxDelay + FLICKER_TICKS * FLICKER_INTERVAL_MS;
+    const materializeEnd = initialDelay + maxDelay + flickerTicks * FLICKER_INTERVAL_MS;
     schedule(() => {
       cells.forEach((cell) => schedule(() => dissolveCell(cell), cell.delay));
-      const dissolveEnd = maxDelay + FLICKER_TICKS * FLICKER_INTERVAL_MS;
+      const dissolveEnd = maxDelay + flickerTicks * FLICKER_INTERVAL_MS;
       schedule(finish, dissolveEnd + 120);
-    }, materializeEnd + HOLD_MS);
+    }, materializeEnd + hold);
   });
 }

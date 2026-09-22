@@ -40,7 +40,7 @@ function buildModal() {
   wrap.id = "calendar-event-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">novo evento</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">novo evento</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field"><label for="cem-title">título</label><input type="text" id="cem-title" placeholder="ex: consulta, reunião, viagem..."></div>
         <div class="field-row">
@@ -187,7 +187,12 @@ export function openCalendarioEventoModal({ event = null, date = null, onSaved, 
   syncUntilFieldVisibility(modalEl);
 
   modalEl.classList.add("open");
-  modalEl.querySelector("#cem-title").focus();
+  // O foco inicial (e a captura de quem tinha o foco antes de abrir, pra
+  // devolver no Esc) já é feito por components/modal-accessibility.js —
+  // um .focus() síncrono aqui rodaria ANTES do MutationObserver dele
+  // processar a mudança de classe, e faria o sistema achar que o próprio
+  // campo de título foi quem "abriu" o modal, quebrando o retorno de foco.
+  // Mesmo padrão dos outros ~40 modais: nenhum foca campo próprio aqui.
 }
 
 export function closeCalendarioEventoModal() {

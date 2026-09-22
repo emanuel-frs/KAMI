@@ -40,7 +40,7 @@ function buildModal() {
   wrap.id = "education-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova formação</span> <span class="close" data-action="close">${icon("x")}</span></div>
+      <div class="modal-head"><span class="modal-head-title">nova formação</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field-row">
           <div class="field"><label for="em-curso">curso</label><input type="text" id="em-curso" placeholder="ex: ciência da computação"></div>

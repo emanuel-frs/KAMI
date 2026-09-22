@@ -1,8 +1,8 @@
 """Testes do router app/routers/dashboard.py (layout de widgets, decisão 17).
 
-'perfil' e 'nucleo' vêm com layout default seedado por init_db()
-(ver database.py DEFAULT_LAYOUTS) — só 'financas' nasce vazia, então
-é a tela usada aqui pra testar o caso "sem layout salvo ainda".
+Todas as telas ('perfil', 'nucleo', 'carreira' e 'financas') vêm com
+layout default seedado por init_db() (ver database.py DEFAULT_LAYOUTS),
+espelhando o layout pessoal salvo em kami-backup-2026-09-18.json.
 """
 
 
@@ -11,7 +11,10 @@ def test_get_layout_seeds_default_for_financas(client):
     assert resp.status_code == 200
     body = resp.json()
     assert [w["widget_type"] for w in body] == [
-        "carteira", "financas_resumo", "financas_registros",
+        "financas_resumo", "financas_grafico_fluxo", "financas_grafico_evolucao",
+        "carteira", "financas_assinaturas", "dividas", "financas_registros",
+        "financas_grafico_categorias", "financas_renda", "compras_parceladas",
+        "financas_grafico_limites", "contas_fixas",
     ]
 
 
@@ -20,7 +23,7 @@ def test_get_layout_seeds_default_for_nucleo(client):
     assert resp.status_code == 200
     body = resp.json()
     assert [w["widget_type"] for w in body] == [
-        "attributes", "priorities", "log", "registrar", "achievements",
+        "achievements", "registrar", "attributes", "log", "priorities",
     ]
 
 
@@ -169,7 +172,10 @@ def test_put_layout_screens_are_independent(client):
     # financas tem layout padrão próprio (seedado, não vazio) — o que
     # importa aqui é que ele não foi afetado pelo PUT em nucleo.
     assert [w["widget_type"] for w in resp.json()] == [
-        "carteira", "financas_resumo", "financas_registros",
+        "financas_resumo", "financas_grafico_fluxo", "financas_grafico_evolucao",
+        "carteira", "financas_assinaturas", "dividas", "financas_registros",
+        "financas_grafico_categorias", "financas_renda", "compras_parceladas",
+        "financas_grafico_limites", "contas_fixas",
     ]
 
 

@@ -37,7 +37,7 @@ function buildModal() {
     <div class="modal wide">
       <div class="modal-head">
         avatar pessoal
-        <span class="close" data-action="close">${icon("x")}</span>
+        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
       </div>
       <div class="modal-tabs">
         <div class="modal-tab" data-tab="ver">ver</div>
