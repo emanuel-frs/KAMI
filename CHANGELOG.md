@@ -4,6 +4,15 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.7.1] - 2026-09-22
+
+### Adicionado
+- pré-carregamento dos dados de calendário, finanças e metas durante o boot
+
+### Corrigido
+- reutilização do cache de GET para abrir as telas sem novas esperas de rede
+- aceitação explícita de formatos de imagem nos seletores de avatar
+
 ## [1.7.0] - 2026-09-21
 
 ### Adicionado
@@ -147,4 +156,3 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Atualizacao dos testes de financas e wallet
 - fase de lapidação final: titlebar, sidebar, ícones e reorganização do frontend
 - Initial commit
-

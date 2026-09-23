@@ -53,7 +53,7 @@ function buildModal() {
             <div class="al-drop" id="am-nb-drop">
               <div class="al-preview" id="am-nb-preview"><span class="ph">sem<br>imagem</span></div>
               <div style="flex:1; min-width:0;">
-                <input type="file" id="am-nb-file" accept="image/*" style="width:100%; font-size:10.5px; color:var(--text-dim);">
+                <input type="file" id="am-nb-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp" style="width:100%; font-size:10.5px; color:var(--text-dim);">
                 <div class="al-hint">arraste uma imagem ou clique pra escolher. convertida localmente pra ascii.</div>
               </div>
             </div>

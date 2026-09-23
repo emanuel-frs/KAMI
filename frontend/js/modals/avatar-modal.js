@@ -53,7 +53,7 @@ function buildModal() {
               <div class="al-drop" id="av-drop">
                 <div class="field">
                   <label for="av-file">foto (não é salva — só o resultado em texto)</label>
-                  <input type="file" id="av-file" accept="image/*">
+                  <input type="file" id="av-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp">
                 </div>
                 <div class="field">
                   <label for="av-cols">largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>

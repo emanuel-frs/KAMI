@@ -42,6 +42,48 @@ const pageRoot = document.getElementById("page-root");
 let currentPageModule = null;
 let currentPageName = null;
 
+// teto pro requestIdleCallback — se o navegador não achar uma folga antes
+// disso (pouco provável, o splash sozinho já segura uns 3s+), força o
+// preload mesmo assim em vez de deixar pra nunca.
+const PRELOAD_IDLE_TIMEOUT_MS = 2000;
+
+/**
+ * Pré-busca os chunks das telas ainda não visitadas, em paralelo com o
+ * boot-splash. Sem isso, a primeira navegação pra cada tela paga o custo
+ * de rede/parse do import() dinâmico (uns 1-2s) — daria pra cobrir com um
+ * spinner, mas como o splash já segura a UI por alguns segundos no boot,
+ * é tempo de sobra pra deixar tudo já baixado e em cache antes do usuário
+ * clicar em qualquer coisa. Erros aqui são engolidos de propósito: é só
+ * um prefetch, se falhar o import() de verdade na hora de navegar tenta
+ * de novo e mostra o erro real então.
+ *
+ * Além do módulo em si, também dispara o preload() de dados da tela
+ * (quando ela exporta um) — mesma ideia, mas esquentando o cache de GET
+ * de api/client.js em vez do cache de módulos ES do navegador. Nem toda
+ * tela tem um preload() ainda (as telas em grid de widgets — perfil,
+ * financas, carreira — carregam cada widget sob demanda e não têm essa
+ * cobertura por enquanto), então o `?.()` é o esperado, não um bug.
+ */
+function preloadPages(exclude) {
+  Object.keys(PAGES)
+    .filter((name) => name !== exclude)
+    .forEach((name) => {
+      PAGES[name]()
+        .then((mod) => mod.preload?.())
+        .catch(() => {});
+    });
+}
+
+function schedulePreload(exclude) {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => preloadPages(exclude), {
+      timeout: PRELOAD_IDLE_TIMEOUT_MS,
+    });
+  } else {
+    setTimeout(() => preloadPages(exclude), 300);
+  }
+}
+
 /**
  * @param {string} name - chave de PAGES
  * @param {object} [opts] - repassado direto pro mount()/focus() da tela
@@ -179,7 +221,9 @@ async function loadProfile() {
 async function boot() {
   // splash roda em todo boot (assinatura visual, não é gate de primeira
   // vez) — dispara em paralelo com o carregamento real, pra tela já
-  // estar pronta por baixo quando ela terminar/for pulada.
+  // estar pronta por baixo quando ela terminar/for pulada. Essa folga
+  // também é aproveitada mais abaixo pra pré-buscar as outras telas
+  // (schedulePreload) enquanto o splash segura a UI.
   const splashDone = playBootSplash();
 
   registerNavigator(showPage);
@@ -202,6 +246,7 @@ async function boot() {
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   await showPage("nucleo"); // tela inicial
+  schedulePreload("nucleo"); // aproveita a folga do splash pra pré-buscar as outras telas
   await splashDone;
 
   const profile = store.get("profile");

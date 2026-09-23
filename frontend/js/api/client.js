@@ -64,7 +64,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, options = {}) {
+async function doFetch(path, options) {
   const baseUrl = await getBaseUrl();
   let res;
   try {
@@ -80,6 +80,9 @@ async function request(path, options = {}) {
       // "convencer" o webview a revalidar, ex: silenciar/dessilenciar
       // que dispara outra chamada de rede no meio. Sem isso o Kami
       // dependeria de sorte de cache do navegador pra ver dado fresco.
+      // (isso é cache de HTTP/navegador — não tem nada a ver com o
+      // _getCache abaixo, que é nosso, explícito, e some por completo a
+      // qualquer escrita.)
       cache: "no-store",
       ...options,
     });
@@ -95,6 +98,37 @@ async function request(path, options = {}) {
 
   if (res.status === 204) return null;
   return res.json();
+}
+
+const GET_CACHE_TTL_MS = 20000;
+const _getCache = new Map();
+
+function clearGetCache() {
+  _getCache.clear();
+}
+
+async function request(path, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+
+  if (method !== "GET") {
+    try {
+      return await doFetch(path, options);
+    } finally {
+      clearGetCache();
+    }
+  }
+
+  const cached = _getCache.get(path);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise;
+  }
+
+  const promise = doFetch(path, options).catch((err) => {
+    _getCache.delete(path);
+    throw err;
+  });
+  _getCache.set(path, { expiresAt: Date.now() + GET_CACHE_TTL_MS, promise });
+  return promise;
 }
 
 export const get = (path) => request(path);

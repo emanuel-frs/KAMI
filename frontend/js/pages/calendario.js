@@ -541,6 +541,11 @@ function goToToday() {
   goToMonth(t.year, t.month);
 }
 
+export function preload() {
+  const { year, month } = todayParts();
+  return listEvents(monthStr(year, month));
+}
+
 // ─── legenda ─────────────────────────────────────────────────────────────
 function renderLegend() {
   const typeItems = Object.entries(TYPE_META)
