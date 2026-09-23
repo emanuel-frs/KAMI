@@ -1605,6 +1605,29 @@ function startTrackNameEdit(displayEl, track) {
 
 // ─── Montagem / Desmontagem ─────────────────────────────────────────────
 
+/**
+ * Chamado por app.js (schedulePreload) durante a janela do boot-splash,
+ * antes de qualquer navegação de verdade pra essa tela. Não toca em
+ * `container`, no estado do módulo (tracks/milestones/selectedTrackId)
+ * nem em nada visual — só repete as mesmas leituras que o mount() faz
+ * de cara, pra elas caírem no cache de GET de api/client.js. Quando o
+ * mount() de verdade rodar mais tarde, essas chamadas voltam na hora
+ * em vez de esperar outro round-trip ao backend.
+ *
+ * Resultado é descartado de propósito (é só um "esquenta cache"); se
+ * algo aqui falhar, o mount() de verdade tenta de novo e trata o erro
+ * como sempre tratou.
+ */
+export async function preload() {
+  const list = await listTracks().catch(() => []);
+  const sorted = [...list].sort((a, b) => a.position - b.position);
+  const firstTrackId = sorted[0]?.id;
+  await Promise.all([
+    getLog({ attribute: "aprendizado", period_days: 1100 }).catch(() => {}),
+    firstTrackId ? listMilestones(firstTrackId).catch(() => {}) : null,
+  ]);
+}
+
 export async function mount(container) {
   containerEl = container;
   container.innerHTML = `

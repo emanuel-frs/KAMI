@@ -333,7 +333,7 @@ function buildAvatarControls(container) {
   container.innerHTML = `
     <div class="ki-avatar-grid">
       <div class="ki-avatar-controls">
-        <input type="file" id="ki-av-file" accept="image/*" aria-label="escolher uma imagem para o avatar">
+        <input type="file" id="ki-av-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp" aria-label="escolher uma imagem para o avatar">
         <div class="ki-av-col-field" id="ki-av-col-field" style="display:none">
           <label for="ki-av-cols">largura: <b id="ki-av-cols-val">70</b></label>
           <input type="range" id="ki-av-cols" min="30" max="120" value="70">

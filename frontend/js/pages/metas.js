@@ -693,6 +693,10 @@ async function refreshGoals() {
   render();
 }
 
+export function preload() {
+  return listGoals();
+}
+
 // ─── montagem / desmontagem ─────────────────────────────────────────────────
 
 export async function mount(container) {
