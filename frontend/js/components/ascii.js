@@ -40,9 +40,17 @@ let measureCanvas = null;
 export function loadImageFile(file, { onLoad, onInvalid } = {}) {
   if (!file) return;
   const img = new Image();
-  img.onload = () => onLoad?.(img);
-  img.onerror = () => onInvalid?.();
-  img.src = URL.createObjectURL(file);
+  const objectUrl = URL.createObjectURL(file);
+  const release = () => URL.revokeObjectURL(objectUrl);
+  img.onload = () => {
+    release();
+    onLoad?.(img);
+  };
+  img.onerror = () => {
+    release();
+    onInvalid?.();
+  };
+  img.src = objectUrl;
 }
 
 export function measureMonoCharWidth(fontFamily, fontSizePx) {

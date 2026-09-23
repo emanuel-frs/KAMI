@@ -4,6 +4,13 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.7.2] - 2026-09-22
+
+### Corrigido
+- permite imagens `blob:` no WebView2 para conversão de PNG/JPG em ASCII
+- remove a janela de terminal aberta pelo sidecar do backend no Windows
+- libera os URLs temporários das imagens após a conversão
+
 ## [1.7.1] - 2026-09-22
 
 ### Adicionado
