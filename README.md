@@ -11,7 +11,7 @@
 
 **Sistema pessoal de organização gamificada — 100% local**
 
-`v1.7.1` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
+`v1.7.2` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
 
 </div>
 

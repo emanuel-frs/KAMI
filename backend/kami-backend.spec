@@ -68,7 +68,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,   # dá pra trocar pra False depois de validar que
-                     # nenhum log de depuração do backend é mais
-                     # necessário no console
+    # O backend é um sidecar de GUI; manter console=True abre uma janela
+    # de terminal no Windows sempre que o Kami é iniciado.
+    console=False,
 )
