@@ -49,3 +49,62 @@ test("client converte respostas HTTP de erro em ApiError", async (t) => {
       && err.message === "campo obrigatório"
   );
 });
+
+test("no Tauri, falha em get_backend_port vira ApiError(0) com o motivo — sem cair na porta 8000", async (t) => {
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => response({ ok: true }));
+  globalThis.window = {
+    __TAURI__: {
+      core: {
+        invoke: async () => {
+          throw "O backend do Kami encerrou inesperadamente (código Some(1)). Log completo: C:\\kami\\kami-backend.log";
+        },
+      },
+    },
+  };
+  t.after(() => {
+    delete globalThis.window;
+  });
+
+  // import com query string = instância nova do módulo, sem o cache de
+  // base URL dos outros testes deste arquivo
+  const fresh = await import("../../frontend/js/api/client.js?tauri-falha");
+
+  await assert.rejects(
+    () => fresh.get("/api/test"),
+    (err) => err instanceof fresh.ApiError
+      && err.status === 0
+      && err.message.includes("encerrou inesperadamente")
+      && err.message.includes("kami-backend.log")
+  );
+  assert.equal(fetchMock.mock.callCount(), 0, "não deve tentar fetch numa porta chutada");
+});
+
+test("no Tauri, a falha não fica cacheada: a próxima chamada tenta de novo e funciona", async (t) => {
+  const urls = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    urls.push(url);
+    return response({ ok: true });
+  });
+  let attempts = 0;
+  globalThis.window = {
+    __TAURI__: {
+      core: {
+        invoke: async () => {
+          attempts += 1;
+          if (attempts === 1) throw "ainda subindo";
+          return 45123;
+        },
+      },
+    },
+  };
+  t.after(() => {
+    delete globalThis.window;
+  });
+
+  const fresh = await import("../../frontend/js/api/client.js?tauri-retry");
+
+  await assert.rejects(() => fresh.get("/api/a"), (err) => err.status === 0);
+  await fresh.get("/api/b");
+
+  assert.deepEqual(urls, ["http://127.0.0.1:45123/api/b"]);
+});

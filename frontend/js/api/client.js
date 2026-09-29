@@ -30,16 +30,31 @@ async function resolveBaseUrl() {
       const port = await window.__TAURI__.core.invoke("get_backend_port");
       return `http://127.0.0.1:${port}`;
     } catch (err) {
-      // não deve acontecer em produção (o comando só existe pra travar
-      // até o sidecar escrever a porta) — mas não trava o app por isso
-      console.error("falha ao obter a porta do backend via Tauri, caindo no padrão de dev:", err);
+      // No app empacotado, cair silenciosamente na porta 8000 (o que
+      // este código fazia antes) só esconde o problema real: o backend
+      // não subiu, ninguém escuta na 8000, e o usuário via widgets
+      // vazios e telas quebradas sem nenhuma explicação. Agora o erro
+      // do lado Rust (que já traz o motivo e o caminho do
+      // kami-backend.log) sobe até a UI — ver doFetch e loadProfile em
+      // app.js. O fallback de 8000 continua só pro fluxo de dev/web,
+      // onde não existe window.__TAURI__.
+      const reason = typeof err === "string" ? err : err?.message || String(err);
+      throw new Error(reason);
     }
   }
   return "http://127.0.0.1:8000";
 }
 
 function getBaseUrl() {
-  if (!_baseUrlPromise) _baseUrlPromise = resolveBaseUrl();
+  if (!_baseUrlPromise) {
+    // não cacheia falha: se o backend demorou e o app tentar de novo
+    // (ou o usuário navegar pra outra tela), a próxima chamada
+    // resolve de novo em vez de ficar preso ao erro pra sempre
+    _baseUrlPromise = resolveBaseUrl().catch((err) => {
+      _baseUrlPromise = null;
+      throw err;
+    });
+  }
   return _baseUrlPromise;
 }
 
@@ -65,7 +80,16 @@ export class ApiError extends Error {
 }
 
 async function doFetch(path, options) {
-  const baseUrl = await getBaseUrl();
+  let baseUrl;
+  try {
+    baseUrl = await getBaseUrl();
+  } catch (startErr) {
+    // backend não subiu (mensagem já vem pronta do Tauri, com o motivo
+    // e o caminho do log) — status 0 = "sem conexão", igual ao caso
+    // de rede abaixo, pra quem trata ApiError não precisar de um
+    // tipo novo
+    throw new ApiError(0, { detail: startErr.message });
+  }
   let res;
   try {
     res = await fetch(`${baseUrl}${path}`, {
