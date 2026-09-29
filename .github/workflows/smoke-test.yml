@@ -146,6 +146,7 @@ jobs:
         with:
           name: linux-distribution
           path: ${{ runner.temp }}/kami-install-test
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
 
