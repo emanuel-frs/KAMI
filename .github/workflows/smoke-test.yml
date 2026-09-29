@@ -2,7 +2,7 @@ name: Smoke test
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, main, fix/ci-instalacao]
   pull_request:
     branches: [develop, main]
   workflow_dispatch:
