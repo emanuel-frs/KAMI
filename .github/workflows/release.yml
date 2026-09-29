@@ -1,46 +1,52 @@
 name: Release
 
-# Dispara em qualquer tag no formato vX.Y.Z (o mesmo padrão que
-# scripts/bump-version.sh já cria e que `git flow release finish` +
-# `git push --tags` já empurra). Não precisa mexer no fluxo de
-# release existente — só dar o push da tag.
 on:
   push:
     tags:
       - "v*.*.*"
 
 permissions:
-  contents: write # necessário pra criar/anexar arquivos na Release
+  contents: write
 
 jobs:
-  release:
-    strategy:
-      fail-fast: false # se o Windows falhar, o Linux ainda termina (e vice-versa)
-      matrix:
-        include:
-          - platform: ubuntu-latest
-          - platform: windows-latest
-
-    runs-on: ${{ matrix.platform }}
-
+  check-version:
+    name: Verify release tag and smoke-test
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Validate tag, VERSION, and successful smoke-test
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          test "$GITHUB_REF_NAME" = "v${version}"
+          runs="$(gh run list --workflow smoke-test.yml --commit "$GITHUB_SHA" --status success --json databaseId)"
+          test "$runs" != "[]"
+
+  build-linux:
+    name: Build Linux installers
+    needs: check-version
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust
-        uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@v2
         with:
           workspaces: "src-tauri -> target"
 
-      - name: Instalar dependências de sistema do Tauri (Linux)
-        if: matrix.platform == 'ubuntu-latest'
+      - name: Install Tauri system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -48,53 +54,193 @@ jobs:
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            rpm \
+            libfuse2
 
-      - name: Instalar Tauri CLI
+      - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2" --locked
 
-      - name: Sincronizar VERSION em tauri.conf.json / Cargo.toml
+      - name: Sync the configured version from VERSION
         shell: bash
         run: |
-          KAMI_VERSION="$(tr -d '[:space:]' < VERSION)"
-          echo "sincronizando versão v${KAMI_VERSION}"
-
-          python3 - "src-tauri/tauri.conf.json" "$KAMI_VERSION" <<'PYEOF'
+          kami_version="$(tr -d '[:space:]' < VERSION)"
+          python - "src-tauri/tauri.conf.json" "$kami_version" <<'PYEOF'
           import json
           import sys
 
           path, version = sys.argv[1], sys.argv[2]
-          with open(path, encoding="utf-8") as f:
-              data = json.load(f)
-          data["version"] = version
-          with open(path, "w", encoding="utf-8") as f:
-              json.dump(data, f, indent=2, ensure_ascii=False)
-              f.write("\n")
+          with open(path, encoding="utf-8") as config_file:
+              config = json.load(config_file)
+          config["version"] = version
+          with open(path, "w", encoding="utf-8") as config_file:
+              json.dump(config, config_file, indent=2, ensure_ascii=False)
+              config_file.write("\n")
           PYEOF
+          sed -i "0,/^version = \".*\"/s//version = \"$kami_version\"/" src-tauri/Cargo.toml
 
-          sed -i "0,/^version = \".*\"/s//version = \"$KAMI_VERSION\"/" src-tauri/Cargo.toml
+      - name: Build Linux sidecar and installers
+        working-directory: src-tauri
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          python -m venv ../backend/.venv
+          source ../backend/.venv/bin/activate
+          python -m pip install -r ../backend/requirements.txt pyinstaller
+          bash ../scripts/build_sidecar.sh
+          cargo tauri build
 
-      - name: Empacotar o backend (sidecar PyInstaller)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
+  build-windows:
+    name: Build Windows installer
+    needs: check-version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Sync the configured version from VERSION
         shell: bash
         run: |
-          cd backend
-          python -m venv .venv
-          # venv cria Scripts/activate no Windows e bin/activate no Linux —
-          # os dois funcionam via bash (git-bash no windows-latest)
-          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-          pip install -r requirements.txt pyinstaller
-          cd ..
-          bash scripts/build_sidecar.sh
+          kami_version="$(tr -d '[:space:]' < VERSION)"
+          python - "src-tauri/tauri.conf.json" "$kami_version" <<'PYEOF'
+          import json
+          import sys
 
-      - name: Build e publicar na Release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path, version = sys.argv[1], sys.argv[2]
+          with open(path, encoding="utf-8") as config_file:
+              config = json.load(config_file)
+          config["version"] = version
+          with open(path, "w", encoding="utf-8") as config_file:
+              json.dump(config, config_file, indent=2, ensure_ascii=False)
+              config_file.write("\n")
+          PYEOF
+          sed -i "0,/^version = \".*\"/s//version = \"$kami_version\"/" src-tauri/Cargo.toml
+
+      - name: Build Windows sidecar and installer
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          python -m venv ../backend/.venv
+          source ../backend/.venv/Scripts/activate
+          python -m pip install -r ../backend/requirements.txt pyinstaller
+          bash ../scripts/build_sidecar.sh
+          cargo tauri build
+
+      - uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Kami ${{ github.ref_name }}"
-          releaseBody: "Ver CHANGELOG.md para o detalhamento desta versão."
-          # A tag já representa uma versão revisada; publicar automaticamente
-          # evita deixar a versão correta invisível na página de Releases.
-          releaseDraft: false
-          prerelease: false
+          name: windows-installer
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish assets and checksums
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-installers
+          path: linux-installers
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: windows-installer
+
+      - name: Prepare predictable asset names and SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir release-assets
+
+          deb="$(find linux-installers -type f -name '*.deb' -print -quit)"
+          rpm="$(find linux-installers -type f -name '*.rpm' -print -quit)"
+          appimage="$(find linux-installers -type f -name '*.AppImage' -print -quit)"
+          installer="$(find windows-installer -type f -name '*-setup.exe' -print -quit)"
+          test -n "$deb" && test -n "$rpm" && test -n "$appimage" && test -n "$installer"
+          deb_package="$(dpkg-deb --field "$deb" Package)"
+          rpm_package="$(rpm -qp --queryformat '%{NAME}' "$rpm")"
+          if [[ "$deb_package" != "kami" || "$rpm_package" != "kami" ]]; then
+            echo "Nome de pacote inesperado: .deb=$deb_package .rpm=$rpm_package (esperado: kami)." >&2
+            exit 1
+          fi
+
+          cp "$deb" "release-assets/kami-${version}-linux-amd64.deb"
+          cp "$rpm" "release-assets/kami-${version}-linux-x86_64.rpm"
+          cp "$appimage" "release-assets/kami-${version}-linux-x86_64.AppImage"
+          cp "$installer" "release-assets/kami-${version}-windows-x64-setup.exe"
+          sed "s/^pkgver=.*/pkgver=${version}/" packaging/arch/PKGBUILD \
+            > "release-assets/kami-${version}-PKGBUILD"
+          (
+            cd release-assets
+            sha256sum kami-*
+          ) > release-assets/SHA256SUMS
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          prerelease_args=()
+          if [[ "$tag" == *-* ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+          gh release create "$tag" release-assets/* \
+            --target "$GITHUB_SHA" \
+            --title "Kami $tag" \
+            --notes "Ver CHANGELOG.md para o detalhamento desta versão." \
+            "${prerelease_args[@]}"
+
+  verify-release:
+    name: Download and verify published checksums
+    needs: publish
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download release assets and verify SHA256SUMS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release-download
+          gh release download "$GITHUB_REF_NAME" --dir release-download
+          cd release-download
+          test -s SHA256SUMS
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' |
+            sort > published-assets.txt
+          awk '{ print $2 }' SHA256SUMS > checksummed-assets.txt
+          printf '%s\n' SHA256SUMS >> checksummed-assets.txt
+          sort -o checksummed-assets.txt checksummed-assets.txt
+          diff -u published-assets.txt checksummed-assets.txt
+          sha256sum --check --strict SHA256SUMS
