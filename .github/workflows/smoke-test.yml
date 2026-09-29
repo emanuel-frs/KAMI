@@ -1,0 +1,452 @@
+name: Smoke test
+
+on:
+  push:
+    branches: [develop, main, fix/ci-instalacao]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Backend and frontend tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt pytest
+
+      - name: Run backend tests
+        working-directory: backend
+        run: pytest
+
+      - name: Run frontend tests
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - name: Check Linux installer with ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
+
+  linux-build:
+    name: Build Linux bundles and sidecar
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            rpm \
+            libfuse2
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build the sidecar and Linux installers
+        working-directory: src-tauri
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          python -m venv ../backend/.venv
+          source ../backend/.venv/bin/activate
+          python -m pip install -r ../backend/requirements.txt pyinstaller
+          bash ../scripts/build_sidecar.sh
+          cargo tauri build
+
+      - name: Verify Linux runtime links
+        working-directory: src-tauri
+        run: |
+          ldd target/release/kami | tee "$RUNNER_TEMP/kami-ldd.txt"
+          if grep -Fq "not found" "$RUNNER_TEMP/kami-ldd.txt"; then
+            echo "O binário do Kami tem bibliotecas dinâmicas ausentes." >&2
+            exit 1
+          fi
+
+      - name: Smoke-test the isolated sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="src-tauri/binaries/kami-backend-x86_64-unknown-linux-gnu"
+          expected_version="$(tr -d '[:space:]' < VERSION)"
+          bash scripts/ci/smoke_backend.sh "$binary" "$(mktemp -d)" "$expected_version"
+          bash scripts/ci/smoke_backend.sh "$binary" "$(mktemp -d)" "$expected_version" --sem-stdio
+
+      - name: Prepare installation-test assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          staging="$RUNNER_TEMP/kami-install-test"
+          deb="$(find src-tauri/target/release/bundle/deb -type f -name '*.deb' -print -quit)"
+          rpm="$(find src-tauri/target/release/bundle/rpm -type f -name '*.rpm' -print -quit)"
+          test -n "$deb" && test -n "$rpm"
+          deb_package="$(dpkg-deb --field "$deb" Package)"
+          rpm_package="$(rpm -qp --queryformat '%{NAME}' "$rpm")"
+          if [[ "$deb_package" != "kami" || "$rpm_package" != "kami" ]]; then
+            echo "Nome de pacote inesperado: .deb=$deb_package .rpm=$rpm_package (esperado: kami)." >&2
+            exit 1
+          fi
+
+          mkdir -p "$staging/release" "$staging/scripts/ci" "$staging/packaging/arch"
+
+          cp "$deb" \
+            "$staging/release/kami-${version}-linux-amd64.deb"
+          cp "$rpm" \
+            "$staging/release/kami-${version}-linux-x86_64.rpm"
+          cp "$(find src-tauri/target/release/bundle/appimage -type f -name '*.AppImage' -print -quit)" \
+            "$staging/release/kami-${version}-linux-x86_64.AppImage"
+          sed "s/^pkgver=.*/pkgver=${version}/" packaging/arch/PKGBUILD \
+            > "$staging/release/kami-${version}-PKGBUILD"
+          (
+            cd "$staging/release"
+            sha256sum kami-* > SHA256SUMS
+          )
+          cp VERSION "$staging/VERSION"
+          cp scripts/install.sh "$staging/scripts/install.sh"
+          cp scripts/ci/smoke_backend.sh "$staging/scripts/ci/smoke_backend.sh"
+          cp packaging/arch/PKGBUILD "$staging/packaging/arch/PKGBUILD"
+          cp packaging/arch/.SRCINFO "$staging/packaging/arch/.SRCINFO"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-distribution
+          path: ${{ runner.temp }}/kami-install-test
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  linux-package-smoke:
+    name: Test Linux package (${{ matrix.distro }})
+    needs: linux-build
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian-12
+            image: debian:12
+            package: deb
+          - distro: fedora-latest
+            image: fedora:latest
+            package: rpm
+          - distro: archlinux-latest
+            image: archlinux:latest
+            package: arch
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-distribution
+          path: linux-distribution
+
+      - name: Install distro tools and Arch package dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.package }}" == "deb" ]]; then
+            apt-get update
+            apt-get install -y ca-certificates curl
+          elif [[ "${{ matrix.package }}" == "rpm" ]]; then
+            dnf install -y ca-certificates curl
+          else
+            pacman-key --init
+            pacman-key --populate archlinux
+            pacman -Sy --noconfirm archlinux-keyring
+            pacman -Syu --noconfirm --needed base-devel ca-certificates curl sudo webkit2gtk-4.1 gtk3
+            useradd --create-home builder
+            printf '%s\n' 'builder ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/builder
+            chmod 440 /etc/sudoers.d/builder
+            chown -R builder:builder linux-distribution
+          fi
+
+      - name: Verify generated Arch .SRCINFO
+        if: matrix.package == 'arch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          su --login --shell /bin/bash --command \
+            "cd '$PWD/linux-distribution/packaging/arch' && makepkg --printsrcinfo" builder \
+            > "$RUNNER_TEMP/generated.SRCINFO"
+          diff -u linux-distribution/packaging/arch/.SRCINFO "$RUNNER_TEMP/generated.SRCINFO"
+
+      - name: Exercise installer dry-run
+        shell: bash
+        run: sh linux-distribution/scripts/install.sh --dry-run
+
+      - name: Install from verified assets, smoke-test, and uninstall
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < linux-distribution/VERSION)"
+          release_base="file://$(pwd)/linux-distribution/release"
+          data_home="$(mktemp -d)"
+          export XDG_DATA_HOME="$data_home"
+          rm -f /tmp/kami-backend.log
+
+          package_is_installed() {
+            case "${{ matrix.package }}" in
+              deb) dpkg-query -W -f='${db:Status-Status}' kami 2>/dev/null | grep -qx installed ;;
+              rpm) rpm -q kami >/dev/null 2>&1 ;;
+              arch) pacman -Q kami-bin >/dev/null 2>&1 ;;
+            esac
+          }
+          if package_is_installed; then
+            echo "O pacote já estava instalado antes do teste." >&2
+            exit 1
+          fi
+
+          if [[ "${{ matrix.package }}" == "arch" ]]; then
+            chown builder:builder "$data_home"
+            tampered_release="$(mktemp -d)"
+            cp -a linux-distribution/release/. "$tampered_release/"
+            deb_name="kami-${version}-linux-amd64.deb"
+            awk -v asset="$deb_name" \
+              'BEGIN { found = 0 } $2 == asset { found = 1; $1 = "0000000000000000000000000000000000000000000000000000000000000000" } { print } END { if (!found) exit 1 }' \
+              "$tampered_release/SHA256SUMS" > "$tampered_release/SHA256SUMS.tmp"
+            mv "$tampered_release/SHA256SUMS.tmp" "$tampered_release/SHA256SUMS"
+            chown -R builder:builder "$tampered_release"
+
+            if su --login --shell /bin/bash --command \
+              "cd '$PWD/linux-distribution' && KAMI_RELEASE_BASE='file://$tampered_release' XDG_DATA_HOME='$data_home' sh ./scripts/install.sh --version '$version'" builder; then
+              echo "A instalação Arch aceitou um SHA256SUMS adulterado." >&2
+              exit 1
+            fi
+            if package_is_installed; then
+              echo "O teste negativo instalou o pacote Arch inesperadamente." >&2
+              exit 1
+            fi
+
+            su --login --shell /bin/bash --command \
+              "cd '$PWD/linux-distribution' && KAMI_RELEASE_BASE='$release_base' XDG_DATA_HOME='$data_home' sh ./scripts/install.sh --version '$version'" builder
+          else
+            KAMI_RELEASE_BASE="$release_base" sh linux-distribution/scripts/install.sh --version "$version"
+          fi
+          if ! package_is_installed; then
+            echo "O pacote não foi instalado pelo instalador." >&2
+            exit 1
+          fi
+
+          binary="$(find /usr /opt -type f -name 'kami-backend' -perm /111 -print -quit 2>/dev/null || true)"
+          test -n "$binary" && test -x "$binary" || {
+            echo "Não foi possível localizar o sidecar executável instalado." >&2
+            exit 1
+          }
+
+          bash linux-distribution/scripts/ci/smoke_backend.sh "$binary" "$data_home" "$version"
+          cp "$data_home/kami/kami-backend.log" /tmp/kami-backend.log
+          printf 'preservar\n' > "$data_home/kami/keep.txt"
+          sh linux-distribution/scripts/install.sh --uninstall
+          if package_is_installed; then
+            echo "O pacote permaneceu instalado após a desinstalação." >&2
+            exit 1
+          fi
+          test -f "$data_home/kami/keep.txt"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sidecar-log-${{ matrix.distro }}
+          path: /tmp/kami-backend.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  windows-smoke:
+    name: Windows sidecar and installer smoke test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build Windows sidecar
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          python -m venv ../backend/.venv
+          source ../backend/.venv/Scripts/activate
+          python -m pip install -r ../backend/requirements.txt pyinstaller
+          bash ../scripts/build_sidecar.sh
+
+      - name: Smoke-test the isolated sidecar without a console
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dataDir = Join-Path $env:APPDATA "kami"
+          $portFile = Join-Path $dataDir "backend_port.txt"
+          $logFile = Join-Path $dataDir "kami-backend.log"
+          New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+          Remove-Item $portFile -Force -ErrorAction SilentlyContinue
+          Remove-Item $logFile -Force -ErrorAction SilentlyContinue
+
+          $sidecar = Join-Path $PWD "src-tauri\binaries\kami-backend-x86_64-pc-windows-msvc.exe"
+          $process = Start-Process -FilePath $sidecar -WindowStyle Hidden -PassThru
+          try {
+            for ($i = 0; $i -lt 90 -and -not (Test-Path $portFile); $i++) {
+              if ($process.HasExited) {
+                throw "O sidecar terminou antes de publicar backend_port.txt."
+              }
+              Start-Sleep -Seconds 1
+            }
+            if (-not (Test-Path $portFile)) {
+              throw "O sidecar não publicou backend_port.txt em 90 segundos."
+            }
+
+            $port = (Get-Content $portFile -Raw).Trim()
+            $health = Invoke-RestMethod "http://127.0.0.1:$port/health"
+            $expectedVersion = (Get-Content VERSION -Raw).Trim()
+            if ($health.status -ne "ok" -or $health.version -ne $expectedVersion) {
+              throw "Resposta /health inesperada: $($health | ConvertTo-Json -Compress)"
+            }
+            if (-not (Test-Path $logFile) -or (Get-Item $logFile).Length -eq 0) {
+              throw "kami-backend.log não foi criado ou está vazio em $logFile."
+            }
+          }
+          finally {
+            & taskkill.exe /F /T /PID $process.Id 2>$null | Out-Null
+            $process.WaitForExit(10000)
+          }
+
+          Start-Sleep -Seconds 2
+          $remaining = Get-Process -Name "kami-backend" -ErrorAction SilentlyContinue
+          if ($remaining) {
+            throw "Ainda há processo kami-backend.exe após taskkill."
+          }
+
+      - name: Build NSIS installer
+        working-directory: src-tauri
+        run: cargo tauri build
+
+      - name: Install per-user and verify bundled sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*-setup.exe" |
+            Select-Object -First 1
+          if (-not $installer) {
+            throw "Instalador NSIS não encontrado."
+          }
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+
+          $app = Get-ChildItem @($env:LOCALAPPDATA, $env:APPDATA) -Filter "kami.exe" -File -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $app) {
+            throw "kami.exe não foi encontrado após instalar o pacote por usuário."
+          }
+          $sidecar = Join-Path $app.DirectoryName "kami-backend.exe"
+          if (-not (Test-Path $sidecar)) {
+            throw "kami-backend.exe não está ao lado de kami.exe em $($app.DirectoryName)."
+          }
+
+      - name: Best-effort smoke test of the complete Windows app
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dataDir = Join-Path $env:APPDATA "kami"
+          $portFile = Join-Path $dataDir "backend_port.txt"
+          Remove-Item $portFile -Force -ErrorAction SilentlyContinue
+          $app = Get-ChildItem @($env:LOCALAPPDATA, $env:APPDATA) -Filter "kami.exe" -File -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $app) {
+            throw "kami.exe não foi encontrado para o teste completo."
+          }
+          Remove-Item $portFile -Force -ErrorAction SilentlyContinue
+
+          $process = Start-Process -FilePath $app.FullName -PassThru
+          try {
+            for ($i = 0; $i -lt 90 -and -not (Test-Path $portFile); $i++) {
+              if ($process.HasExited) {
+                throw "O app encerrou antes de iniciar o backend (possível indisponibilidade do WebView2)."
+              }
+              Start-Sleep -Seconds 1
+            }
+            if (-not (Test-Path $portFile)) {
+              throw "O app não iniciou o backend em 90 segundos (verifique WebView2 e o log)."
+            }
+
+            $port = (Get-Content $portFile -Raw).Trim()
+            $health = Invoke-RestMethod "http://127.0.0.1:$port/health"
+            $expectedVersion = (Get-Content VERSION -Raw).Trim()
+            if ($health.status -ne "ok" -or $health.version -ne $expectedVersion) {
+              throw "Resposta /health inesperada: $($health | ConvertTo-Json -Compress)"
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              [void]$process.CloseMainWindow()
+              if (-not $process.WaitForExit(10000)) {
+                throw "A janela do Kami não encerrou após CloseMainWindow()."
+              }
+            }
+          }
+          Start-Sleep -Seconds 2
+          $backend = Get-Process -Name "kami-backend" -ErrorAction SilentlyContinue
+          if ($backend) {
+            throw "Ainda há processo kami-backend.exe após fechar a janela do Kami."
+          }
+
+      - name: Collect backend log
+        if: always()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:APPDATA "kami\kami-backend.log"
+          if (Test-Path $log) {
+            Copy-Item $log (Join-Path $env:RUNNER_TEMP "kami-backend.log") -Force
+          }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke-logs-and-installer
+          path: |
+            ${{ runner.temp }}/kami-backend.log
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
+          retention-days: 7

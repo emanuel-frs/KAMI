@@ -8,12 +8,30 @@
 // livre e grava num arquivo; ver backend/run_server.py e
 // backend/app/paths.py).
 //
+// Falhas do backend agora são REPORTADAS, não engolidas:
+//   - se o sidecar não consegue nem iniciar (ex.: antivírus bloqueou o
+//     .exe), o app abre mesmo assim e `get_backend_port` devolve um erro
+//     legível em vez de o Rust dar panic (antes: `.expect(...)`);
+//   - se o sidecar morre durante o startup, o erro sai na hora (não
+//     espera o timeout) com as últimas linhas que ele imprimiu;
+//   - o timeout de espera pela porta subiu de 10s pra 60s — no primeiro
+//     start em Windows, o executável onefile se descompacta e o
+//     Defender escaneia tudo, o que facilmente passa de 10s;
+//   - todo erro cita o caminho do kami-backend.log (gravado pelo
+//     run_server.py na pasta de dados).
+//
+// Ao fechar, no Windows o processo do sidecar é encerrado com
+// `taskkill /T` (árvore inteira): no modo onefile o PyInstaller sobe um
+// processo "bootloader" que por sua vez sobe o Python de verdade, e
+// matar só o pai deixava o filho vivo, segurando a porta e travando
+// reinstalação/atualização.
+//
 // AVISO: escrito sem Rust/Cargo disponíveis no ambiente onde isso foi
-// gerado — nem a base (sidecar/CommandChild) nem a parte nova
-// (get_backend_port) foram compiladas/validadas aqui. Rode
-// `cargo check` e ajuste conforme os erros do compilador, com atenção
-// especial a duas coisas que dependem de versão instalada:
-//   - assinatura do tauri-plugin-shell (CommandChild/CommandEvent)
+// gerado — não foi compilado/validado aqui. Rode `cargo check` e ajuste
+// conforme os erros do compilador, com atenção especial a duas coisas
+// que dependem de versão instalada:
+//   - assinatura do tauri-plugin-shell (CommandChild/CommandEvent —
+//     `pid()`, variantes `Error` e `Terminated`)
 //   - se `dirs = "5"` precisa ir no Cargo.toml (usado só em
 //     kami_data_dir, pra achar a pasta de dados do usuário por SO —
 //     mesmo papel do Path.home() do lado Python em paths.py)
@@ -43,8 +61,26 @@ struct BackendProcess(Mutex<Option<CommandChild>>);
 /// dinâmica lida do port file).
 struct DevPortOverride(Option<u16>);
 
+/// Estado de saúde do sidecar, preenchido pelo loop de eventos do
+/// processo e lido por `get_backend_port`.
+#[derive(Default)]
+struct BackendState {
+    /// Some(mensagem) quando o sidecar não iniciou ou já terminou.
+    failure: Option<String>,
+    /// Últimas linhas de stdout/stderr do sidecar (pra mensagem de erro).
+    tail: Vec<String>,
+}
+
+#[derive(Default)]
+struct BackendStatus(Mutex<BackendState>);
+
 const PORT_FILE_NAME: &str = "backend_port.txt";
-const PORT_FILE_TIMEOUT: Duration = Duration::from_secs(10);
+const LOG_FILE_NAME: &str = "kami-backend.log";
+// 60s (era 10s): o primeiro start no Windows (onefile + scan do
+// antivírus) pode demorar bem mais que isso — ver nota no topo.
+const PORT_FILE_TIMEOUT: Duration = Duration::from_secs(60);
+const TAIL_MAX_LINES: usize = 20;
+const TAIL_SHOWN_IN_ERROR: usize = 5;
 
 /// Espelha app/paths.py (ramo frozen) — precisa ficar em sync
 /// manualmente se um dia mudar de lado. O sidecar SEMPRE roda
@@ -73,9 +109,70 @@ fn port_file_path() -> PathBuf {
     kami_data_dir().join(PORT_FILE_NAME)
 }
 
+fn log_file_path() -> PathBuf {
+    kami_data_dir().join(LOG_FILE_NAME)
+}
+
+/// Monta a mensagem final de erro mostrada pro usuário: o motivo, as
+/// últimas linhas do backend (se houver) e onde está o log completo.
+fn failure_message(reason: &str, tail: &[String]) -> String {
+    let mut msg = format!("O backend do Kami {}.", reason);
+    let shown: Vec<&str> = tail
+        .iter()
+        .rev()
+        .take(TAIL_SHOWN_IN_ERROR)
+        .rev()
+        .map(|l| l.as_str())
+        .collect();
+    if !shown.is_empty() {
+        msg.push_str(&format!(" Últimas linhas: {}", shown.join(" | ")));
+    }
+    msg.push_str(&format!(" Log completo: {}", log_file_path().display()));
+    msg
+}
+
+fn set_failure(app: &tauri::AppHandle, reason: &str) {
+    let status = app.state::<BackendStatus>();
+    let mut state = status.0.lock().unwrap();
+    // mantém o PRIMEIRO motivo — os seguintes costumam ser consequência
+    if state.failure.is_none() {
+        let msg = failure_message(reason, &state.tail);
+        state.failure = Some(msg);
+    }
+}
+
+fn push_tail(app: &tauri::AppHandle, line: &[u8]) {
+    let text = String::from_utf8_lossy(line).trim().to_string();
+    if text.is_empty() {
+        return;
+    }
+    let status = app.state::<BackendStatus>();
+    let mut state = status.0.lock().unwrap();
+    state.tail.push(text);
+    if state.tail.len() > TAIL_MAX_LINES {
+        state.tail.remove(0);
+    }
+}
+
+/// Encerra o sidecar. No Windows mata a árvore inteira (bootloader do
+/// PyInstaller onefile + Python filho) antes do kill normal.
+fn kill_backend(child: CommandChild) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &child.pid().to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
+    let _ = child.kill();
+}
+
 #[tauri::command]
 async fn get_backend_port(
     dev_override: tauri::State<'_, DevPortOverride>,
+    status: tauri::State<'_, BackendStatus>,
 ) -> Result<u16, String> {
     if let Some(fixed_port) = dev_override.0 {
         return Ok(fixed_port);
@@ -85,15 +182,28 @@ async fn get_backend_port(
     let start = Instant::now();
 
     loop {
+        // falha primeiro: se o sidecar já morreu, não adianta devolver
+        // uma porta (mesmo que o arquivo exista) — ninguém escuta nela
+        let failure = status.0.lock().unwrap().failure.clone();
+        if let Some(msg) = failure {
+            return Err(msg);
+        }
+
         if let Ok(content) = std::fs::read_to_string(&port_file) {
             if let Ok(port) = content.trim().parse::<u16>() {
                 return Ok(port);
             }
         }
+
         if start.elapsed() > PORT_FILE_TIMEOUT {
-            return Err(format!(
-                "timeout esperando o backend escrever a porta em {}",
-                port_file.display()
+            let tail = status.0.lock().unwrap().tail.clone();
+            return Err(failure_message(
+                &format!(
+                    "não respondeu em {}s (porta não publicada em {})",
+                    PORT_FILE_TIMEOUT.as_secs(),
+                    port_file.display()
+                ),
+                &tail,
             ));
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -106,6 +216,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .manage(BackendProcess(Mutex::new(None)))
+        .manage(BackendStatus::default())
         .invoke_handler(tauri::generate_handler![get_backend_port])
         .setup(|app| {
             if std::env::var("KAMI_DEV_NO_SIDECAR").is_ok() {
@@ -125,37 +236,63 @@ fn main() {
             // nota sobre "porta fantasma")
             let _ = std::fs::remove_file(port_file_path());
 
-            let shell = app.shell();
-            let (mut rx, child) = shell
+            let spawn_result = app
+                .shell()
                 .sidecar("kami-backend")
-                .expect(
-                    "não achei o sidecar kami-backend — rodou scripts/build_sidecar.sh antes?",
-                )
-                .spawn()
-                .expect("falha ao iniciar o backend (sidecar)");
+                .and_then(|command| command.spawn());
 
-            app.state::<BackendProcess>()
-                .0
-                .lock()
-                .unwrap()
-                .replace(child);
+            match spawn_result {
+                Ok((mut rx, child)) => {
+                    app.state::<BackendProcess>()
+                        .0
+                        .lock()
+                        .unwrap()
+                        .replace(child);
 
-            // Repassa stdout/stderr do backend pro console do Tauri —
-            // útil pra depurar em dev sem precisar de terminal
-            // separado rodando o uvicorn.
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => {
-                            print!("[kami-backend] {}", String::from_utf8_lossy(&line));
+                    // Repassa stdout/stderr do backend pro console do Tauri
+                    // (útil em dev), guarda as últimas linhas pra mensagem
+                    // de erro e registra quando o processo morre.
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        while let Some(event) = rx.recv().await {
+                            match event {
+                                CommandEvent::Stdout(line) => {
+                                    print!("[kami-backend] {}", String::from_utf8_lossy(&line));
+                                    push_tail(&handle, &line);
+                                }
+                                CommandEvent::Stderr(line) => {
+                                    eprint!("[kami-backend] {}", String::from_utf8_lossy(&line));
+                                    push_tail(&handle, &line);
+                                }
+                                CommandEvent::Error(err) => {
+                                    set_failure(&handle, &format!("reportou um erro ({})", err));
+                                }
+                                CommandEvent::Terminated(payload) => {
+                                    set_failure(
+                                        &handle,
+                                        &format!(
+                                            "encerrou inesperadamente (código {:?})",
+                                            payload.code
+                                        ),
+                                    );
+                                }
+                                _ => {}
+                            }
                         }
-                        CommandEvent::Stderr(line) => {
-                            eprint!("[kami-backend] {}", String::from_utf8_lossy(&line));
-                        }
-                        _ => {}
-                    }
+                    });
                 }
-            });
+                Err(err) => {
+                    // não derruba o app: ele abre e mostra o motivo pro
+                    // usuário (via get_backend_port -> frontend)
+                    set_failure(
+                        app.handle(),
+                        &format!(
+                            "não pôde ser iniciado ({}) — verifique se o antivírus não bloqueou ou colocou o arquivo em quarentena",
+                            err
+                        ),
+                    );
+                }
+            }
 
             Ok(())
         })
@@ -168,7 +305,7 @@ fn main() {
                     .unwrap()
                     .take()
                 {
-                    let _ = child.kill();
+                    kill_backend(child);
                 }
             }
         })

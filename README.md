@@ -11,7 +11,7 @@
 
 **Sistema pessoal de organização gamificada — 100% local**
 
-`v1.7.2` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
+`v1.7.3` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
 
 </div>
 
@@ -158,6 +158,14 @@ npm install
 # executa a suíte do frontend
 npm test
 ```
+
+## ► Instalar
+
+Baixe o instalador para Windows ou Linux na
+[página de Releases](https://github.com/emanuel-frs/KAMI/releases/latest)
+ou use a [página de download](./docs/index.html). O guia com os passos
+por distribuição, verificação de checksums, dados/logs e desinstalação
+está em [docs/INSTALACAO.md](./docs/INSTALACAO.md).
 
 ## ► Empacotar (build de produção)
 
