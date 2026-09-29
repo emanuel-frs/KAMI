@@ -1,0 +1,46 @@
+pkgname=kami-bin
+pkgver=$(sed -n '1p' ../../VERSION)
+pkgrel=1
+pkgdesc='Sistema pessoal de organização gamificada, 100% local'
+arch=('x86_64')
+url='https://github.com/emanuel-frs/KAMI'
+license=('unknown')
+depends=('webkit2gtk-4.1' 'gtk3')
+
+_deb_name="kami-${pkgver}-linux-amd64.deb"
+_release_base="${KAMI_RELEASE_BASE:-https://github.com/emanuel-frs/KAMI/releases/download/v${pkgver}}"
+source=(
+  "${_deb_name}::${_release_base}/${_deb_name}"
+  "SHA256SUMS::${_release_base}/SHA256SUMS"
+)
+# prepare() valida o pacote Debian com o manifesto publicado na Release.
+sha256sums=('SKIP' 'SKIP')
+
+prepare() {
+  if ! awk -v asset="${_deb_name}" '$2 == asset { found = 1 } END { exit !found }' \
+    "${srcdir}/SHA256SUMS"; then
+    error "${_deb_name} não está listado em SHA256SUMS"
+    return 1
+  fi
+
+  cd "${srcdir}"
+  sha256sum --ignore-missing --check SHA256SUMS
+}
+
+package() {
+  local extraction_dir="${srcdir}/deb-extract"
+  local data_archive
+
+  mkdir -p "${extraction_dir}" "${pkgdir}"
+  (
+    cd "${extraction_dir}" || exit 1
+    ar x "${srcdir}/${_deb_name}"
+  )
+
+  data_archive=$(find "${extraction_dir}" -maxdepth 1 -type f -name 'data.tar.*' -print -quit)
+  if [[ -z "${data_archive}" ]]; then
+    error "o pacote Debian não contém data.tar.*"
+    return 1
+  fi
+  tar -xf "${data_archive}" -C "${pkgdir}"
+}

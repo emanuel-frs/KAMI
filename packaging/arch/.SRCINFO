@@ -1,0 +1,15 @@
+pkgbase = kami-bin
+	pkgdesc = Sistema pessoal de organização gamificada, 100% local
+	pkgver = 1.7.2
+	pkgrel = 1
+	url = https://github.com/emanuel-frs/KAMI
+	arch = x86_64
+	license = unknown
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	source = kami-1.7.2-linux-amd64.deb::https://github.com/emanuel-frs/KAMI/releases/download/v1.7.2/kami-1.7.2-linux-amd64.deb
+	source = SHA256SUMS::https://github.com/emanuel-frs/KAMI/releases/download/v1.7.2/SHA256SUMS
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = kami-bin

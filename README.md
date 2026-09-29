@@ -159,6 +159,14 @@ npm install
 npm test
 ```
 
+## ► Instalar
+
+Baixe o instalador para Windows ou Linux na
+[página de Releases](https://github.com/emanuel-frs/KAMI/releases/latest)
+ou use a [página de download](./docs/index.html). O guia com os passos
+por distribuição, verificação de checksums, dados/logs e desinstalação
+está em [docs/INSTALACAO.md](./docs/INSTALACAO.md).
+
 ## ► Empacotar (build de produção)
 
 O Kami roda como um binário instalável (.deb/.rpm no Linux, .exe no
