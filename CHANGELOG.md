@@ -4,6 +4,22 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.7.3] - 2026-09-29
+
+### Adicionado
+- add verified Linux installation flow
+- add release download page
+
+### Corrigido
+- isolate release notes and group CI
+- persist sidecar startup logs
+
+### CI
+- retain hidden Arch metadata in smoke artifact
+- run smoke tests on installation branch
+- add cross-platform installer smoke tests
+
+
 ## [1.7.2] - 2026-09-22
 
 ### Corrigido
