@@ -24,11 +24,11 @@
 #   2. calcula a nova versão (semver: major.minor.patch[-prerelease])
 #   3. coleta `git log` desde a última tag vX.Y.Z, agrupando por
 #      prefixo de Conventional Commits (feat/fix/docs/refactor/perf/
-#      chore/test) quando o commit segue esse padrão — senão cai numa
-#      seção "outros" com a mensagem crua, pra não perder nada
+#      chore/test/ci), sem merges nem histórico anterior à tag; prefixos
+#      não reconhecidos ficam em "outros"
 #   4. escreve VERSION e insere a nova seção no topo do CHANGELOG.md
-#      (cria o arquivo com cabeçalho Keep a Changelog na 1ª execução)
-#   5. commita as duas mudanças juntas ("chore(release): vX.Y.Z") e
+#      e sincroniza o .SRCINFO do Arch via makepkg
+#   5. commita as mudanças juntas ("chore(release): vX.Y.Z") e
 #      cria uma tag anotada vX.Y.Z apontando pra esse commit
 #   6. imprime os próximos passos manuais do git flow (git flow
 #      release finish / push --tags / gh release create), sem
@@ -40,6 +40,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION_FILE="$ROOT_DIR/VERSION"
 CHANGELOG_FILE="$ROOT_DIR/CHANGELOG.md"
 README_FILE="$ROOT_DIR/README.md"
+ARCH_DIR="$ROOT_DIR/packaging/arch"
+ARCH_PKGBUILD="$ARCH_DIR/PKGBUILD"
+ARCH_SRCINFO="$ARCH_DIR/.SRCINFO"
 
 DRY_RUN=false
 NO_TAG=false
@@ -95,6 +98,11 @@ if ! $DRY_RUN && [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]; then
   exit 1
 fi
 
+if ! $DRY_RUN && [ -f "$ARCH_PKGBUILD" ] && ! command -v makepkg >/dev/null 2>&1; then
+  echo "erro: makepkg é necessário para atualizar packaging/arch/.SRCINFO." >&2
+  exit 1
+fi
+
 # --- coleta de commits desde a última tag ---------------------------------
 LAST_TAG="$(git -C "$ROOT_DIR" describe --tags --abbrev=0 2>/dev/null || true)"
 if [ -n "$LAST_TAG" ]; then
@@ -105,11 +113,13 @@ else
   echo "commits considerados: nenhuma tag anterior encontrada, usando todo o histórico"
 fi
 
-LOG="$(git -C "$ROOT_DIR" log "$RANGE" --pretty=format:'%s' 2>/dev/null || true)"
+LOG="$(git -C "$ROOT_DIR" log --ancestry-path --no-merges "$RANGE" \
+  --pretty=format:'%s' 2>/dev/null || true)"
 
 declare -A CC_GROUPS=(
   [feat]="Adicionado" [fix]="Corrigido" [refactor]="Modificado"
-  [perf]="Modificado" [docs]="Documentação" [test]="Testes" [chore]="Manutenção"
+  [perf]="Modificado" [docs]="Documentação" [test]="Testes"
+  [chore]="Manutenção" [ci]="CI"
 )
 declare -A SECTION_LINES=()
 OTHER_LINES=""
@@ -130,7 +140,7 @@ done <<< "$LOG"
 TODAY="$(date +%Y-%m-%d)"
 ENTRY="## [${NEW_VERSION}] - ${TODAY}"$'\n\n'
 
-for section in "Adicionado" "Corrigido" "Modificado" "Documentação" "Testes" "Manutenção"; do
+for section in "Adicionado" "Corrigido" "Modificado" "Documentação" "Testes" "Manutenção" "CI"; do
   if [ -n "${SECTION_LINES[$section]:-}" ]; then
     ENTRY+="### ${section}"$'\n'"${SECTION_LINES[$section]}"$'\n'
   fi
@@ -151,6 +161,10 @@ fi
 
 # --- escreve VERSION ---------------------------------------------------
 echo "$NEW_VERSION" > "$VERSION_FILE"
+
+if [ -f "$ARCH_PKGBUILD" ]; then
+  (cd "$ARCH_DIR" && makepkg --printsrcinfo) > "$ARCH_SRCINFO"
+fi
 
 # --- sincroniza o badge de versão no README.md -----------------------------
 # só troca o padrão exato `vX.Y.Z` (o badge no topo do arquivo) — não mexe
@@ -190,6 +204,9 @@ echo "CHANGELOG.md atualizado"
 
 # --- commit + tag ------------------------------------------------------
 git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE"
+if [ -f "$ARCH_SRCINFO" ]; then
+  git -C "$ROOT_DIR" add "$ARCH_SRCINFO"
+fi
 git -C "$ROOT_DIR" commit -m "chore(release): v${NEW_VERSION}"
 
 if ! $NO_TAG; then
