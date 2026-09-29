@@ -212,9 +212,19 @@ async function loadProfile() {
   } catch (err) {
     const usernameEl = document.getElementById("sidebar-username");
     if (usernameEl) {
-      usernameEl.textContent = err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
+      // erro de conexão (status 0) traz a mensagem longa do Tauri — ela
+      // vai pro modal abaixo, o sidebar só recebe um rótulo curto
+      usernameEl.textContent = err instanceof ApiError && err.status === 0
+        ? "backend offline"
+        : err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
     }
     console.warn("loadProfile falhou, mas continuamos:", err);
+    // status 0 = sem conexão com o backend. Sem isso o usuário só via
+    // widgets vazios e telas quebradas, sem saber por quê — agora o
+    // motivo (e o caminho do kami-backend.log) aparece na cara.
+    if (err instanceof ApiError && err.status === 0) {
+      showErrorModal(err.message, "o backend do Kami não iniciou");
+    }
   }
 }
 
