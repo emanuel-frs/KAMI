@@ -32,6 +32,8 @@ lidar com a exigência de `origem` que só se aplica a metas financeiras — os
 testes que testam especificamente 'financeira' continuam passando o tipo
 explícito.
 """
+import datetime
+
 
 
 def _create_goal(client, title="viagem", type_="livre", target_value=100, deadline=None, **extra):
@@ -441,7 +443,12 @@ def test_financeira_contribute_conta_creates_real_transaction(client):
     assert contributions[0]["origem"] == "conta"
     assert contributions[0]["transaction_id"] is not None
 
-    month = contributions[0]["date"][:7]
+    # A transação de saída usa a data LOCAL (datetime.date.today()), enquanto
+    # a contribuição guarda now_iso(), que é UTC. Perto da meia-noite (ex.:
+    # após 21h em UTC-3) no último dia do mês, os dois caem em meses
+    # diferentes — por isso o mês consultado vem do relógio local, e não de
+    # contributions[0]["date"]. (Havia um flaky aqui nesse horário.)
+    month = datetime.date.today().isoformat()[:7]
     transactions = client.get(f"/api/financas/transactions?month={month}").json()
     tx = next(t for t in transactions if t["id"] == contributions[0]["transaction_id"])
     assert tx["type"] == "saida"
