@@ -1,7 +1,8 @@
 # Roadmap de instalação e distribuição
 
-Itens registrados para uma fase futura. Nada nesta lista foi
-implementado nesta rodada.
+Itens registrados para uma fase futura. Nenhum item desta lista está
+implementado; a lista geral de problemas conhecidos está no
+[README](../README.md#problemas-conhecidos-e-roadmap).
 
 - **Assinatura de código no Windows:** decisão pendente do dono do
   projeto. A SignPath Foundation oferece assinatura gratuita quando o
@@ -21,3 +22,9 @@ implementado nesta rodada.
 - **Publicação Linux:** avaliar publicação no AUR, em um repositório
   apt e no COPR. O `PKGBUILD` atual fica apenas no repositório e não é
   publicado no AUR.
+- **Segredos no cofre do sistema:** hoje a chave que cifra senhas de app e
+  tokens fica em `.secret_key`, na pasta de dados do usuário. Avaliar
+  Credential Manager (Windows) e Secret Service (Linux).
+- **Ícones dos links:** baixar o ícone uma vez, ao salvar o link, e guardá-lo
+  localmente (hoje o app mostra apenas a inicial do domínio, para não fazer
+  requisições a terceiros).

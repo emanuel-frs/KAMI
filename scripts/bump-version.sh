@@ -175,7 +175,9 @@ if [ -f "$README_FILE" ]; then
     sed -i -E "s/\`v[0-9]+\.[0-9]+\.[0-9]+\`/\`v${NEW_VERSION}\`/" "$README_FILE"
     echo "README.md -> badge atualizado pra v${NEW_VERSION}"
   else
-    echo "aviso: não achei o badge \`vX.Y.Z\` no README.md — confira manualmente" >&2
+    # o README atual usa um badge dinâmico (shields.io lê a última Release),
+    # então não há versão fixa pra sincronizar — não é erro
+    echo "README.md -> sem badge fixo \`vX.Y.Z\` (usa badge dinâmico); nada a atualizar"
   fi
 fi
 

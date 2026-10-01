@@ -1,19 +1,25 @@
 # Ícones do app
 
-Pasta vazia de propósito — não dá pra gerar `.ico`/`.icns` de verdade
-sem uma arte-fonte e sem o Tauri CLI (que faz a conversão localmente,
-mas não está disponível neste ambiente).
+Os arquivos desta pasta são gerados a partir de uma única arte-fonte pelo
+próprio Tauri; não os edite um por um.
 
-Quando tiver um logo em PNG (recomendado: quadrado, ≥1024×1024, fundo
-transparente ou sólido — dá pra usar o próprio avatar ASCII da Kami
-renderizado como imagem, ou uma versão simplificada dele), rode na sua
-máquina:
+Para trocar a logo do app e dos instaladores:
 
-```bash
-cd src-tauri
-cargo tauri icon caminho/para/logo.png
-```
+1. Prepare um PNG quadrado, de preferência com 1024×1024 ou mais, com fundo
+   transparente ou sólido.
+2. Rode, na raiz do repositório:
 
-Isso gera todos os tamanhos/formatos que `tauri.conf.json` espera
-(`32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`,
-`icon.ico`) direto nesta pasta.
+   ```bash
+   cd src-tauri
+   cargo tauri icon caminho/para/logo.png
+   ```
+
+   Isso regenera todos os tamanhos e formatos que o `tauri.conf.json` usa
+   (`32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns` e `icon.ico`),
+   além dos demais tamanhos desta pasta.
+3. Gere um build (`./build.sh`) e confira o ícone no menu de aplicativos,
+   na barra de tarefas e no instalador do Windows.
+
+A logo que aparece **dentro** do app (avatar por cor de destaque) é outra:
+fica em `frontend/assets/logos/` e é escolhida em
+`frontend/js/components/accent-colors.js`.
