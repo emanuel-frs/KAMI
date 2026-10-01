@@ -24,10 +24,20 @@
  */
 let _baseUrlPromise = null;
 
+/**
+ * Token de sessão do backend (ver backend/app/security.py). No app
+ * empacotado o sidecar gera um segredo por execução e o Tauri o entrega
+ * via `get_backend_token`; ele vai em todo request no header
+ * `X-Kami-Token`. Sem `window.__TAURI__` (dev/web) fica vazio e nenhum
+ * header é enviado — o backend de dev também não exige token.
+ */
+let _sessionToken = "";
+
 async function resolveBaseUrl() {
   if (typeof window !== "undefined" && window.__TAURI__?.core?.invoke) {
     try {
       const port = await window.__TAURI__.core.invoke("get_backend_port");
+      _sessionToken = (await window.__TAURI__.core.invoke("get_backend_token")) || "";
       return `http://127.0.0.1:${port}`;
     } catch (err) {
       // No app empacotado, cair silenciosamente na porta 8000 (o que
@@ -92,8 +102,10 @@ async function doFetch(path, options) {
   }
   let res;
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (_sessionToken) headers["X-Kami-Token"] = _sessionToken;
     res = await fetch(`${baseUrl}${path}`, {
-      headers: { "Content-Type": "application/json" },
+      headers,
       // `cache: "no-store"` em toda chamada (não só GET) — o webview do
       // Tauri (WebKit no linux/mac, WebView2 no windows) já demonstrou
       // servir uma resposta antiga em cache pra uma URL idêntica mesmo

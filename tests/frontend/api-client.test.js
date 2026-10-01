@@ -108,3 +108,33 @@ test("no Tauri, a falha não fica cacheada: a próxima chamada tenta de novo e f
 
   assert.deepEqual(urls, ["http://127.0.0.1:45123/api/b"]);
 });
+
+test("no Tauri, o token de sessão vai no header X-Kami-Token; fora do Tauri nenhum header extra", async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    calls.push({ url, options });
+    return response({ ok: true });
+  });
+  globalThis.window = {
+    __TAURI__: {
+      core: {
+        invoke: async (cmd) => (cmd === "get_backend_port" ? 45999 : "segredo-da-sessao"),
+      },
+    },
+  };
+  t.after(() => {
+    delete globalThis.window;
+  });
+
+  const fresh = await import("../../frontend/js/api/client.js?tauri-token");
+  await fresh.get("/api/x");
+
+  assert.equal(calls[0].url, "http://127.0.0.1:45999/api/x");
+  assert.equal(calls[0].options.headers["X-Kami-Token"], "segredo-da-sessao");
+
+  // sem Tauri (dev/web): o cliente padrão não manda o header
+  delete globalThis.window;
+  calls.length = 0;
+  await get("/api/y");
+  assert.equal("X-Kami-Token" in calls[0].options.headers, false);
+});
