@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data: blob: https://www.google.com; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
@@ -32,11 +32,11 @@
       "rpm",
       "appimage"
     ],
-    "publisher": "Kami",
-    "shortDescription": "Sistema pessoal de organização gamificada, 100% local.",
-    "longDescription": "Organize carreira, finanças, aprendizado e metas em um sistema gamificado. Todo o app roda localmente; nenhum dado sai da sua máquina e nenhum serviço pago é necessário.",
+    "publisher": "emanuel-frs",
+    "shortDescription": "Sistema pessoal de organização gamificada, local-first.",
+    "longDescription": "Organize carreira, finanças, aprendizado e metas em um sistema gamificado. Seus dados ficam num banco SQLite na sua máquina; o app só acessa a internet quando você ativa GitHub, e-mail ou busca. Nenhum serviço pago é necessário.",
     "category": "Productivity",
-    "copyright": "Copyright (c) 2026 Kami",
+    "copyright": "Copyright (c) 2026 emanuel-frs. Todos os direitos reservados.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
