@@ -1,0 +1,19 @@
+name: Feedback ou sugestão
+description: Uma ideia, uma dúvida ou algo que ficou confuso
+labels: ["feedback"]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: O que você achou?
+      description: O que funcionou, o que confundiu, o que faltou.
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema que você usou
+      options:
+        - Windows
+        - Linux
+        - Só olhei o código / a página

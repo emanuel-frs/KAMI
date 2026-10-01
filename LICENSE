@@ -1,0 +1,75 @@
+Kami Source-Available License (Personal Use) — v1.0
+
+Copyright (c) 2026 emanuel-frs. All rights reserved.
+
+Resumo em português (a versão em inglês abaixo é a que vale):
+você pode ler o código, instalar o Kami e usá-lo para fins pessoais e não
+comerciais, e compartilhar o link do repositório. Você NÃO pode
+redistribuir o Kami (código ou instaladores, modificados ou não), publicar
+uma cópia ou derivado como outro produto, nem usá-lo comercialmente ou
+como serviço, sem autorização por escrito. Isto NÃO é uma licença de
+código aberto (não é aprovada pela OSI).
+
+--------------------------------------------------------------------------
+
+1. What you may do
+
+   You may, free of charge:
+
+   a) read, study and browse the source code, including on GitHub;
+   b) download, install and run the official Kami releases, or build Kami
+      from this source code, for your own personal, non-commercial use;
+   c) modify your own local copy for your own personal, non-commercial
+      use, provided you do not share the modified copy with anyone;
+   d) share links to this repository and to its official Releases page;
+   e) do anything the GitHub Terms of Service grant to every user of a
+      public repository on the GitHub platform (for example, viewing and
+      forking within GitHub, including to propose changes back to this
+      repository). Nothing in this license takes those rights away.
+
+2. What you may not do without prior written permission from the author
+
+   a) redistribute Kami, or any substantial part of it, in source or
+      binary form, modified or unmodified (other than by linking to the
+      official Releases page);
+   b) publish, host or distribute a copy, fork or derivative work as a
+      separate project or product, or present it as your own work;
+   c) use Kami or its source code for commercial purposes, including
+      selling it, bundling it in a paid product, or offering it or a
+      derivative as a hosted or online service;
+   d) remove or alter copyright or license notices;
+   e) use the name "Kami", its logo or branding to identify a different
+      product or to suggest endorsement by the author.
+
+   The GitHub-platform rights described in 1(e) are the only exception to
+   2(a) and 2(b) for forks that remain on GitHub.
+
+3. Contributions
+
+   Feedback, issues and suggestions are welcome. If you submit code or
+   other material to this repository (for example, a pull request), you
+   grant the author a perpetual, worldwide, royalty-free, irrevocable
+   license to use, modify, sublicense and relicense that contribution as
+   part of Kami, under any terms, and you confirm you have the right to
+   do so. The author may decline any contribution.
+
+4. Third-party components
+
+   Kami includes and depends on third-party software (for example Tauri,
+   FastAPI, SQLite, Lucide icons and others). Those components remain
+   under their own licenses, which are not changed by this file.
+
+5. No warranty
+
+   KAMI IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH KAMI OR ITS USE,
+   INCLUDING LOSS OF DATA. You are responsible for your own backups.
+
+6. Termination
+
+   These permissions end automatically if you breach this license. The
+   author may grant additional permissions in writing at any time; to ask,
+   open an issue at https://github.com/emanuel-frs/KAMI/issues.

@@ -1,0 +1,57 @@
+name: Relatar um problema
+description: O app não abre, não instala ou se comportou de forma estranha
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por testar o Kami! Antes de enviar, **não cole dados pessoais**.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Kami
+      description: "Está no nome do instalador, por exemplo 1.7.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema operacional
+      options:
+        - Windows 11
+        - Windows 10
+        - Debian / Ubuntu (ou derivados)
+        - Fedora (ou derivados)
+        - Arch (ou derivados)
+        - Outro Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: instalacao
+    attributes:
+      label: Como você instalou?
+      options:
+        - Instalador .exe
+        - .deb
+        - .rpm
+        - AppImage
+        - PKGBUILD (Arch)
+        - scripts/install.sh
+        - Rodei do código-fonte
+    validations:
+      required: true
+  - type: textarea
+    id: o-que-aconteceu
+    attributes:
+      label: O que aconteceu?
+      description: O que você esperava e o que viu no lugar. Prints ajudam (sem dados pessoais).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log do backend (opcional)
+      description: |
+        Arquivo `kami-backend.log` na pasta de dados (`%APPDATA%\kami` no Windows,
+        `~/.local/share/kami` no Linux). Revise antes de colar e apague qualquer dado pessoal.
+      render: text

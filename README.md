@@ -9,7 +9,7 @@
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═╝
 </pre>
 
-**Sistema pessoal de organização gamificada — 100% local**
+**Sistema pessoal de organização gamificada — local-first**
 
 `v1.7.3` · `Python` · `FastAPI` · `SQLite` · `HTML/CSS/JS puro` · `Tauri`
 
@@ -27,10 +27,28 @@ ação registrada (um gasto lançado, um módulo de estudo concluído, uma
 meta que avançou) gera XP num dos 5 atributos de vida do sistema, sobe
 de nível e desbloqueia conquistas.
 
-Todo o app roda localmente na máquina do usuário: nenhum dado sai da
-sua máquina, nenhum serviço pago é necessário. O visual é uma
-homenagem a terminais antigos — paleta preto/branco/cinza com uma
-única cor de destaque, configurável.
+O app roda na sua máquina e os seus dados ficam num banco SQLite local.
+Ele só acessa a internet quando você ativa uma integração (GitHub,
+e-mail via IMAP ou busca na web) — sem isso, nada sai do computador.
+Nenhum serviço pago é necessário. O visual é uma homenagem a terminais
+antigos — paleta preto/branco/cinza com uma única cor de destaque,
+configurável.
+
+### O que sai da sua máquina (e quando)
+
+| Destino | Quando | O que é enviado |
+|---|---|---|
+| `api.github.com` | só se você cadastrar um repositório ou token | nomes de repositórios e o token (cifrado em disco, enviado no header) |
+| Seu provedor de e-mail (IMAP) | só se você cadastrar uma conta | usuário e senha de app, por conexão SSL |
+| `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
+| `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
+| Microsoft (Windows) | só na instalação, se faltar o WebView2 | download do runtime |
+
+O Kami não tem telemetria nem conta de usuário. Senhas de app e tokens
+são cifrados com uma chave guardada na mesma pasta de dados do
+usuário: isso evita deixar segredos em texto puro no banco, mas **não
+substitui um cofre de senhas** nem protege contra outro programa
+rodando com o seu usuário.
 
 ## ► Funcionalidades
 
@@ -92,16 +110,16 @@ homenagem a terminais antigos — paleta preto/branco/cinza com uma
 |---|---|---|
 | Backend | Python + FastAPI | API leve, tipada, com Swagger automático |
 | Banco de dados | SQLite | Arquivo local, zero servidor externo |
-| Frontend | HTML/CSS/JS puro (ES Modules, sem bundler) | Evita o consumo de RAM de React/Vue |
+| Frontend | HTML/CSS/JS puro (ES Modules, sem bundler) | Sem etapa de build no frontend e menos dependências |
 | App desktop | Tauri | WebKitGTK nativo do Linux — muito mais leve que Electron |
-| Ícones | Lucide (SVG, self-hosted) + Nerd Fonts | Sem CDN, 100% local |
+| Ícones | Lucide (SVG, self-hosted) + Nerd Fonts | Sem CDN: ícones e fontes vêm junto do app |
 | Calendário BR | `workalendar` | Feriados e dias úteis reais para os cálculos de Finanças |
 
 ## ► Como rodar
 
 ### Requisitos
 
-- Python 3.x
+- Python 3.10 ou superior
 - Rust + Cargo com a Tauri CLI (`cargo install tauri-cli --version "^2" --locked`) — só para o modo desktop
 - Dependências de sistema do Tauri no Linux (libwebkit2gtk, libgtk-3-dev etc.) — ver [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
 - Um navegador moderno — só para o modo web
@@ -141,6 +159,24 @@ python3 -m http.server 5500
 Acesse `http://127.0.0.1:5500`, com o backend em
 `http://127.0.0.1:8000`.
 
+### Modo demo (dados fictícios)
+
+Para gravar telas ou testar sem tocar nos seus dados reais, aponte o
+backend para uma pasta descartável com `KAMI_DATA_DIR` e popule com o
+script de exemplo:
+
+```bash
+cd backend
+KAMI_DATA_DIR=/tmp/kami-demo uvicorn app.main:app --port 8000
+
+# em outro terminal, na raiz do repositório
+python3 scripts/seed_demo.py
+```
+
+O seed se recusa a rodar em uma instância que já tem dados. No app
+desktop, defina a mesma variável antes de abrir
+(`KAMI_DATA_DIR=/tmp/kami-demo cargo tauri dev`).
+
 ### Testes
 
 ```bash
@@ -166,6 +202,21 @@ Baixe o instalador para Windows ou Linux na
 ou use a [página de download](./docs/index.html). O guia com os passos
 por distribuição, verificação de checksums, dados/logs e desinstalação
 está em [docs/INSTALACAO.md](./docs/INSTALACAO.md).
+
+**Limitações atuais:** o instalador do Windows **não é assinado**, então
+o SmartScreen/Defender pode avisar que o app é desconhecido ou suspeito
+(explicação e como conferir o arquivo em
+[docs/INSTALACAO.md](./docs/INSTALACAO.md#windows-sem-assinatura)); não há
+versão para macOS; não há atualização automática (baixe a nova Release);
+interface em português e feriados do Brasil.
+
+## ► Licença
+
+Código **visível, mas não open source**: você pode ler o código, instalar
+e usar o Kami para fins pessoais, mas não redistribuí-lo, publicar cópias
+como outro produto nem usá-lo comercialmente sem autorização. Veja o
+arquivo [LICENSE](./LICENSE). Para relatar um problema de segurança, veja
+[SECURITY.md](./SECURITY.md).
 
 ## ► Empacotar (build de produção)
 
