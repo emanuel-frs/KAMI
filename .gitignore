@@ -36,3 +36,19 @@ Thumbs.db
 node_modules/
 backend/build/
 backend/dist/
+
+# ── dados locais do usuário (nunca versionar) ─────────────────────
+# Já estão em backend/.gitignore; repetido aqui por segurança, caso o
+# backend seja rodado a partir de outra pasta.
+kami.db
+kami.db-wal
+kami.db-shm
+.secret_key
+backend_port.txt
+backend_token.txt
+kami-backend.log*
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
