@@ -267,7 +267,8 @@ case "$INSTALL_KIND" in
       cd "$TEMP_DIR/arch-build" || exit 1
       makepkg --syncdeps --noconfirm
     )
-    arch_package=$(find "$TEMP_DIR/arch-build" -maxdepth 1 -type f -name '*.pkg.tar.*' -print -quit)
+    arch_package=$(find "$TEMP_DIR/arch-build" -maxdepth 1 -type f \
+      -name 'kami-bin-[0-9]*.pkg.tar.*' -print -quit)
     [ -n "$arch_package" ] || fail "makepkg não gerou o pacote kami-bin."
     run_privileged pacman -U --noconfirm "$arch_package"
     ;;
