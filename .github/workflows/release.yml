@@ -17,6 +17,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate tag, VERSION, and successful smoke-test
         env:
@@ -26,8 +28,17 @@ jobs:
           set -euo pipefail
           version="$(tr -d '[:space:]' < VERSION)"
           test "$GITHUB_REF_NAME" = "v${version}"
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse FETCH_HEAD)"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "$main_sha"; then
+            echo "A tag de release precisa apontar para um commit integrado em main." >&2
+            exit 1
+          fi
           runs="$(gh run list --workflow smoke-test.yml --commit "$GITHUB_SHA" --status success --json databaseId)"
-          test "$runs" != "[]"
+          if [[ "$runs" == "[]" ]]; then
+            echo "Não existe um Smoke test concluído com sucesso para o commit da release." >&2
+            exit 1
+          fi
 
   build-linux:
     name: Build Linux installers

@@ -2,9 +2,9 @@ name: Smoke test
 
 on:
   push:
-    branches: [develop, main, fix/ci-instalacao]
+    branches: [develop, main, 'release/**', fix/ci-instalacao]
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, 'release/**']
   workflow_dispatch:
 
 permissions:
