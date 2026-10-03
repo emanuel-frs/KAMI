@@ -10,7 +10,7 @@ body:
     id: versao
     attributes:
       label: Versão do Kami
-      description: "Está no nome do instalador, por exemplo 1.7.3"
+      description: "Está no nome do instalador, por exemplo 1.8.0"
     validations:
       required: true
   - type: dropdown
