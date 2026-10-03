@@ -179,7 +179,7 @@ const STEPS = [
   {
     title: () => "organização",
     desc: () =>
-      "hub de acesso rápido: links categorizados com favicon, status dos seus repositórios do GitHub, e-mail via IMAP de verdade — assunto, remetente e trecho do corpo em texto puro, sem HTML de terceiros e sem IA lendo nada por enquanto — e uma busca na web com resumo inline (chave pessoal opcional; sem ela, cai pro DuckDuckGo direto).",
+      "hub de acesso rápido: links categorizados, status dos seus repositórios do GitHub, e-mail via IMAP de verdade — assunto, remetente e trecho do corpo em texto puro, sem HTML de terceiros e sem IA lendo nada por enquanto — e uma busca na web com resumo inline (chave pessoal opcional; sem ela, cai pro DuckDuckGo direto).",
     illustration: () => `
       <div class="ob-illus ob-illus--org">
         <div class="ob-org-row">

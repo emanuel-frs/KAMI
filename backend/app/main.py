@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.database import init_db
+from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
 from app.routers import perfil, nucleo, financas, carteira
 from app.routers import aprendizado
@@ -38,6 +39,19 @@ app = FastAPI(title="Kami API", version=KAMI_VERSION)
 # Se quiser travar isso de verdade no futuro, descobrir a Origin real
 # primeiro (ex.: logar o header Origin recebido, ou middleware
 # temporário) antes de restringir de novo.
+#
+# ATUALIZAÇÃO: o risco de "*" deixou de ser só "ler a resposta" — como
+# a API tem /api/sistema/export (dump completo) e /reset, qualquer site
+# aberto no navegador poderia varrer portas locais e usá-la. Por isso o
+# app empacotado agora exige um token de sessão (app/security.py), que
+# nenhuma página web consegue obter. O CORS aberto segue sendo
+# inofensivo sem o token.
+#
+# Ordem importa no Starlette: o último middleware adicionado é o mais
+# externo. O CORS fica por fora pra responder o preflight e anexar os
+# headers CORS até nas respostas 401 do token (senão o navegador
+# esconderia o erro atrás de um "network error" genérico).
+app.add_middleware(SessionTokenMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

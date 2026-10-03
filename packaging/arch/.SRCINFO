@@ -1,10 +1,10 @@
 pkgbase = kami-bin
-	pkgdesc = Sistema pessoal de organização gamificada, 100% local
+	pkgdesc = Sistema pessoal de organização gamificada, local-first
 	pkgver = 1.7.3
 	pkgrel = 1
 	url = https://github.com/emanuel-frs/KAMI
 	arch = x86_64
-	license = unknown
+	license = LicenseRef-Kami-Source-Available
 	depends = webkit2gtk-4.1
 	depends = gtk3
 	source = kami-1.7.3-linux-amd64.deb::https://github.com/emanuel-frs/KAMI/releases/download/v1.7.3/kami-1.7.3-linux-amd64.deb

@@ -26,15 +26,16 @@
 // matar só o pai deixava o filho vivo, segurando a porta e travando
 // reinstalação/atualização.
 //
-// AVISO: escrito sem Rust/Cargo disponíveis no ambiente onde isso foi
-// gerado — não foi compilado/validado aqui. Rode `cargo check` e ajuste
-// conforme os erros do compilador, com atenção especial a duas coisas
-// que dependem de versão instalada:
-//   - assinatura do tauri-plugin-shell (CommandChild/CommandEvent —
-//     `pid()`, variantes `Error` e `Terminated`)
-//   - se `dirs = "5"` precisa ir no Cargo.toml (usado só em
-//     kami_data_dir, pra achar a pasta de dados do usuário por SO —
-//     mesmo papel do Path.home() do lado Python em paths.py)
+// Token de sessão: o sidecar gera um segredo a cada execução e o grava
+// em `backend_token.txt` (0600) na pasta de dados, ANTES de publicar a
+// porta. `get_backend_token` só lê esse arquivo e entrega ao frontend,
+// que o envia no header `X-Kami-Token`. Assim uma página web qualquer
+// que descubra a porta não consegue usar a API (ver
+// backend/app/security.py). Em modo dev sem sidecar não há token.
+//
+// Pasta de dados: `KAMI_DATA_DIR` (opcional) substitui o caminho padrão
+// — é o "modo demo" (dados fictícios sem tocar nos reais). Precisa
+// continuar igual ao backend/app/paths.py.
 //
 // Modo dev sem sidecar: pra iterar rápido no backend sem precisar
 // rodar o PyInstaller a cada mudança, defina a variável de ambiente
@@ -75,6 +76,7 @@ struct BackendState {
 struct BackendStatus(Mutex<BackendState>);
 
 const PORT_FILE_NAME: &str = "backend_port.txt";
+const TOKEN_FILE_NAME: &str = "backend_token.txt";
 const LOG_FILE_NAME: &str = "kami-backend.log";
 // 60s (era 10s): o primeiro start no Windows (onefile + scan do
 // antivírus) pode demorar bem mais que isso — ver nota no topo.
@@ -87,6 +89,13 @@ const TAIL_SHOWN_IN_ERROR: usize = 5;
 /// congelado (PyInstaller), mesmo disparado via `cargo tauri dev`,
 /// então este é o único ramo que importa aqui.
 fn kami_data_dir() -> PathBuf {
+    // override explícito (modo demo/testes) — mesma variável do paths.py
+    if let Some(custom) = std::env::var_os("KAMI_DATA_DIR") {
+        if !custom.is_empty() {
+            return PathBuf::from(custom);
+        }
+    }
+
     #[cfg(target_os = "windows")]
     let base = std::env::var_os("APPDATA")
         .map(PathBuf::from)
@@ -107,6 +116,10 @@ fn kami_data_dir() -> PathBuf {
 
 fn port_file_path() -> PathBuf {
     kami_data_dir().join(PORT_FILE_NAME)
+}
+
+fn token_file_path() -> PathBuf {
+    kami_data_dir().join(TOKEN_FILE_NAME)
 }
 
 fn log_file_path() -> PathBuf {
@@ -210,6 +223,45 @@ async fn get_backend_port(
     }
 }
 
+/// Devolve o token de sessão do backend. String vazia = sem token (modo
+/// dev com uvicorn manual), e o frontend simplesmente não envia o header.
+/// O sidecar grava o token antes da porta, então quando `get_backend_port`
+/// já respondeu o arquivo existe; a espera curta abaixo só cobre a
+/// janela de escrita/rename.
+#[tauri::command]
+async fn get_backend_token(
+    dev_override: tauri::State<'_, DevPortOverride>,
+) -> Result<String, String> {
+    if dev_override.0.is_some() {
+        return Ok(String::new());
+    }
+
+    let token_file = token_file_path();
+    let start = Instant::now();
+    loop {
+        if let Ok(content) = std::fs::read_to_string(&token_file) {
+            let token = content.trim().to_string();
+            if !token.is_empty() {
+                return Ok(token);
+            }
+        }
+        if start.elapsed() > Duration::from_secs(5) {
+            // Causa mais comum em desenvolvimento: o binário do sidecar em
+            // src-tauri/binaries/ é de um build ANTERIOR ao token de sessão
+            // (`cargo tauri dev` e `build.sh --dev` não o reconstroem). O
+            // backend sobe e publica a porta, mas nunca grava o token.
+            return Err(format!(
+                "O backend do Kami não publicou o token de sessão em {}. \
+                 Isso costuma indicar um sidecar desatualizado: rode ./build.sh \
+                 (sem --dev e sem --skip-sidecar) para reconstruí-lo e tente de novo. \
+                 Se o problema persistir, veja o kami-backend.log na mesma pasta.",
+                token_file.display()
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -217,7 +269,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(BackendStatus::default())
-        .invoke_handler(tauri::generate_handler![get_backend_port])
+        .invoke_handler(tauri::generate_handler![get_backend_port, get_backend_token])
         .setup(|app| {
             if std::env::var("KAMI_DEV_NO_SIDECAR").is_ok() {
                 println!(
@@ -235,6 +287,7 @@ fn main() {
             // sidecar novo sobrescrever o arquivo (ver ALINHAMENTO.md,
             // nota sobre "porta fantasma")
             let _ = std::fs::remove_file(port_file_path());
+            let _ = std::fs::remove_file(token_file_path());
 
             let spawn_result = app
                 .shell()

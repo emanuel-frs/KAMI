@@ -694,15 +694,19 @@ function renderLinks() {
     .map(([cat, links]) => {
       const rows = links
         .map((l) => {
-          let domain = "example.com";
+          // Antes buscávamos o favicon em www.google.com/s2/favicons, o que
+          // mandava o domínio de cada link salvo pro Google a cada abertura
+          // — incompatível com a promessa de o app não falar com a internet
+          // sem você pedir. Agora é só a inicial do domínio, calculada aqui.
+          let initial = "?";
           try {
-            domain = new URL(l.url).hostname;
+            initial = new URL(l.url).hostname.replace(/^www\./, "").charAt(0).toUpperCase() || "?";
           } catch (e) {
-            /* url inválida — mantém o domínio placeholder pro favicon */
+            /* url inválida — fica o "?" */
           }
           return `
             <div class="linkrow">
-              <img class="favicon" src="https://www.google.com/s2/favicons?domain=${escapeAttr(domain)}" alt="">
+              <span class="favicon favicon-letter" aria-hidden="true">${escapeHtml(initial)}</span>
               <span class="lr-title" data-open-link="${escapeAttr(l.url)}" data-tooltip="${escapeHtml(l.title)}">${escapeHtml(l.title)}</span>
               <span class="lr-go" data-open-link="${escapeAttr(l.url)}">${icon("external-link", { size: 11 })}</span>
               <span class="lr-edit" data-tooltip="editar" aria-label="editar" data-edit-link="${l.id}">${icon("pencil", { size: 12 })}</span>

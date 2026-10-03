@@ -99,8 +99,10 @@ if ! $DRY_RUN && [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]; then
 fi
 
 if ! $DRY_RUN && [ -f "$ARCH_PKGBUILD" ] && ! command -v makepkg >/dev/null 2>&1; then
-  echo "erro: makepkg é necessário para atualizar packaging/arch/.SRCINFO." >&2
-  exit 1
+  echo "aviso: makepkg não foi encontrado; pulando packaging/arch/.SRCINFO." >&2
+  ARCH_SRCINFO_DISABLED=true
+else
+  ARCH_SRCINFO_DISABLED=false
 fi
 
 # --- coleta de commits desde a última tag ---------------------------------
@@ -162,7 +164,7 @@ fi
 # --- escreve VERSION ---------------------------------------------------
 echo "$NEW_VERSION" > "$VERSION_FILE"
 
-if [ -f "$ARCH_PKGBUILD" ]; then
+if [ -f "$ARCH_PKGBUILD" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
   (cd "$ARCH_DIR" && makepkg --printsrcinfo) > "$ARCH_SRCINFO"
 fi
 
@@ -175,7 +177,9 @@ if [ -f "$README_FILE" ]; then
     sed -i -E "s/\`v[0-9]+\.[0-9]+\.[0-9]+\`/\`v${NEW_VERSION}\`/" "$README_FILE"
     echo "README.md -> badge atualizado pra v${NEW_VERSION}"
   else
-    echo "aviso: não achei o badge \`vX.Y.Z\` no README.md — confira manualmente" >&2
+    # o README atual usa um badge dinâmico (shields.io lê a última Release),
+    # então não há versão fixa pra sincronizar — não é erro
+    echo "README.md -> sem badge fixo \`vX.Y.Z\` (usa badge dinâmico); nada a atualizar"
   fi
 fi
 
@@ -204,7 +208,7 @@ echo "CHANGELOG.md atualizado"
 
 # --- commit + tag ------------------------------------------------------
 git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE"
-if [ -f "$ARCH_SRCINFO" ]; then
+if [ -f "$ARCH_SRCINFO" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
   git -C "$ROOT_DIR" add "$ARCH_SRCINFO"
 fi
 git -C "$ROOT_DIR" commit -m "chore(release): v${NEW_VERSION}"

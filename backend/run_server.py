@@ -50,6 +50,7 @@ import traceback
 
 PORT_FILE_NAME = "backend_port.txt"
 LOG_FILE_NAME = "kami-backend.log"
+TOKEN_FILE_NAME = "backend_token.txt"  # igual a app.security.TOKEN_FILE_NAME e ao main.rs
 LOG_MAX_BYTES = 1_000_000  # acima disso, o log atual vira kami-backend.log.old
 PORT_PUBLISH_TIMEOUT_S = 120
 
@@ -139,6 +140,12 @@ def _port_file_path():
     return get_data_dir() / PORT_FILE_NAME
 
 
+def _token_file_path():
+    from app.paths import get_data_dir
+
+    return get_data_dir() / TOKEN_FILE_NAME
+
+
 def _write_port_file(port: int) -> None:
     # escrita atômica: o Rust nunca lê um arquivo pela metade
     port_file = _port_file_path()
@@ -170,6 +177,7 @@ def _run() -> None:
     import uvicorn
 
     from app.main import app
+    from app.security import TOKEN_ENV_VAR, generate_token, write_token_file
     from app.version import KAMI_VERSION
 
     print(f"Kami backend v{KAMI_VERSION} — carregando…", flush=True)
@@ -190,6 +198,18 @@ def _run() -> None:
         _port_file_path().unlink()
     except FileNotFoundError:
         pass
+
+    # token de sessão (ver app/security.py): gerado a cada execução,
+    # exposto ao middleware via variável de ambiente e gravado num arquivo
+    # 0600 pro Tauri repassar ao frontend. Gravado ANTES da porta ser
+    # publicada, então quem já leu a porta sempre encontra o token.
+    try:
+        _token_file_path().unlink()
+    except FileNotFoundError:
+        pass
+    session_token = generate_token()
+    os.environ[TOKEN_ENV_VAR] = session_token
+    write_token_file(_token_file_path(), session_token)
 
     sock = _bind_socket(requested_port)
     actual_port = sock.getsockname()[1]

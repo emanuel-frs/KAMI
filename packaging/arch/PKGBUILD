@@ -1,10 +1,10 @@
 pkgname=kami-bin
 pkgver=$(sed -n '1p' ../../VERSION)
 pkgrel=1
-pkgdesc='Sistema pessoal de organização gamificada, 100% local'
+pkgdesc='Sistema pessoal de organização gamificada, local-first'
 arch=('x86_64')
 url='https://github.com/emanuel-frs/KAMI'
-license=('unknown')
+license=('LicenseRef-Kami-Source-Available')
 depends=('webkit2gtk-4.1' 'gtk3')
 
 _deb_name="kami-${pkgver}-linux-amd64.deb"

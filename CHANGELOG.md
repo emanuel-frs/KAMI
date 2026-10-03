@@ -4,6 +4,38 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.0] - 2026-10-02
+
+### Adicionado
+- adiciona seed de dados fictícios para gravar telas
+- exige token de sessão entre o app e o backend local
+- add verified Linux installation flow
+- add release download page
+
+### Corrigido
+- allow bump-version without makepkg
+- remove favicon do Google e corrige promessas de privacidade
+- restringe permissões da chave e da pasta de dados
+- isolate release notes and group CI
+- persist sidecar startup logs
+
+### Documentação
+- prepara vitrine pública do Kami
+- adiciona LICENSE, SECURITY.md e templates; reescreve aviso do Windows
+
+### Testes
+- remove dependência de fuso horário e usa nomes fictícios
+
+### Manutenção
+- alinha licença no PKGBUILD e reforça o .gitignore
+- v1.7.3
+
+### CI
+- retain hidden Arch metadata in smoke artifact
+- run smoke tests on installation branch
+- add cross-platform installer smoke tests
+
+
 ## [1.7.3] - 2026-09-29
 
 ### Adicionado

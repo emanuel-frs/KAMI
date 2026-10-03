@@ -86,4 +86,27 @@ if [[ ! -s "$app_log" ]]; then
   exit 1
 fi
 
+# token de sessão: a API de dados NÃO pode responder sem ele (regressão
+# aqui reabriria o export completo pra qualquer página web), e com o
+# token do arquivo precisa responder normalmente
+token_file="$data_home/kami/backend_token.txt"
+if [[ ! -s "$token_file" ]]; then
+  echo "backend_token.txt não foi publicado em $token_file." >&2
+  dump_logs
+  exit 1
+fi
+sem_token="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:${port}/api/sistema/export")"
+if [[ "$sem_token" != "401" ]]; then
+  echo "GET /api/sistema/export sem token devolveu ${sem_token} (esperado: 401)." >&2
+  dump_logs
+  exit 1
+fi
+token="$(tr -d '[:space:]' < "$token_file")"
+com_token="$(curl --silent --output /dev/null --write-out '%{http_code}' -H "X-Kami-Token: ${token}" "http://127.0.0.1:${port}/api/sistema/export")"
+if [[ "$com_token" != "200" ]]; then
+  echo "GET /api/sistema/export com token devolveu ${com_token} (esperado: 200)." >&2
+  dump_logs
+  exit 1
+fi
+
 echo "OK: /health respondeu ${health} (${mode:-com stdio})."
