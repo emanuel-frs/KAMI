@@ -46,7 +46,12 @@ else
 fi
 
 DEST="$DEST_DIR/kami-backend-${TARGET_TRIPLE}${EXT}"
-cp "$SRC" "$DEST"
-chmod +x "$DEST" 2>/dev/null || true
+# Replace by rename to avoid ETXTBSY when the previous sidecar is running.
+TEMP_DEST="$(mktemp "$DEST_DIR/.kami-backend-${TARGET_TRIPLE}.XXXXXX")"
+trap 'rm -f "$TEMP_DEST"' EXIT
+cp -p "$SRC" "$TEMP_DEST"
+chmod +x "$TEMP_DEST" 2>/dev/null || true
+mv -f "$TEMP_DEST" "$DEST"
+trap - EXIT
 
 echo "Sidecar pronto em: $DEST"

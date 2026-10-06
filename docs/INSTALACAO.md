@@ -49,7 +49,7 @@ instalado, o instalador usa o AppImage.
 Opções disponíveis:
 
 ```sh
-sh scripts/install.sh --version 1.8.0
+sh scripts/install.sh --version 1.8.1
 sh scripts/install.sh --uninstall
 sh scripts/install.sh --help
 ```

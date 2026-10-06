@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# scripts/bump-version.sh — automatiza o passo que hoje é manual no
-# fluxo de entrega do Kami: subir a versão em VERSION, gerar a
-# entrada do CHANGELOG a partir dos commits, e criar a tag git —
-# pensado pra rodar dentro de uma release/* ou hotfix/* do git flow,
-# antes do merge pra main.
-#
-# Não mexe em tauri.conf.json/Cargo.toml — isso já é feito por
-# build.sh (sync_version), que lê o mesmo VERSION como fonte única.
-# Este script só cuida do "qual é a próxima versão" e do registro
-# dela; quem empacota o instalador continua sendo build.sh.
+# scripts/bump-version.sh — prepara uma versão do Kami: atualiza a
+# fonte única VERSION e seus metadados espelhados, gera a entrada do
+# CHANGELOG a partir dos commits e cria o commit e a tag anotada.
+# Rode em uma branch release/* ou hotfix/* depois de integrar nela as
+# mudanças que serão publicadas.
 #
 # Uso:
 #   ./scripts/bump-version.sh patch            # 1.1.0 -> 1.1.1
@@ -17,6 +12,7 @@
 #   ./scripts/bump-version.sh 1.4.0-beta.1     # versão explícita
 #   ./scripts/bump-version.sh patch --dry-run  # mostra o que faria, sem tocar em nada
 #   ./scripts/bump-version.sh patch --no-tag   # bump + changelog, sem criar tag git
+#   ./scripts/bump-version.sh patch --co-author # inclui o trailer de coautoria
 #
 # O que faz, em ordem:
 #   1. valida que a working tree está limpa (senão o commit de
@@ -26,13 +22,13 @@
 #      prefixo de Conventional Commits (feat/fix/docs/refactor/perf/
 #      chore/test/ci), sem merges nem histórico anterior à tag; prefixos
 #      não reconhecidos ficam em "outros"
-#   4. escreve VERSION e insere a nova seção no topo do CHANGELOG.md
-#      e sincroniza o .SRCINFO do Arch via makepkg
+#   4. sincroniza VERSION, os metadados Tauri/Cargo, o .SRCINFO do Arch
+#      e insere a nova seção no topo do CHANGELOG.md
 #   5. commita as mudanças juntas ("chore(release): vX.Y.Z") e
 #      cria uma tag anotada vX.Y.Z apontando pra esse commit
-#   6. imprime os próximos passos manuais do git flow (git flow
-#      release finish / push --tags / gh release create), sem
-#      executá-los — merge pra main e push continuam decisão sua
+#   6. imprime os próximos passos: integrar a branch em main antes de
+#      enviar a tag. O workflow release.yml publica a release ao receber
+#      a tag; não crie uma segunda release manualmente com gh.
 
 set -euo pipefail
 
@@ -43,15 +39,20 @@ README_FILE="$ROOT_DIR/README.md"
 ARCH_DIR="$ROOT_DIR/packaging/arch"
 ARCH_PKGBUILD="$ARCH_DIR/PKGBUILD"
 ARCH_SRCINFO="$ARCH_DIR/.SRCINFO"
+TAURI_CONFIG="$ROOT_DIR/src-tauri/tauri.conf.json"
+CARGO_MANIFEST="$ROOT_DIR/src-tauri/Cargo.toml"
+CARGO_LOCK="$ROOT_DIR/src-tauri/Cargo.lock"
 
 DRY_RUN=false
 NO_TAG=false
+ADD_COPILOT_COAUTHOR=false
 BUMP_ARG=""
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --no-tag)  NO_TAG=true ;;
+    --co-author) ADD_COPILOT_COAUTHOR=true ;;
     -h|--help)
       grep '^#' "$0" | sed 's/^# \{0,1\}//'
       exit 0
@@ -161,11 +162,27 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# --- escreve VERSION ---------------------------------------------------
+# --- sincroniza VERSION e metadados do aplicativo -----------------------
 echo "$NEW_VERSION" > "$VERSION_FILE"
+
+if [ -f "$TAURI_CONFIG" ]; then
+  sed -i -E "0,/\"version\": \"[^\"]*\"/s//\"version\": \"${NEW_VERSION}\"/" "$TAURI_CONFIG"
+fi
+if [ -f "$CARGO_MANIFEST" ]; then
+  sed -i -E "0,/^version = \"[^\"]*\"/s//version = \"${NEW_VERSION}\"/" "$CARGO_MANIFEST"
+fi
+if [ -f "$CARGO_LOCK" ]; then
+  sed -i -E "/^name = \"kami\"$/,/^$/ s/^version = \"[^\"]*\"/version = \"${NEW_VERSION}\"/" "$CARGO_LOCK"
+fi
 
 if [ -f "$ARCH_PKGBUILD" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
   (cd "$ARCH_DIR" && makepkg --printsrcinfo) > "$ARCH_SRCINFO"
+elif [ -f "$ARCH_SRCINFO" ]; then
+  sed -i -E \
+    -e "s/^([[:space:]]*pkgver = ).*/\\1${NEW_VERSION}/" \
+    -e "s/(kami-)[0-9][0-9.]*(-linux-amd64\\.deb)/\\1${NEW_VERSION}\\2/g" \
+    -e "s#(/releases/download/v)[0-9][0-9.]*(/)#\\1${NEW_VERSION}\\2#g" \
+    "$ARCH_SRCINFO"
 fi
 
 # --- sincroniza o badge de versão no README.md -----------------------------
@@ -211,7 +228,13 @@ git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE"
 if [ -f "$ARCH_SRCINFO" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
   git -C "$ROOT_DIR" add "$ARCH_SRCINFO"
 fi
-git -C "$ROOT_DIR" commit -m "chore(release): v${NEW_VERSION}"
+if $ADD_COPILOT_COAUTHOR; then
+  git -C "$ROOT_DIR" commit \
+    -m "chore(release): v${NEW_VERSION}" \
+    --trailer "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+else
+  git -C "$ROOT_DIR" commit -m "chore(release): v${NEW_VERSION}"
+fi
 
 if ! $NO_TAG; then
   git -C "$ROOT_DIR" tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
@@ -222,15 +245,11 @@ cat <<EOF
 
 próximos passos (git flow):
   1. revise o CHANGELOG.md gerado (as mensagens vêm cruas dos commits)
-  2. se estiver numa release/* ou hotfix/*, finalize normalmente:
-       git flow release finish ${NEW_VERSION}    (ou git flow hotfix finish ...)
-  3. suba tudo, incluindo a tag:
-       git push origin main develop --tags
-  4. gere o instalador com a versão já sincronizada:
-       ./build.sh
-  5. (opcional) publique a release no GitHub a partir da tag e anexe
-     os instaladores de dist/, usando o texto da seção do CHANGELOG
-     como corpo da release:
-       gh release create v${NEW_VERSION} dist/kami-${NEW_VERSION}.* \\
-         --title "v${NEW_VERSION}" --notes-file <(sed -n '/^## \\[${NEW_VERSION}\\]/,/^## \\[/p' CHANGELOG.md | sed '\$d')
+  2. envie a branch release/* ou hotfix/* e abra um PR para main.
+     Preserve o commit de release (não use squash/rebase).
+  3. depois do merge em main e do Smoke test bem-sucedido, envie a tag:
+       git push origin v${NEW_VERSION}
+  4. release.yml será executado pela tag, construirá os instaladores e
+     publicará os assets e SHA256SUMS. Não rode gh release create.
+  5. sincronize develop com main após a publicação.
 EOF

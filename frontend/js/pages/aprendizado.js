@@ -87,13 +87,15 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
       <div class="roadmap-node" data-visual="${visual}" data-milestone-id="${m.id}" draggable="true">
         <div class="roadmap-connector"></div>
         <div class="roadmap-box">
-          ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
-          <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="concluído: ${escapeHtml(m.title)}">
-          <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
-          ${editable
-            ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
-            : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">${icon("chevron-right", { size: 14 })}</span>`
-          }
+          <div class="roadmap-heading">
+            ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
+            <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="concluído: ${escapeHtml(m.title)}">
+            <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
+            ${editable
+              ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
+              : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">${icon("chevron-right", { size: 14 })}</span>`
+            }
+          </div>
           ${isExpanded ? `
             <div class="roadmap-expanded">
               ${m.description ? `<div class="roadmap-expanded-desc">${escapeHtml(m.description)}</div>` : ''}
