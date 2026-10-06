@@ -277,6 +277,18 @@ cd backend && source .venv/bin/activate && pip install pyinstaller
 No Windows o build precisa rodar numa máquina Windows (sem cross-compile) com Python, Rust, a Tauri CLI
 e Git Bash. A versão vive em `VERSION`; use `scripts/bump-version.sh` em vez de editá-la à mão.
 
+### Publicar uma release
+
+Depois de integrar as mudanças numa branch `release/*` ou `hotfix/*`, rode
+`./scripts/bump-version.sh patch` (ou `minor`/`major`) e revise o `CHANGELOG.md`.
+O script sincroniza `VERSION`, Tauri, Cargo e os metadados do pacote Arch, cria o
+commit e a tag anotada. Envie a branch e abra um PR para `main`; preserve o commit
+de release (não use squash/rebase). **Só depois do merge e do Smoke test passar,**
+envie a tag com `git push origin v<versão>`. O workflow
+[`release.yml`](./.github/workflows/release.yml) então constrói os instaladores
+Windows/Linux, calcula `SHA256SUMS` e publica a Release automaticamente. Não rode
+`gh release create` manualmente. Depois, sincronize `main` de volta em `develop`.
+
 ### Estrutura
 
 ```

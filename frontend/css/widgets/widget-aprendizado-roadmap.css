@@ -515,6 +515,18 @@ textarea {
   flex-wrap: wrap;
 }
 
+.roadmap-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.roadmap-heading .roadmap-title {
+  flex: 1 1 0;
+}
+
 .roadmap-expanded {
   width: 100%;
   padding: 5px 0;
