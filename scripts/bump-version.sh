@@ -224,7 +224,9 @@ echo "VERSION -> $NEW_VERSION"
 echo "CHANGELOG.md atualizado"
 
 # --- commit + tag ------------------------------------------------------
-git -C "$ROOT_DIR" add "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE"
+git -C "$ROOT_DIR" add \
+  "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE" \
+  "$TAURI_CONFIG" "$CARGO_MANIFEST" "$CARGO_LOCK"
 if [ -f "$ARCH_SRCINFO" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
   git -C "$ROOT_DIR" add "$ARCH_SRCINFO"
 fi
