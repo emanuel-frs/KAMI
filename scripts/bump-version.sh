@@ -100,7 +100,7 @@ if ! $DRY_RUN && [ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]; then
 fi
 
 if ! $DRY_RUN && [ -f "$ARCH_PKGBUILD" ] && ! command -v makepkg >/dev/null 2>&1; then
-  echo "aviso: makepkg não foi encontrado; pulando packaging/arch/.SRCINFO." >&2
+  echo "aviso: makepkg não foi encontrado; atualizando .SRCINFO pelo fallback." >&2
   ARCH_SRCINFO_DISABLED=true
 else
   ARCH_SRCINFO_DISABLED=false
