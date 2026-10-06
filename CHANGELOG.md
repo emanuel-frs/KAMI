@@ -4,6 +4,13 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.1] - 2026-10-05
+
+### Corrigido
+- commit all synchronized version metadata
+- polish roadmap, refresh app icons, and replace sidecar atomically
+
+
 ## [1.8.0] - 2026-10-02
 
 ### Adicionado
