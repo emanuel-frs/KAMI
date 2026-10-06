@@ -227,7 +227,7 @@ echo "CHANGELOG.md atualizado"
 git -C "$ROOT_DIR" add \
   "$VERSION_FILE" "$CHANGELOG_FILE" "$README_FILE" \
   "$TAURI_CONFIG" "$CARGO_MANIFEST" "$CARGO_LOCK"
-if [ -f "$ARCH_SRCINFO" ] && [ "$ARCH_SRCINFO_DISABLED" = "false" ]; then
+if [ -f "$ARCH_SRCINFO" ]; then
   git -C "$ROOT_DIR" add "$ARCH_SRCINFO"
 fi
 if $ADD_COPILOT_COAUTHOR; then
