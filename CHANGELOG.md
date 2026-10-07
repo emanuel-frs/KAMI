@@ -4,6 +4,12 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.2] - 2026-10-07
+
+### Documentação
+- keep personal workflow notes local (#8)
+
+
 ## [1.8.1] - 2026-10-05
 
 ### Corrigido

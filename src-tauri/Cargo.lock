@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "kami"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "dirs 5.0.1",
  "tauri",
