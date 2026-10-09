@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
     notif_alerts_enabled  INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "vencendo em breve" (calendário)
     notif_email_enabled   INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "e-mails"
     efeitos_visuais       TEXT NOT NULL DEFAULT 'completo',  -- GAM-04: completo | sutil | desligado
+    sequencia_protecao_desde TEXT,            -- GAM-06: dia (YYYY-MM-DD) em que a proteção de sequência passou a valer; NULL = gravado no 1º cálculo
     updated_at            TEXT NOT NULL
 );
 
@@ -77,6 +78,16 @@ CREATE TABLE IF NOT EXISTS action_log_attributes (
     action_log_id TEXT NOT NULL REFERENCES action_logs(id) ON DELETE CASCADE,
     attribute_id  TEXT NOT NULL REFERENCES attributes(id) ON DELETE CASCADE,
     PRIMARY KEY (action_log_id, attribute_id)
+);
+
+-- GAM-06: dias em branco cobertos por uma proteção de sequência. Para a
+-- sequência, contam como dia com ação. Gravados preguiçosamente no cálculo
+-- da sequência (app/sequencia.py), nunca apagados por ele — dia protegido
+-- vira fato mesmo que um estorno mude depois a conta das proteções.
+CREATE TABLE IF NOT EXISTS dias_protegidos (
+    dia         TEXT PRIMARY KEY,   -- YYYY-MM-DD, dia local
+    created_at  TEXT NOT NULL,
+    avisado_em  TEXT                -- quando o aviso "sequência salva" foi visto; NULL = ainda não
 );
 
 CREATE TABLE IF NOT EXISTS achievements (

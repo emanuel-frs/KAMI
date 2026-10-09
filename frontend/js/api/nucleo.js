@@ -8,6 +8,8 @@ export const getLog = (params = {}) => {
 };
 export const getAchievements = () => get("/api/nucleo/achievements");
 export const getPlayer = () => get("/api/nucleo/player");
+// GAM-06: aviso "sequência salva" já mostrado (components/streak-notice.js)
+export const markStreakSavedSeen = (days) => post("/api/nucleo/streak-saved/seen", { days });
 // revisão do xp antigo (app/revisao_xp.py): GET só simula, POST aplica
 // (e guarda uma cópia do banco antes)
 export const previewXpReview = () => get("/api/nucleo/xp-review");

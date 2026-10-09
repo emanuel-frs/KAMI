@@ -24,6 +24,7 @@ import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
+import { startStreakNotice } from "./components/streak-notice.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
@@ -264,6 +265,7 @@ async function boot() {
   await showPage("nucleo"); // tela inicial
   schedulePreload("nucleo"); // aproveita a folga do splash pra pré-buscar as outras telas
   await splashDone;
+  startStreakNotice(); // depois do splash: o toast "sequência salva" não pode nascer escondido
 
   const profile = store.get("profile");
   if (!profile) return;

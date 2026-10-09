@@ -534,6 +534,26 @@ def _migrate_user_profile_efeitos_visuais(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
+    """
+    GAM-06: dia a partir do qual a proteção de sequência vale. Nasce NULL
+    e é preenchido no primeiro cálculo da sequência (app/sequencia.py) —
+    a regra nova não é aplicada no passado, então buracos antigos
+    continuam quebrando a sequência como antes. A tabela dias_protegidos
+    vem do schema.sql (CREATE TABLE IF NOT EXISTS também cria em banco
+    antigo); só a coluna nova de user_profile precisa do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "sequencia_protecao_desde" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN sequencia_protecao_desde TEXT")
+    # aviso "sequência salva" (visto ou não) — veio depois da tabela, então
+    # banco que já tinha dias_protegidos ganha a coluna aqui
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(dias_protegidos)").fetchall()}
+    if "avisado_em" not in cols:
+        conn.execute("ALTER TABLE dias_protegidos ADD COLUMN avisado_em TEXT")
+    conn.commit()
+
+
 def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     """
     Converte timestamps legados (UTC sem offset, gravados pelo antigo
@@ -598,6 +618,7 @@ def init_db() -> None:
     _migrate_achievements_chave(conn)
     _migrate_achievements_meta(conn)
     _migrate_user_profile_efeitos_visuais(conn)
+    _migrate_user_profile_sequencia_protecao(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 

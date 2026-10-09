@@ -9,6 +9,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { setXpBar } from "../components/xp-bar.js";
+import { flameOptions, flameSvg, protectionsSummary, protectionsText } from "../components/streak-flame.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -69,7 +70,7 @@ export async function render(el, widget) {
     return;
   }
 
-  // nível geral, xp total, sequência e conquistas vêm prontos do backend
+  // nível geral, xp total, sequência (+ proteções, GAM-06) e conquistas vêm prontos do backend
   // (GET /api/nucleo/player) — antes a fórmula do nível era copiada aqui
   // (components/xp.js) e podia divergir da de app/xp.py.
   const top = [...attributes].sort((a, b) => b.current_xp - a.current_xp)[0];
@@ -100,6 +101,17 @@ export async function render(el, widget) {
         <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
           <span class="pw-xp-bar" aria-hidden="true"></span>
           <span class="pw-xp-text">${player.pct}% · ${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}</span>
+        </div>
+        <div class="pw-streak">
+          ${flameSvg(player.streak_current, flameOptions(player))}
+          <div class="pw-streak-info">
+            <div><span class="k">sequência</span> ${streakLabel} · recorde ${player.streak_best}</div>
+            <div data-tooltip="${escapeHtml(protectionsSummary(player))}" aria-label="${escapeHtml(protectionsSummary(player))}">
+              <span class="k">proteções</span> <span class="pw-protections">[${protectionsText(player.streak_protections, player.streak_protections_max)}]</span>${
+                player.streak_protected_yesterday ? ' <span class="pw-protected">· ontem protegido</span>' : ""
+              }
+            </div>
+          </div>
         </div>
       </div>
     </div>

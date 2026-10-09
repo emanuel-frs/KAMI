@@ -40,6 +40,7 @@ _TABLES_DELETE_ORDER = [
     "calendar_events",
     "screen_tips_seen",
     "action_log_attributes",
+    "dias_protegidos",
     "action_logs",
     "career_salary_records",
     "career_educations",

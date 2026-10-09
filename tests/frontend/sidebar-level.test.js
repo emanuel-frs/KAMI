@@ -9,7 +9,11 @@ test(
   withDom('<div id="sidebar-level" hidden></div>', async (dom, t) => {
     globalThis.CustomEvent = dom.window.CustomEvent;
     t.after(() => delete globalThis.CustomEvent);
-    let player = { level: 3, pct: 40, current_level_xp: 167, xp_for_next_level: 417 };
+    const streak = {
+      streak_current: 12, active_today: true, streak_protections: 1, streak_protections_max: 2,
+      streak_protected_yesterday: false, streak_next_protection_in: 2,
+    };
+    let player = { level: 3, pct: 40, current_level_xp: 167, xp_for_next_level: 417, ...streak };
     t.mock.method(globalThis, "fetch", async () => ({ ok: true, status: 200, json: async () => player }));
 
     const { startSidebarLevel } = await import("../../frontend/js/components/sidebar-level.js");
@@ -21,14 +25,26 @@ test(
     assert.equal(el.hidden, false);
     assert.equal(el.querySelector(".sl-level").textContent, "nv 3");
     assert.equal(el.querySelector(".sl-bar").textContent, "[####------]");
-    assert.match(el.dataset.tooltip, /faltam 250 pro nível 4/);
+    assert.match(el.querySelector(".sl-xp").dataset.tooltip, /faltam 250 pro nível 4/);
+    // GAM-06: chama + dias + proteções
+    assert.equal(el.querySelector(".sl-flame svg").dataset.stage, "3");
+    assert.equal(el.querySelector(".sl-days").textContent, "12d");
+    assert.equal(el.querySelector(".sl-protections").textContent, "◆◇");
+    assert.match(el.querySelector(".sl-streak").dataset.tooltip, /1\/2 proteções guardadas · próxima em 2 dias com ação/);
+    assert.equal(el.querySelector(".sl-flame svg").hasAttribute("data-dim"), false);
 
     // escrita limpa o cache de GET; o watcher dispara o evento de progresso
-    player = { level: 4, pct: 10, current_level_xp: 60, xp_for_next_level: 606 };
+    player = {
+      level: 4, pct: 10, current_level_xp: 60, xp_for_next_level: 606,
+      ...streak, active_today: false, streak_protections: 0, streak_protected_yesterday: true,
+    };
     await post("/api/x", {});
     window.dispatchEvent(new dom.window.CustomEvent("kami:action-registered"));
     await wait(200);
     assert.equal(el.querySelector(".sl-level").textContent, "nv 4");
     assert.equal(el.querySelector(".sl-bar").textContent, "[#---------]");
+    assert.equal(el.querySelector(".sl-protections").textContent, "◇◇");
+    assert.equal(el.querySelector(".sl-flame svg").hasAttribute("data-dim"), true);
+    assert.match(el.querySelector(".sl-streak").dataset.tooltip, /ontem foi protegido/);
   })
 );

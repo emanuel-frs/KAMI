@@ -68,13 +68,17 @@ desfazer" ficava liberada pra sempre.
 
 Sequência de dias (`streak_info`): dias distintos com pelo menos uma
 ação, pelo prefixo YYYY-MM-DD de action_logs.created_at — que é o dia
-LOCAL de quem usa (ver database.now_iso).
+LOCAL de quem usa (ver database.now_iso) —, mais os dias em branco
+cobertos por uma proteção de sequência (GAM-06, app/sequencia.py). As
+conquistas `streak_days` aceitam dias protegidos (combinado com o
+Emanuel em 2026-10-09).
 """
 import json
 import datetime
 
 from app.business_days import months_between
 from app.database import new_id, now_iso
+from app.sequencia import aplicar_protecoes
 
 CATEGORIES = ("nucleo", "financas", "aprendizado", "carreira", "metas", "organizacao")
 TIERS = ("bronze", "prata", "ouro")
@@ -328,19 +332,36 @@ def _activity_dates(conn) -> list:
 
 def streak_info(conn, today: datetime.date = None) -> dict:
     """
-    Sequência de dias com pelo menos uma ação:
+    Sequência de dias com pelo menos uma ação OU protegidos (GAM-06, ver
+    app/sequencia.py — o cálculo grava os dias em branco que uma proteção
+    acabou de cobrir, sem comitar):
       - best:   maior sequência da história
       - current: sequência que ainda está valendo — termina hoje, ou
                  ontem se hoje ainda não teve ação (o dia não acabou,
                  então a sequência não está perdida). 0 se o último dia
-                 com ação foi antes de ontem.
+                 válido foi antes de ontem.
       - active_today: se hoje já teve ação
+      - protections: proteções guardadas agora (0..MAX_PROTECOES)
+      - protected_yesterday: ontem passou em branco e foi protegido
+      - next_protection_in: dias com ação que faltam pra próxima proteção
+      - saved_unseen: dias protegidos DA SEQUÊNCIA ATUAL cujo aviso "sequência
+                 salva" ainda não foi visto (YYYY-MM-DD, em ordem). Dia
+                 protegido de uma sequência que depois quebrou não avisa —
+                 não salvou nada no fim das contas.
     `today` é o dia local (date.today()); parâmetro só pra teste.
     """
     today = today or datetime.date.today()
-    dates = _activity_dates(conn)
+    yesterday = today - datetime.timedelta(days=1)
+    action_dates = _activity_dates(conn)
+    protecao = aplicar_protecoes(conn, action_dates, today)
+    info = {
+        "protections": protecao["guardadas"],
+        "protected_yesterday": yesterday in protecao["protegidos"],
+        "next_protection_in": protecao["proxima_em"],
+    }
+    dates = sorted(set(action_dates) | protecao["protegidos"])
     if not dates:
-        return {"current": 0, "best": 0, "active_today": False}
+        return {"current": 0, "best": 0, "active_today": False, "saved_unseen": [], **info}
 
     best = run = 1
     for prev, cur in zip(dates, dates[1:]):
@@ -348,14 +369,21 @@ def streak_info(conn, today: datetime.date = None) -> dict:
         best = max(best, run)
 
     date_set = set(dates)
-    active_today = today in date_set
-    cursor = today if active_today else today - datetime.timedelta(days=1)
+    active_today = today in set(action_dates)
+    cursor = today if active_today else yesterday
     current = 0
     while cursor in date_set:
         current += 1
         cursor -= datetime.timedelta(days=1)
 
-    return {"current": current, "best": best, "active_today": active_today}
+    # cursor parou no dia anterior ao começo da sequência atual
+    unseen = conn.execute(
+        "SELECT dia FROM dias_protegidos WHERE avisado_em IS NULL AND dia > ? ORDER BY dia",
+        (cursor.isoformat(),),
+    ).fetchall() if current else []
+    saved_unseen = [r["dia"] for r in unseen]
+
+    return {"current": current, "best": best, "active_today": active_today, "saved_unseen": saved_unseen, **info}
 
 
 @criterion("count_by_attribute")

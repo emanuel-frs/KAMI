@@ -97,7 +97,7 @@ def test_streak_counts_current_run_ending_today(db_conn):
     for days_ago in (0, 1, 2, 5, 6, 7, 8):
         _insert_log(db_conn, _local_day(days_ago))
     info = streak_info(db_conn)
-    assert info == {"current": 3, "best": 4, "active_today": True}
+    assert (info["current"], info["best"], info["active_today"]) == (3, 4, True)
 
 
 def test_streak_still_alive_if_last_action_was_yesterday(db_conn):

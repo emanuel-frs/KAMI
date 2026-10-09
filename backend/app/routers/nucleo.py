@@ -6,7 +6,8 @@ Endpoints:
   POST /api/nucleo/actions              registra uma ação (form genérico, decisão 13)
   GET  /api/nucleo/log                  log cronológico, filtrável por atributo/período
   GET  /api/nucleo/achievements         galeria de conquistas (desbloqueadas + bloqueadas), com progresso
-  GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias, conquistas
+  GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias (+ proteções), conquistas
+  POST /api/nucleo/streak-saved/seen    marca como visto o aviso "sequência salva" (GAM-06)
   GET  /api/nucleo/xp-review            prévia da revisão de xp (simulação, não grava nada)
   POST /api/nucleo/xp-review            aplica a revisão de xp (guarda uma cópia do banco antes)
 """
@@ -17,11 +18,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.database import backup_database, get_db, local_now
+from app.database import backup_database, get_db, local_now, now_iso
 from app.xp import level_from_xp
 from app.actions import register_action as register_action_core
 from app.achievements import achievement_progress, streak_info
 from app.revisao_xp import review_xp
+from app.sequencia import MAX_PROTECOES
 
 router = APIRouter()
 
@@ -104,6 +106,11 @@ class PlayerOut(BaseModel):
     streak_current: int
     streak_best: int
     active_today: bool
+    streak_protections: int
+    streak_protections_max: int
+    streak_protected_yesterday: bool
+    streak_next_protection_in: int
+    streak_saved_days: List[str]
     achievements_unlocked: int
     achievements_total: int
 
@@ -253,7 +260,10 @@ def get_player(db=Depends(get_db)):
     """
     total_xp = db.execute("SELECT COALESCE(SUM(current_xp), 0) AS t FROM attributes").fetchone()["t"]
     lv = level_from_xp(total_xp)
+    # o cálculo da sequência grava os dias que uma proteção acabou de
+    # cobrir (GAM-06, app/sequencia.py) — comita pra virar fato
     streak = streak_info(db)
+    db.commit()
     ach = db.execute(
         "SELECT COUNT(*) AS total, COUNT(unlocked_at) AS unlocked FROM achievements"
     ).fetchone()
@@ -266,9 +276,34 @@ def get_player(db=Depends(get_db)):
         "streak_current": streak["current"],
         "streak_best": streak["best"],
         "active_today": streak["active_today"],
+        "streak_protections": streak["protections"],
+        "streak_protections_max": MAX_PROTECOES,
+        "streak_protected_yesterday": streak["protected_yesterday"],
+        "streak_next_protection_in": streak["next_protection_in"],
+        "streak_saved_days": streak["saved_unseen"],
         "achievements_unlocked": ach["unlocked"],
         "achievements_total": ach["total"],
     }
+
+
+class StreakSavedSeen(BaseModel):
+    days: List[str] = Field(..., description="dias (YYYY-MM-DD) de /player.streak_saved_days já avisados")
+
+
+@router.post("/streak-saved/seen", status_code=204)
+def mark_streak_saved_seen(payload: StreakSavedSeen, db=Depends(get_db)):
+    """
+    GAM-06: marca o aviso "sequência salva" desses dias protegidos como
+    visto, pra o frontend (components/streak-notice.js) não repetir o
+    toast. Dia desconhecido ou já avisado é ignorado.
+    """
+    now = now_iso()
+    for day in payload.days:
+        db.execute(
+            "UPDATE dias_protegidos SET avisado_em = ? WHERE dia = ? AND avisado_em IS NULL",
+            (now, day),
+        )
+    db.commit()
 
 
 @router.get("/xp-review")

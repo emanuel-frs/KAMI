@@ -47,6 +47,8 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
       "/api/nucleo/player": {
         level: 2, total_xp: 150, current_level_xp: 50, xp_for_next_level: 246, pct: 20,
         streak_current: 3, streak_best: 5, active_today: true,
+        streak_protections: 2, streak_protections_max: 2, streak_protected_yesterday: true,
+        streak_next_protection_in: 4,
         achievements_unlocked: 1, achievements_total: 2,
       },
     };
@@ -70,6 +72,13 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
   assert.match(widget.textContent, /sequência\s*3 dias/);
   assert.equal(widget.querySelector(".pw-xp-bar").textContent, "[####----------------]");
   assert.match(widget.querySelector(".pw-xp-text").textContent, /20% · 50\/246 xp pro nível 3/);
+  // GAM-06: chama de 3 dias (degrau 2) + proteções cheias + ontem protegido
+  const flame = widget.querySelector(".pw-streak .streak-flame");
+  assert.equal(flame.tagName.toLowerCase(), "svg");
+  assert.equal(flame.dataset.stage, "2");
+  assert.equal(widget.querySelector(".pw-protections").textContent, "[◆◆]");
+  assert.match(widget.querySelector(".pw-streak").textContent, /ontem protegido/);
+  assert.match(widget.querySelector(".pw-streak").textContent, /recorde 5/);
   assert.match(widget.innerHTML, /&lt;Kami&gt;/);
   assert.doesNotMatch(widget.innerHTML, /<Kami>/);
 });
