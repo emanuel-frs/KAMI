@@ -122,6 +122,7 @@ class PlayerOut(BaseModel):
     streak_protected_yesterday: bool
     streak_next_protection_in: int
     streak_saved_days: List[str]
+    player_class: Optional[str] = None  # GAM-11: ver _player_class
     achievements_unlocked: int
     achievements_total: int
 
@@ -301,6 +302,30 @@ def list_achievements(db=Depends(get_db)):
     return out
 
 
+# GAM-11 — classe do jogador, derivada do atributo com mais xp. Polímata
+# quando o maior está a menos de POLYMATH_MARGIN do segundo (equilibrado).
+# Sem xp nenhum ainda, sem classe.
+CLASS_BY_ATTRIBUTE = {
+    "aprendizado": "erudito",
+    "financas": "mercador",
+    "carreira": "artífice",
+    "metas": "estrategista",
+    "organizacao": "arquivista",
+}
+POLYMATH_CLASS = "polímata"
+POLYMATH_MARGIN = 0.15
+
+
+def _player_class(db) -> Optional[str]:
+    rows = db.execute("SELECT name, current_xp FROM attributes ORDER BY current_xp DESC, name LIMIT 2").fetchall()
+    if not rows or rows[0]["current_xp"] <= 0:
+        return None
+    top = rows[0]
+    if len(rows) > 1 and top["current_xp"] - rows[1]["current_xp"] < POLYMATH_MARGIN * top["current_xp"]:
+        return POLYMATH_CLASS
+    return CLASS_BY_ATTRIBUTE.get(top["name"], POLYMATH_CLASS)
+
+
 @router.get("/player", response_model=PlayerOut)
 def get_player(db=Depends(get_db)):
     """
@@ -332,6 +357,7 @@ def get_player(db=Depends(get_db)):
         "streak_protected_yesterday": streak["protected_yesterday"],
         "streak_next_protection_in": streak["next_protection_in"],
         "streak_saved_days": streak["saved_unseen"],
+        "player_class": _player_class(db),
         "achievements_unlocked": ach["unlocked"],
         "achievements_total": ach["total"],
     }

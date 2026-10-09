@@ -74,6 +74,11 @@ export async function render(el, widget) {
   // (GET /api/nucleo/player) — antes a fórmula do nível era copiada aqui
   // (components/xp.js) e podia divergir da de app/xp.py.
   const top = [...attributes].sort((a, b) => b.current_xp - a.current_xp)[0];
+  // GAM-11: classe vem do atributo com mais xp (backend, nucleo.py::_player_class);
+  // "destaque" virou o tooltip dela
+  const classTip = player.player_class
+    ? `atributo mais forte: ${top?.name ?? "—"} · a classe vem dele; polímata quando os dois maiores estão a menos de 15% um do outro`
+    : "a classe aparece com o primeiro xp — vem do atributo mais forte";
   const streakLabel = player.streak_current === 1 ? "1 dia" : `${player.streak_current} dias`;
   const streakTip = `recorde: ${player.streak_best} ${player.streak_best === 1 ? "dia" : "dias"}${
     player.streak_current > 0 && !player.active_today ? " · registre algo hoje pra não perder a sequência" : ""
@@ -96,7 +101,7 @@ export async function render(el, widget) {
           <div class="vm-row"><span class="k">xp total</span><span class="v">${player.total_xp.toLocaleString("pt-BR")}</span></div>
           <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">sequência</span><span class="v">${streakLabel}</span></div>
           <div class="vm-row"><span class="k">conquistas</span><span class="v">${player.achievements_unlocked}/${player.achievements_total}</span></div>
-          <div class="vm-row"><span class="k">destaque</span><span class="v">${top ? escapeHtml(top.name) : "—"}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(classTip)}"><span class="k">classe</span><span class="v">${escapeHtml(player.player_class ?? "—")}</span></div>
         </div>
         <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
           <span class="pw-xp-bar" aria-hidden="true"></span>
