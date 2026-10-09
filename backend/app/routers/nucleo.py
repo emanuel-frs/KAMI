@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from app.database import backup_database, get_db, local_now, now_iso
 from app.xp import level_from_xp
 from app.actions import register_action as register_action_core
-from app.achievements import achievement_progress, streak_info
+from app.achievements import REFS_BONUS, achievement_progress, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
@@ -34,6 +34,9 @@ router = APIRouter()
 # arbitrário valia mais que meses de ações reais nos módulos. O valor
 # padrão do formulário (10) e o seed demo (até 30) ficam abaixo dele.
 MAX_MANUAL_XP = 50
+
+# GAM-09: dias sem ação até o vértice do atributo apagar no radar
+FORGOTTEN_DAYS = 14
 
 SECRET_TITLE = "???"
 SECRET_DESCRIPTION = "conquista secreta"
@@ -50,6 +53,10 @@ class AttributeOut(BaseModel):
     pct: int
     xp_for_next_level: int
     bonus_atrasado: bool = False  # GAM-08: ações neste atributo rendem 2× (app/bonus.py)
+    # GAM-09: atividade do atributo (ver _atividade_por_atributo)
+    last_activity_at: Optional[str] = None
+    days_inactive: Optional[int] = None
+    forgotten: bool = False
 
 
 class ActionCreate(BaseModel):
@@ -146,11 +153,50 @@ def _categories_for_log(db, action_log_id: str) -> List[str]:
 
 # ---------------- endpoints ----------------
 
+def _atividade_por_atributo(db, today: datetime.date = None) -> dict:
+    """
+    GAM-09 — atributo esquecido: {attribute_id: {last_activity_at,
+    days_inactive, forgotten}}. Última atividade = dia da última ação no
+    atributo (MAX de action_logs.created_at via action_log_attributes, a
+    consulta que o comentário de extensão de xp.py já descrevia — sem
+    coluna nova). Bônus (missão, GAM-07; xp, GAM-08) não contam: não são
+    ações. Atributo que nunca teve ação conta desde a primeira ação do app
+    (sem ação nenhuma, ninguém está esquecido — conta nova não nasce com o
+    radar todo apagado). Esquecido = FORGOTTEN_DAYS ou mais sem atividade.
+    Só sinaliza: nenhum xp é perdido.
+    """
+    today = today or datetime.date.today()
+    not_bonus = f"(l.referencia_tipo IS NULL OR l.referencia_tipo NOT IN ({', '.join(repr(r) for r in REFS_BONUS)}))"
+    last = {
+        r["attribute_id"]: r["d"]
+        for r in db.execute(
+            "SELECT ala.attribute_id, MAX(substr(l.created_at, 1, 10)) AS d "
+            "FROM action_log_attributes ala JOIN action_logs l ON l.id = ala.action_log_id "
+            f"WHERE {not_bonus} GROUP BY ala.attribute_id"
+        ).fetchall()
+    }
+    first = db.execute(f"SELECT MIN(substr(l.created_at, 1, 10)) AS d FROM action_logs l WHERE {not_bonus}").fetchone()["d"]
+    out = {}
+    for row in db.execute("SELECT id FROM attributes").fetchall():
+        since = last.get(row["id"]) or first
+        days = (today - datetime.date.fromisoformat(since)).days if since else None
+        out[row["id"]] = {
+            "last_activity_at": last.get(row["id"]),
+            "days_inactive": days,
+            "forgotten": days is not None and days >= FORGOTTEN_DAYS,
+        }
+    return out
+
+
 @router.get("/attributes", response_model=List[AttributeOut])
 def list_attributes(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM attributes ORDER BY name").fetchall()
     atrasado = atributo_atrasado(db)
-    return [{**_attribute_row_to_out(r), "bonus_atrasado": r["name"] == atrasado} for r in rows]
+    atividade = _atividade_por_atributo(db)
+    return [
+        {**_attribute_row_to_out(r), "bonus_atrasado": r["name"] == atrasado, **atividade[r["id"]]}
+        for r in rows
+    ]
 
 
 @router.post("/actions", response_model=ActionOut)

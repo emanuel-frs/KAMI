@@ -77,6 +77,14 @@
   stroke-linecap: round;
 }
 .pg-data-dot { fill: var(--accent); }
+/* GAM-09: atributo esquecido (14+ dias sem ação) — vértice vazado e
+   pontilhado, sigla esmaecida com sublinhado pontilhado */
+.pg-data-dot.forgotten {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 0.6;
+  stroke-dasharray: 0.6 0.8;
+}
 
 .pg-label {
   position: absolute;
@@ -91,6 +99,8 @@
 }
 .pg-label:hover { color: var(--text-bright); }
 .pg-label.on { color: var(--accent); }
+.pg-label.forgotten { opacity: 0.55; text-decoration: underline dotted; text-underline-offset: 2px; }
+.pg-label.forgotten:hover { opacity: 1; }
 
 .pg-label.lbl-top { transform: translate(-50%, -145%); text-align: center; }
 .pg-label.lbl-ur  { transform: translate(-6%, -110%); }
