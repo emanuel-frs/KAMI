@@ -23,6 +23,7 @@ import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
+import { startSidebarLevel } from "./components/sidebar-level.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
@@ -259,6 +260,7 @@ async function boot() {
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   startProgressWatcher(); // depois do perfil: a foto inicial precisa do backend de pé
+  startSidebarLevel();
   await showPage("nucleo"); // tela inicial
   schedulePreload("nucleo"); // aproveita a folga do splash pra pré-buscar as outras telas
   await splashDone;

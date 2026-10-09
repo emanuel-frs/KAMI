@@ -8,6 +8,7 @@ import { openAvatarModal } from "../modals/avatar-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { setXpBar } from "../components/xp-bar.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -40,6 +41,9 @@ import { listenWhileConnected } from "../components/window-listener.js";
 
 let unsubscribeProfile = null;
 let stopProgressListener = null;
+// último nível/% mostrado — a barra de xp anima a partir dele (GAM-05);
+// ao mudar de nível recomeça do zero, que é onde o xp do nível novo começa
+let lastBar = null;
 
 export async function render(el, widget) {
   unsubscribeProfile?.();
@@ -93,9 +97,17 @@ export async function render(el, widget) {
           <div class="vm-row"><span class="k">conquistas</span><span class="v">${player.achievements_unlocked}/${player.achievements_total}</span></div>
           <div class="vm-row"><span class="k">destaque</span><span class="v">${top ? escapeHtml(top.name) : "—"}</span></div>
         </div>
+        <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
+          <span class="pw-xp-bar" aria-hidden="true"></span>
+          <span class="pw-xp-text">${player.pct}% · ${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}</span>
+        </div>
       </div>
     </div>
   `;
+
+  const barFrom = lastBar == null ? null : lastBar.level === player.level ? lastBar.pct : 0;
+  setXpBar(el.querySelector(".pw-xp-bar"), player.pct, { from: barFrom, cells: 20 });
+  lastBar = { level: player.level, pct: player.pct };
 
   // ── ajusta o tamanho do mini-avatar ao box maior (ver widgets.css .pw-avatar-btn) ──
   // try/catch: uma falha de medição aqui (ex: canvas indisponível, layout

@@ -286,3 +286,16 @@ body.kami-resizing * { user-select: none !important; cursor: nwse-resize !import
 .pw-avatar-btn:hover {
   border-color: var(--accent-dim);
 }
+/* GAM-05: barra de xp do nível geral no card de perfil (widgets/profile.js,
+   components/xp-bar.js) — texto "[####----] 40% · 120/300 xp pro nível 4" */
+.pw-xp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 12px;
+  font-family: var(--font);
+  font-size: 10.5px;
+}
+.pw-xp-bar { color: var(--accent); letter-spacing: -0.5px; white-space: nowrap; }
+.pw-xp-text { color: var(--text-faint); }

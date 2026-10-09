@@ -68,6 +68,8 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
   assert.match(widget.textContent, /conquistas\s*1\/2/);
   assert.match(widget.textContent, /nível\s*2/);
   assert.match(widget.textContent, /sequência\s*3 dias/);
+  assert.equal(widget.querySelector(".pw-xp-bar").textContent, "[####----------------]");
+  assert.match(widget.querySelector(".pw-xp-text").textContent, /20% · 50\/246 xp pro nível 3/);
   assert.match(widget.innerHTML, /&lt;Kami&gt;/);
   assert.doesNotMatch(widget.innerHTML, /<Kami>/);
 });
