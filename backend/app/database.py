@@ -504,6 +504,23 @@ def _migrate_achievements_chave(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_achievements_meta(conn: sqlite3.Connection) -> None:
+    """
+    Metadados das conquistas (GAM-01): categoria (área da vida, filtro da
+    galeria), nivel (bronze/prata/ouro) e secreta. Preenchidos pelo
+    seed_achievements logo depois, casando pela chave — bancos antigos
+    só ganham as colunas vazias aqui.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(achievements)").fetchall()}
+    if "categoria" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN categoria TEXT")
+    if "nivel" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN nivel TEXT")
+    if "secreta" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN secreta INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+
 def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     """
     Converte timestamps legados (UTC sem offset, gravados pelo antigo
@@ -566,6 +583,7 @@ def init_db() -> None:
     _migrate_rename_wallet_widget_type(conn)
     _migrate_action_logs_referencia(conn)
     _migrate_achievements_chave(conn)
+    _migrate_achievements_meta(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 

@@ -30,6 +30,9 @@ router = APIRouter()
 # padrão do formulário (10) e o seed demo (até 30) ficam abaixo dele.
 MAX_MANUAL_XP = 50
 
+SECRET_TITLE = "???"
+SECRET_DESCRIPTION = "conquista secreta"
+
 
 # ---------------- schemas ----------------
 
@@ -80,6 +83,9 @@ class LogEntryOut(BaseModel):
 class AchievementOut(BaseModel):
     id: str
     key: Optional[str] = None
+    category: Optional[str] = None
+    tier: Optional[str] = None
+    secret: bool = False
     title: str
     description: Optional[str] = None
     rule_type: str
@@ -195,10 +201,34 @@ def list_achievements(db=Depends(get_db)):
     for r in rows:
         current, target = achievement_progress(db, json.loads(r["criteria_json"]))
         unlocked = r["unlocked_at"] is not None
+        secret = bool(r["secreta"])
+        if secret and not unlocked:
+            # secreta bloqueada sai mascarada já da API — nada de spoiler
+            # nem pelo devtools; o progresso também some (0/1)
+            out.append(
+                {
+                    "id": r["id"],
+                    "key": r["chave"],
+                    "category": r["categoria"],
+                    "tier": r["nivel"],
+                    "secret": True,
+                    "title": SECRET_TITLE,
+                    "description": SECRET_DESCRIPTION,
+                    "rule_type": r["rule_type"],
+                    "unlocked": False,
+                    "unlocked_at": None,
+                    "progress_current": 0,
+                    "progress_target": 1,
+                }
+            )
+            continue
         out.append(
             {
                 "id": r["id"],
                 "key": r["chave"],
+                "category": r["categoria"],
+                "tier": r["nivel"],
+                "secret": secret,
                 "title": r["title"],
                 "description": r["description"],
                 "rule_type": r["rule_type"],

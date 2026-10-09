@@ -85,7 +85,10 @@ CREATE TABLE IF NOT EXISTS achievements (
     rule_type     TEXT NOT NULL DEFAULT 'fixed',  -- v1: só 'fixed'
     criteria_json TEXT NOT NULL,       -- regra em JSON (ex: {"attribute":"aprendizado","count":10})
     unlocked_at   TEXT,                -- NULL = ainda bloqueada
-    chave         TEXT                 -- id estável do seed (ver achievements.py); índice único em database.py
+    chave         TEXT,                -- id estável do seed (ver achievements.py); índice único em database.py
+    categoria     TEXT,                -- área: nucleo | financas | aprendizado | carreira | metas | organizacao
+    nivel         TEXT,                -- bronze | prata | ouro | NULL
+    secreta       INTEGER NOT NULL DEFAULT 0  -- 1 = mascarada ("???") enquanto bloqueada
 );
 
 -- ---------------- FINANÇAS ----------------
