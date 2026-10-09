@@ -21,3 +21,39 @@
   border-top: 1px solid var(--border-soft);
 }
 .retro-spacer { flex: 1; }
+
+/* cores do resumo (retroHtml em modals/retrospectiva-modal.js) — só a
+   paleta do app: destaque pro que é título/conquista/subida, âmbar pra
+   queda, cinzas pro resto. O .txt exportado é o mesmo texto, sem cor. */
+.retro-pre .rt-frame   { color: var(--accent-dim); }
+/* sem negrito nem letter-spacing no que fica dentro da moldura: mudam a
+   largura do texto e a borda da direita desalinhava */
+.retro-pre .rt-title   { color: var(--accent); text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent); }
+.retro-pre .rt-label   { color: var(--text); }
+.retro-pre .rt-dots    { color: var(--border); }
+.retro-pre .rt-value   { color: var(--text-bright); }
+.retro-pre .rt-up      { color: var(--accent); }
+.retro-pre .rt-down    { color: var(--amber); }
+.retro-pre .rt-dim     { color: var(--text-faint); }
+.retro-pre .rt-section { color: var(--accent); }
+.retro-pre .rt-bar-on  { color: var(--accent); text-shadow: 0 0 5px color-mix(in srgb, var(--accent) 40%, transparent); }
+.retro-pre .rt-bar-off { color: var(--border); }
+.retro-pre .rt-bullet  { color: var(--accent); }
+.retro-pre .rt-item    { color: var(--text-bright); }
+.retro-pre .rt-meta    { color: var(--text-faint); }
+
+/* GAM-15: com efeitos "completo" (o JS põe .animated), as linhas entram
+   uma depois da outra, como saída de terminal */
+/* uma linha = um bloco (o texto exportado é que leva "\n") */
+.retro-pre .retro-line { display: block; min-height: 1.45em; }
+.retro-pre.animated .retro-line {
+  animation: retro-line-in 0.16s steps(3, end) both;
+  animation-delay: calc(var(--i) * 14ms);
+}
+@keyframes retro-line-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .retro-pre.animated .retro-line { animation: none; }
+}

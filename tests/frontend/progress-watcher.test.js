@@ -53,7 +53,7 @@ test(
     // concluir um marco: +20 xp, sobe o atributo e o nível geral, libera conquista
     state = snapshot({ xp: 110, level: 2, playerLevel: 2, unlocked: true });
     await put("/api/aprendizado/milestones/m1", { status: "concluido" });
-    await wait(400);
+    await wait(700); // GAM-15: títulos dos toasts aparecem digitados
 
     const line = document.querySelector(".xp-feed-item");
     assert.ok(line, "linha de xp deveria aparecer");
@@ -68,7 +68,9 @@ test(
     assert.equal(overlay.getAttribute("role"), "dialog");
     assert.match(overlay.textContent, /nível 1 → 2/);
     overlay.dismiss();
-    assert.ok(toasts.includes("conquista desbloqueada: trilha em dia"));
+    // GAM-15: conquista vira o aviso "estilo Steam" (.ach-pop), não toast
+    const popups = () => [...document.querySelectorAll(".ach-pop .sr-only")].map((el) => el.textContent);
+    assert.ok(popups().some((t) => t.startsWith("conquista desbloqueada: trilha em dia")));
     assert.equal(refreshes.length, 1);
 
     // escrita de layout não dispara nova foto
@@ -84,10 +86,7 @@ test(
     const neg = document.querySelector(".xp-feed-item.neg");
     assert.ok(neg, "estorno deveria aparecer como linha negativa");
     assert.match(neg.textContent, /−20 xp/);
-    const achievementToasts = [...document.querySelectorAll(".toast-title")].filter((el) =>
-      el.textContent.startsWith("conquista desbloqueada")
-    );
-    assert.equal(achievementToasts.length, 1);
+    assert.equal(popups().filter((t) => t.startsWith("conquista desbloqueada")).length, 1);
     const lines = [...document.querySelectorAll(".xp-feed-item.neg")].map((el) => el.textContent);
     assert.ok(lines.some((t) => t.includes("conquista bloqueada") && t.includes("trilha em dia")));
 
@@ -97,7 +96,7 @@ test(
     await wait(250);
     state = snapshot({ xp: 110, level: 2, playerLevel: 2, unlocked: true });
     await put("/api/aprendizado/milestones/m1", { status: "concluido" });
-    await wait(400);
+    await wait(700); // GAM-15: títulos dos toasts aparecem digitados
     assert.equal(document.querySelectorAll(".level-up").length, 0);
     const toastsSutil = [...document.querySelectorAll(".toast-title")].map((el) => el.textContent);
     assert.ok(toastsSutil.includes("nível 2 alcançado"));

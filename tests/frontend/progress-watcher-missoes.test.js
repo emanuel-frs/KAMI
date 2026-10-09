@@ -51,11 +51,10 @@ test(
     state = { ...snapshot(12), "/api/nucleo/missoes": mission(true) };
     await post("/api/organizacao/links", {});
     await wait(400);
-    const toast = [...document.querySelectorAll(".toast-item")].find((el) =>
-      el.querySelector(".toast-title").textContent === "missão concluída"
-    );
-    assert.ok(toast, "toast de missão concluída deveria aparecer");
-    assert.match(toast.textContent, /salve um link · \+10 xp/);
+    // GAM-15: aviso "estilo Steam" em tamanho menor
+    const popup = document.querySelector(".ach-pop.small");
+    assert.ok(popup, "aviso de missão concluída deveria aparecer");
+    assert.equal(popup.querySelector(".sr-only").textContent, "missão concluída: salve um link. +10 xp");
 
     state = { ...snapshot(0), "/api/nucleo/missoes": mission(false) };
     await del("/api/organizacao/links/1");

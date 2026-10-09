@@ -23,6 +23,8 @@ import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
+import { pageEnter, wireEffectSkip } from "./components/fx.js";
+import { wirePixelCursor } from "./components/pixel-cursor.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
 import { startRetrospective } from "./modals/retrospectiva-modal.js";
@@ -124,6 +126,9 @@ async function showPage(name, opts) {
   currentPageModule = mod;
   currentPageName = name;
   await mod.mount(pageRoot, opts);
+  // GAM-15: cards "ligando" e títulos digitados
+  // (só com efeitos "completo" e sem reduced-motion — ver components/fx.js)
+  pageEnter(pageRoot);
 }
 
 function wireNav() {
@@ -245,6 +250,8 @@ async function boot() {
 
   store.subscribe("profile", applyProfileToSidebar);
   wireVisualEffects();
+  wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
+  wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
 
   wireSkipLink();
   wireNav();

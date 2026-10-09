@@ -32,16 +32,17 @@ test(
     const { startStreakNotice, noticeText } = await import("../../frontend/js/components/streak-notice.js");
     await startStreakNotice();
 
-    const toasts = document.querySelectorAll(".toast-item");
+    const toasts = document.querySelectorAll(".ach-pop"); // GAM-15: aviso "estilo Steam" menor
     assert.equal(toasts.length, 1);
-    assert.match(toasts[0].textContent, /sequência salva!/);
-    assert.match(toasts[0].textContent, /um dia ficou em branco e uma proteção segurou sua sequência de 12 dias · resta 1 proteção/);
+    const text = toasts[0].querySelector(".sr-only").textContent;
+    assert.match(text, /sequência salva!/);
+    assert.match(text, /um dia ficou em branco e uma proteção segurou sua sequência de 12 dias · resta 1 proteção/);
     assert.deepEqual(posts, [{ path: "/api/nucleo/streak-saved/seen", body: { days: ["2026-10-08"] } }]);
 
     // depois de uma ação, nada de aviso repetido
     window.dispatchEvent(new dom.window.CustomEvent("kami:action-registered"));
     await wait(50);
-    assert.equal(document.querySelectorAll(".toast-item").length, 1);
+    assert.equal(document.querySelectorAll(".ach-pop").length, 1);
 
     assert.equal(
       noticeText({ streak_current: 20, streak_protections: 0 }, ["a", "b"]),

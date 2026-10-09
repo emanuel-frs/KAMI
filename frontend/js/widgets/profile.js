@@ -10,6 +10,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { setXpBar } from "../components/xp-bar.js";
+import { rollNumber } from "../components/fx.js";
 import { flameOptions, flameSvg, protectionsSummary, protectionsText } from "../components/streak-flame.js";
 
 /**
@@ -99,10 +100,10 @@ export async function render(el, widget) {
           </div>
         </div>
         <div style="display:flex; gap:20px; margin-top:14px; flex-wrap:wrap;">
-          <div class="vm-row" data-tooltip="${escapeHtml(`${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}`)}"><span class="k">nível</span><span class="v">${player.level}</span></div>
-          <div class="vm-row"><span class="k">xp total</span><span class="v">${player.total_xp.toLocaleString("pt-BR")}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(`${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}`)}"><span class="k">nível</span><span class="v" data-roll="level">${player.level}</span></div>
+          <div class="vm-row"><span class="k">xp total</span><span class="v" data-roll="xp">${player.total_xp.toLocaleString("pt-BR")}</span></div>
           <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">sequência</span><span class="v">${streakLabel}</span></div>
-          <div class="vm-row"><span class="k">conquistas</span><span class="v">${player.achievements_unlocked}/${player.achievements_total}</span></div>
+          <div class="vm-row"><span class="k">conquistas</span><span class="v" data-roll="achievements">${player.achievements_unlocked}/${player.achievements_total}</span></div>
           <div class="vm-row" data-tooltip="${escapeHtml(classTip)}"><span class="k">classe</span><span class="v">${escapeHtml(player.player_class ?? "—")}</span></div>
         </div>
         <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
@@ -123,6 +124,18 @@ export async function render(el, widget) {
       </div>
     </div>
   `;
+
+  // GAM-15: nível, xp e conquistas contam do valor anterior até o novo
+  // quando o card é redesenhado depois de uma ação (components/fx.js)
+  rollNumber(el.querySelector('[data-roll="level"]'), player.level, { key: "profile-level" });
+  rollNumber(el.querySelector('[data-roll="xp"]'), player.total_xp, {
+    key: "profile-xp",
+    format: (n) => n.toLocaleString("pt-BR"),
+  });
+  rollNumber(el.querySelector('[data-roll="achievements"]'), player.achievements_unlocked, {
+    key: "profile-achievements",
+    format: (n) => `${n}/${player.achievements_total}`,
+  });
 
   const barFrom = lastBar == null ? null : lastBar.level === player.level ? lastBar.pct : 0;
   setXpBar(el.querySelector(".pw-xp-bar"), player.pct, { from: barFrom, cells: 20 });

@@ -8,7 +8,13 @@ test(
   "barra lateral mostra nível e barra de xp e atualiza depois de uma ação",
   withDom('<div id="sidebar-level" hidden></div>', async (dom, t) => {
     globalThis.CustomEvent = dom.window.CustomEvent;
-    t.after(() => delete globalThis.CustomEvent);
+    globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 16);
+    globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+    t.after(() => {
+      delete globalThis.CustomEvent;
+      delete globalThis.requestAnimationFrame;
+      delete globalThis.cancelAnimationFrame;
+    });
     const streak = {
       streak_current: 12, active_today: true, streak_protections: 1, streak_protections_max: 2,
       streak_protected_yesterday: false, streak_next_protection_in: 2,
@@ -40,7 +46,7 @@ test(
     };
     await post("/api/x", {});
     window.dispatchEvent(new dom.window.CustomEvent("kami:action-registered"));
-    await wait(200);
+    await wait(700); // o "nv" conta de 3 até 4 (números rolando, GAM-15)
     assert.equal(el.querySelector(".sl-level").textContent, "nv 4");
     assert.equal(el.querySelector(".sl-bar").textContent, "[#---------]");
     assert.equal(el.querySelector(".sl-protections").textContent, "◇◇");

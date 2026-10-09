@@ -1,5 +1,5 @@
 import { getPlayer, markStreakSavedSeen } from "../api/nucleo.js";
-import { showToast } from "./toast.js";
+import { showAchievementPopup } from "./achievement-popup.js";
 
 /**
  * Aviso "sequência salva" (GAM-06). A proteção de sequência é gasta no
@@ -16,7 +16,6 @@ import { showToast } from "./toast.js";
  */
 
 const shown = new Set();
-const TOAST_MS = 9000;
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -40,7 +39,14 @@ async function check() {
   const days = (player.streak_saved_days ?? []).filter((d) => !shown.has(d));
   if (days.length === 0) return;
   days.forEach((d) => shown.add(d));
-  showToast({ title: "sequência salva!", message: noticeText(player, days), iconName: "shield", duration: TOAST_MS });
+  // GAM-15: mesmo aviso "estilo Steam" das conquistas, tamanho menor
+  showAchievementPopup({
+    label: "sequência salva!",
+    title: noticeText(player, days),
+    iconName: "shield",
+    small: true,
+    kind: "sequencia",
+  });
   try {
     await markStreakSavedSeen(days);
   } catch {

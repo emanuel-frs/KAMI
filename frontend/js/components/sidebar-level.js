@@ -1,5 +1,6 @@
 import { getPlayer } from "../api/nucleo.js";
 import { setXpBar } from "./xp-bar.js";
+import { rollNumber } from "./fx.js";
 import { flameOptions, flameSvg, protectionsSummary, protectionsText } from "./streak-flame.js";
 
 /**
@@ -33,14 +34,14 @@ async function refresh() {
   const xp = el.querySelector(".sl-xp");
   xp.dataset.tooltip = `${player.current_level_xp}/${player.xp_for_next_level} xp · faltam ${missing} pro nível ${player.level + 1}`;
   xp.setAttribute("aria-label", `nível ${player.level}, ${player.pct}% do caminho pro nível ${player.level + 1}`);
-  el.querySelector(".sl-level").textContent = `nv ${player.level}`;
+  rollNumber(el.querySelector(".sl-level"), player.level, { key: "sidebar-level", format: (n) => `nv ${n}` });
   const from = last == null ? null : last.level === player.level ? last.pct : 0;
   setXpBar(el.querySelector(".sl-bar"), player.pct, { from });
   last = { level: player.level, pct: player.pct };
 
   const streak = el.querySelector(".sl-streak");
   el.querySelector(".sl-flame").innerHTML = flameSvg(player.streak_current, flameOptions(player));
-  streak.querySelector(".sl-days").textContent = `${player.streak_current}d`;
+  rollNumber(streak.querySelector(".sl-days"), player.streak_current, { key: "sidebar-days", format: (n) => `${n}d` });
   streak.querySelector(".sl-protections").textContent = protectionsText(
     player.streak_protections,
     player.streak_protections_max

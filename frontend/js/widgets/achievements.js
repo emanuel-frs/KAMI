@@ -15,7 +15,9 @@ const CATEGORIES = [
   { id: "metas", label: "metas", icon: "target" },
   { id: "organizacao", label: "organização", icon: "calendar-days" },
 ];
-const ICON_BY_CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.icon]));
+// exportado: o aviso de conquista (components/achievement-popup.js, via
+// progress-watcher) usa o mesmo ícone do card da galeria
+export const ICON_BY_CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.icon]));
 
 // degraus da mesma regra (GAM-01) — marca em texto, sem cor nova:
 // o visual continua em uma cor de destaque só

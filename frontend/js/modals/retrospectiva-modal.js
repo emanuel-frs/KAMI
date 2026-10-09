@@ -1,6 +1,8 @@
 import { getRetrospectiva, listRetrospectivas, markRetrospectivaVista } from "../api/nucleo.js";
 import { icon } from "../components/icons.js";
-import { xpBar } from "../components/xp-bar.js";
+import { escapeHtml } from "../components/format.js";
+import { fxAllows } from "../components/fx.js";
+import { showToast } from "../components/toast.js";
 
 /**
  * Retrospectiva mensal (GAM-12) — o mês que acabou em uma tela ASCII:
@@ -32,7 +34,7 @@ export function monthLabel(mes) {
 
 const fmt = (n) => Number(n).toLocaleString("pt-BR");
 
-/** "↑ 18% vs agosto" / "↓ 4" / "=" — comparação com o mês anterior. */
+/** "↑ 18%" / "↓ 4" / "=" / "novo" — comparação com o mês anterior. */
 function compare(current, previous, { pct = false } = {}) {
   if (!previous) return current ? "novo" : "";
   const diff = current - previous;
@@ -41,44 +43,85 @@ function compare(current, previous, { pct = false } = {}) {
   return pct ? `${arrow} ${Math.round((Math.abs(diff) / previous) * 100)}%` : `${arrow} ${Math.abs(diff)}`;
 }
 
-function row(label, value, note = "") {
+// classe de cor do pedaço da comparação (subiu = destaque, caiu = âmbar)
+const trendClass = (note) => (note.startsWith("↑") || note === "novo" ? "up" : note.startsWith("↓") ? "down" : "dim");
+
+/*
+ * O resumo é montado UMA vez como linhas de pedaços [texto, classe]: o
+ * .txt usa só o texto (retroText), a tela pinta cada pedaço com a classe
+ * (retroHtml, css/retrospectiva.css). Assim o arquivo e a tela nunca
+ * divergem. Classes (prefixo rt-, porque .r-meta já existe em
+ * carteira.css): frame, title, label, dots, value, up, down, dim,
+ * section, bar-on, bar-off, bullet, item, meta.
+ */
+function row(label, value, note = "", noteSuffix = "") {
   const dots = ".".repeat(Math.max(2, 20 - label.length));
-  return ` ${label} ${dots} ${String(value).padEnd(9)}${note}`.trimEnd();
+  const parts = [[" "], [label, "label"], [` ${dots} `, "dots"], [String(value).padEnd(9), "value"]];
+  if (note) parts.push([note, trendClass(note)]);
+  if (noteSuffix) parts.push([noteSuffix, "dim"]);
+  return parts;
 }
 
-export function retroText(r) {
+function bar(pct, cells = 20) {
+  const filled = Math.max(0, Math.min(cells, Math.round((pct / 100) * cells)));
+  return [["[", "dim"], ["#".repeat(filled), "bar-on"], ["-".repeat(cells - filled), "bar-off"], ["]", "dim"]];
+}
+
+export function retroLines(r) {
   const prev = r.anterior ?? {};
   const prevName = MONTHS[Number(prev.mes?.slice(5, 7)) - 1] ?? "mês anterior";
   const title = ` RETROSPECTIVA · ${monthLabel(r.mes).toUpperCase()}`;
+  const xpNote = compare(r.xp_total, prev.xp_total, { pct: true });
   const lines = [
-    `┌${"─".repeat(WIDTH)}┐`,
-    `│${title.padEnd(WIDTH)}│`,
-    `└${"─".repeat(WIDTH)}┘`,
-    "",
-    row("xp no mês", fmt(r.xp_total), `${compare(r.xp_total, prev.xp_total, { pct: true })} vs ${prevName}`.trim()),
+    // moldura em ASCII puro: a fonte do app não tem os caracteres de caixa
+    // (┌─┐) e o fallback do navegador tem outra largura — a caixa não fechava
+    [[`+${"-".repeat(WIDTH)}+`, "frame"]],
+    [["|", "frame"], [title.padEnd(WIDTH), "title"], ["|", "frame"]],
+    [[`+${"-".repeat(WIDTH)}+`, "frame"]],
+    [],
+    row("xp no mês", fmt(r.xp_total), xpNote, xpNote && xpNote !== "novo" ? ` vs ${prevName}` : ""),
     row("ações", fmt(r.acoes), compare(r.acoes, prev.acoes)),
     row("dias ativos", `${r.dias_ativos}/${r.dias_no_mes}`, compare(r.dias_ativos, prev.dias_ativos)),
     row("melhor sequência", `${r.melhor_sequencia} ${r.melhor_sequencia === 1 ? "dia" : "dias"}`),
     row("missões", fmt(r.missoes), compare(r.missoes, prev.missoes)),
-    "",
-    " XP POR ATRIBUTO",
+    [],
+    [[" XP POR ATRIBUTO", "section"]],
   ];
   const attrs = Object.entries(r.xp_por_atributo ?? {}).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...attrs.map(([, xp]) => xp));
   for (const [name, xp] of attrs) {
-    lines.push(` ${(ATTRIBUTE_LABELS[name] ?? name).padEnd(13)} ${xpBar((xp / max) * 100, 20)} ${fmt(xp).padStart(6)}`);
+    lines.push([[" "], [(ATTRIBUTE_LABELS[name] ?? name).padEnd(13), "label"], [" "], ...bar((xp / max) * 100), [` ${fmt(xp).padStart(6)}`, "value"]]);
   }
-  lines.push("", ` CONQUISTAS DO MÊS (${r.conquistas.length})`);
-  if (r.conquistas.length) r.conquistas.forEach((t) => lines.push(`  * ${t}`));
-  else lines.push("  nenhuma neste mês");
-  lines.push("", " AÇÃO DO MÊS");
+  lines.push([], [[` CONQUISTAS DO MÊS (${r.conquistas.length})`, "section"]]);
+  if (r.conquistas.length) r.conquistas.forEach((t) => lines.push([["  * ", "bullet"], [t, "item"]]));
+  else lines.push([["  nenhuma neste mês", "dim"]]);
+  lines.push([], [[" AÇÃO DO MÊS", "section"]]);
   if (r.acao_do_mes) {
     const [, m, d] = r.acao_do_mes.dia.split("-");
-    lines.push(`  ${r.acao_do_mes.descricao}`, `  +${r.acao_do_mes.xp} xp · ${d}/${m}`);
+    lines.push([["  "], [r.acao_do_mes.descricao, "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${d}/${m}`, "meta"]]);
   } else {
-    lines.push("  —");
+    lines.push([["  —", "dim"]]);
   }
-  return lines.join("\n");
+  return lines;
+}
+
+/** Texto puro (o mesmo da tela) — é o que vai pro .txt. */
+export function retroText(r) {
+  return retroLines(r)
+    .map((parts) => parts.map(([text]) => text).join("").trimEnd())
+    .join("\n");
+}
+
+/** A mesma coisa pintada: uma <span class="retro-line"> por linha, pedaços coloridos. */
+export function retroHtml(r) {
+  return retroLines(r)
+    .map((parts, i) => {
+      const inner = parts
+        .map(([text, cls]) => (cls ? `<span class="rt-${cls}">${escapeHtml(text)}</span>` : escapeHtml(text)))
+        .join("");
+      return `<span class="retro-line" style="--i:${i}">${inner || " "}</span>`;
+    })
+    .join(""); // cada linha já é um bloco (css/retrospectiva.css)
 }
 
 let modalEl = null;
@@ -120,12 +163,25 @@ function exportTxt() {
   const blob = new Blob([`${retroText(current)}\n`], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
+  const filename = `kami-retrospectiva-${current.mes}.txt`;
   a.href = url;
-  a.download = `kami-retrospectiva-${current.mes}.txt`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  // sem isto não dava pra saber se o arquivo tinha sido salvo (pedido no teste)
+  const btn = modalEl.querySelector('[data-action="export"]');
+  btn.innerHTML = `${icon("check", { size: 11 })} exportado`;
+  setTimeout(() => {
+    btn.innerHTML = `${icon("download", { size: 11 })} exportar .txt`;
+  }, 2500);
+  showToast({
+    title: "retrospectiva exportada",
+    message: `salva como ${filename} — confira sua pasta de downloads`,
+    iconName: "download",
+    duration: 6000,
+  });
 }
 
 async function show(i) {
@@ -143,7 +199,12 @@ async function show(i) {
     return;
   }
   title.textContent = `retrospectiva · ${monthLabel(current.mes)}`;
-  pre.textContent = retroText(current);
+  // GAM-15: com efeitos "completo", as linhas entram uma depois da outra
+  pre.classList.toggle("animated", fxAllows("completo"));
+  pre.innerHTML = retroHtml(current);
+  // garantia: se a animação não rodar (janela em segundo plano etc.), o
+  // texto não pode ficar invisível — mesmo cuidado do liga-CRT em fx.js
+  setTimeout(() => pre.classList.remove("animated"), 900);
   if (!months[index].vista) {
     months[index].vista = true;
     markRetrospectivaVista(current.mes).catch(() => {});

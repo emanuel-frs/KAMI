@@ -28,6 +28,13 @@ test("texto da retrospectiva: números, comparação, barras, conquistas e açã
   assert.match(text, /finanças\s+\[#{10}-{10}\]\s+260/);
   assert.match(text, /CONQUISTAS DO MÊS \(2\)\n  \* maratona\n  \* aquecendo/);
   assert.match(text, /concluiu marco: projeto final\n  \+20 xp · 12\/09/);
+  // a tela é o mesmo texto, pintado (o .txt não leva cor)
+  const { retroHtml } = await import("../../frontend/js/modals/retrospectiva-modal.js");
+  const html = retroHtml(SET);
+  assert.match(html, /<span class="rt-up">↑ 18%<\/span>/);
+  assert.match(html, /<span class="rt-down">↓ 4<\/span>/);
+  assert.match(html, /<span class="rt-bar-on">#{10}<\/span><span class="rt-bar-off">-{10}<\/span>/);
+  assert.doesNotMatch(text, /<span/);
   // a moldura fecha certinho
   const [top, mid, bottom] = text.split("\n");
   assert.equal(top.length, mid.length);
@@ -63,5 +70,17 @@ test(
     await wait(20);
     assert.match(modal.querySelector("#retro-title").textContent, /agosto de 2026/);
     assert.ok(!calls.includes("POST /api/nucleo/retrospectivas/2026-08/vista")); // já era vista
+    assert.ok(modal.querySelector(".retro-pre .rt-title"), "a tela é pintada (retroHtml)");
+
+    // exportar dá retorno visual: botão vira "exportado" e aparece um aviso
+    dom.window.URL.createObjectURL = () => "blob:x";
+    dom.window.URL.revokeObjectURL = () => {};
+    globalThis.URL.createObjectURL = () => "blob:x";
+    globalThis.URL.revokeObjectURL = () => {};
+    globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    modal.querySelector('[data-action="export"]').click();
+    assert.match(modal.querySelector('[data-action="export"]').textContent, /exportado/);
+    const toast = [...document.querySelectorAll(".toast-item")].map((e) => e.textContent).join(" ");
+    assert.match(toast, /kami-retrospectiva-2026-08\.txt/);
   })
 );

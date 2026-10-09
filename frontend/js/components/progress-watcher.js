@@ -1,4 +1,6 @@
 import { getAchievements, getAttributes, getLog, getMissoes, getPlayer } from "../api/nucleo.js";
+import { ICON_BY_CATEGORY } from "../widgets/achievements.js";
+import { showAchievementPopup } from "./achievement-popup.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
@@ -158,11 +160,12 @@ function diffAndCelebrate(before, after) {
   for (const [id, ach] of after.unlocked) {
     if (before.unlocked.has(id)) continue;
     changed = true;
-    showToast({
-      title: `conquista desbloqueada: ${ach.title}`,
-      message: ach.description ?? "",
-      iconName: "star",
-      duration: TOAST_MS + 2000,
+    // GAM-15: aviso "estilo Steam" (vira toast comum com efeitos desligados)
+    showAchievementPopup({
+      label: "conquista desbloqueada",
+      title: ach.title,
+      detail: ach.description ?? "",
+      iconName: ICON_BY_CATEGORY[ach.category] ?? "star",
       onClick: () => navigateTo("perfil"),
     });
   }
@@ -177,11 +180,13 @@ function diffAndCelebrate(before, after) {
   for (const [id, m] of after.missionsDone) {
     if (before.missionsDone.has(id)) continue;
     changed = true;
-    showToast({
-      title: "missão concluída",
-      message: `${m.titulo} · +${m.xp_bonus} xp`,
+    showAchievementPopup({
+      label: "missão concluída",
+      title: m.titulo,
+      detail: `+${m.xp_bonus} xp`,
       iconName: "target",
-      duration: TOAST_MS,
+      small: true,
+      kind: "missao",
       onClick: () => navigateTo("nucleo"),
     });
   }
