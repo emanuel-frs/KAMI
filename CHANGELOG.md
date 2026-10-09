@@ -4,6 +4,23 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.4] - 2026-10-09
+
+### Adicionado
+- 39 conquistas novas (50 no total) em todas as áreas: sequências de 3 a 365 dias, níveis de atributo, mês e trimestre no azul, contas em dia, trilha completa, maratona, promoção, meta épica, curador e outras
+- conquistas com área, nível (bronze/prata/ouro) e secretas — secreta bloqueada aparece como `???`
+- galeria de conquistas com filtro por uma ou mais áreas, desbloqueadas primeiro e bloqueadas ordenadas pelo progresso
+- tela "LEVEL UP" em ASCII ao subir de nível geral
+- opção de efeitos visuais em configurações > aparência: completo, sutil ou desligado
+- barra de xp no perfil e linha de nível na barra lateral, preenchendo bloco a bloco
+
+### Corrigido
+- tooltips não piscam mais quando o widget é redesenhado com o mouse em cima
+
+### Modificado
+- critérios de conquista viram um registro de funções no backend (um tipo novo de regra é só uma função)
+- README descreve a gamificação atual do núcleo
+
 ## [1.8.3] - 2026-10-08
 
 ### Adicionado
