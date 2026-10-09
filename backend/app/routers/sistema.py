@@ -42,6 +42,7 @@ _TABLES_DELETE_ORDER = [
     "action_log_attributes",
     "dias_protegidos",
     "missoes",
+    "retrospectivas",
     "action_logs",
     "career_salary_records",
     "career_educations",

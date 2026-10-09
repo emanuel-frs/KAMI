@@ -37,8 +37,8 @@ import { showLevelUp } from "./level-up.js";
  */
 
 // escritas que nunca mexem em xp — nem vale a pena tirar foto (o "visto"
-// do aviso de sequência salva, GAM-06, também não)
-const IGNORED_PREFIXES = ["/api/dashboard", "/api/perfil", "/api/nucleo/streak-saved"];
+// do aviso de sequência salva, GAM-06, e da retrospectiva, GAM-12, também não)
+const IGNORED_PREFIXES = ["/api/dashboard", "/api/perfil", "/api/nucleo/streak-saved", "/api/nucleo/retrospectivas"];
 // escritas que trocam o banco inteiro (import/reset de backup, revisão
 // de xp): a foto é atualizada em silêncio, sem comemorar nem lamentar
 // xp/conquistas que mudaram de uma vez só

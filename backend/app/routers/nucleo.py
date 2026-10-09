@@ -8,6 +8,9 @@ Endpoints:
   GET  /api/nucleo/achievements         galeria de conquistas (desbloqueadas + bloqueadas), com progresso
   GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias (+ proteções), conquistas
   GET  /api/nucleo/missoes              missões do dia e da semana, com progresso (GAM-07)
+  GET  /api/nucleo/retrospectivas       retrospectivas mensais guardadas (GAM-12); gera a do mês anterior
+  GET  /api/nucleo/retrospectivas/{mes} resumo de um mês
+  POST /api/nucleo/retrospectivas/{mes}/vista  marca como vista
   POST /api/nucleo/streak-saved/seen    marca como visto o aviso "sequência salva" (GAM-06)
   GET  /api/nucleo/xp-review            prévia da revisão de xp (simulação, não grava nada)
   POST /api/nucleo/xp-review            aplica a revisão de xp (guarda uma cópia do banco antes)
@@ -16,7 +19,7 @@ import datetime
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import backup_database, get_db, local_now, now_iso
@@ -27,6 +30,7 @@ from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 from app.bonus import atributo_atrasado
+from app.retrospectiva import garantir_retrospectiva
 
 router = APIRouter()
 
@@ -375,6 +379,33 @@ def get_missoes(db=Depends(get_db)):
     avaliar_missoes(db)
     db.commit()
     return listar_missoes(db)
+
+
+@router.get("/retrospectivas")
+def list_retrospectivas(db=Depends(get_db)):
+    """
+    GAM-12: retrospectivas guardadas, da mais nova pra mais antiga. Gera a
+    do mês anterior se ainda não existe (app/retrospectiva.py).
+    """
+    garantir_retrospectiva(db)
+    db.commit()
+    rows = db.execute("SELECT mes, vista_em FROM retrospectivas ORDER BY mes DESC").fetchall()
+    return [{"mes": r["mes"], "vista": r["vista_em"] is not None} for r in rows]
+
+
+@router.get("/retrospectivas/{mes}")
+def get_retrospectiva(mes: str, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM retrospectivas WHERE mes = ?", (mes,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="retrospectiva não encontrada")
+    return {**json.loads(row["dados_json"]), "vista": row["vista_em"] is not None}
+
+
+@router.post("/retrospectivas/{mes}/vista", status_code=204)
+def mark_retrospectiva_vista(mes: str, db=Depends(get_db)):
+    """Marca a retrospectiva como vista — ela não abre mais sozinha."""
+    db.execute("UPDATE retrospectivas SET vista_em = ? WHERE mes = ? AND vista_em IS NULL", (now_iso(), mes))
+    db.commit()
 
 
 class StreakSavedSeen(BaseModel):

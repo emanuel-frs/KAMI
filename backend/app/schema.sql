@@ -105,6 +105,15 @@ CREATE TABLE IF NOT EXISTS missoes (
     UNIQUE(periodo, referencia, posicao)
 );
 
+-- GAM-12: retrospectiva mensal — foto do mês que acabou, calculada uma vez
+-- no primeiro acesso do mês seguinte (app/retrospectiva.py).
+CREATE TABLE IF NOT EXISTS retrospectivas (
+    mes         TEXT PRIMARY KEY,   -- 'YYYY-MM' do mês resumido
+    dados_json  TEXT NOT NULL,      -- resumo (xp por atributo, ações, conquistas, comparação...)
+    created_at  TEXT NOT NULL,
+    vista_em    TEXT                -- quando foi aberta pela 1ª vez; NULL = ainda não vista
+);
+
 CREATE TABLE IF NOT EXISTS dias_protegidos (
     dia         TEXT PRIMARY KEY,   -- YYYY-MM-DD, dia local
     created_at  TEXT NOT NULL,

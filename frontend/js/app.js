@@ -25,6 +25,7 @@ import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
+import { startRetrospective } from "./modals/retrospectiva-modal.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
@@ -286,6 +287,9 @@ async function boot() {
     // components/backup-reminder.js pro critério (nunca fez export,
     // ou já faz tempo desde o último).
     maybeShowBackupReminder(profile);
+    // GAM-12: no 1º acesso do mês novo, a retrospectiva do mês que acabou
+    // abre sozinha (uma vez) — fora do onboarding, pra não empilhar telas
+    startRetrospective();
   }
 }
 

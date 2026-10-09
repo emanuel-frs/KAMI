@@ -1,0 +1,23 @@
+/* GAM-12: retrospectiva mensal (modals/retrospectiva-modal.js). O conteúdo
+   é um <pre> com o resumo em texto de terminal — o mesmo texto que o botão
+   exporta em .txt —, então o modal só precisa ser largo o bastante pras
+   ~60 colunas e rolar se a janela for pequena. */
+.retro-modal { width: min(560px, 94vw); }
+.retro-pre {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  white-space: pre;
+  overflow-x: auto;
+}
+.retro-pre:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+.retro-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+.retro-spacer { flex: 1; }

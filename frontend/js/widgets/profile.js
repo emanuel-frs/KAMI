@@ -5,6 +5,7 @@ import { fitAsciiText } from "../components/ascii.js";
 import { icon } from "../components/icons.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
+import { openRetrospectivaModal } from "../modals/retrospectiva-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
 import { listenWhileConnected } from "../components/window-listener.js";
@@ -93,6 +94,7 @@ export async function render(el, widget) {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
           <div style="display:flex; gap:6px;">
+            <button type="button" class="btn sm" data-action="retro" data-tooltip="o resumo de cada mês que passou">retrospectivas</button>
             <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar perfil</button>
           </div>
         </div>
@@ -146,6 +148,8 @@ export async function render(el, widget) {
   //    "editar perfil" abre o modal de Configurações direto na aba
   //    perfil, onde essa edição acontece. ──
   el.querySelector('[data-action="edit"]')?.addEventListener("click", () => openConfiguracoesModal("perfil"));
+  // GAM-12: reabre as retrospectivas mensais guardadas
+  el.querySelector('[data-action="retro"]')?.addEventListener("click", () => openRetrospectivaModal());
 
   // ── avatar tem atalho próprio: abre direto o modal de avatar (mesmo
   //    padrão do avatar da sidebar em app.js), sem passar por
