@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
     last_backup_at        TEXT,               -- NULL = nunca exportou um backup
     notif_alerts_enabled  INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "vencendo em breve" (calendário)
     notif_email_enabled   INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "e-mails"
+    efeitos_visuais       TEXT NOT NULL DEFAULT 'completo',  -- GAM-04: completo | sutil | desligado
     updated_at            TEXT NOT NULL
 );
 

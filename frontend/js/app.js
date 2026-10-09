@@ -22,6 +22,7 @@ import { startCalendarNotifications } from "./components/calendar-notifications.
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
+import { wireVisualEffects } from "./components/visual-effects.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
@@ -240,6 +241,7 @@ async function boot() {
   registerNavigator(showPage);
 
   store.subscribe("profile", applyProfileToSidebar);
+  wireVisualEffects();
 
   wireSkipLink();
   wireNav();

@@ -25,6 +25,7 @@ class ProfileOut(BaseModel):
     last_backup_at: Optional[str] = None
     notif_alerts_enabled: bool
     notif_email_enabled: bool
+    efeitos_visuais: str = "completo"
     updated_at: str
 
 
@@ -33,6 +34,11 @@ class ProfileUpdate(BaseModel):
     accent_color: Optional[str] = None
     notif_alerts_enabled: Optional[bool] = None
     notif_email_enabled: Optional[bool] = None
+    efeitos_visuais: Optional[str] = None
+
+
+# GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
+EFEITOS_VISUAIS = {"completo", "sutil", "desligado"}
 
 
 class AvatarUpdate(BaseModel):
@@ -71,10 +77,16 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
     notif_email_enabled = (
         int(payload.notif_email_enabled) if payload.notif_email_enabled is not None else row["notif_email_enabled"]
     )
+    efeitos_visuais = payload.efeitos_visuais if payload.efeitos_visuais is not None else row["efeitos_visuais"]
+    if efeitos_visuais not in EFEITOS_VISUAIS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"efeitos_visuais inválido; valores aceitos: {sorted(EFEITOS_VISUAIS)}",
+        )
     db.execute(
         "UPDATE user_profile SET display_name = ?, accent_color = ?, "
-        "notif_alerts_enabled = ?, notif_email_enabled = ?, updated_at = ? WHERE id = ?",
-        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, now_iso(), row["id"]),
+        "notif_alerts_enabled = ?, notif_email_enabled = ?, efeitos_visuais = ?, updated_at = ? WHERE id = ?",
+        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, efeitos_visuais, now_iso(), row["id"]),
     )
     db.commit()
     return dict(_get_profile_row(db))

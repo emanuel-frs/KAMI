@@ -521,6 +521,19 @@ def _migrate_achievements_meta(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_efeitos_visuais(conn: sqlite3.Connection) -> None:
+    """
+    GAM-04: preferência de efeitos visuais da gamificação — 'completo'
+    (tela de subida de nível + linhas de xp + avisos), 'sutil' (sem a tela
+    cheia) ou 'desligado' (só os avisos, sem animação). Bancos antigos
+    nascem em 'completo', o mesmo default do schema.sql.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "efeitos_visuais" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN efeitos_visuais TEXT NOT NULL DEFAULT 'completo'")
+    conn.commit()
+
+
 def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     """
     Converte timestamps legados (UTC sem offset, gravados pelo antigo
@@ -584,6 +597,7 @@ def init_db() -> None:
     _migrate_action_logs_referencia(conn)
     _migrate_achievements_chave(conn)
     _migrate_achievements_meta(conn)
+    _migrate_user_profile_efeitos_visuais(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 

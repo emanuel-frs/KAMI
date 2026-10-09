@@ -61,7 +61,13 @@ test(
     assert.match(line.textContent, /aprendizado/);
     const toasts = [...document.querySelectorAll(".toast-title")].map((el) => el.textContent);
     assert.ok(toasts.includes("aprendizado subiu pro nível 2"));
-    assert.ok(toasts.includes("nível 2 alcançado"));
+    // nível GERAL com efeitos "completo" (padrão): tela cheia, não toast
+    assert.ok(!toasts.includes("nível 2 alcançado"));
+    const overlay = document.querySelector(".level-up");
+    assert.ok(overlay, "tela de subida de nível deveria abrir");
+    assert.equal(overlay.getAttribute("role"), "dialog");
+    assert.match(overlay.textContent, /nível 1 → 2/);
+    overlay.dismiss();
     assert.ok(toasts.includes("conquista desbloqueada: trilha em dia"));
     assert.equal(refreshes.length, 1);
 
@@ -84,5 +90,16 @@ test(
     assert.equal(achievementToasts.length, 1);
     const lines = [...document.querySelectorAll(".xp-feed-item.neg")].map((el) => el.textContent);
     assert.ok(lines.some((t) => t.includes("conquista bloqueada") && t.includes("trilha em dia")));
+
+    // efeitos "sutil": subida do nível geral vira toast, sem tela cheia
+    const { store } = await import("../../frontend/js/state/store.js");
+    store.set("profile", { efeitos_visuais: "sutil" });
+    await wait(250);
+    state = snapshot({ xp: 110, level: 2, playerLevel: 2, unlocked: true });
+    await put("/api/aprendizado/milestones/m1", { status: "concluido" });
+    await wait(400);
+    assert.equal(document.querySelectorAll(".level-up").length, 0);
+    const toastsSutil = [...document.querySelectorAll(".toast-title")].map((el) => el.textContent);
+    assert.ok(toastsSutil.includes("nível 2 alcançado"));
   })
 );

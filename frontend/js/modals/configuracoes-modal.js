@@ -144,6 +144,13 @@ function buildTabsHtml() {
   ).join("");
 }
 
+// GAM-04 — ver components/visual-effects.js
+const EFFECT_OPTIONS = [
+  { value: "completo", label: "completo", desc: "tela de subida de nível, linhas de +xp e avisos" },
+  { value: "sutil", label: "sutil", desc: "linhas de +xp e avisos, sem a tela cheia" },
+  { value: "desligado", label: "desligado", desc: "só os avisos, sem nada animado" },
+];
+
 function buildAparenciaPanel() {
   return `
     <div class="cfg-panel on" data-panel="aparencia">
@@ -152,6 +159,18 @@ function buildAparenciaPanel() {
         <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app. mais opções de aparência chegam depois.</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
         <p class="settings-status" id="cfg-accent-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>efeitos visuais</h4>
+        <p class="settings-desc">como o kami comemora seu progresso. com o sistema em "reduzir movimento", nada se mexe em nenhuma opção.</p>
+        <div role="radiogroup" aria-label="efeitos visuais" id="cfg-effects">
+          ${EFFECT_OPTIONS.map((o) => `
+          <label class="cfg-toggle">
+            <input type="radio" name="cfg-effects" value="${o.value}">
+            <span>${o.label}<small>${o.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-effects-status"></p>
       </div>
     </div>`;
 }
@@ -365,6 +384,7 @@ function wireModal(wrap) {
   wirePerfilTab(wrap);
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
+  wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
   wireBackupTab(wrap);
 
   wrap.addEventListener("click", (e) => {
@@ -390,6 +410,27 @@ function renderAccentSwatches(wrap, currentColor) {
   container.querySelectorAll(".ki-swatch").forEach((btn) => {
     btn.addEventListener("click", () => selectAccentColor(wrap, btn));
   });
+}
+
+function renderEffectsOptions(wrap, current) {
+  wrap.querySelectorAll('input[name="cfg-effects"]').forEach((input) => {
+    input.checked = input.value === (current || "completo");
+  });
+}
+
+async function selectEffectsMode(wrap, value) {
+  const statusEl = wrap.querySelector("#cfg-effects-status");
+  statusEl.classList.remove("settings-status--visible");
+  try {
+    await updateProfile({ efeitos_visuais: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar efeitos visuais");
+    renderEffectsOptions(wrap, store.get("profile")?.efeitos_visuais);
+    return;
+  }
+  store.set("profile", { ...store.get("profile"), efeitos_visuais: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
 }
 
 async function selectAccentColor(wrap, btn) {
@@ -1221,6 +1262,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
   try {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
+    renderEffectsOptions(modalEl, profile.efeitos_visuais);
     renderPerfilTab(modalEl, profile);
     renderNotificacoesTab(modalEl, profile);
     // getProfile() aqui é a fonte mais fresca (pode ter mudado desde a

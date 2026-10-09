@@ -113,3 +113,17 @@ def test_update_onboarding_bumps_updated_at(client):
     resp = client.put("/api/perfil/onboarding", json={"completed": True})
     after = resp.json()["updated_at"]
     assert after >= before
+
+# ── GAM-04: efeitos visuais ──────────────────────────────────────────────
+
+def test_visual_effects_default_and_update(client):
+    assert client.get("/api/perfil").json()["efeitos_visuais"] == "completo"
+    resp = client.put("/api/perfil", json={"efeitos_visuais": "sutil"})
+    assert resp.status_code == 200
+    assert resp.json()["efeitos_visuais"] == "sutil"
+    # outros campos não mexem na preferência
+    assert client.put("/api/perfil", json={"display_name": "x"}).json()["efeitos_visuais"] == "sutil"
+
+
+def test_visual_effects_rejects_unknown_value(client):
+    assert client.put("/api/perfil", json={"efeitos_visuais": "exagerado"}).status_code == 422

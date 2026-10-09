@@ -2,6 +2,8 @@ import { getAchievements, getAttributes, getPlayer } from "../api/nucleo.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
+import { effectsMode } from "./visual-effects.js";
+import { showLevelUp } from "./level-up.js";
 
 /**
  * Feedback de progresso — iniciado uma vez em app.js (boot()), igual
@@ -18,7 +20,9 @@ import { escapeHtml } from "./format.js";
  * diferença vira feedback:
  *   - "+20 xp · aprendizado" subindo no canto da tela (ou "−20 xp",
  *     apagado, quando algo foi desfeito e o xp estornado)
- *   - toast quando um atributo ou o nível geral sobe
+ *   - toast quando um atributo sobe de nível; quando o nível GERAL sobe,
+ *     a tela cheia de components/level-up.js (efeitos "completo") ou um
+ *     toast (efeitos "sutil"/"desligado")
  *   - toast quando uma conquista é desbloqueada (clicar leva ao perfil)
  *   - linha apagada quando um estorno volta a bloquear uma conquista
  * e dispara `kami:action-registered` pros widgets do Núcleo/Perfil se
@@ -107,7 +111,13 @@ function diffAndCelebrate(before, after) {
     }
   }
 
-  if (after.player.level > before.player.level) {
+  if (after.player.level > before.player.level && effectsMode() === "completo") {
+    showLevelUp({
+      level: after.player.level,
+      previousLevel: before.player.level,
+      totalXp: after.player.total_xp,
+    });
+  } else if (after.player.level > before.player.level) {
     showToast({
       title: `nível ${after.player.level} alcançado`,
       message: `${after.player.total_xp.toLocaleString("pt-BR")} xp no total`,

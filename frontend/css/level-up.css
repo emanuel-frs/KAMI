@@ -1,0 +1,92 @@
+/*
+ * Tela de subida do nível geral (components/level-up.js, GAM-04).
+ * Linguagem de terminal: fundo preto quase opaco, arte ASCII na cor de
+ * destaque, scanlines de CRT por cima. Movimento (entrada com glitch e
+ * leve cintilação das scanlines) só com a classe .animated, que o JS só
+ * põe quando allowsMotion() — efeitos não desligados e sistema sem
+ * prefers-reduced-motion.
+ */
+
+.level-up {
+  position: fixed;
+  inset: 0;
+  z-index: 250; /* acima dos toasts (220), abaixo de tip-sequence (260) e kami-intro (300) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, #000 88%, transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  cursor: pointer;
+}
+.level-up.open { opacity: 1; }
+
+/* scanlines: linhas horizontais escuras finas sobre toda a tela */
+.level-up::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.35) 3px
+  );
+}
+
+.level-up-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 28px;
+  border: 1px solid var(--accent-dim);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+  max-width: calc(100vw - 32px);
+  cursor: default;
+}
+
+.level-up-art {
+  margin: 0;
+  font-family: var(--font);
+  font-size: clamp(5px, 1.15vw, 11px);
+  line-height: 1.05;
+  color: var(--accent);
+  white-space: pre;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.level-up-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-bright);
+  letter-spacing: 0.04em;
+}
+.level-up-sub {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.level-up-close { margin-top: 6px; }
+
+/* ── movimento (só com .animated) ─────────────────────────────────── */
+.level-up.animated.open .level-up-art {
+  animation: level-up-glitch 0.45s steps(2, end) 1;
+}
+.level-up.animated::after {
+  animation: level-up-flicker 0.12s steps(2, end) 3;
+}
+
+@keyframes level-up-glitch {
+  0%   { transform: translate(-3px, 0); clip-path: inset(10% 0 55% 0); opacity: 0.6; }
+  25%  { transform: translate(3px, 1px); clip-path: inset(50% 0 15% 0); }
+  50%  { transform: translate(-1px, -1px); clip-path: inset(0 0 70% 0); }
+  75%  { transform: translate(2px, 0); clip-path: inset(30% 0 30% 0); opacity: 0.9; }
+  100% { transform: none; clip-path: none; opacity: 1; }
+}
+@keyframes level-up-flicker {
+  50% { opacity: 0.55; }
+}

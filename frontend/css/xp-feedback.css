@@ -52,3 +52,7 @@
   0%, 85% { opacity: 1; }
   100%    { opacity: 0; }
 }
+
+/* GAM-04: efeitos visuais "desligado" (components/visual-effects.js põe
+   data-effects no <html>) — sem linhas de xp; ficam só os toasts */
+:root[data-effects="desligado"] .xp-feed { display: none; }
