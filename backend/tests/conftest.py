@@ -14,8 +14,24 @@ import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
-from app import database, crypto
+from app import database, crypto, missoes
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _missoes_desligadas(monkeypatch):
+    """
+    GAM-07: missões são sorteadas pela data — ligadas, qualquer teste que
+    confere o xp de uma ação passaria a depender do dia em que roda (o
+    bônus da missão "lance um gasto" somaria +10). Desligadas por padrão;
+    os testes de missões religam com a fixture `missoes_ligadas`.
+    """
+    monkeypatch.setattr(missoes, "GERACAO_ATIVA", False)
+
+
+@pytest.fixture()
+def missoes_ligadas(monkeypatch):
+    monkeypatch.setattr(missoes, "GERACAO_ATIVA", True)
 
 
 @pytest.fixture()

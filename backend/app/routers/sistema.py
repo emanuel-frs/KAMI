@@ -41,6 +41,7 @@ _TABLES_DELETE_ORDER = [
     "screen_tips_seen",
     "action_log_attributes",
     "dias_protegidos",
+    "missoes",
     "action_logs",
     "career_salary_records",
     "career_educations",

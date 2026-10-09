@@ -554,6 +554,28 @@ def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_missoes_widget(conn: sqlite3.Connection, had_missoes: bool) -> None:
+    """
+    GAM-07: põe o widget "missões" no topo do Núcleo de quem já tinha um
+    layout — só uma vez, na primeira inicialização com a tabela missoes
+    (`had_missoes` = a tabela já existia ANTES do schema.sql rodar). Quem
+    remover o widget depois não o vê voltar. Instalação nova (layout ainda
+    vazio) recebe o widget pelo DEFAULT_LAYOUTS de _seed_defaults.
+    """
+    if had_missoes:
+        return
+    has_layout = conn.execute("SELECT 1 FROM dashboard_widgets WHERE screen = 'nucleo' LIMIT 1").fetchone()
+    has_widget = conn.execute("SELECT 1 FROM dashboard_widgets WHERE widget_type = 'missoes' LIMIT 1").fetchone()
+    if has_layout and not has_widget:
+        conn.execute("UPDATE dashboard_widgets SET position = position + 1 WHERE screen = 'nucleo'")
+        conn.execute(
+            "INSERT INTO dashboard_widgets (id, screen, widget_type, position, width, height, config_json) "
+            "VALUES (?, 'nucleo', 'missoes', 0, 6, NULL, NULL)",
+            (new_id(),),
+        )
+    conn.commit()
+
+
 def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     """
     Converte timestamps legados (UTC sem offset, gravados pelo antigo
@@ -595,6 +617,11 @@ def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
+    # GAM-07: a tabela missoes já existia? (decide se o widget novo entra
+    # no layout de quem já usava o app — ver _migrate_missoes_widget)
+    had_missoes = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'missoes'"
+    ).fetchone() is not None
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
@@ -619,6 +646,7 @@ def init_db() -> None:
     _migrate_achievements_meta(conn)
     _migrate_user_profile_efeitos_visuais(conn)
     _migrate_user_profile_sequencia_protecao(conn)
+    _migrate_missoes_widget(conn, had_missoes)
     migrate_timestamps_to_local(conn)
     conn.commit()
 
@@ -696,6 +724,7 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
     # pra altura automática por conteúdo (ver grid.js), igual antes.
     DEFAULT_LAYOUTS = {
         "nucleo": [
+            ("missoes", 6, None),  # GAM-07 — topo do Núcleo, altura por conteúdo
             ("achievements", 3, 396),
             ("registrar", 3, 228),
             ("attributes", 2, 308),

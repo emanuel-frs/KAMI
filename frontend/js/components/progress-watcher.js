@@ -1,4 +1,4 @@
-import { getAchievements, getAttributes, getPlayer } from "../api/nucleo.js";
+import { getAchievements, getAttributes, getMissoes, getPlayer } from "../api/nucleo.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
@@ -25,6 +25,8 @@ import { showLevelUp } from "./level-up.js";
  *     toast (efeitos "sutil"/"desligado")
  *   - toast quando uma conquista é desbloqueada (clicar leva ao perfil)
  *   - linha apagada quando um estorno volta a bloquear uma conquista
+ *   - toast quando uma missão é concluída (GAM-07) e linha apagada quando
+ *     um estorno a devolve pra pendente
  * e dispara `kami:action-registered` pros widgets do Núcleo/Perfil se
  * atualizarem — antes só o formulário do Núcleo e o modal de transação
  * disparavam esse evento, e o xp ganho nos outros módulos só aparecia
@@ -56,15 +58,18 @@ function isAutomatic(path) {
 }
 
 async function takeSnapshot() {
-  const [player, attributes, achievements] = await Promise.all([
+  const [player, attributes, achievements, missoes] = await Promise.all([
     getPlayer(),
     getAttributes(),
     getAchievements(),
+    getMissoes(),
   ]);
+  const allMissions = [...(missoes?.diarias ?? []), ...(missoes?.semanal ? [missoes.semanal] : [])];
   return {
     player,
     attrs: new Map(attributes.map((a) => [a.name, a])),
     unlocked: new Map(achievements.filter((a) => a.unlocked).map((a) => [a.id, a])),
+    missionsDone: new Map(allMissions.filter((m) => m.concluida).map((m) => [m.id, m])),
   };
 }
 
@@ -143,6 +148,25 @@ function diffAndCelebrate(before, after) {
     if (after.unlocked.has(id)) continue;
     changed = true;
     showFeedLine("conquista bloqueada", ach.title, true);
+  }
+
+  // GAM-07: o bônus já entrou no "+xp" do atributo acima; o toast diz de onde veio
+  for (const [id, m] of after.missionsDone) {
+    if (before.missionsDone.has(id)) continue;
+    changed = true;
+    showToast({
+      title: "missão concluída",
+      message: `${m.titulo} · +${m.xp_bonus} xp`,
+      iconName: "target",
+      duration: TOAST_MS,
+      onClick: () => navigateTo("nucleo"),
+    });
+  }
+
+  for (const [id, m] of before.missionsDone) {
+    if (after.missionsDone.has(id)) continue;
+    changed = true;
+    showFeedLine("missão desfeita", m.titulo, true);
   }
 
   return changed;

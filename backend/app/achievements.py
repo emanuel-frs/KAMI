@@ -313,11 +313,21 @@ def criterion(type_name):
     return register
 
 
+# logs de bônus (GAM-07: missão concluída) creditam xp, mas não são ações:
+# ficam fora das contagens de conquista (count_by_attribute, count_total,
+# action_hour). O GAM-08 acrescenta o tipo do bônus dele aqui.
+REFS_BONUS = ("missao",)
+_NOT_BONUS = "(referencia_tipo IS NULL OR referencia_tipo NOT IN ({}))".format(
+    ", ".join(f"'{r}'" for r in REFS_BONUS)
+)
+
+
 def _count_by_attribute(conn, attribute_name: str) -> int:
     row = conn.execute(
         "SELECT COUNT(*) AS c FROM action_log_attributes ala "
         "JOIN attributes a ON a.id = ala.attribute_id "
-        "WHERE a.name = ?",
+        "JOIN action_logs l ON l.id = ala.action_log_id "
+        f"WHERE a.name = ? AND {_NOT_BONUS.replace('referencia_tipo', 'l.referencia_tipo')}",
         (attribute_name,),
     ).fetchone()
     return row["c"]
@@ -393,7 +403,7 @@ def _crit_count_by_attribute(conn, c):
 
 @criterion("count_total")
 def _crit_count_total(conn, c):
-    return conn.execute("SELECT COUNT(*) AS c FROM action_logs").fetchone()["c"], c["count"]
+    return conn.execute(f"SELECT COUNT(*) AS c FROM action_logs WHERE {_NOT_BONUS}").fetchone()["c"], c["count"]
 
 
 @criterion("streak_days")
@@ -439,7 +449,8 @@ def _crit_action_hour(conn, c):
     hours = list(range(start, end + 1)) if start <= end else [*range(start, 24), *range(0, end + 1)]
     placeholders = ", ".join("?" for _ in hours)
     row = conn.execute(
-        f"SELECT COUNT(*) AS c FROM action_logs WHERE CAST(substr(created_at, 12, 2) AS INTEGER) IN ({placeholders})",
+        f"SELECT COUNT(*) AS c FROM action_logs WHERE {_NOT_BONUS} "
+        f"AND CAST(substr(created_at, 12, 2) AS INTEGER) IN ({placeholders})",
         hours,
     ).fetchone()
     return row["c"], c.get("count", 1)

@@ -1,0 +1,59 @@
+/* ── missões do dia e da semana (widgets/missoes.js, GAM-07) ──
+   Lista em texto de terminal: "[x]"/"[ ]", título, barra "[###--]" na
+   semanal e a recompensa à direita. Cada missão pendente é um botão que
+   leva à tela onde ela se cumpre — por isso o reset de botão abaixo. */
+.missoes {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+.ms-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 3px 4px;
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: lowercase;
+}
+.ms-head--week {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+/* flex-wrap: em card estreito o bloco .ms-meta (barra + recompensa) desce
+   pra uma segunda linha, alinhado à direita — sem isso o título era
+   espremido até sobrar uma letra por linha (o meta não quebra) */
+.ms-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 6px 3px;
+  border: 0;
+  border-bottom: 1px dashed var(--border-soft);
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  text-align: left;
+}
+.ms-item:last-child { border-bottom: none; }
+button.ms-item { cursor: pointer; }
+button.ms-item:hover .ms-title { color: var(--text-bright); }
+button.ms-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.ms-check { color: var(--accent); white-space: nowrap; }
+.ms-title { flex: 1 1 14ch; min-width: 0; overflow-wrap: break-word; }
+.ms-meta {
+  display: flex;
+  flex-wrap: wrap; /* card estreitíssimo: barra e recompensa quebram entre si, nunca no meio */
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-left: auto;
+}
+.ms-bar { color: var(--accent); letter-spacing: -0.5px; white-space: nowrap; }
+.ms-count { color: var(--text-faint); white-space: nowrap; }
+.ms-reward { color: var(--text-faint); font-size: 10px; white-space: nowrap; }
+.ms-item.done .ms-title { color: var(--text-faint); text-decoration: line-through; }
+.ms-item.done .ms-reward { color: var(--accent); }

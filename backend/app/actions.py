@@ -21,6 +21,7 @@ from fastapi import HTTPException
 from app.database import new_id, now_iso
 from app.xp import level_from_xp
 from app.achievements import check_achievements, relock_unmet_achievements
+from app.missoes import REF_MISSAO, avaliar_missoes, garantir_missoes
 
 
 def _set_attribute_xp(db, row, new_xp: int) -> None:
@@ -56,6 +57,12 @@ def register_action(
     Categorias repetidas contam uma vez só.
     """
     categories = list(dict.fromkeys(categories))
+    # GAM-07: as missões do dia nascem ANTES do log desta ação — senão a
+    # ação que gerou as missões já chegava concluindo uma delas. O próprio
+    # bônus de missão (referencia 'missao') não mexe em missões.
+    is_bonus = referencia_tipo == REF_MISSAO
+    if not is_bonus:
+        garantir_missoes(db)
     attr_rows = {}
     for cat in categories:
         row = db.execute("SELECT * FROM attributes WHERE name = ?", (cat,)).fetchone()
@@ -81,6 +88,9 @@ def register_action(
 
     db.commit()
     newly_unlocked = check_achievements(db)
+    if not is_bonus:
+        avaliar_missoes(db)  # conclui a missão que esta ação cumpriu (credita o bônus)
+        db.commit()
 
     return {
         "id": log_id,
@@ -126,6 +136,10 @@ def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id
         for row in attrs:
             _set_attribute_xp(db, row, row["current_xp"] - log["xp_gained"])
         db.execute("DELETE FROM action_logs WHERE id = ?", (log["id"],))
+    if logs and REF_MISSAO not in tipos:
+        # GAM-07: a missão que esta ação tinha concluído volta a pendente
+        # (e o bônus dela é estornado, pelo próprio revert_actions)
+        avaliar_missoes(db)
     if logs:
         relock_unmet_achievements(db)
         db.commit()

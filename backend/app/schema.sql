@@ -84,6 +84,27 @@ CREATE TABLE IF NOT EXISTS action_log_attributes (
 -- sequência, contam como dia com ação. Gravados preguiçosamente no cálculo
 -- da sequência (app/sequencia.py), nunca apagados por ele — dia protegido
 -- vira fato mesmo que um estorno mude depois a conta das proteções.
+-- GAM-07: missões diárias (até 3 por dia local) e semanais (1 por semana,
+-- referencia = segunda-feira). Geradas preguiçosamente e avaliadas a partir
+-- dos action_logs (app/missoes.py). O bônus de uma missão concluída é um
+-- action_log com referencia_tipo 'missao' + referencia_id = missoes.id.
+CREATE TABLE IF NOT EXISTS missoes (
+    id            TEXT PRIMARY KEY,
+    periodo       TEXT NOT NULL,      -- 'dia' | 'semana'
+    referencia    TEXT NOT NULL,      -- YYYY-MM-DD do dia, ou da segunda-feira da semana
+    posicao       INTEGER NOT NULL,   -- 0..2 nas diárias, 0 na semanal
+    tipo          TEXT NOT NULL,      -- lancamento | conta_fixa | renda | meta | marco | marco_esquecido | link
+                                      -- (semanais: dias_ativos | lancamentos | marcos | atributos)
+    alvo_id       TEXT,               -- entidade da missão (conta fixa, entrada de renda, meta, trilha, marco)
+    titulo        TEXT NOT NULL,      -- congelado na geração (ex: pague a conta fixa "luz")
+    atributo      TEXT NOT NULL,      -- atributo que recebe o bônus
+    quantidade    INTEGER NOT NULL DEFAULT 1,  -- alvo (semanais: 5 dias, 10 lançamentos...)
+    xp_bonus      INTEGER NOT NULL,
+    concluida_em  TEXT,               -- NULL = pendente
+    created_at    TEXT NOT NULL,
+    UNIQUE(periodo, referencia, posicao)
+);
+
 CREATE TABLE IF NOT EXISTS dias_protegidos (
     dia         TEXT PRIMARY KEY,   -- YYYY-MM-DD, dia local
     created_at  TEXT NOT NULL,

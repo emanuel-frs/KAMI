@@ -7,6 +7,7 @@ Endpoints:
   GET  /api/nucleo/log                  log cronológico, filtrável por atributo/período
   GET  /api/nucleo/achievements         galeria de conquistas (desbloqueadas + bloqueadas), com progresso
   GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias (+ proteções), conquistas
+  GET  /api/nucleo/missoes              missões do dia e da semana, com progresso (GAM-07)
   POST /api/nucleo/streak-saved/seen    marca como visto o aviso "sequência salva" (GAM-06)
   GET  /api/nucleo/xp-review            prévia da revisão de xp (simulação, não grava nada)
   POST /api/nucleo/xp-review            aplica a revisão de xp (guarda uma cópia do banco antes)
@@ -24,6 +25,7 @@ from app.actions import register_action as register_action_core
 from app.achievements import achievement_progress, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
+from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 
 router = APIRouter()
 
@@ -284,6 +286,20 @@ def get_player(db=Depends(get_db)):
         "achievements_unlocked": ach["unlocked"],
         "achievements_total": ach["total"],
     }
+
+
+@router.get("/missoes")
+def get_missoes(db=Depends(get_db)):
+    """
+    GAM-07: missões do dia e da semana atuais, com progresso. Gera as que
+    ainda não existem e sincroniza a conclusão com os logs (app/missoes.py)
+    — preguiçoso, na leitura, como a proteção de sequência.
+    """
+    garantir_missoes(db)
+    db.commit()
+    avaliar_missoes(db)
+    db.commit()
+    return listar_missoes(db)
 
 
 class StreakSavedSeen(BaseModel):
