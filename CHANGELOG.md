@@ -4,9 +4,22 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [1.8.5] - em desenvolvimento
+## [1.8.5] - 2026-10-09
 
-_Sprint 2 da gamificação (GAM-06 a GAM-09: proteção de sequência, missões, bônus de xp, atributo esquecido). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+### Adicionado
+- proteção de sequência: a cada 7 dias com ação a sequência ganha uma proteção (até 2), que segura sozinha um dia em branco; conquistas de sequência aceitam dias protegidos
+- chama em pixel art no perfil e na barra lateral, crescendo com a sequência, com as proteções guardadas ao lado; fica "blindada" quando uma proteção segurou o dia anterior
+- aviso "sequência salva!" uma vez por dia protegido
+- missões: até 3 por dia e 1 por semana, sorteadas só entre as que dá para cumprir agora, concluídas sozinhas quando a ação acontece (+10/+40 xp) e devolvidas a pendente se a ação for desfeita
+- widget "missões" no topo do núcleo e aviso "missão concluída"
+- bônus de xp: +5 na primeira ação do dia, multiplicador de sequência (até 1,5×) e 2× no atributo mais atrasado, cada um com teto de +20 e numa linha própria no log e na tela
+- prioridades mostram qual atributo rende 2×
+- radar apaga o atributo sem atividade há 14 dias, sem perder xp
+
+### Modificado
+- ação manual do núcleo não conclui missão nem ganha bônus
+- bônus e missões não contam como ação nas conquistas de contagem
+- README descreve a parte de hábito da gamificação
 
 ## [1.8.4] - 2026-10-09
 
