@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.5] - em desenvolvimento
+
+_Sprint 2 da gamificação (GAM-06 a GAM-09: proteção de sequência, missões, bônus de xp, atributo esquecido). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.8.4] - 2026-10-09
 
 ### Adicionado
