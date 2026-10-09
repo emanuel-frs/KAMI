@@ -6,6 +6,21 @@ import { listenWhileConnected } from "../components/window-listener.js";
 
 const BAR_CELLS = 10;
 
+// área -> rótulo do filtro + ícone (assets/icons/) do card
+const CATEGORIES = [
+  { id: "nucleo", label: "núcleo", icon: "zap" },
+  { id: "financas", label: "finanças", icon: "credit-card" },
+  { id: "aprendizado", label: "aprendizado", icon: "star" },
+  { id: "carreira", label: "carreira", icon: "trending-up" },
+  { id: "metas", label: "metas", icon: "target" },
+  { id: "organizacao", label: "organização", icon: "calendar-days" },
+];
+const ICON_BY_CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.icon]));
+
+// degraus da mesma regra (GAM-01) — marca em texto, sem cor nova:
+// o visual continua em uma cor de destaque só
+const TIER_MARK = { bronze: "I", prata: "II", ouro: "III" };
+
 /** "[####------]" — progresso em blocos de texto, mesmo estilo de terminal do resto do app. */
 function asciiBar(current, target) {
   const filled = target > 0 ? Math.round((current / target) * BAR_CELLS) : 0;
@@ -23,51 +38,99 @@ function lockedStatus(a) {
 }
 
 /**
+ * Ordem da galeria: desbloqueadas primeiro (mais recente no topo), depois
+ * bloqueadas pela fração de progresso (mais perto de destravar primeiro),
+ * e por fim pelo título — assim o que dá pra conquistar logo fica à vista.
+ */
+export function sortAchievements(list) {
+  const frac = (a) => (a.progress_target ? a.progress_current / a.progress_target : 0);
+  return [...list].sort((a, b) => {
+    if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+    if (a.unlocked) return (b.unlocked_at ?? "").localeCompare(a.unlocked_at ?? "");
+    return frac(b) - frac(a) || a.title.localeCompare(b.title);
+  });
+}
+
+function filterButtons(achievements, active) {
+  const count = (list) => `${list.filter((a) => a.unlocked).length}/${list.length}`;
+  const buttons = [{ id: "all", label: "todas", list: achievements }].concat(
+    CATEGORIES.map((c) => ({ ...c, list: achievements.filter((a) => a.category === c.id) }))
+  );
+  return buttons
+    .filter((b) => b.list.length)
+    .map(
+      (b) => `<button type="button" class="ach-filter${b.id === active ? " on" : ""}" data-category="${b.id}" aria-pressed="${b.id === active}">${b.label} <span class="ach-filter-count">${count(b.list)}</span></button>`
+    )
+    .join("");
+}
+
+function card(a) {
+  const tier = a.tier && TIER_MARK[a.tier]
+    ? `<span class="ach-tier" data-tooltip="${a.tier}" aria-label="nível ${a.tier}">${TIER_MARK[a.tier]}</span>`
+    : "";
+  return `
+    <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}">
+      <div class="ach-icon-wrap">
+        <span class="ach-icon">${icon(ICON_BY_CATEGORY[a.category] ?? "star", { size: 24 })}</span>
+        ${!a.unlocked ? '<span class="ach-lock">[x]</span>' : ""}
+        ${tier}
+      </div>
+      <div class="a-title">${escapeHtml(a.title)}</div>
+      <div class="a-desc">${escapeHtml(a.description ?? "")}</div>
+      ${a.unlocked ? `<div class="a-date">desbloqueada ${fmtRelDate(a.unlocked_at)}</div>` : lockedStatus(a)}
+    </div>`;
+}
+
+/**
  * Galeria estilo steam — reaproveitada em perfil e núcleo, mesma fonte de dados.
- * Bloqueadas mostram quanto falta (progress_current/progress_target, ver
- * GET /api/nucleo/achievements); a galeria se atualiza sozinha quando o
- * progress-watcher avisa que algo mudou.
+ * Filtro por área (GAM-03), ícone por área, marca de nível (I/II/III) e
+ * secretas mascaradas pelo próprio backend ("???"). Bloqueadas mostram
+ * quanto falta; a galeria se atualiza sozinha quando o progress-watcher
+ * avisa que algo mudou (o filtro escolhido é mantido).
  */
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando conquistas…</div>';
+  let activeCategory = "all";
+  let achievements = [];
+
+  function draw() {
+    const visible = activeCategory === "all"
+      ? achievements
+      : achievements.filter((a) => a.category === activeCategory);
+    el.innerHTML = `
+      <div class="ach-filters" role="group" aria-label="filtrar conquistas por área">
+        ${filterButtons(achievements, activeCategory)}
+      </div>
+      <div class="ach-grid">
+        ${sortAchievements(visible).map(card).join("")}
+      </div>
+    `;
+  }
 
   async function load() {
-    let achievements;
     try {
       achievements = await getAchievements();
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar conquistas: ${err.message}</div>`;
       return;
     }
-
     if (!achievements.length) {
       el.innerHTML = '<div class="empty-state">nenhuma conquista cadastrada ainda.</div>';
       return;
     }
-
-    el.innerHTML = `
-      <div class="ach-grid">
-        ${achievements
-          .map(
-            (a) => `
-          <div class="ach${a.unlocked ? " unlocked" : ""}">
-            <div class="ach-icon-wrap">
-              <span class="ach-icon">${icon("star", { size: 24, fill: true })}</span>
-              ${!a.unlocked ? '<span class="ach-lock">[x]</span>' : ""}
-            </div>
-            <div class="a-title">${escapeHtml(a.title)}</div>
-            <div class="a-desc">${escapeHtml(a.description ?? "")}</div>
-            ${
-              a.unlocked
-                ? `<div class="a-date">desbloqueada ${fmtRelDate(a.unlocked_at)}</div>`
-                : lockedStatus(a)
-            }
-          </div>`
-          )
-          .join("")}
-      </div>
-    `;
+    if (activeCategory !== "all" && !achievements.some((a) => a.category === activeCategory)) {
+      activeCategory = "all";
+    }
+    draw();
   }
+
+  el.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ach-filter");
+    if (!btn) return;
+    activeCategory = btn.dataset.category;
+    draw();
+    el.querySelector(`.ach-filter[data-category="${activeCategory}"]`)?.focus();
+  });
 
   await load();
   listenWhileConnected(el, "kami:action-registered", load);

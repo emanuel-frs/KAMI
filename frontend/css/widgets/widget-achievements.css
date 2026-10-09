@@ -99,3 +99,45 @@
   letter-spacing: -0.5px;
   white-space: nowrap;
 }
+
+/* filtro por área (GAM-03) — mesma linguagem das abas de organização
+   (.tab em widget-organizacao.css), só que menor e com contagem
+   "desbloqueadas/total" em cada botão */
+.ach-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.ach-filter {
+  font-family: var(--font);
+  font-size: 9.5px;
+  padding: 3px 8px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  cursor: pointer;
+}
+.ach-filter:hover { color: var(--text-dim); border-color: var(--border-interactive); }
+.ach-filter:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.ach-filter.on {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-alt);
+}
+.ach-filter-count { color: var(--text-faint); }
+.ach-filter.on .ach-filter-count { color: var(--accent-dim); }
+
+/* marca de nível (I/II/III) no canto do ícone */
+.ach-tier {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+}
+.ach.unlocked .ach-tier { color: var(--accent); }
+
+/* secreta bloqueada: título "???" (vem mascarado do backend) mais apagado */
+.ach.secret .a-title { letter-spacing: 2px; }
