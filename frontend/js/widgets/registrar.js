@@ -27,7 +27,7 @@ export async function render(el, widget) {
       </div>
       <div class="field">
         <label for="reg-xp">xp</label>
-        <input type="number" class="reg-xp" id="reg-xp" value="10" min="1">
+        <input type="number" class="reg-xp" id="reg-xp" value="10" min="1" max="50">
       </div>
       <div class="field">
         <label for="reg-impact">impacto (1-5)</label>
@@ -58,7 +58,7 @@ export async function render(el, widget) {
       await registerAction({
         description,
         categories: [catEl.value],
-        xp: parseInt(xpEl.value, 10) || 10,
+        xp: Math.min(50, parseInt(xpEl.value, 10) || 10),
         impact: parseInt(impactEl.value, 10) || 3,
       });
     } catch (err) {
@@ -72,7 +72,8 @@ export async function render(el, widget) {
     msgEl.style.display = "block";
     setTimeout(() => (msgEl.style.display = "none"), 1800);
 
-    // outros widgets abertos (attributes/log/priorities) escutam isso pra recarregar
-    window.dispatchEvent(new CustomEvent("kami:action-registered"));
+    // o refresh dos outros widgets (attributes/log/priorities) e o
+    // feedback de xp/conquista vêm de components/progress-watcher.js,
+    // que dispara 'kami:action-registered' depois de qualquer escrita
   });
 }

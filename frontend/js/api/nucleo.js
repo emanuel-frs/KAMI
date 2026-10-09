@@ -7,3 +7,8 @@ export const getLog = (params = {}) => {
   return get(`/api/nucleo/log${qs ? `?${qs}` : ""}`);
 };
 export const getAchievements = () => get("/api/nucleo/achievements");
+export const getPlayer = () => get("/api/nucleo/player");
+// revisão do xp antigo (app/revisao_xp.py): GET só simula, POST aplica
+// (e guarda uma cópia do banco antes)
+export const previewXpReview = () => get("/api/nucleo/xp-review");
+export const applyXpReview = () => post("/api/nucleo/xp-review", {});

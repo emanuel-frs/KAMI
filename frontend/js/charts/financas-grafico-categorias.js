@@ -1,6 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -62,5 +63,5 @@ export async function render(el, widget) {
   }
 
   await reload();
-  window.addEventListener("kami:wallet-changed", reload);
+  listenWhileConnected(el, "kami:wallet-changed", reload);
 }

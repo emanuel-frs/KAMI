@@ -2,14 +2,14 @@ import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, localDateKey } from "../components/format.js";
 
 /**
  * Modal "novo lançamento" — entrada/saída/transferência. Recebe as
  * contas já achatadas (com bankNome) por quem chamar. Dispara
- * 'kami:wallet-changed' (wallet.js e financas-resumo.js escutam) e
- * 'kami:action-registered' (todo lançamento credita XP em financas —
- * mesmo evento que attributes.js já escuta no núcleo).
+ * 'kami:wallet-changed' (wallet.js e financas-resumo.js escutam). O xp
+ * que todo lançamento credita em financas é percebido por
+ * components/progress-watcher.js, que dispara 'kami:action-registered'.
  */
 
 let modalEl = null;
@@ -142,7 +142,8 @@ async function submitTransaction(wrap) {
   }
   closeTransacaoModal();
   window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
-  window.dispatchEvent(new CustomEvent("kami:action-registered"));
+  // o xp do lançamento (e o refresh dos widgets do Núcleo) fica com
+  // components/progress-watcher.js, que reage a qualquer escrita
   await onSavedCb?.();
 }
 
@@ -169,7 +170,7 @@ export function openTransacaoModal({ accounts, onSaved } = {}) {
   refreshCustomSelect(modalEl.querySelector("#tm-type"));
   modalEl.querySelector("#tm-desc").value = "";
   modalEl.querySelector("#tm-amount").value = "";
-  modalEl.querySelector("#tm-date").value = new Date().toISOString().slice(0, 10);
+  modalEl.querySelector("#tm-date").value = localDateKey();
   modalEl.querySelector("#tm-category").value = "";
   modalEl.querySelector("#tm-destino-tipo").value = "interna";
   refreshCustomSelect(modalEl.querySelector("#tm-destino-tipo"));

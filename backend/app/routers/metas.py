@@ -64,7 +64,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
-from app.actions import register_action
+from app.actions import has_action, register_action, revert_actions
 from app.finance_utils import create_saida_transaction
 
 router = APIRouter()
@@ -75,8 +75,14 @@ GOAL_TYPES = {"financeira", "livre", "saude", "leitura", "habito", "aprendizado"
 GOAL_STATUSES = {"ativa", "concluida"}
 CONTRIBUTION_ORIGINS = {"conta", "externo"}
 
-XP_PER_CONTRIBUTION = 3      # XP base creditado em 'metas' a cada contribuição normal
+XP_PER_CONTRIBUTION = 5      # XP base creditado em 'metas' a cada contribuição normal
 XP_GOAL_COMPLETED_BONUS = 30  # XP base bônus ao concluir a meta
+# contribuições creditam XP no máximo 1x por dia por meta — sem isso
+# várias contribuições de R$ 0,01 numa meta 'epico' valiam 9 XP cada.
+# O bônus de conclusão não tem limite (só acontece uma vez por meta).
+# Referências em action_logs: 'meta_contribuicao' / 'meta_conclusao',
+# as duas com o id da meta — apagar a meta estorna ambas.
+GOAL_ACTION_REFS = ("meta_contribuicao", "meta_conclusao")
 
 GOAL_WEIGHTS = {
     "baixo": 0.5,
@@ -272,6 +278,8 @@ def sync_learning_goals(db, track_id: str) -> None:
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
             source="metas",
+            referencia_tipo="meta_conclusao",
+            referencia_id=goal["id"],
         )
 
 
@@ -320,6 +328,8 @@ def sync_academic_goals(db, education_id: str) -> None:
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
             source="metas",
+            referencia_tipo="meta_conclusao",
+            referencia_id=goal["id"],
         )
 
 
@@ -540,6 +550,9 @@ def delete_goal(goal_id: str, db=Depends(get_db)):
     # linha em transactions continua existindo normalmente em Finanças.
     db.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
     db.commit()
+    # estorna o xp das contribuições e do bônus de conclusão — senão criar
+    # uma meta de alvo 1, concluí-la e apagá-la virava xp infinito
+    revert_actions(db, GOAL_ACTION_REFS, goal_id)
 
 
 @router.post("/{goal_id}/contribute", response_model=GoalOut)
@@ -614,8 +627,10 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, row["weight"]),
             impact=5,
             source="metas",
+            referencia_tipo="meta_conclusao",
+            referencia_id=goal_id,
         )
-    else:
+    elif not has_action(db, "meta_contribuicao", goal_id, only_today=True):
         register_action(
             db,
             description=f'contribuiu para "{row["title"]}"',
@@ -623,6 +638,8 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
             xp=_xp_for(XP_PER_CONTRIBUTION, row["weight"]),
             impact=2,
             source="metas",
+            referencia_tipo="meta_contribuicao",
+            referencia_id=goal_id,
         )
 
     return _goal_row_to_out(db, _get_goal_or_404(db, goal_id))

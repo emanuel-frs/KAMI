@@ -181,12 +181,8 @@ Sem datas nem promessas; é o que eu faria em seguida.
   comportamento do antivírus de cada PC.
 - **Mais plataformas e atualização:** macOS e atualização automática.
 - **Segredos:** guardar a chave de cifragem no cofre do sistema (Credential Manager ou Secret Service).
-- **Datas e fuso horário:** alguns registros usam UTC e outros o horário local, o que pode contar uma ação
-  feita à noite como do dia seguinte perto da meia-noite. Ainda preciso confirmar o efeito real em
-  sequências e gráficos.
 - **Ícones dos links:** guardar o ícone localmente ao salvar o link, em vez da inicial.
-- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`) e trocar o
-  `datetime.utcnow()` depreciado.
+- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`).
 - **Distribuição:** PyInstaller em modo pasta (reduz falsos positivos), publicação no AUR e em outros
   repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
 

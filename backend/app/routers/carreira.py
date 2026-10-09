@@ -38,9 +38,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.actions import register_action
+from app.actions import debit_xp, register_action, revert_actions
 from app.database import get_db, new_id, now_iso
-from app.xp import level_from_xp
 from app.routers.metas import sync_academic_goals
 
 router = APIRouter()
@@ -149,9 +148,10 @@ def delete_interest(interest_id: str, db=Depends(get_db)):
 # mais) ou um preenchimento retroativo de histórico (start_date no
 # passado — valor menor, simbólico), mesmo critério que a Parte 4
 # (evolução salarial) vai usar pra distinguir lançamento real de
-# backfill. Editar NUNCA credita XP (só a criação é o "evento real");
-# remover também não estorna — mesmo tratamento de organizacao.py
-# (delete_link): o XP creditado na criação fica como histórico.
+# backfill. Editar NUNCA credita XP (só a criação é o "evento real").
+# Remover estorna o XP da criação (revert_actions) — sem isso, apagar a
+# única posição e cadastrá-la de novo rendia os 150 de "primeira posição"
+# quantas vezes a pessoa quisesse.
 XP_CAREER_FIRST_POSITION = 150
 XP_CAREER_POSITION_REALTIME = 80
 XP_CAREER_POSITION_RETROACTIVE = 20
@@ -218,7 +218,10 @@ def create_position(payload: PositionIn, db=Depends(get_db)):
         xp = XP_CAREER_POSITION_RETROACTIVE
         description = f"registrou posição retroativa: {role} na {company}"
 
-    register_action(db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira")
+    register_action(
+        db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira",
+        referencia_tipo="posicao", referencia_id=position_id,
+    )
 
     return dict(db.execute("SELECT * FROM career_positions WHERE id = ?", (position_id,)).fetchone())
 
@@ -256,6 +259,7 @@ def delete_position(position_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="posição não encontrada")
     db.execute("DELETE FROM career_positions WHERE id = ?", (position_id,))
     db.commit()
+    revert_actions(db, "posicao", position_id)
 
 
 # ---------------- formação acadêmica ----------------
@@ -313,24 +317,15 @@ def _get_education_or_404(db, education_id: str):
     return row
 
 
-def _debit_xp(db, attribute_name: str, amount: int) -> None:
+def _revert_education_xp(db, education_id: str, xp_awarded) -> None:
     """
-    Estorna XP de um atributo ao reabrir uma formação já concluída —
-    mesmo padrão de app/routers/aprendizado.py (_debit_xp): sem criar um
-    novo action_log (a conclusão original continua no histórico, só o
-    xp/nível atual do atributo é corrigido). Nunca deixa current_xp
-    negativo.
+    Estorna o xp da conclusão de uma formação (ao reabrir ou remover):
+    apaga o log referenciado e debita o xp dele. Formações concluídas
+    antes de action_logs ter referência não têm log identificável — pra
+    elas cai no estorno legado de `xp_awarded`, só no atributo.
     """
-    row = db.execute("SELECT * FROM attributes WHERE name = ?", (attribute_name,)).fetchone()
-    if not row:
-        return
-    new_xp = max(0, row["current_xp"] - amount)
-    new_level = level_from_xp(new_xp)["level"]
-    db.execute(
-        "UPDATE attributes SET current_xp = ?, current_level = ? WHERE id = ?",
-        (new_xp, new_level, row["id"]),
-    )
-    db.commit()
+    if not revert_actions(db, "formacao", education_id) and xp_awarded:
+        debit_xp(db, "carreira", xp_awarded)
 
 
 @router.get("/formacoes", response_model=list[EducationOut])
@@ -387,6 +382,8 @@ def create_education(payload: EducationIn, db=Depends(get_db)):
             xp=xp_awarded,
             impact=3,
             source="carreira",
+            referencia_tipo="formacao",
+            referencia_id=education_id,
         )
 
     sync_academic_goals(db, education_id)
@@ -430,8 +427,7 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
         # creditado nessa conclusão (não um valor recalculado agora: se
         # NIVEL_XP mudar depois, formações antigas continuam revertendo
         # certo), mesmo padrão de milestones/_debit_xp em Aprendizado
-        if xp_awarded:
-            _debit_xp(db, "carreira", xp_awarded)
+        _revert_education_xp(db, education_id, xp_awarded)
         xp_awarded = None
 
     db.execute(
@@ -453,6 +449,8 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
             xp=xp_awarded,
             impact=3,
             source="carreira",
+            referencia_tipo="formacao",
+            referencia_id=education_id,
         )
 
     # meta tipo 'academica' vinculada a essa formação progride sozinha
@@ -468,10 +466,10 @@ def delete_education(education_id: str, db=Depends(get_db)):
     row = _get_education_or_404(db, education_id)
     db.execute("DELETE FROM career_educations WHERE id = ?", (education_id,))
     db.commit()
-    # sem estorno de xp na remoção — mesmo tratamento de organizacao.py
-    # (delete_link) e career_positions.delete_position: o xp creditado na
-    # conclusão fica como histórico, remover o registro não desfaz a
-    # conquista já dada. Metas 'academica' vinculadas ficam com
+    _revert_education_xp(db, education_id, row["xp_awarded"])
+    # remover uma formação concluída estorna o xp da conclusão (senão
+    # concluir, apagar e recadastrar virava xp infinito). Metas
+    # 'academica' já concluídas não são desfeitas. Metas vinculadas ficam com
     # linked_education_id = NULL (ON DELETE SET NULL, ver schema.sql),
     # mesmo comportamento de deletar uma trilha vinculada a uma meta
     # 'aprendizado'.
@@ -499,9 +497,10 @@ def delete_education(education_id: str, db=Depends(get_db)):
 #     backfill não é o evento em si, é só recuperar dado passado.
 #
 # Editar NUNCA credita XP (só a criação é o "evento real", mesmo
-# tratamento de career_positions); remover também não estorna (mesmo
-# tratamento de career_positions.delete_position/organizacao.delete_link
-# — o xp creditado na criação fica como histórico).
+# tratamento de career_positions); remover estorna o XP da criação
+# (mesmo tratamento de career_positions.delete_position) — senão lançar
+# um "reajuste" enorme com data de hoje e apagar rendia até
+# SALARY_XP_REALTIME_MAX a cada repetição.
 SALARY_XP_BASELINE_OR_RETROACTIVE = 15
 SALARY_XP_REALTIME_BASE = 40
 SALARY_XP_REALTIME_PER_PCT = 3
@@ -607,7 +606,10 @@ def create_salary_record(payload: SalaryRecordIn, db=Depends(get_db)):
         xp = SALARY_XP_BASELINE_OR_RETROACTIVE
         description = "registrou salário retroativo (histórico)"
 
-    register_action(db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira")
+    register_action(
+        db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira",
+        referencia_tipo="salario", referencia_id=record_id,
+    )
 
     return dict(db.execute("SELECT * FROM career_salary_records WHERE id = ?", (record_id,)).fetchone())
 
@@ -638,6 +640,7 @@ def delete_salary_record(record_id: str, db=Depends(get_db)):
     _get_salary_record_or_404(db, record_id)
     db.execute("DELETE FROM career_salary_records WHERE id = ?", (record_id,))
     db.commit()
+    revert_actions(db, "salario", record_id)
     # sem estorno de xp — mesmo tratamento do resto do módulo (ver acima)
 
 

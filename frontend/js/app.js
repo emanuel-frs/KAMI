@@ -21,6 +21,7 @@ import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
+import { startProgressWatcher } from "./components/progress-watcher.js";
 import { registerNavigator } from "./components/navigate.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
@@ -255,6 +256,7 @@ async function boot() {
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
+  startProgressWatcher(); // depois do perfil: a foto inicial precisa do backend de pé
   await showPage("nucleo"); // tela inicial
   schedulePreload("nucleo"); // aproveita a folga do splash pra pré-buscar as outras telas
   await splashDone;

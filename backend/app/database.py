@@ -5,6 +5,7 @@ Sem ORM de propósito (alinhado com a filosofia "leve, RAM-consciente"
 do projeto) — sqlite3 puro da stdlib, com row_factory pra devolver
 dicts em vez de tuplas.
 """
+import re
 import sqlite3
 import uuid
 import datetime
@@ -29,8 +30,41 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+def local_now() -> datetime.datetime:
+    """Agora no fuso do computador de quem usa o app, com offset explícito."""
+    return datetime.datetime.now().astimezone()
+
+
 def now_iso() -> str:
-    return datetime.datetime.utcnow().isoformat()
+    """
+    Timestamp gravado em toda coluna *_at: hora LOCAL com offset
+    (ex: '2026-10-07T20:30:00.123456-03:00').
+
+    Antes era utcnow() sem offset — o navegador lia esse texto como hora
+    local e mostrava tudo deslocado pelo fuso (3h a mais no Brasil), e
+    o prefixo YYYY-MM-DD (usado pra sequência de dias, limites diários
+    e calendário) virava o dia seguinte pra qualquer ação depois das
+    21h. Com o fuso local o prefixo é o dia de quem usa, e o offset
+    explícito deixa o horário inequívoco pro frontend.
+    """
+    return local_now().isoformat()
+
+
+def backup_database(conn: sqlite3.Connection, label: str) -> str:
+    """
+    Copia o banco inteiro pra um arquivo ao lado do kami.db (mesma pasta
+    de dados, ver app/paths.py), via API de backup do sqlite — consistente
+    mesmo com o banco aberto. Usado antes de operações que reescrevem
+    dados em massa (ex: revisão de xp). Devolve o caminho do arquivo.
+    """
+    stamp = local_now().strftime("%Y%m%d-%H%M%S")
+    dest_path = DB_PATH.parent / f"kami-{label}-{stamp}.db"
+    dest = sqlite3.connect(dest_path)
+    try:
+        conn.backup(dest)
+    finally:
+        dest.close()
+    return str(dest_path)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -421,6 +455,93 @@ def _migrate_rename_wallet_widget_type(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_action_logs_referencia(conn: sqlite3.Connection) -> None:
+    """
+    Adiciona referencia_tipo/referencia_id em action_logs (integridade
+    do xp): cada ação gerada automaticamente por um módulo passa a
+    apontar pra entidade que a gerou, e desfazer essa entidade estorna
+    o log certo (ver app/actions.py::revert_actions). Logs antigos ficam
+    com NULL — os módulos mantêm o estorno legado por `xp_awarded` pra
+    eles. O índice é criado aqui (e não no schema.sql) porque em bancos
+    antigos a coluna só existe depois do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(action_logs)").fetchall()}
+    if "referencia_tipo" not in cols:
+        conn.execute("ALTER TABLE action_logs ADD COLUMN referencia_tipo TEXT")
+    if "referencia_id" not in cols:
+        conn.execute("ALTER TABLE action_logs ADD COLUMN referencia_id TEXT")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_action_logs_referencia "
+        "ON action_logs(referencia_tipo, referencia_id)"
+    )
+    conn.commit()
+
+
+# timestamp sem offset ('2026-10-07T23:30:00' ou com microssegundos) —
+# o formato que o antigo now_iso() (utcnow) gravava. Datas puras
+# ('YYYY-MM-DD', digitadas pelo usuário) não casam e nunca são tocadas.
+_NAIVE_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$")
+
+# colunas preenchidas por now_iso() que não seguem o padrão de nome *_at
+_EXTRA_TIMESTAMP_COLUMNS = {("goal_contributions", "date")}
+
+
+def _migrate_achievements_chave(conn: sqlite3.Connection) -> None:
+    """
+    Adiciona achievements.chave — identificador estável de cada conquista
+    do seed (antes o seed reconhecia conquistas pelo título, e renomear
+    uma no código criava uma duplicata). O preenchimento das linhas
+    existentes fica com seed_achievements, que casa pelo título uma vez.
+    Índice único criado aqui porque em bancos antigos a coluna só existe
+    depois do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(achievements)").fetchall()}
+    if "chave" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN chave TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_achievements_chave ON achievements(chave)"
+    )
+    conn.commit()
+
+
+def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
+    """
+    Converte timestamps legados (UTC sem offset, gravados pelo antigo
+    now_iso) pra hora local com offset — mesmo formato do now_iso atual.
+    Varre toda coluna *_at de toda tabela (mais _EXTRA_TIMESTAMP_COLUMNS)
+    e só mexe em valores sem offset, então é idempotente: roda a cada
+    init_db e também depois de importar um backup antigo (ver
+    routers/sistema.py::import_data), sem nunca converter duas vezes.
+    Não comita — quem chama decide (o import precisa disso dentro da
+    própria transação). Devolve quantos valores foram convertidos.
+    """
+    converted = 0
+    tables = [
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+    ]
+    for table in tables:
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        for col in cols:
+            if not (col.endswith("_at") or (table, col) in _EXTRA_TIMESTAMP_COLUMNS):
+                continue
+            rows = conn.execute(
+                f"SELECT rowid, {col} FROM {table} WHERE {col} LIKE '____-__-__T%'"
+            ).fetchall()
+            for rowid, value in rows:
+                if not _NAIVE_DATETIME_RE.match(value):
+                    continue
+                as_utc = datetime.datetime.fromisoformat(value).replace(tzinfo=datetime.timezone.utc)
+                conn.execute(
+                    f"UPDATE {table} SET {col} = ? WHERE rowid = ?",
+                    (as_utc.astimezone().isoformat(), rowid),
+                )
+                converted += 1
+    return converted
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -443,6 +564,10 @@ def init_db() -> None:
     _migrate_email_accounts_sync_by_default(conn)
     _migrate_github_repos_source(conn)
     _migrate_rename_wallet_widget_type(conn)
+    _migrate_action_logs_referencia(conn)
+    _migrate_achievements_chave(conn)
+    migrate_timestamps_to_local(conn)
+    conn.commit()
 
     _seed_defaults(conn)
 

@@ -17,13 +17,12 @@ saem criptografados com a chave local da máquina (app/crypto.py +
 .secret_key) — um export importado numa instalação diferente não vai
 conseguir descriptografar essas credenciais, só o resto dos dados.
 """
-import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.database import get_db, _seed_defaults
+from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
 
 logger = logging.getLogger(__name__)
@@ -113,7 +112,7 @@ def export_data(db=Depends(get_db)):
         rows = db.execute(f"SELECT * FROM {name}").fetchall()  # nomes vêm do próprio sqlite_master, não de input externo
         tables[name] = [dict(r) for r in rows]
 
-    exported_at = datetime.datetime.utcnow().isoformat()
+    exported_at = now_iso()
 
     # registra que um backup de verdade acabou de ser feito — usado pelo
     # lembrete discreto do frontend ("faz tempo que você não exporta um
@@ -219,6 +218,10 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         # de verdade quebrada (não só fora de ordem) só aparece aqui —
         # confere antes de comitar, senão o import "funcionaria" e
         # deixaria o banco com uma FK pendurada em nada.
+        # backups de versões antigas trazem horários em UTC sem offset —
+        # converte pro fuso local, igual ao que init_db faz no banco
+        migrate_timestamps_to_local(db)
+
         violations = db.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
             detail = "; ".join(f"{v['table']} (linha {v['rowid']} → {v['parent']})" for v in violations[:5])
@@ -240,6 +243,11 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         # devolver esta conexão específica pro estado padrão antes dela
         # ser fechada/reciclada, sucesso ou falha.
         db.execute("PRAGMA foreign_keys = ON")
+
+    # backups antigos trazem conquistas sem `chave` (e sem as conquistas
+    # adicionadas depois) — reaplica o seed, mesmo passo do init_db
+    from app.achievements import seed_achievements
+    seed_achievements(db)
 
     return {"status": "ok"}
 

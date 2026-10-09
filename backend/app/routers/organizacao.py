@@ -85,14 +85,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
-from app.actions import register_action
+from app.actions import has_action, register_action, revert_actions
 from app.crypto import encrypt_password, decrypt_password
 
 router = APIRouter()
 
 XP_LINK_ADD    = 2
-XP_GITHUB_SYNC = 2
+XP_GITHUB_SYNC = 3
 XP_EMAIL_SYNC  = 3
+
+# Sync manual credita xp no máximo 1x por dia por repositório/conta —
+# sem isso cada clique em "sincronizar" valia xp, e 20 cliques
+# desbloqueavam "organizador". A referência do sync é o NOME do
+# repositório / o usuário da conta (não o id), pra que remover e
+# recadastrar o mesmo item não reabra o limite do dia.
 
 GITHUB_API_BASE = "https://api.github.com/repos/"
 GITHUB_USER_URL = "https://api.github.com/user"
@@ -294,6 +300,8 @@ def create_link(payload: LinkIn, db=Depends(get_db)):
         xp=XP_LINK_ADD,
         impact=1,
         source="organizacao",
+        referencia_tipo="link",
+        referencia_id=link_id,
     )
 
     return {"id": link_id, **payload.model_dump()}
@@ -325,6 +333,8 @@ def delete_link(link_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="link não encontrado")
     db.execute("DELETE FROM links WHERE id = ?", (link_id,))
     db.commit()
+    # adicionar e apagar o mesmo link repetidamente não rende xp
+    revert_actions(db, "link", link_id)
 
 
 def _get_github_headers(db) -> dict:
@@ -432,6 +442,8 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
             xp=XP_GITHUB_SYNC,
             impact=1,
             source="organizacao",
+            referencia_tipo="github_repo",
+            referencia_id=repo_id,
         )
 
     row = db.execute("SELECT * FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
@@ -451,14 +463,17 @@ def sync_github_repo(repo_id: str, db=Depends(get_db)):
             (json.dumps(status), now_iso(), repo_id),
         )
         db.commit()
-        register_action(
-            db,
-            description=f"sincronizou repositório: {row['repo_full_name']}",
-            categories=["organizacao"],
-            xp=XP_GITHUB_SYNC,
-            impact=1,
-            source="organizacao",
-        )
+        if not has_action(db, "github_sync", row["repo_full_name"], only_today=True):
+            register_action(
+                db,
+                description=f"sincronizou repositório: {row['repo_full_name']}",
+                categories=["organizacao"],
+                xp=XP_GITHUB_SYNC,
+                impact=1,
+                source="organizacao",
+                referencia_tipo="github_sync",
+                referencia_id=row["repo_full_name"],
+            )
     # se deu erro, mantém o cache anterior intacto e só informa o erro na resposta
 
     updated = db.execute("SELECT * FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
@@ -472,6 +487,7 @@ def delete_github_repo(repo_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="repositório não encontrado")
     db.execute("DELETE FROM github_repos WHERE id = ?", (repo_id,))
     db.commit()
+    revert_actions(db, "github_repo", repo_id)
 
 
 # ==================== e-mail (imap) ====================
@@ -723,7 +739,7 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20, aut
     # por trás. Sync MANUAL (clique em organização ou na aba chaves de
     # configurações, `automatic` fica no default False) continua
     # contando normalmente — esse sim é uma ação deliberada.
-    if not automatic:
+    if not automatic and not has_action(db, "email_sync", account["username"], only_today=True):
         register_action(
             db,
             description=f"sincronizou e-mail: {account['label']}",
@@ -731,6 +747,8 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20, aut
             xp=XP_EMAIL_SYNC,
             impact=1,
             source="organizacao",
+            referencia_tipo="email_sync",
+            referencia_id=account["username"],
         )
 
     return {"account_id": account_id, "new_messages": new_count, "synced_at": now_iso()}

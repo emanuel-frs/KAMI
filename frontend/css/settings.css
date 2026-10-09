@@ -209,3 +209,43 @@
 .settings-warning .field label strong {
   color: var(--amber);
 }
+/* relatório da revisão de xp (configuracoes-modal.js::renderXpReviewReport)
+   — linhas "nome ........ antes → depois", mesmo tom de .settings-desc */
+.xp-review-report {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-soft);
+}
+.xp-review-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.xp-review-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.xp-review-list li + li {
+  border-top: 1px solid var(--border-soft);
+}
+.xp-review-list li span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xp-review-list li span:last-child {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+.xp-review-list--removed {
+  max-height: 180px;
+  overflow-y: auto;
+}
+.xp-review-more {
+  color: var(--text-faint);
+}

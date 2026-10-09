@@ -44,10 +44,11 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
         { name: "Carreira", current_xp: 100 },
         { name: "Finanças", current_xp: 50 },
       ],
-      "/api/nucleo/achievements": [
-        { unlocked_at: "2026-09-12T10:00:00" },
-        { unlocked_at: null },
-      ],
+      "/api/nucleo/player": {
+        level: 2, total_xp: 150, current_level_xp: 50, xp_for_next_level: 246, pct: 20,
+        streak_current: 3, streak_best: 5, active_today: true,
+        achievements_unlocked: 1, achievements_total: 2,
+      },
     };
     const path = new URL(url).pathname;
     return {
@@ -65,6 +66,8 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
   assert.equal(widget.querySelector("#pw-avatar-ascii").textContent, "K");
   assert.match(widget.textContent, /xp total\s*150/);
   assert.match(widget.textContent, /conquistas\s*1\/2/);
+  assert.match(widget.textContent, /nível\s*2/);
+  assert.match(widget.textContent, /sequência\s*3 dias/);
   assert.match(widget.innerHTML, /&lt;Kami&gt;/);
   assert.doesNotMatch(widget.innerHTML, /<Kami>/);
 });

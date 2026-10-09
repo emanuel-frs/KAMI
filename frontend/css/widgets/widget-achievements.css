@@ -82,4 +82,20 @@
   margin-top: auto;
   padding-top: 6px;
   border-top: 1px dashed var(--border-soft);
+}/* progresso de uma conquista bloqueada (achievements.js::lockedStatus):
+   barra em texto "[###-------]" + contagem, sem caixa alta pra os
+   números ficarem legíveis */
+.ach .a-progress {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 9px;
+}
+.ach .a-bar {
+  color: var(--accent-dim);
+  letter-spacing: -0.5px;
+  white-space: nowrap;
 }

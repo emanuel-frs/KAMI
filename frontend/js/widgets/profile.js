@@ -1,6 +1,5 @@
 import { getProfile, updateAvatar } from "../api/perfil.js";
-import { getAttributes, getAchievements } from "../api/nucleo.js";
-import { levelFromXp } from "../components/xp.js";
+import { getAttributes, getPlayer } from "../api/nucleo.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { icon } from "../components/icons.js";
@@ -8,6 +7,7 @@ import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -39,10 +39,13 @@ import { store } from "../state/store.js";
  */
 
 let unsubscribeProfile = null;
+let stopProgressListener = null;
 
 export async function render(el, widget) {
   unsubscribeProfile?.();
   unsubscribeProfile = null;
+  stopProgressListener?.();
+  stopProgressListener = null;
 
   el.innerHTML = '<div class="empty-state">carregando perfil…</div>';
 
@@ -50,26 +53,26 @@ export async function render(el, widget) {
   cardEl?.setAttribute("data-editable", "");
   cardEl?.setAttribute("data-pinned", ""); // sempre 1/1, não arrastável (ver widgets.css)
 
-  let profile, attributes, achievements;
+  let profile, attributes, player;
   try {
-    [profile, attributes, achievements] = await Promise.all([
+    [profile, attributes, player] = await Promise.all([
       getProfile(),
       getAttributes(),
-      getAchievements(),
+      getPlayer(),
     ]);
   } catch (err) {
     el.innerHTML = `<div class="empty-state">erro ao carregar perfil: ${err.message}</div>`;
     return;
   }
 
-  // Métrica cosmética de "nível médio combinado" do perfil: soma o XP de
-  // TODOS os atributos e passa pela mesma curva de levelFromXp usada por
-  // atributo individual — não tem pretensão de bater com o nível de
-  // nenhum atributo específico, é só um número único pra exibir aqui.
-  const totalXp = attributes.reduce((sum, a) => sum + a.current_xp, 0);
-  const { level } = levelFromXp(totalXp);
-  const unlockedCount = achievements.filter((a) => a.unlocked_at).length;
+  // nível geral, xp total, sequência e conquistas vêm prontos do backend
+  // (GET /api/nucleo/player) — antes a fórmula do nível era copiada aqui
+  // (components/xp.js) e podia divergir da de app/xp.py.
   const top = [...attributes].sort((a, b) => b.current_xp - a.current_xp)[0];
+  const streakLabel = player.streak_current === 1 ? "1 dia" : `${player.streak_current} dias`;
+  const streakTip = `recorde: ${player.streak_best} ${player.streak_best === 1 ? "dia" : "dias"}${
+    player.streak_current > 0 && !player.active_today ? " · registre algo hoje pra não perder a sequência" : ""
+  }`;
 
   el.innerHTML = `
     <div class="view-mode">
@@ -84,9 +87,10 @@ export async function render(el, widget) {
           </div>
         </div>
         <div style="display:flex; gap:20px; margin-top:14px; flex-wrap:wrap;">
-          <div class="vm-row"><span class="k">nível</span><span class="v">${level}</span></div>
-          <div class="vm-row"><span class="k">xp total</span><span class="v">${totalXp.toLocaleString("pt-BR")}</span></div>
-          <div class="vm-row"><span class="k">conquistas</span><span class="v">${unlockedCount}/${achievements.length}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(`${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}`)}"><span class="k">nível</span><span class="v">${player.level}</span></div>
+          <div class="vm-row"><span class="k">xp total</span><span class="v">${player.total_xp.toLocaleString("pt-BR")}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">sequência</span><span class="v">${streakLabel}</span></div>
+          <div class="vm-row"><span class="k">conquistas</span><span class="v">${player.achievements_unlocked}/${player.achievements_total}</span></div>
           <div class="vm-row"><span class="k">destaque</span><span class="v">${top ? escapeHtml(top.name) : "—"}</span></div>
         </div>
       </div>
@@ -138,4 +142,8 @@ export async function render(el, widget) {
   // ── mantém o card em sync com mudanças de perfil feitas em outro
   //    lugar (aba perfil de configurações, avatar da sidebar etc.). ──
   unsubscribeProfile = store.subscribe("profile", () => render(el, widget));
+
+  // xp/nível/sequência mudam por ações em qualquer módulo — o
+  // progress-watcher avisa depois de cada escrita que mexeu no progresso
+  stopProgressListener = listenWhileConnected(el, "kami:action-registered", () => render(el, widget));
 }

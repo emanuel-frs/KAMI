@@ -134,13 +134,21 @@ def test_update_position_not_found_returns_404(client):
     assert resp.status_code == 404
 
 
-def test_delete_position_does_not_refund_xp(client):
+def test_delete_position_refunds_creation_xp(client):
     position = _create_position(client, start_date="2018-03-01")  # 150
     resp = client.delete(f"/api/carreira/posicoes/{position['id']}")
     assert resp.status_code == 204
     assert client.get("/api/carreira/posicoes").json() == []
 
-    # XP creditado na criação fica como histórico — mesmo tratamento de organizacao.delete_link
+    assert _attrs(client)["carreira"]["current_xp"] == 0
+    assert client.get("/api/nucleo/log").json() == []
+
+
+def test_recreating_first_position_does_not_farm_xp(client):
+    for _ in range(3):
+        position = _create_position(client, start_date="2018-03-01")  # 150 (primeira)
+        client.delete(f"/api/carreira/posicoes/{position['id']}")
+    _create_position(client, start_date="2018-03-01")
     assert _attrs(client)["carreira"]["current_xp"] == 150
 
 
@@ -268,12 +276,21 @@ def test_delete_education_not_found_returns_404(client):
     assert resp.status_code == 404
 
 
-def test_delete_education_does_not_refund_xp(client):
+def test_delete_completed_education_refunds_xp(client):
     education = _create_education(client, nivel="pos_graduacao", status="concluido")  # 90
     resp = client.delete(f"/api/carreira/formacoes/{education['id']}")
     assert resp.status_code == 204
     assert client.get("/api/carreira/formacoes").json() == []
-    assert _attrs(client)["carreira"]["current_xp"] == 90
+    assert _attrs(client)["carreira"]["current_xp"] == 0
+    assert client.get("/api/nucleo/log").json() == []
+
+
+def test_reopening_education_removes_completion_log(client):
+    education = _create_education(client, nivel="pos_graduacao", status="concluido")  # 90
+    for status in ("em_andamento", "concluido", "em_andamento"):
+        client.put(f"/api/carreira/formacoes/{education['id']}", json={"status": status})
+    assert _attrs(client)["carreira"]["current_xp"] == 0
+    assert client.get("/api/nucleo/log").json() == []
 
 
 def test_update_education_not_found_returns_404(client):
@@ -369,11 +386,20 @@ def test_update_salary_record_does_not_credit_xp(client):
     assert _attrs(client)["carreira"]["current_xp"] == 15
 
 
-def test_delete_salary_record_does_not_refund_xp(client):
+def test_delete_salary_record_refunds_xp(client):
     record = _create_salary(client, amount=5000.0, date="2019-01-01")  # 15
     resp = client.delete(f"/api/carreira/salarios/{record['id']}")
     assert resp.status_code == 204
     assert client.get("/api/carreira/salarios").json() == []
+    assert _attrs(client)["carreira"]["current_xp"] == 0
+
+
+def test_realtime_salary_jump_cannot_be_farmed_by_deleting(client):
+    _create_salary(client, amount=1000.0, date="2019-01-01")  # 15 (baseline)
+    today = datetime.date.today().isoformat()
+    for _ in range(3):
+        record = _create_salary(client, amount=100000.0, date=today)  # salto enorme -> 220
+        client.delete(f"/api/carreira/salarios/{record['id']}")
     assert _attrs(client)["carreira"]["current_xp"] == 15
 
 

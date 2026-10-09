@@ -76,6 +76,7 @@
  * mostrar/esconder, não um modal separado).
  */
 import { exportData, importData, resetData } from "../api/sistema.js";
+import { applyXpReview, previewXpReview } from "../api/nucleo.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
 import {
   listEmailAccounts,
@@ -95,7 +96,7 @@ import {
 } from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { showToast } from "../components/toast.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, localDateKey } from "../components/format.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { openAvatarModal } from "./avatar-modal.js";
@@ -277,6 +278,15 @@ function buildBackupPanel() {
           <button class="btn sm" id="sm-export-btn" data-action="export">baixar backup (.json)</button>
         </div>
         <p class="settings-status" id="sm-export-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>revisar xp</h4>
+        <p class="settings-desc">corrige o xp gravado antes das regras atuais: registros que sobraram de ações desfeitas (pagamento desmarcado, item apagado, marco reaberto), repetições no mesmo dia do que hoje só rende xp 1x por dia e ações manuais acima de 50 xp. primeiro mostra o que mudaria — nada é gravado até você confirmar.</p>
+        <p class="settings-note">antes de aplicar, uma cópia completa do banco é guardada na pasta de dados do kami.</p>
+        <div class="form-actions">
+          <button class="btn sm" id="sm-xpreview-btn" data-action="xp-review-preview">simular revisão</button>
+        </div>
+        <div class="xp-review-report" id="sm-xpreview-report" hidden></div>
       </div>
       <div class="settings-section settings-warning">
         <h4>importar dados</h4>
@@ -899,6 +909,7 @@ function wireBackupTab(wrap) {
   });
 
   wrap.querySelector("#sm-export-btn").addEventListener("click", () => handleExport(wrap));
+  wrap.querySelector("#sm-xpreview-btn").addEventListener("click", () => handleXpReviewPreview(wrap));
   importBtn.addEventListener("click", () => handleImport(wrap));
   resetBtn.addEventListener("click", () => handleReset(wrap));
 }
@@ -919,7 +930,7 @@ async function handleExport(wrap) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     const filename = `kami-backup-${today}.json`;
     a.href = url;
     a.download = filename;
@@ -948,6 +959,102 @@ async function handleExport(wrap) {
     busy = false;
     btn.disabled = false;
     btn.textContent = originalLabel;
+  }
+}
+
+const XP_REVIEW_LIST_LIMIT = 12;
+
+function renderXpReviewReport(report) {
+  const changedAttrs = report.atributos.filter((a) => a.xp_antes !== a.xp_depois);
+  const nothing =
+    !report.removidos.length && !report.limitados.length && !changedAttrs.length && !report.vinculados &&
+    !report.conquistas_rebloqueadas.length && !report.conquistas_desbloqueadas.length;
+  if (nothing) {
+    return '<p class="settings-desc">nada a corrigir — seu xp já está consistente.</p>';
+  }
+
+  const lines = [];
+  lines.push(
+    `<p class="settings-desc">${report.removidos.length} registro(s) removido(s) · ${report.vinculados} vinculado(s) ao item de origem · ${report.limitados.length} ação(ões) manual(is) limitada(s) a 50 xp</p>`
+  );
+  if (changedAttrs.length) {
+    lines.push(
+      `<ul class="xp-review-list">${changedAttrs
+        .map((a) => `<li><span>${escapeHtml(a.nome)}</span><span>${a.xp_antes} → ${a.xp_depois} xp</span></li>`)
+        .join("")}</ul>`
+    );
+  }
+  if (report.conquistas_rebloqueadas.length) {
+    lines.push(`<p class="settings-note">voltam a ficar bloqueadas: ${report.conquistas_rebloqueadas.map(escapeHtml).join(", ")}</p>`);
+  }
+  if (report.conquistas_desbloqueadas.length) {
+    lines.push(`<p class="settings-note">serão desbloqueadas: ${report.conquistas_desbloqueadas.map(escapeHtml).join(", ")}</p>`);
+  }
+  if (report.removidos.length) {
+    const shown = report.removidos.slice(0, XP_REVIEW_LIST_LIMIT);
+    const rest = report.removidos.length - shown.length;
+    lines.push(
+      `<ul class="xp-review-list xp-review-list--removed">${shown
+        .map((r) => `<li><span>${escapeHtml(r.description)}</span><span>−${r.xp} xp · ${escapeHtml(r.motivo)}</span></li>`)
+        .join("")}${rest > 0 ? `<li class="xp-review-more">+${rest} outro(s)</li>` : ""}</ul>`
+    );
+  }
+  lines.push(`
+    <div class="form-actions">
+      <button class="btn sm warn" id="sm-xpreview-apply" data-action="xp-review-apply">aplicar revisão</button>
+    </div>`);
+  return lines.join("");
+}
+
+async function handleXpReviewPreview(wrap) {
+  if (busy) return;
+  const btn = wrap.querySelector("#sm-xpreview-btn");
+  const reportEl = wrap.querySelector("#sm-xpreview-report");
+  busy = true;
+  btn.disabled = true;
+  btn.textContent = "simulando...";
+  try {
+    const report = await previewXpReview();
+    reportEl.innerHTML = renderXpReviewReport(report);
+    reportEl.hidden = false;
+    reportEl.querySelector("#sm-xpreview-apply")?.addEventListener("click", () => handleXpReviewApply(wrap));
+  } catch (err) {
+    showErrorModal(err.message, "erro ao simular a revisão de xp");
+  } finally {
+    busy = false;
+    btn.disabled = false;
+    btn.textContent = "simular revisão";
+  }
+}
+
+async function handleXpReviewApply(wrap) {
+  if (busy) return;
+  const reallySure = await showConfirmModal(
+    "isso remove os registros listados e recalcula o xp de cada atributo a partir do log. uma cópia do banco é guardada antes, na pasta de dados do kami. continuar?",
+    { title: "aplicar revisão de xp", confirmText: "sim, revisar" }
+  );
+  if (!reallySure) return;
+
+  const applyBtn = wrap.querySelector("#sm-xpreview-apply");
+  busy = true;
+  applyBtn.disabled = true;
+  applyBtn.textContent = "aplicando...";
+  try {
+    const report = await applyXpReview();
+    showToast({
+      title: "xp revisado",
+      message: `cópia do banco anterior: ${report.backup}`,
+      iconName: "check",
+      duration: 12000,
+    });
+    // mesmo motivo de handleImport: xp/níveis/conquistas mudam em todas as
+    // telas de uma vez — recarregar é mais seguro que atualizar cada widget
+    setTimeout(() => window.location.reload(), 1500);
+  } catch (err) {
+    showErrorModal(err.message, "erro ao aplicar a revisão de xp");
+    busy = false;
+    applyBtn.disabled = false;
+    applyBtn.textContent = "aplicar revisão";
   }
 }
 

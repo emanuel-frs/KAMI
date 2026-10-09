@@ -1,6 +1,6 @@
 // js/widgets/perfil-atividade.js
 import { getLog } from "../api/nucleo.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, localDateKey } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 /**
@@ -20,9 +20,9 @@ import { buildTextAltTable } from "../components/chart-text-alt.js";
 const PERIOD_DAYS = 98; // 14 semanas completas
 const LIMIT = 1000;
 
-function dateKey(d) {
-  return d.toISOString().slice(0, 10);
-}
+// dia local (não toISOString, que é UTC) — precisa bater com o prefixo
+// de created_at, que o backend grava no fuso local (ver now_iso)
+const dateKey = localDateKey;
 
 // segunda-feira como início da semana (convenção local) — só afeta o
 // alinhamento visual das colunas, não a contagem em si

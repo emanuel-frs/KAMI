@@ -1,6 +1,7 @@
 // js/widgets/attributes.js
 import { getAttributes } from "../api/nucleo.js";
 import { escapeHtml } from "../components/format.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /**
  * Radar pentagonal (SVG pontilhado) — substitui as antigas barras de
@@ -175,7 +176,7 @@ export async function render(el, widget) {
   });
 
   // atualiza níveis/pct quando uma ação é registrada em outro widget da tela
-  window.addEventListener("kami:action-registered", async () => {
+  listenWhileConnected(el, "kami:action-registered", async () => {
     try {
       attributes = await getAttributes();
       const updated = new Map(attributes.map((a) => [a.name, a]));

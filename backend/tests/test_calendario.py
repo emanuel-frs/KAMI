@@ -15,7 +15,7 @@ import datetime
 
 
 def _current_month():
-    return datetime.datetime.utcnow().strftime("%Y-%m")
+    return datetime.datetime.now().astimezone().strftime("%Y-%m")
 
 
 def test_invalid_month_returns_422(client):

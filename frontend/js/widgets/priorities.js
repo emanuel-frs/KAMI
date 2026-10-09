@@ -2,6 +2,7 @@
 import { getAttributes } from "../api/nucleo.js";
 import { listGoals } from "../api/metas.js";
 import { escapeHtml, fmtDateBR } from "../components/format.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /** "Atenção agora": atributo mais atrasado + meta com prazo mais próximo. */
 export async function render(el, widget) {
@@ -41,5 +42,5 @@ export async function render(el, widget) {
   }
 
   await load();
-  window.addEventListener("kami:action-registered", load);
+  listenWhileConnected(el, "kami:action-registered", load);
 }

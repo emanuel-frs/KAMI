@@ -63,7 +63,13 @@ CREATE TABLE IF NOT EXISTS action_logs (
     xp_gained    INTEGER NOT NULL,
     impact_note  INTEGER,             -- 1-5, subjetivo
     source       TEXT NOT NULL DEFAULT 'form',  -- v1: só 'form'; 'kami_chat' entra pós-mvp
-    created_at   TEXT NOT NULL
+    created_at   TEXT NOT NULL,
+    -- entidade que gerou a ação (ex: 'marco' + id do marco), pra que
+    -- desfazê-la (reabrir, desmarcar pagamento, apagar) estorne
+    -- exatamente este log e o xp dele. NULL = ação manual do Núcleo ou
+    -- log anterior à migração. Ver app/actions.py::revert_actions.
+    referencia_tipo TEXT,
+    referencia_id   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS action_log_attributes (
@@ -78,7 +84,8 @@ CREATE TABLE IF NOT EXISTS achievements (
     description   TEXT,
     rule_type     TEXT NOT NULL DEFAULT 'fixed',  -- v1: só 'fixed'
     criteria_json TEXT NOT NULL,       -- regra em JSON (ex: {"attribute":"aprendizado","count":10})
-    unlocked_at   TEXT                 -- NULL = ainda bloqueada
+    unlocked_at   TEXT,                -- NULL = ainda bloqueada
+    chave         TEXT                 -- id estável do seed (ver achievements.py); índice único em database.py
 );
 
 -- ---------------- FINANÇAS ----------------

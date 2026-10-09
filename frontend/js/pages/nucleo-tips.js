@@ -22,10 +22,10 @@ const SCREEN = "nucleo";
 
 const WIDGET_TEXTS = {
   attributes: "cada área da sua vida sobe de nível conforme você age. isso aqui é seu progresso por atributo.",
-  priorities: "o que você marcar aqui fica em destaque durante a semana.",
-  log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem.",
-  registrar: "registre qualquer ação manual pra ganhar xp direto num atributo.",
-  achievements: "marcos que destravam sozinhos conforme você usa o app.",
+  priorities: "o atributo mais atrasado e a meta com prazo mais próximo — por onde vale começar.",
+  log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem. desfez algo (desmarcou um pagamento, reabriu um marco, apagou um item)? o registro e o xp dele saem juntos.",
+  registrar: "registre qualquer ação manual pra ganhar xp direto num atributo — até 50 xp por ação.",
+  achievements: "marcos que destravam sozinhos conforme você usa o app. as bloqueadas mostram quanto falta.",
 };
 
 // único passo que não é um widget do catálogo — o botão de adicionar

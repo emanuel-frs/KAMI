@@ -72,7 +72,7 @@ const STEPS = [
   // ─── aba: github (padrão ao entrar na tela) ────────────────────────────
   {
     selector: '.tab[data-tab="github"]',
-    text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github.",
+    text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github. sincronizar rende xp uma vez por dia por repositório.",
   },
   {
     onEnter: () => switchTab("github"),
@@ -88,7 +88,7 @@ const STEPS = [
   // ─── aba: e-mail ───────────────────────────────────────────────────────
   {
     selector: '.tab[data-tab="email"]',
-    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local.",
+    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local. sincronizar na mão rende xp uma vez por dia por conta.",
   },
   {
     onEnter: () => switchTab("email"),
