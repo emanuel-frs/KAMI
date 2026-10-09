@@ -52,8 +52,10 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 ## Funcionalidades
 
 - **Núcleo:** os cinco atributos de vida (Carreira, Finanças, Aprendizado, Organização e Metas), cada
-  um com XP e nível, log filtrável de tudo que foi registrado, conquistas automáticas e um painel de
-  widgets que você arruma como quiser.
+  um com XP e nível, nível geral do jogador, sequência de dias, log filtrável de tudo que foi
+  registrado, 50 conquistas automáticas (com níveis e algumas secretas) e um painel de widgets que você
+  arruma como quiser. Cada ação mostra o XP ganho na hora; subir de nível abre uma tela própria, e os
+  efeitos visuais podem ser reduzidos ou desligados.
 - **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
   visão mensal com comparação com o mês anterior.
