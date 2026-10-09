@@ -4,6 +4,29 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.3] - 2026-10-08
+
+### Adicionado
+- feedback de progresso em todos os módulos: "+xp"/"−xp" na tela, aviso de subida de nível e de conquista desbloqueada
+- sequência de dias (atual e recorde) e nível geral do jogador no perfil (`GET /api/nucleo/player`)
+- progresso das conquistas bloqueadas na galeria (ex: `[########--] 8/10`)
+- revisão do xp antigo em configurações > backup: simula, guarda uma cópia do banco e aplica
+- chave estável para as conquistas do seed (renomear não duplica mais)
+
+### Corrigido
+- desfazer uma ação (desmarcar pagamento, reabrir marco ou formação, apagar posição, salário, link, repositório ou meta) estorna o xp e o registro dela
+- sincronizar repositório ou e-mail e contribuir com uma meta rendem xp no máximo 1x por dia
+- ações manuais do núcleo limitadas a 50 xp
+- data e hora gravadas e exibidas no fuso local do computador; registros antigos convertidos automaticamente
+- sequência de dias, limites diários e calendário usam o dia local (ações à noite não contam mais como o dia seguinte)
+- conquistas voltam a ficar bloqueadas quando o critério deixa de valer
+- widgets deixam de acumular atualizações ao reorganizar o dashboard
+- textos do tutorial e das dicas alinhados às regras de xp
+
+### Modificado
+- balanceamento de xp: lançamento 3, pagamento recorrente 4, contribuição em meta 5, marco 20, sync do github 3
+
+
 ## [1.8.2] - 2026-10-07
 
 ### Documentação
