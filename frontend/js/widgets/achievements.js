@@ -51,17 +51,32 @@ export function sortAchievements(list) {
   });
 }
 
-function filterButtons(achievements, active) {
+/**
+ * Filtro de várias áreas ao mesmo tempo: cada área liga/desliga sozinha;
+ * "todas" aparece ligada quando nenhuma área está selecionada e, ao
+ * clicar, limpa a seleção. `selected` é um Set de ids de área.
+ */
+function filterButtons(achievements, selected) {
   const count = (list) => `${list.filter((a) => a.unlocked).length}/${list.length}`;
   const buttons = [{ id: "all", label: "todas", list: achievements }].concat(
     CATEGORIES.map((c) => ({ ...c, list: achievements.filter((a) => a.category === c.id) }))
   );
   return buttons
     .filter((b) => b.list.length)
-    .map(
-      (b) => `<button type="button" class="ach-filter${b.id === active ? " on" : ""}" data-category="${b.id}" aria-pressed="${b.id === active}">${b.label} <span class="ach-filter-count">${count(b.list)}</span></button>`
-    )
+    .map((b) => {
+      const on = b.id === "all" ? selected.size === 0 : selected.has(b.id);
+      return `<button type="button" class="ach-filter${on ? " on" : ""}" data-category="${b.id}" aria-pressed="${on}">${b.label} <span class="ach-filter-count">${count(b.list)}</span></button>`;
+    })
     .join("");
+}
+
+/** Próxima seleção ao clicar numa área (ou em "todas"). */
+export function toggleCategory(selected, id) {
+  if (id === "all") return new Set();
+  const next = new Set(selected);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
 }
 
 function card(a) {
@@ -83,23 +98,23 @@ function card(a) {
 
 /**
  * Galeria estilo steam — reaproveitada em perfil e núcleo, mesma fonte de dados.
- * Filtro por área (GAM-03), ícone por área, marca de nível (I/II/III) e
+ * Filtro por área com várias áreas ao mesmo tempo (GAM-03), ícone por área, marca de nível (I/II/III) e
  * secretas mascaradas pelo próprio backend ("???"). Bloqueadas mostram
  * quanto falta; a galeria se atualiza sozinha quando o progress-watcher
- * avisa que algo mudou (o filtro escolhido é mantido).
+ * avisa que algo mudou (as áreas escolhidas são mantidas).
  */
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando conquistas…</div>';
-  let activeCategory = "all";
+  let selected = new Set();
   let achievements = [];
 
   function draw() {
-    const visible = activeCategory === "all"
+    const visible = selected.size === 0
       ? achievements
-      : achievements.filter((a) => a.category === activeCategory);
+      : achievements.filter((a) => selected.has(a.category));
     el.innerHTML = `
-      <div class="ach-filters" role="group" aria-label="filtrar conquistas por área">
-        ${filterButtons(achievements, activeCategory)}
+      <div class="ach-filters" role="group" aria-label="filtrar conquistas por área (dá pra escolher mais de uma)">
+        ${filterButtons(achievements, selected)}
       </div>
       <div class="ach-grid">
         ${sortAchievements(visible).map(card).join("")}
@@ -118,18 +133,18 @@ export async function render(el, widget) {
       el.innerHTML = '<div class="empty-state">nenhuma conquista cadastrada ainda.</div>';
       return;
     }
-    if (activeCategory !== "all" && !achievements.some((a) => a.category === activeCategory)) {
-      activeCategory = "all";
-    }
+    // área que deixou de existir na lista (ex: banco restaurado) sai da seleção
+    selected = new Set([...selected].filter((id) => achievements.some((a) => a.category === id)));
     draw();
   }
 
   el.addEventListener("click", (e) => {
     const btn = e.target.closest(".ach-filter");
     if (!btn) return;
-    activeCategory = btn.dataset.category;
+    const id = btn.dataset.category;
+    selected = toggleCategory(selected, id);
     draw();
-    el.querySelector(`.ach-filter[data-category="${activeCategory}"]`)?.focus();
+    el.querySelector(`.ach-filter[data-category="${id}"]`)?.focus();
   });
 
   await load();

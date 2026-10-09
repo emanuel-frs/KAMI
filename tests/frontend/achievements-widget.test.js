@@ -13,6 +13,16 @@ const ACHIEVEMENTS = [
     unlocked: true, unlocked_at: "2026-10-05T10:00:00-03:00", progress_current: 1, progress_target: 1 },
 ];
 
+test("toggleCategory liga, desliga e limpa áreas", async () => {
+  const { toggleCategory } = await import("../../frontend/js/widgets/achievements.js");
+  let sel = toggleCategory(new Set(), "nucleo");
+  sel = toggleCategory(sel, "metas");
+  assert.deepEqual([...sel].sort(), ["metas", "nucleo"]);
+  sel = toggleCategory(sel, "nucleo");
+  assert.deepEqual([...sel], ["metas"]);
+  assert.equal(toggleCategory(sel, "all").size, 0);
+});
+
 test("sortAchievements: desbloqueadas recentes primeiro, depois bloqueadas por progresso", async () => {
   const { sortAchievements } = await import("../../frontend/js/widgets/achievements.js");
   assert.deepEqual(sortAchievements(ACHIEVEMENTS).map((a) => a.key), ["d", "b", "a", "c"]);
@@ -36,8 +46,22 @@ test(
     assert.deepEqual(titles, ["alfa"]);
     assert.equal(el.querySelector('.ach-filter[data-category="financas"]').getAttribute("aria-pressed"), "true");
 
+    // segunda área soma à primeira (várias ao mesmo tempo)
     el.querySelector('.ach-filter[data-category="nucleo"]').click();
+    assert.equal(el.querySelectorAll(".ach").length, 4);
+    assert.equal(el.querySelector('.ach-filter[data-category="nucleo"]').getAttribute("aria-pressed"), "true");
+    assert.equal(el.querySelector('.ach-filter[data-category="financas"]').getAttribute("aria-pressed"), "true");
+    assert.equal(el.querySelector('.ach-filter[data-category="all"]').getAttribute("aria-pressed"), "false");
     assert.ok(el.querySelector(".ach.secret"));
     assert.ok([...el.querySelectorAll(".a-title")].some((n) => n.textContent === "???"));
+
+    // desligar uma área tira só ela
+    el.querySelector('.ach-filter[data-category="financas"]').click();
+    assert.equal(el.querySelectorAll(".ach").length, 3);
+
+    // "todas" limpa a seleção
+    el.querySelector('.ach-filter[data-category="all"]').click();
+    assert.equal(el.querySelectorAll(".ach").length, 4);
+    assert.equal(el.querySelector('.ach-filter[data-category="all"]').getAttribute("aria-pressed"), "true");
   })
 );

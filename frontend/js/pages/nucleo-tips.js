@@ -25,7 +25,7 @@ const WIDGET_TEXTS = {
   priorities: "o atributo mais atrasado e a meta com prazo mais próximo — por onde vale começar.",
   log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem. desfez algo (desmarcou um pagamento, reabriu um marco, apagou um item)? o registro e o xp dele saem juntos.",
   registrar: "registre qualquer ação manual pra ganhar xp direto num atributo — até 50 xp por ação.",
-  achievements: "marcos que destravam sozinhos conforme você usa o app. as bloqueadas mostram quanto falta.",
+  achievements: "marcos que destravam sozinhos conforme você usa o app. as bloqueadas mostram quanto falta; filtre por uma ou mais áreas.",
 };
 
 // único passo que não é um widget do catálogo — o botão de adicionar
