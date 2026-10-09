@@ -26,6 +26,7 @@ from app.achievements import achievement_progress, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
+from app.bonus import atributo_atrasado
 
 router = APIRouter()
 
@@ -48,6 +49,7 @@ class AttributeOut(BaseModel):
     is_active: bool
     pct: int
     xp_for_next_level: int
+    bonus_atrasado: bool = False  # GAM-08: ações neste atributo rendem 2× (app/bonus.py)
 
 
 class ActionCreate(BaseModel):
@@ -147,7 +149,8 @@ def _categories_for_log(db, action_log_id: str) -> List[str]:
 @router.get("/attributes", response_model=List[AttributeOut])
 def list_attributes(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM attributes ORDER BY name").fetchall()
-    return [_attribute_row_to_out(r) for r in rows]
+    atrasado = atributo_atrasado(db)
+    return [{**_attribute_row_to_out(r), "bonus_atrasado": r["name"] == atrasado} for r in rows]
 
 
 @router.post("/actions", response_model=ActionOut)

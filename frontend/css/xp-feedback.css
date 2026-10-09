@@ -36,6 +36,13 @@
 .xp-feed-item.neg b {
   color: var(--text-faint);
 }
+/* GAM-08: bônus de xp — mesma linha, com "bônus" na frente pra separar
+   da linha da ação (o texto já diz qual bônus) */
+.xp-feed-item.bonus::before {
+  content: "bônus";
+  color: var(--text-faint);
+  font-size: 10px;
+}
 
 @keyframes xp-feed-rise {
   0%   { opacity: 0; transform: translateY(6px); }

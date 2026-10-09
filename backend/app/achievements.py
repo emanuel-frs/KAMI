@@ -313,10 +313,10 @@ def criterion(type_name):
     return register
 
 
-# logs de bônus (GAM-07: missão concluída) creditam xp, mas não são ações:
-# ficam fora das contagens de conquista (count_by_attribute, count_total,
-# action_hour). O GAM-08 acrescenta o tipo do bônus dele aqui.
-REFS_BONUS = ("missao",)
+# logs de bônus (GAM-07: missão concluída; GAM-08: bônus de xp) creditam
+# xp, mas não são ações: ficam fora das contagens de conquista
+# (count_by_attribute, count_total, action_hour)
+REFS_BONUS = ("missao", "bonus")
 _NOT_BONUS = "(referencia_tipo IS NULL OR referencia_tipo NOT IN ({}))".format(
     ", ".join(f"'{r}'" for r in REFS_BONUS)
 )

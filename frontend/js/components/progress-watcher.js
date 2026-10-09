@@ -1,4 +1,4 @@
-import { getAchievements, getAttributes, getMissoes, getPlayer } from "../api/nucleo.js";
+import { getAchievements, getAttributes, getLog, getMissoes, getPlayer } from "../api/nucleo.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
@@ -27,6 +27,9 @@ import { showLevelUp } from "./level-up.js";
  *   - linha apagada quando um estorno volta a bloquear uma conquista
  *   - toast quando uma missão é concluída (GAM-07) e linha apagada quando
  *     um estorno a devolve pra pendente
+ *   - bônus de xp (GAM-08) numa linha própria cada um ("+5 xp · primeira
+ *     ação do dia"), descontados da linha do atributo — achados nos logs
+ *     novos de source 'bonus' (os últimos RECENT_LOG do /log)
  * e dispara `kami:action-registered` pros widgets do Núcleo/Perfil se
  * atualizarem — antes só o formulário do Núcleo e o modal de transação
  * disparavam esse evento, e o xp ganho nos outros módulos só aparecia
@@ -42,6 +45,9 @@ const IGNORED_PREFIXES = ["/api/dashboard", "/api/perfil", "/api/nucleo/streak-s
 const SILENT_PREFIXES = ["/api/sistema", "/api/nucleo/xp-review"];
 
 const DEBOUNCE_MS = 200;
+// logs recentes olhados pra achar os bônus novos — uma ação gera no
+// máximo 3 bônus (+ missões), então isso sobra com folga
+const RECENT_LOG = 20;
 const XP_FEED_MS = 2600;
 const TOAST_MS = 6000;
 
@@ -58,18 +64,22 @@ function isAutomatic(path) {
 }
 
 async function takeSnapshot() {
-  const [player, attributes, achievements, missoes] = await Promise.all([
+  const [player, attributes, achievements, missoes, log] = await Promise.all([
     getPlayer(),
     getAttributes(),
     getAchievements(),
     getMissoes(),
+    getLog({ limit: RECENT_LOG }),
   ]);
+  const recent = Array.isArray(log) ? log : [];
   const allMissions = [...(missoes?.diarias ?? []), ...(missoes?.semanal ? [missoes.semanal] : [])];
   return {
     player,
     attrs: new Map(attributes.map((a) => [a.name, a])),
     unlocked: new Map(achievements.filter((a) => a.unlocked).map((a) => [a.id, a])),
     missionsDone: new Map(allMissions.filter((m) => m.concluida).map((m) => [m.id, m])),
+    recentLog: recent,
+    logIds: new Set(recent.map((e) => e.id)),
   };
 }
 
@@ -83,10 +93,10 @@ function ensureFeed() {
   return feedEl;
 }
 
-function showFeedLine(label, detail, negative) {
+function showFeedLine(label, detail, negative, extraClass = "") {
   const feed = ensureFeed();
   const item = document.createElement("div");
-  item.className = `xp-feed-item${negative ? " neg" : ""}`;
+  item.className = `xp-feed-item${negative ? " neg" : ""}${extraClass ? ` ${extraClass}` : ""}`;
   item.innerHTML = `<b>${escapeHtml(label)}</b><span>· ${escapeHtml(detail)}</span>`;
   feed.appendChild(item);
   setTimeout(() => item.remove(), XP_FEED_MS);
@@ -100,13 +110,22 @@ function showXpLine(delta, attribute) {
 function diffAndCelebrate(before, after) {
   let changed = false;
 
+  // GAM-08: bônus novos desde a última foto — cada um vira sua própria
+  // linha, e o xp deles sai da linha do atributo (que fica só com a ação)
+  const newBonus = after.recentLog.filter((e) => e.source === "bonus" && !before.logIds.has(e.id));
+  const bonusByAttr = new Map();
+  for (const b of newBonus) {
+    for (const cat of b.categories ?? []) bonusByAttr.set(cat, (bonusByAttr.get(cat) ?? 0) + b.xp_gained);
+  }
+
   for (const [name, attr] of after.attrs) {
     const prev = before.attrs.get(name);
     if (!prev) continue;
     const delta = attr.current_xp - prev.current_xp;
     if (delta === 0) continue;
     changed = true;
-    showXpLine(delta, name);
+    const base = delta > 0 ? delta - (bonusByAttr.get(name) ?? 0) : delta;
+    if (base !== 0) showXpLine(base, name);
     if (attr.current_level > prev.current_level) {
       showToast({
         title: `${name} subiu pro nível ${attr.current_level}`,
@@ -115,6 +134,10 @@ function diffAndCelebrate(before, after) {
         duration: TOAST_MS,
       });
     }
+  }
+
+  for (const b of [...newBonus].reverse()) {
+    showFeedLine(`+${b.xp_gained} xp`, b.description.replace(/^bônus · /, ""), false, "bonus");
   }
 
   if (after.player.level > before.player.level && effectsMode() === "completo") {

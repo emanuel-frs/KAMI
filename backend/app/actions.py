@@ -22,6 +22,7 @@ from app.database import new_id, now_iso
 from app.xp import level_from_xp
 from app.achievements import check_achievements, relock_unmet_achievements
 from app.missoes import REF_MISSAO, avaliar_missoes, garantir_missoes
+from app.bonus import REF_BONUS, aplicar_bonus, atributo_atrasado, elegivel
 
 
 def _set_attribute_xp(db, row, new_xp: int) -> None:
@@ -60,9 +61,12 @@ def register_action(
     # GAM-07: as missões do dia nascem ANTES do log desta ação — senão a
     # ação que gerou as missões já chegava concluindo uma delas. O próprio
     # bônus de missão (referencia 'missao') não mexe em missões.
-    is_bonus = referencia_tipo == REF_MISSAO
+    is_bonus = referencia_tipo in (REF_MISSAO, REF_BONUS)
     if not is_bonus:
         garantir_missoes(db)
+    # GAM-08: o atributo atrasado é medido ANTES de esta ação creditar xp
+    com_bonus = elegivel(source, referencia_tipo)
+    atrasado = atributo_atrasado(db) if com_bonus else None
     attr_rows = {}
     for cat in categories:
         row = db.execute("SELECT * FROM attributes WHERE name = ?", (cat,)).fetchone()
@@ -88,6 +92,8 @@ def register_action(
 
     db.commit()
     newly_unlocked = check_achievements(db)
+    if com_bonus:
+        aplicar_bonus(db, log_id, categories, xp, atrasado)  # cada bônus é um log próprio, ligado a este
     if not is_bonus:
         avaliar_missoes(db)  # conclui a missão que esta ação cumpriu (credita o bônus)
         db.commit()
@@ -127,6 +133,9 @@ def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id
         (*tipos, referencia_id),
     ).fetchall()
     for log in logs:
+        # GAM-08: os bônus desta ação saem junto com ela
+        if REF_BONUS not in tipos:
+            revert_actions(db, REF_BONUS, log["id"])
         attrs = db.execute(
             "SELECT a.* FROM action_log_attributes ala "
             "JOIN attributes a ON a.id = ala.attribute_id "
@@ -136,7 +145,7 @@ def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id
         for row in attrs:
             _set_attribute_xp(db, row, row["current_xp"] - log["xp_gained"])
         db.execute("DELETE FROM action_logs WHERE id = ?", (log["id"],))
-    if logs and REF_MISSAO not in tipos:
+    if logs and REF_MISSAO not in tipos and REF_BONUS not in tipos:
         # GAM-07: a missão que esta ação tinha concluído volta a pendente
         # (e o bônus dela é estornado, pelo próprio revert_actions)
         avaliar_missoes(db)

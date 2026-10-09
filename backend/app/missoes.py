@@ -46,9 +46,9 @@ DIARIAS_POR_DIA = 3
 # depender do dia em que roda. Os testes de missões religam.
 GERACAO_ATIVA = True
 
-# logs que contam como "ação de verdade" pras missões: nem bônus de
-# missão, nem ação manual do Núcleo
-_LOG_VALIDO = "COALESCE(l.referencia_tipo, '') != 'missao' AND l.source != 'form'"
+# logs que contam como "ação de verdade" pras missões: nem bônus (de
+# missão ou de xp, GAM-08), nem ação manual do Núcleo
+_LOG_VALIDO = "COALESCE(l.referencia_tipo, '') NOT IN ('missao', 'bonus') AND l.source != 'form'"
 
 SEMANAIS = {
     "dias_ativos": {"titulo": "aja em 5 dias diferentes da semana", "quantidade": 5, "atributo": "metas"},
