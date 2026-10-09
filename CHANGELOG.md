@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.6] - em desenvolvimento
+
+_Sprint 3 da gamificação (GAM-10 a GAM-15: recompensas por nível, classe do jogador, chefes, retrospectiva mensal, mascote e sons, conquistas personalizadas). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.8.5] - 2026-10-09
 
 ### Adicionado
