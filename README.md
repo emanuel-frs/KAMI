@@ -53,13 +53,21 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 
 - **Núcleo:** os cinco atributos de vida (Carreira, Finanças, Aprendizado, Organização e Metas), cada
   um com XP e nível, nível geral do jogador, log filtrável de tudo que foi registrado, 50 conquistas
-  automáticas (com níveis e algumas secretas) e um painel de widgets que você arruma como quiser. Cada
-  ação mostra o XP ganho na hora; subir de nível abre uma tela própria, e os efeitos visuais podem ser
-  reduzidos ou desligados.
+  automáticas (com níveis e algumas secretas), conquistas que você mesmo cria ("10 ações em
+  aprendizado com 'inglês'") e um painel de widgets que você arruma como quiser. Cada ação mostra o XP
+  ganho na hora; subir de nível abre uma tela própria e conquistas sobem num aviso no canto da tela.
 - **Hábito:** sequência de dias com uma chama em pixel art que cresce com ela e proteções que seguram
   um dia em branco; três missões por dia e uma por semana, sorteadas a partir do que dá para fazer
   agora; bônus de XP pela primeira ação do dia, pela sequência e por cuidar do atributo mais atrasado;
   e o radar avisa quando um atributo está parado há duas semanas.
+- **Progressão:** subir o nível geral libera títulos (exibidos sob o seu nome) e temas de terminal
+  (fósforo, CRT e âmbar); sua classe (Erudito, Mercador, Artífice, Estrategista, Arquivista ou Polímata)
+  vem do atributo mais forte; e todo mês abre uma retrospectiva em ASCII do mês que acabou, exportável
+  em `.txt`.
+- **Cara de terminal antigo:** texto que se digita, números que rolam, cards que ligam como um CRT,
+  brilho de fósforo e cursor em pixel art, além de bipes 8-bit gerados na hora para progresso, cliques
+  e avisos. Efeitos (completo, sutil ou desligado) e sons (por grupo, com volume) se ajustam em
+  configurações › aparência.
 - **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
   visão mensal com comparação com o mês anterior.
