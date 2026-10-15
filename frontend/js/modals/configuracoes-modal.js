@@ -76,6 +76,7 @@
  * mostrar/esconder, não um modal separado).
  */
 import { exportData, importData, resetData } from "../api/sistema.js";
+import { applyXpReview, getRecompensas, previewXpReview } from "../api/nucleo.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
 import {
   listEmailAccounts,
@@ -95,7 +96,7 @@ import {
 } from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { showToast } from "../components/toast.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, localDateKey } from "../components/format.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { openAvatarModal } from "./avatar-modal.js";
@@ -104,6 +105,7 @@ import { ACCENT_OPTIONS } from "../components/accent-colors.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { store } from "../state/store.js";
 import { prefersReducedMotion } from "../components/a11y.js";
+import { playSound } from "../components/sound.js";
 
 const RESET_WORD = "excluir";
 const IMPORT_WORD = "importar";
@@ -143,14 +145,71 @@ function buildTabsHtml() {
   ).join("");
 }
 
+// GAM-04 — ver components/visual-effects.js
+const EFFECT_OPTIONS = [
+  { value: "completo", label: "completo", desc: "tela de subida de nível, linhas de +xp e avisos" },
+  { value: "sutil", label: "sutil", desc: "linhas de +xp e avisos, sem a tela cheia" },
+  { value: "desligado", label: "desligado", desc: "só os avisos, sem nada animado" },
+];
+
+// GAM-13: grupos de som (components/sound.js) — coluna do perfil, rótulo, descrição
+const SOUND_GROUPS = [
+  { field: "som_progresso", label: "progresso", desc: "+xp, nível, LEVEL UP, conquista, missão e sequência salva" },
+  { field: "som_interface", label: "interface", desc: "todo botão (com som próprio pra confirmar, apagar, abas e opções), abrir e fechar janelas, trocar de tela, a voz da kami e a abertura do app" },
+  { field: "som_avisos", label: "avisos", desc: "notificações, erros, confirmações e arquivos baixados" },
+];
+
 function buildAparenciaPanel() {
   return `
     <div class="cfg-panel on" data-panel="aparencia">
       <div class="settings-section" style="padding-top:0;">
         <h4>cor de destaque</h4>
-        <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app. mais opções de aparência chegam depois.</p>
+        <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app.</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
         <p class="settings-status" id="cfg-accent-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>efeitos visuais</h4>
+        <p class="settings-desc">como o kami comemora seu progresso. com o sistema em "reduzir movimento", nada se mexe em nenhuma opção.</p>
+        <div role="radiogroup" aria-label="efeitos visuais" id="cfg-effects">
+          ${EFFECT_OPTIONS.map((o) => `
+          <label class="cfg-toggle">
+            <input type="radio" name="cfg-effects" value="${o.value}">
+            <span>${o.label}<small>${o.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-effects-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>sons</h4>
+        <p class="settings-desc">bipes 8-bit gerados na hora, no estilo terminal. cada grupo liga e desliga sozinho.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-sound-on">
+          <span>som ligado<small>liga e desliga todos os sons de uma vez</small></span>
+        </label>
+        <div class="cfg-sound-volume">
+          <label for="cfg-sound-volume">volume</label>
+          <input type="range" id="cfg-sound-volume" min="0" max="100" step="5">
+          <span id="cfg-sound-volume-value" aria-hidden="true"></span>
+          <button type="button" class="btn sm" id="cfg-sound-test">ouvir</button>
+        </div>
+        <div id="cfg-sound-groups">
+          ${SOUND_GROUPS.map((g) => `
+          <label class="cfg-toggle">
+            <input type="checkbox" data-sound-group="${g.field}">
+            <span>${g.label}<small>${g.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-sound-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>recompensas do nível</h4>
+        <p class="settings-desc" id="cfg-rewards-desc">títulos e temas de terminal liberados conforme seu nível geral sobe.</p>
+        <p class="cfg-subhead">título <small>(aparece sob o seu nome no perfil)</small></p>
+        <div role="radiogroup" aria-label="título" id="cfg-titles"></div>
+        <p class="cfg-subhead">tema de terminal <small>(por cima da cor de destaque)</small></p>
+        <div role="radiogroup" aria-label="tema de terminal" id="cfg-themes"></div>
+        <p class="settings-status" id="cfg-rewards-status"></p>
       </div>
     </div>`;
 }
@@ -278,6 +337,15 @@ function buildBackupPanel() {
         </div>
         <p class="settings-status" id="sm-export-status"></p>
       </div>
+      <div class="settings-section">
+        <h4>revisar xp</h4>
+        <p class="settings-desc">corrige o xp gravado antes das regras atuais: registros que sobraram de ações desfeitas (pagamento desmarcado, item apagado, marco reaberto), repetições no mesmo dia do que hoje só rende xp 1x por dia e ações manuais acima de 50 xp. primeiro mostra o que mudaria — nada é gravado até você confirmar.</p>
+        <p class="settings-note">antes de aplicar, uma cópia completa do banco é guardada na pasta de dados do kami.</p>
+        <div class="form-actions">
+          <button class="btn sm" id="sm-xpreview-btn" data-action="xp-review-preview">simular revisão</button>
+        </div>
+        <div class="xp-review-report" id="sm-xpreview-report" hidden></div>
+      </div>
       <div class="settings-section settings-warning">
         <h4>importar dados</h4>
         <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
@@ -355,6 +423,20 @@ function wireModal(wrap) {
   wirePerfilTab(wrap);
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
+  wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
+  wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
+  wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
+    saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
+  );
+  const volume = wrap.querySelector("#cfg-sound-volume");
+  volume.addEventListener("input", () => {
+    wrap.querySelector("#cfg-sound-volume-value").textContent = volume.value;
+  });
+  // salva ao soltar (change), não a cada passo do arrasto (input)
+  volume.addEventListener("change", () => saveSound(wrap, { som_volume: Number(volume.value) }));
+  wrap.querySelector("#cfg-sound-test").addEventListener("click", () => playSound("conquista", { force: true }));
+  wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
+  wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
   wireBackupTab(wrap);
 
   wrap.addEventListener("click", (e) => {
@@ -380,6 +462,115 @@ function renderAccentSwatches(wrap, currentColor) {
   container.querySelectorAll(".ki-swatch").forEach((btn) => {
     btn.addEventListener("click", () => selectAccentColor(wrap, btn));
   });
+}
+
+function renderEffectsOptions(wrap, current) {
+  wrap.querySelectorAll('input[name="cfg-effects"]').forEach((input) => {
+    input.checked = input.value === (current || "completo");
+  });
+}
+
+async function selectEffectsMode(wrap, value) {
+  const statusEl = wrap.querySelector("#cfg-effects-status");
+  statusEl.classList.remove("settings-status--visible");
+  try {
+    await updateProfile({ efeitos_visuais: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar efeitos visuais");
+    renderEffectsOptions(wrap, store.get("profile")?.efeitos_visuais);
+    return;
+  }
+  store.set("profile", { ...store.get("profile"), efeitos_visuais: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
+}
+
+// ── sons (GAM-13) ──────────────────────────────────────────────────────
+function renderSoundOptions(wrap, profile) {
+  wrap.querySelector("#cfg-sound-on").checked = Boolean(profile.som_ativo);
+  wrap.querySelector("#cfg-sound-volume").value = profile.som_volume ?? 60;
+  wrap.querySelector("#cfg-sound-volume-value").textContent = profile.som_volume ?? 60;
+  wrap.querySelectorAll("[data-sound-group]").forEach((input) => {
+    input.checked = Boolean(profile[input.dataset.soundGroup]);
+  });
+  syncSoundDisabled(wrap);
+}
+
+// com o som desligado, volume e grupos ficam visíveis mas desabilitados
+function syncSoundDisabled(wrap) {
+  const on = wrap.querySelector("#cfg-sound-on").checked;
+  wrap.querySelectorAll("#cfg-sound-volume, [data-sound-group]").forEach((el) => (el.disabled = !on));
+}
+
+async function saveSound(wrap, change) {
+  const statusEl = wrap.querySelector("#cfg-sound-status");
+  statusEl.classList.remove("settings-status--visible");
+  syncSoundDisabled(wrap);
+  let saved;
+  try {
+    saved = await updateProfile(change);
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar sons");
+    renderSoundOptions(wrap, store.get("profile") ?? {});
+    return;
+  }
+  const fields = ["som_ativo", "som_volume", "som_progresso", "som_interface", "som_avisos"];
+  store.set("profile", { ...store.get("profile"), ...Object.fromEntries(fields.map((f) => [f, saved[f]])) });
+  // ao ligar, um bipe confirma que o áudio está funcionando
+  if (change.som_ativo) playSound("aviso", { force: true });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
+}
+
+// ── recompensas do nível (GAM-10) ──────────────────────────────────────
+// Título e tema de terminal liberados pelo nível geral (catálogo e regra em
+// backend/app/recompensas.py). O que ainda não foi liberado aparece
+// desabilitado com "nível N" — dá pra ver o que vem pela frente.
+function rewardOption(name, item, checked) {
+  const lock = item.unlocked ? "" : ` · liberado no nível ${item.level}`;
+  const desc = item.description ? `${item.description}${lock}` : lock.replace(/^ · /, "");
+  return `
+    <label class="cfg-toggle${item.unlocked ? "" : " cfg-toggle--locked"}">
+      <input type="radio" name="${name}" value="${escapeHtml(item.key)}"${checked ? " checked" : ""}${item.unlocked ? "" : " disabled"}>
+      <span>${escapeHtml(item.label)}${desc ? `<small>${escapeHtml(desc)}</small>` : ""}</span>
+    </label>`;
+}
+
+async function renderRewards(wrap, profile) {
+  let data;
+  try {
+    data = await getRecompensas();
+  } catch {
+    wrap.querySelector("#cfg-rewards-desc").textContent = "não deu pra carregar as recompensas agora.";
+    return;
+  }
+  wrap.querySelector("#cfg-rewards-desc").textContent =
+    `títulos e temas de terminal liberados conforme seu nível geral sobe — você está no nível ${data.level}.`;
+  const auto = { key: "auto", label: "automático", description: "o título mais alto que você já liberou", unlocked: true };
+  wrap.querySelector("#cfg-titles").innerHTML = [auto, ...data.titulos]
+    .map((t) => rewardOption("cfg-title", t, (profile.titulo ?? "auto") === t.key))
+    .join("");
+  wrap.querySelector("#cfg-themes").innerHTML = data.temas
+    .map((t) => rewardOption("cfg-theme", t, (profile.tema ?? "padrao") === t.key))
+    .join("");
+}
+
+async function selectReward(wrap, field, value) {
+  const statusEl = wrap.querySelector("#cfg-rewards-status");
+  statusEl.classList.remove("settings-status--visible");
+  let saved;
+  try {
+    saved = await updateProfile({ [field]: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar recompensa");
+    renderRewards(wrap, store.get("profile") ?? {});
+    return;
+  }
+  // o tema vale na hora (components/tema.js escuta o store); o título
+  // aparece no card de perfil (widgets/profile.js também escuta)
+  store.set("profile", { ...store.get("profile"), titulo: saved.titulo, tema: saved.tema });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
 }
 
 async function selectAccentColor(wrap, btn) {
@@ -899,6 +1090,7 @@ function wireBackupTab(wrap) {
   });
 
   wrap.querySelector("#sm-export-btn").addEventListener("click", () => handleExport(wrap));
+  wrap.querySelector("#sm-xpreview-btn").addEventListener("click", () => handleXpReviewPreview(wrap));
   importBtn.addEventListener("click", () => handleImport(wrap));
   resetBtn.addEventListener("click", () => handleReset(wrap));
 }
@@ -919,7 +1111,7 @@ async function handleExport(wrap) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     const filename = `kami-backup-${today}.json`;
     a.href = url;
     a.download = filename;
@@ -948,6 +1140,102 @@ async function handleExport(wrap) {
     busy = false;
     btn.disabled = false;
     btn.textContent = originalLabel;
+  }
+}
+
+const XP_REVIEW_LIST_LIMIT = 12;
+
+function renderXpReviewReport(report) {
+  const changedAttrs = report.atributos.filter((a) => a.xp_antes !== a.xp_depois);
+  const nothing =
+    !report.removidos.length && !report.limitados.length && !changedAttrs.length && !report.vinculados &&
+    !report.conquistas_rebloqueadas.length && !report.conquistas_desbloqueadas.length;
+  if (nothing) {
+    return '<p class="settings-desc">nada a corrigir — seu xp já está consistente.</p>';
+  }
+
+  const lines = [];
+  lines.push(
+    `<p class="settings-desc">${report.removidos.length} registro(s) removido(s) · ${report.vinculados} vinculado(s) ao item de origem · ${report.limitados.length} ação(ões) manual(is) limitada(s) a 50 xp</p>`
+  );
+  if (changedAttrs.length) {
+    lines.push(
+      `<ul class="xp-review-list">${changedAttrs
+        .map((a) => `<li><span>${escapeHtml(a.nome)}</span><span>${a.xp_antes} → ${a.xp_depois} xp</span></li>`)
+        .join("")}</ul>`
+    );
+  }
+  if (report.conquistas_rebloqueadas.length) {
+    lines.push(`<p class="settings-note">voltam a ficar bloqueadas: ${report.conquistas_rebloqueadas.map(escapeHtml).join(", ")}</p>`);
+  }
+  if (report.conquistas_desbloqueadas.length) {
+    lines.push(`<p class="settings-note">serão desbloqueadas: ${report.conquistas_desbloqueadas.map(escapeHtml).join(", ")}</p>`);
+  }
+  if (report.removidos.length) {
+    const shown = report.removidos.slice(0, XP_REVIEW_LIST_LIMIT);
+    const rest = report.removidos.length - shown.length;
+    lines.push(
+      `<ul class="xp-review-list xp-review-list--removed">${shown
+        .map((r) => `<li><span>${escapeHtml(r.description)}</span><span>−${r.xp} xp · ${escapeHtml(r.motivo)}</span></li>`)
+        .join("")}${rest > 0 ? `<li class="xp-review-more">+${rest} outro(s)</li>` : ""}</ul>`
+    );
+  }
+  lines.push(`
+    <div class="form-actions">
+      <button class="btn sm warn" id="sm-xpreview-apply" data-action="xp-review-apply">aplicar revisão</button>
+    </div>`);
+  return lines.join("");
+}
+
+async function handleXpReviewPreview(wrap) {
+  if (busy) return;
+  const btn = wrap.querySelector("#sm-xpreview-btn");
+  const reportEl = wrap.querySelector("#sm-xpreview-report");
+  busy = true;
+  btn.disabled = true;
+  btn.textContent = "simulando...";
+  try {
+    const report = await previewXpReview();
+    reportEl.innerHTML = renderXpReviewReport(report);
+    reportEl.hidden = false;
+    reportEl.querySelector("#sm-xpreview-apply")?.addEventListener("click", () => handleXpReviewApply(wrap));
+  } catch (err) {
+    showErrorModal(err.message, "erro ao simular a revisão de xp");
+  } finally {
+    busy = false;
+    btn.disabled = false;
+    btn.textContent = "simular revisão";
+  }
+}
+
+async function handleXpReviewApply(wrap) {
+  if (busy) return;
+  const reallySure = await showConfirmModal(
+    "isso remove os registros listados e recalcula o xp de cada atributo a partir do log. uma cópia do banco é guardada antes, na pasta de dados do kami. continuar?",
+    { title: "aplicar revisão de xp", confirmText: "sim, revisar" }
+  );
+  if (!reallySure) return;
+
+  const applyBtn = wrap.querySelector("#sm-xpreview-apply");
+  busy = true;
+  applyBtn.disabled = true;
+  applyBtn.textContent = "aplicando...";
+  try {
+    const report = await applyXpReview();
+    showToast({
+      title: "xp revisado",
+      message: `cópia do banco anterior: ${report.backup}`,
+      iconName: "check",
+      duration: 12000,
+    });
+    // mesmo motivo de handleImport: xp/níveis/conquistas mudam em todas as
+    // telas de uma vez — recarregar é mais seguro que atualizar cada widget
+    setTimeout(() => window.location.reload(), 1500);
+  } catch (err) {
+    showErrorModal(err.message, "erro ao aplicar a revisão de xp");
+    busy = false;
+    applyBtn.disabled = false;
+    applyBtn.textContent = "aplicar revisão";
   }
 }
 
@@ -1114,6 +1402,9 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
   try {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
+    renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderSoundOptions(modalEl, profile);
+    renderRewards(modalEl, profile);
     renderPerfilTab(modalEl, profile);
     renderNotificacoesTab(modalEl, profile);
     // getProfile() aqui é a fonte mais fresca (pode ter mudado desde a

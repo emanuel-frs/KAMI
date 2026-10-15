@@ -81,7 +81,7 @@ const STEPS = [
         </div>
         <div class="ob-illus-row ob-attr-row">
           <span class="ob-attr">aprendizado</span>
-          <span class="ob-attr-xp">+50 xp</span>
+          <span class="ob-attr-xp">+20 xp</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
           <span class="ob-attr">finanças</span>
@@ -130,7 +130,7 @@ const STEPS = [
             .join("")}
           <div class="ob-attr-row" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border-soft);">
             <span class="ob-attr">${icon("check", { size: 9 })} concluiu "fundamentos de python"</span>
-            <span class="ob-attr-xp">+50 xp</span>
+            <span class="ob-attr-xp">+20 xp</span>
           </div>
         </div>
       </div>`,
@@ -160,7 +160,7 @@ const STEPS = [
   {
     title: () => "aprendizado",
     desc: () =>
-      'trilhas de estudo com marcos, progresso calculado automaticamente, roadmap visual com drag-and-drop pra reordenar e um heatmap estilo GitHub. esse marco "fundamentos de python" concluído aqui foi exatamente o que gerou aquele +50 xp que você viu no log do núcleo, duas telas atrás.',
+      'trilhas de estudo com marcos, progresso calculado automaticamente, roadmap visual com drag-and-drop pra reordenar e um heatmap estilo GitHub. esse marco "fundamentos de python" concluído aqui foi exatamente o que gerou aquele +20 xp que você viu no log do núcleo, duas telas atrás.',
     illustration: () => `
       <div class="ob-illus ob-illus--aprendizado">
         <div class="ob-track-header">

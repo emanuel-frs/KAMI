@@ -17,6 +17,7 @@
  */
 
 import { prefersReducedMotion } from "./a11y.js";
+import { playWhenReady } from "./sound.js";
 
 const ART = [
   "██╗  ██╗ █████╗ ███╗   ███╗ ██╗",
@@ -170,11 +171,16 @@ export function playBootSplash() {
       flicker();
     }
 
+    // GAM-13: som da abertura junto com a logo — o perfil (que diz se o som
+    // está ligado) pode ainda não ter chegado; pular o splash cancela
+    let cancelSound = () => {};
+
     let finished = false;
     function finish() {
       if (finished) return;
       finished = true;
       clearAllTimers();
+      cancelSound();
       overlay.classList.remove("open");
       overlay.classList.add("closing");
       const cleanupDelay = schedule(() => {
@@ -196,6 +202,7 @@ export function playBootSplash() {
 
     // segura em preto por initialDelay antes de começar — só depois
     // disso a varredura diagonal de materialização começa
+    schedule(() => (cancelSound = playWhenReady("abertura")), initialDelay);
     cells.forEach((cell) =>
       schedule(() => materializeCell(cell), initialDelay + cell.delay)
     );

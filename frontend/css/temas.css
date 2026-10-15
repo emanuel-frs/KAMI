@@ -1,0 +1,49 @@
+/*
+ * Temas de terminal (GAM-10) — recompensas liberadas pelo nível geral
+ * (backend/app/recompensas.py), aplicados em <html data-tema="...">
+ * (components/tema.js). Vão POR CIMA da cor de destaque: só mexem nos
+ * tokens de texto/superfície de tokens.css, então todo o app acompanha
+ * sem tocar em cada componente. --text-faint fica com contraste ≥ 4,5:1
+ * contra --card em todos (é texto de verdade em 10–11px).
+ */
+
+/* nv 5 · fósforo: o texto ganha o tom da cor de destaque */
+:root[data-tema="fosforo"] {
+  --text: color-mix(in srgb, var(--accent) 55%, #e6e6e6);
+  --text-bright: color-mix(in srgb, var(--accent) 30%, #ffffff);
+  --text-dim: color-mix(in srgb, var(--accent) 45%, #9a9a9a);
+}
+:root[data-tema="fosforo"] body {
+  text-shadow: 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* nv 10 · crt: linhas de varredura e cantos escurecidos por cima de tudo
+   (pointer-events: none — não atrapalha nenhum clique) */
+:root[data-tema="crt"] body {
+  text-shadow: 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+:root[data-tema="crt"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0, 0, 0, 0.16) 3px),
+    radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.38) 100%);
+}
+
+/* nv 15 · âmbar clássico: superfícies quentes e texto creme */
+:root[data-tema="ambar"] {
+  --bg: #080603;
+  --bg-alt: #0f0b06;
+  --panel: #0b0805;
+  --card: #14100a;
+  --border: #40352a;
+  --border-soft: #2a2218;
+  --border-interactive: #6b5a43;
+  --text: #d8cbb2;
+  --text-bright: #f6ecd6;
+  --text-dim: #a09279;
+  --text-faint: #8f826a;
+}

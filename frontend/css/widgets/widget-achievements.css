@@ -82,4 +82,105 @@
   margin-top: auto;
   padding-top: 6px;
   border-top: 1px dashed var(--border-soft);
+}/* progresso de uma conquista bloqueada (achievements.js::lockedStatus):
+   barra em texto "[###-------]" + contagem, sem caixa alta pra os
+   números ficarem legíveis */
+.ach .a-progress {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 9px;
 }
+.ach .a-bar {
+  color: var(--accent-dim);
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+/* filtro por área (GAM-03) — mesma linguagem das abas de organização
+   (.tab em widget-organizacao.css), só que menor e com contagem
+   "desbloqueadas/total" em cada botão */
+.ach-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.ach-filter {
+  font-family: var(--font);
+  font-size: 9.5px;
+  padding: 3px 8px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  cursor: pointer;
+}
+.ach-filter:hover { color: var(--text-dim); border-color: var(--border-interactive); }
+.ach-filter:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.ach-filter.on {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-alt);
+}
+.ach-filter-count { color: var(--text-faint); }
+.ach-filter.on .ach-filter-count { color: var(--accent-dim); }
+
+/* marca de nível (I/II/III) no canto do ícone */
+.ach-tier {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+}
+.ach.unlocked .ach-tier { color: var(--accent); }
+
+/* secreta bloqueada: título "???" (vem mascarado do backend) mais apagado */
+.ach.secret .a-title { letter-spacing: 2px; }
+
+/* GAM-14: conquista criada pelo usuário — marca "sua" no canto do ícone e
+   botão de remover (as personalizadas não têm marca de nível I/II/III,
+   então o canto direito fica livre pra ele) */
+.ach-mine {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+.ach-remove {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ach:hover .ach-remove,
+.ach-remove:focus-visible { opacity: 1; }
+.ach-remove:hover { color: var(--red); }
+.ach-remove:focus-visible { outline: 1px solid var(--accent); }
+/* "+ criar conquista" no fim da linha de filtros, com cara de ação (não é
+   um filtro: classe própria, mesmo tamanho dos botões de área) */
+.ach-create {
+  font-family: var(--font);
+  font-size: 9.5px;
+  padding: 3px 8px;
+  color: var(--accent);
+  border: 1px dashed var(--accent-dim);
+  background: var(--bg);
+  cursor: pointer;
+}
+.ach-create:hover { border-color: var(--accent); }
+.ach-create:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }

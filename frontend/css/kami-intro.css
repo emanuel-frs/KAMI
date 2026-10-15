@@ -143,7 +143,17 @@
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
+/* GAM-13: enquanto a kami "fala" (texto sendo digitado), o avatar balança
+   de leve, em degraus — como sprite de personagem falando */
+.ki-avatar-hero.talking { animation: ki-talk 0.32s steps(2, end) infinite; }
+@keyframes ki-talk {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .ki-avatar-hero.talking { animation: none; }
   .ki-advance-hint { animation: none; opacity: 1; }
   /* mesmo caso do cursor da titlebar (base.css): fica sólido em vez de
      piscar — item 5 das pendências ("cursor piscando... sem essa opção") */

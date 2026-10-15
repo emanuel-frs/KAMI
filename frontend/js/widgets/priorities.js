@@ -2,6 +2,7 @@
 import { getAttributes } from "../api/nucleo.js";
 import { listGoals } from "../api/metas.js";
 import { escapeHtml, fmtDateBR } from "../components/format.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /** "Atenção agora": atributo mais atrasado + meta com prazo mais próximo. */
 export async function render(el, widget) {
@@ -17,11 +18,15 @@ export async function render(el, widget) {
     }
 
     const rows = [];
-    const lowest = [...attributes].sort((a, b) => a.current_level - b.current_level)[0];
+    // GAM-08: o backend diz qual atributo rende 2× (mesma regra do bônus,
+    // app/bonus.py — com desempate por xp, e nenhum se todos empatados)
+    const behind = attributes.find((a) => a.bonus_atrasado);
+    const lowest = behind ?? [...attributes].sort((a, b) => a.current_level - b.current_level)[0];
     if (lowest) {
       rows.push(`
         <div class="log-item">
           <span class="desc">atributo mais atrasado: <b style="color:var(--amber);">${escapeHtml(lowest.name)}</b> (lvl ${lowest.current_level})</span>
+          ${behind ? '<span class="meta">ações aqui rendem 2×</span>' : ""}
         </div>`);
     }
 
@@ -41,5 +46,5 @@ export async function render(el, widget) {
   }
 
   await load();
-  window.addEventListener("kami:action-registered", load);
+  listenWhileConnected(el, "kami:action-registered", load);
 }

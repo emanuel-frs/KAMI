@@ -33,6 +33,17 @@
  * multi-linha, largura própria). Esse seletor fica de fora do portal
  * pra não mostrar os dois tooltips ao mesmo tempo.
  *
+ * Sem pisca-pisca em re-render: vários widgets se redesenham sozinhos
+ * (innerHTML) depois de cada ação — perfil, galeria de conquistas,
+ * radar, barra lateral, ver components/progress-watcher.js. Com o mouse
+ * parado em cima de um alvo, o navegador dispara mouseout no elemento
+ * antigo e mouseover no novo; antes isso escondia o tooltip na hora e
+ * reabria do zero (fade de .12s), e ele "piscava". Agora:
+ *   - esconder espera HIDE_DELAY_MS e é cancelado se um show() chegar
+ *     nesse meio tempo (o caso do re-render);
+ *   - show() com o tooltip já visível só troca texto/posição, sem
+ *     refazer o fade de entrada.
+ *
  * CSS injetado pelo próprio módulo (mesmo motivo do custom-select.js:
  * não depender de um .css externo estar no lugar certo do pipeline).
  * O antigo tooltip.css (regras `::after`) fica só com `.icon-btn-square`
@@ -69,6 +80,9 @@ function ensureStyles() {
 
 let portalEl = null;
 let currentTarget = null;
+let hideTimer = null;
+
+const HIDE_DELAY_MS = 80;
 
 function ensurePortal() {
   if (portalEl) return portalEl;
@@ -111,9 +125,16 @@ function show(target) {
   const text = target.getAttribute("data-tooltip");
   if (!text) return;
   const el = ensurePortal();
+  clearTimeout(hideTimer);
   currentTarget = target;
+  if (el.classList.contains("show")) {
+    // já visível (re-render do alvo ou outro alvo logo ao lado): troca
+    // texto e posição sem refazer o fade — é isso que evita o pisca
+    el.textContent = text;
+    positionFor(target, el);
+    return;
+  }
   el.textContent = text;
-  el.classList.remove("show");
   positionFor(target, el);
   // força reposicionar depois do texto trocar (largura mudou) antes de mostrar
   requestAnimationFrame(() => {
@@ -125,11 +146,16 @@ function show(target) {
 
 function hide(target) {
   if (currentTarget !== target) return;
-  currentTarget = null;
-  portalEl?.classList.remove("show");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    if (currentTarget !== target) return; // outro show() assumiu nesse meio tempo
+    currentTarget = null;
+    portalEl?.classList.remove("show");
+  }, HIDE_DELAY_MS);
 }
 
 function hideImmediately() {
+  clearTimeout(hideTimer);
   currentTarget = null;
   portalEl?.classList.remove("show");
 }

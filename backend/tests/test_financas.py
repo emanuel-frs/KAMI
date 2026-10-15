@@ -402,7 +402,7 @@ def test_create_transaction_credits_xp_in_financas(client):
     assert resp.status_code == 200, resp.text
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["financas"]["current_xp"] == 2
+    assert attrs["financas"]["current_xp"] == 3  # XP_TRANSACAO
 
 
 def test_create_transaction_debits_saldo_on_saida(client):

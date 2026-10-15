@@ -23,7 +23,7 @@ def test_get_layout_seeds_default_for_nucleo(client):
     assert resp.status_code == 200
     body = resp.json()
     assert [w["widget_type"] for w in body] == [
-        "achievements", "registrar", "attributes", "log", "priorities",
+        "missoes", "achievements", "registrar", "attributes", "log", "priorities",
     ]
 
 

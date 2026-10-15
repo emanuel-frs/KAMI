@@ -251,6 +251,17 @@ a { color: var(--text-bright); }
   cursor: pointer;
 }
 #btn-open-settings { flex: 0 0 auto; }
+/* GAM-05: nível geral + barra de xp em texto, acima do rodapé (avatar e
+   botões) — components/sidebar-level.js */
+.sidebar-level {
+  padding: 0 18px;
+  font-family: var(--font);
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.sidebar-level .sl-level { color: var(--text-dim); }
+.sidebar-level .sl-bar { color: var(--accent); letter-spacing: -0.5px; }
 
 /* ---------- ÁREA DE CONTEÚDO ---------- */
 /* overflow-x: hidden explícito — sem isso, overflow-y:auto sozinho faz o

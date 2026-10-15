@@ -1,0 +1,65 @@
+/*
+ * Feedback de xp (components/progress-watcher.js) — "+20 xp · aprendizado"
+ * que sobe e some no canto superior direito depois de qualquer escrita
+ * que rendeu (ou estornou) xp. Mesma linguagem de terminal do resto do
+ * app: fonte mono, cor de destaque, sem fundo nem sombra — é uma linha
+ * de log passageira, não um card (os cards de nível/conquista usam o
+ * toast.css). Estorno (xp negativo) aparece apagado, sem comemorar.
+ */
+
+.xp-feed {
+  position: fixed;
+  top: calc(var(--titlebar-h) + 14px);
+  right: 22px;
+  z-index: 220; /* mesmo nível da pilha de toasts (toast.css) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.xp-feed-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-dim);
+  text-shadow: 1px 1px 0 #000;
+  animation: xp-feed-rise 2.6s ease-out forwards;
+}
+.xp-feed-item b {
+  color: var(--accent);
+  font-weight: 600;
+}
+.xp-feed-item.neg b {
+  color: var(--text-faint);
+}
+/* GAM-08: bônus de xp — mesma linha, com "bônus" na frente pra separar
+   da linha da ação (o texto já diz qual bônus) */
+.xp-feed-item.bonus::before {
+  content: "bônus";
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+@keyframes xp-feed-rise {
+  0%   { opacity: 0; transform: translateY(6px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* sem deslocamento — só aparece e some */
+  .xp-feed-item { animation: xp-feed-fade 2.6s linear forwards; }
+}
+@keyframes xp-feed-fade {
+  0%, 85% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* GAM-04: efeitos visuais "desligado" (components/visual-effects.js põe
+   data-effects no <html>) — sem linhas de xp; ficam só os toasts */
+:root[data-effects="desligado"] .xp-feed { display: none; }

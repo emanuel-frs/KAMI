@@ -22,6 +22,10 @@ import math
 # days_inactive) -> int`), chamada sob demanda no GET do atributo (ou num job
 # de manutenção no startup) — nunca recalculando o histórico de action_logs
 # já gravado.
+#
+# GAM-09 já usa essa consulta (routers/nucleo.py::_atividade_por_atributo)
+# pra marcar o atributo "esquecido" no radar depois de 14 dias sem ação —
+# só como sinal visual, SEM perder xp. A decadência continua adiada.
 # ---------------------------------------------------------------------------
 
 

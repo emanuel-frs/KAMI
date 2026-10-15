@@ -25,6 +25,15 @@ CREATE TABLE IF NOT EXISTS user_profile (
     last_backup_at        TEXT,               -- NULL = nunca exportou um backup
     notif_alerts_enabled  INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "vencendo em breve" (calendário)
     notif_email_enabled   INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "e-mails"
+    efeitos_visuais       TEXT NOT NULL DEFAULT 'completo',  -- GAM-04: completo | sutil | desligado
+    sequencia_protecao_desde TEXT,            -- GAM-06: dia (YYYY-MM-DD) em que a proteção de sequência passou a valer; NULL = gravado no 1º cálculo
+    titulo                TEXT,               -- GAM-10: título escolhido (chave em app/recompensas.py); NULL = o mais alto liberado
+    tema                  TEXT NOT NULL DEFAULT 'padrao',  -- GAM-10: padrao | fosforo | crt | ambar (liberados por nível)
+    som_ativo             INTEGER NOT NULL DEFAULT 1,   -- GAM-13: sons do app (começa LIGADO — pedido no teste)
+    som_volume            INTEGER NOT NULL DEFAULT 60,  -- GAM-13: 0-100
+    som_progresso         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo +xp, nível, conquista, missão, sequência salva
+    som_interface         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo cliques, modal, troca de tela, voz da kami
+    som_avisos            INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo toast/notificação e erro
     updated_at            TEXT NOT NULL
 );
 
@@ -63,7 +72,13 @@ CREATE TABLE IF NOT EXISTS action_logs (
     xp_gained    INTEGER NOT NULL,
     impact_note  INTEGER,             -- 1-5, subjetivo
     source       TEXT NOT NULL DEFAULT 'form',  -- v1: só 'form'; 'kami_chat' entra pós-mvp
-    created_at   TEXT NOT NULL
+    created_at   TEXT NOT NULL,
+    -- entidade que gerou a ação (ex: 'marco' + id do marco), pra que
+    -- desfazê-la (reabrir, desmarcar pagamento, apagar) estorne
+    -- exatamente este log e o xp dele. NULL = ação manual do Núcleo ou
+    -- log anterior à migração. Ver app/actions.py::revert_actions.
+    referencia_tipo TEXT,
+    referencia_id   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS action_log_attributes (
@@ -72,13 +87,57 @@ CREATE TABLE IF NOT EXISTS action_log_attributes (
     PRIMARY KEY (action_log_id, attribute_id)
 );
 
+-- GAM-06: dias em branco cobertos por uma proteção de sequência. Para a
+-- sequência, contam como dia com ação. Gravados preguiçosamente no cálculo
+-- da sequência (app/sequencia.py), nunca apagados por ele — dia protegido
+-- vira fato mesmo que um estorno mude depois a conta das proteções.
+-- GAM-07: missões diárias (até 3 por dia local) e semanais (1 por semana,
+-- referencia = segunda-feira). Geradas preguiçosamente e avaliadas a partir
+-- dos action_logs (app/missoes.py). O bônus de uma missão concluída é um
+-- action_log com referencia_tipo 'missao' + referencia_id = missoes.id.
+CREATE TABLE IF NOT EXISTS missoes (
+    id            TEXT PRIMARY KEY,
+    periodo       TEXT NOT NULL,      -- 'dia' | 'semana'
+    referencia    TEXT NOT NULL,      -- YYYY-MM-DD do dia, ou da segunda-feira da semana
+    posicao       INTEGER NOT NULL,   -- 0..2 nas diárias, 0 na semanal
+    tipo          TEXT NOT NULL,      -- lancamento | conta_fixa | renda | meta | marco | marco_esquecido | link
+                                      -- (semanais: dias_ativos | lancamentos | marcos | atributos)
+    alvo_id       TEXT,               -- entidade da missão (conta fixa, entrada de renda, meta, trilha, marco)
+    titulo        TEXT NOT NULL,      -- congelado na geração (ex: pague a conta fixa "luz")
+    atributo      TEXT NOT NULL,      -- atributo que recebe o bônus
+    quantidade    INTEGER NOT NULL DEFAULT 1,  -- alvo (semanais: 5 dias, 10 lançamentos...)
+    xp_bonus      INTEGER NOT NULL,
+    concluida_em  TEXT,               -- NULL = pendente
+    created_at    TEXT NOT NULL,
+    UNIQUE(periodo, referencia, posicao)
+);
+
+-- GAM-12: retrospectiva mensal — foto do mês que acabou, calculada uma vez
+-- no primeiro acesso do mês seguinte (app/retrospectiva.py).
+CREATE TABLE IF NOT EXISTS retrospectivas (
+    mes         TEXT PRIMARY KEY,   -- 'YYYY-MM' do mês resumido
+    dados_json  TEXT NOT NULL,      -- resumo (xp por atributo, ações, conquistas, comparação...)
+    created_at  TEXT NOT NULL,
+    vista_em    TEXT                -- quando foi aberta pela 1ª vez; NULL = ainda não vista
+);
+
+CREATE TABLE IF NOT EXISTS dias_protegidos (
+    dia         TEXT PRIMARY KEY,   -- YYYY-MM-DD, dia local
+    created_at  TEXT NOT NULL,
+    avisado_em  TEXT                -- quando o aviso "sequência salva" foi visto; NULL = ainda não
+);
+
 CREATE TABLE IF NOT EXISTS achievements (
     id            TEXT PRIMARY KEY,
     title         TEXT NOT NULL,
     description   TEXT,
     rule_type     TEXT NOT NULL DEFAULT 'fixed',  -- v1: só 'fixed'
     criteria_json TEXT NOT NULL,       -- regra em JSON (ex: {"attribute":"aprendizado","count":10})
-    unlocked_at   TEXT                 -- NULL = ainda bloqueada
+    unlocked_at   TEXT,                -- NULL = ainda bloqueada
+    chave         TEXT,                -- id estável do seed (ver achievements.py); índice único em database.py
+    categoria     TEXT,                -- área: nucleo | financas | aprendizado | carreira | metas | organizacao
+    nivel         TEXT,                -- bronze | prata | ouro | NULL
+    secreta       INTEGER NOT NULL DEFAULT 0  -- 1 = mascarada ("???") enquanto bloqueada
 );
 
 -- ---------------- FINANÇAS ----------------

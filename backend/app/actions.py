@@ -5,14 +5,32 @@ próprio, fora do router do Núcleo, pra outros módulos poderem
 creditar XP automaticamente sem depender do router (ex: Finanças
 credita XP em 'financas' ao lançar uma transação, do jeito que já
 acontecia no protótipo de telas).
+
+Integridade do XP: toda ação gerada por um módulo carrega uma
+referência (`referencia_tipo` + `referencia_id`) à entidade que a
+gerou. Desfazer essa entidade (desmarcar um pagamento, reabrir um
+marco, apagar uma posição...) chama `revert_actions`, que apaga o
+log e debita exatamente o xp que ele creditou. Assim o XP do atributo,
+a soma do log e as contagens das conquistas continuam batendo, e
+"fazer e desfazer" deixa de render XP.
 """
-from typing import List, Optional
+from typing import Iterable, List, Optional, Union
 
 from fastapi import HTTPException
 
 from app.database import new_id, now_iso
 from app.xp import level_from_xp
-from app.achievements import check_achievements
+from app.achievements import check_achievements, relock_unmet_achievements
+from app.missoes import REF_MISSAO, avaliar_missoes, garantir_missoes
+from app.bonus import REF_BONUS, aplicar_bonus, atributo_atrasado, elegivel
+
+
+def _set_attribute_xp(db, row, new_xp: int) -> None:
+    new_xp = max(0, new_xp)
+    db.execute(
+        "UPDATE attributes SET current_xp = ?, current_level = ? WHERE id = ?",
+        (new_xp, level_from_xp(new_xp)["level"], row["id"]),
+    )
 
 
 def register_action(
@@ -22,6 +40,8 @@ def register_action(
     xp: int,
     impact: Optional[int] = None,
     source: str = "form",
+    referencia_tipo: Optional[str] = None,
+    referencia_id: Optional[str] = None,
 ) -> dict:
     """
     Grava um action_log + action_log_attributes, credita XP em cada
@@ -32,7 +52,21 @@ def register_action(
     Núcleo, 'financas' = lançamento automático de transação, etc) —
     já é o campo que existia no schema pra não precisar migração
     quando a Kami (pós-mvp) passar a registrar ações via chat.
+
+    `referencia_tipo`/`referencia_id` apontam pra entidade que gerou a
+    ação, pra que ela possa ser estornada depois (ver revert_actions).
+    Categorias repetidas contam uma vez só.
     """
+    categories = list(dict.fromkeys(categories))
+    # GAM-07: as missões do dia nascem ANTES do log desta ação — senão a
+    # ação que gerou as missões já chegava concluindo uma delas. O próprio
+    # bônus de missão (referencia 'missao') não mexe em missões.
+    is_bonus = referencia_tipo in (REF_MISSAO, REF_BONUS)
+    if not is_bonus:
+        garantir_missoes(db)
+    # GAM-08: o atributo atrasado é medido ANTES de esta ação creditar xp
+    com_bonus = elegivel(source, referencia_tipo)
+    atrasado = atributo_atrasado(db) if com_bonus else None
     attr_rows = {}
     for cat in categories:
         row = db.execute("SELECT * FROM attributes WHERE name = ?", (cat,)).fetchone()
@@ -43,9 +77,10 @@ def register_action(
     log_id = new_id()
     created_at = now_iso()
     db.execute(
-        "INSERT INTO action_logs (id, description, xp_gained, impact_note, source, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (log_id, description, xp, impact, source, created_at),
+        "INSERT INTO action_logs "
+        "(id, description, xp_gained, impact_note, source, created_at, referencia_tipo, referencia_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (log_id, description, xp, impact, source, created_at, referencia_tipo, referencia_id),
     )
 
     for cat, row in attr_rows.items():
@@ -53,15 +88,15 @@ def register_action(
             "INSERT INTO action_log_attributes (action_log_id, attribute_id) VALUES (?, ?)",
             (log_id, row["id"]),
         )
-        new_xp = row["current_xp"] + xp
-        new_level = level_from_xp(new_xp)["level"]
-        db.execute(
-            "UPDATE attributes SET current_xp = ?, current_level = ? WHERE id = ?",
-            (new_xp, new_level, row["id"]),
-        )
+        _set_attribute_xp(db, row, row["current_xp"] + xp)
 
     db.commit()
     newly_unlocked = check_achievements(db)
+    if com_bonus:
+        aplicar_bonus(db, log_id, categories, xp, atrasado)  # cada bônus é um log próprio, ligado a este
+    if not is_bonus:
+        avaliar_missoes(db)  # conclui a missão que esta ação cumpriu (credita o bônus)
+        db.commit()
 
     return {
         "id": log_id,
@@ -72,3 +107,87 @@ def register_action(
         "created_at": created_at,
         "newly_unlocked_achievements": newly_unlocked,
     }
+
+
+def _tipos(referencia_tipo: Union[str, Iterable[str]]) -> List[str]:
+    return [referencia_tipo] if isinstance(referencia_tipo, str) else list(referencia_tipo)
+
+
+def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id: str) -> int:
+    """
+    Estorna todas as ações ligadas a uma entidade: debita de cada
+    atributo o xp que o log creditou (nunca abaixo de 0) e apaga o log,
+    pra que contagens de conquistas e sequências deixem de considerá-lo.
+    Conquistas cujo critério deixou de valer voltam a ficar bloqueadas
+    (ver achievements.relock_unmet_achievements).
+
+    Devolve quantos logs foram estornados — 0 significa que a entidade
+    não tinha ação referenciada (ex: concluída antes da migração), e o
+    chamador pode cair no estorno legado (`debit_xp`).
+    """
+    tipos = _tipos(referencia_tipo)
+    placeholders = ", ".join("?" for _ in tipos)
+    logs = db.execute(
+        f"SELECT id, xp_gained FROM action_logs "
+        f"WHERE referencia_tipo IN ({placeholders}) AND referencia_id = ?",
+        (*tipos, referencia_id),
+    ).fetchall()
+    for log in logs:
+        # GAM-08: os bônus desta ação saem junto com ela
+        if REF_BONUS not in tipos:
+            revert_actions(db, REF_BONUS, log["id"])
+        attrs = db.execute(
+            "SELECT a.* FROM action_log_attributes ala "
+            "JOIN attributes a ON a.id = ala.attribute_id "
+            "WHERE ala.action_log_id = ?",
+            (log["id"],),
+        ).fetchall()
+        for row in attrs:
+            _set_attribute_xp(db, row, row["current_xp"] - log["xp_gained"])
+        db.execute("DELETE FROM action_logs WHERE id = ?", (log["id"],))
+    if logs and REF_MISSAO not in tipos and REF_BONUS not in tipos:
+        # GAM-07: a missão que esta ação tinha concluído volta a pendente
+        # (e o bônus dela é estornado, pelo próprio revert_actions)
+        avaliar_missoes(db)
+    if logs:
+        relock_unmet_achievements(db)
+        db.commit()
+    return len(logs)
+
+
+def debit_xp(db, attribute_name: str, amount: int) -> None:
+    """
+    Estorno legado: debita xp de um atributo sem tocar no log. Só usado
+    pra entidades concluídas antes de action_logs ter referência (não há
+    log identificável pra apagar). Nunca deixa current_xp negativo.
+    """
+    row = db.execute("SELECT * FROM attributes WHERE name = ?", (attribute_name,)).fetchone()
+    if not row:
+        return
+    _set_attribute_xp(db, row, row["current_xp"] - amount)
+    db.commit()
+
+
+def today_prefix() -> str:
+    """Prefixo YYYY-MM-DD do "hoje" usado em created_at de action_logs."""
+    return now_iso()[:10]
+
+
+def has_action(
+    db,
+    referencia_tipo: Union[str, Iterable[str]],
+    referencia_id: str,
+    only_today: bool = False,
+) -> bool:
+    """Diz se já existe ação ligada à entidade (opcionalmente, só hoje)."""
+    tipos = _tipos(referencia_tipo)
+    placeholders = ", ".join("?" for _ in tipos)
+    query = (
+        f"SELECT 1 FROM action_logs "
+        f"WHERE referencia_tipo IN ({placeholders}) AND referencia_id = ?"
+    )
+    args = [*tipos, referencia_id]
+    if only_today:
+        query += " AND substr(created_at, 1, 10) = ?"
+        args.append(today_prefix())
+    return db.execute(query + " LIMIT 1", args).fetchone() is not None

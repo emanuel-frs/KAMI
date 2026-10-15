@@ -1,3 +1,4 @@
+import { playSound } from "../components/sound.js";
 import { icon } from "../components/icons.js";
 
 /**
@@ -36,6 +37,7 @@ export function showErrorModal(message, title = "erro") {
   modalEl.querySelector("#em-title").textContent = title;
   modalEl.querySelector("#em-message").textContent = message;
   modalEl.classList.add("open");
+  playSound("erro"); // GAM-13
 }
 
 export function closeErrorModal() {
