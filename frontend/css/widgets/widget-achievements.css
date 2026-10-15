@@ -141,3 +141,46 @@
 
 /* secreta bloqueada: título "???" (vem mascarado do backend) mais apagado */
 .ach.secret .a-title { letter-spacing: 2px; }
+
+/* GAM-14: conquista criada pelo usuário — marca "sua" no canto do ícone e
+   botão de remover (as personalizadas não têm marca de nível I/II/III,
+   então o canto direito fica livre pra ele) */
+.ach-mine {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+.ach-remove {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ach:hover .ach-remove,
+.ach-remove:focus-visible { opacity: 1; }
+.ach-remove:hover { color: var(--red); }
+.ach-remove:focus-visible { outline: 1px solid var(--accent); }
+/* "+ criar conquista" no fim da linha de filtros, com cara de ação (não é
+   um filtro: classe própria, mesmo tamanho dos botões de área) */
+.ach-create {
+  font-family: var(--font);
+  font-size: 9.5px;
+  padding: 3px 8px;
+  color: var(--accent);
+  border: 1px dashed var(--accent-dim);
+  background: var(--bg);
+  cursor: pointer;
+}
+.ach-create:hover { border-color: var(--accent); }
+.ach-create:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }

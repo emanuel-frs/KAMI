@@ -1,5 +1,5 @@
 // js/api/nucleo.js
-import { get, post } from "./client.js";
+import { del, get, post } from "./client.js";
 export const getAttributes = () => get("/api/nucleo/attributes");
 export const registerAction = (data) => post("/api/nucleo/actions", data);
 export const getLog = (params = {}) => {
@@ -7,6 +7,9 @@ export const getLog = (params = {}) => {
   return get(`/api/nucleo/log${qs ? `?${qs}` : ""}`);
 };
 export const getAchievements = () => get("/api/nucleo/achievements");
+// GAM-14: conquistas personalizadas
+export const createCustomAchievement = (data) => post("/api/nucleo/achievements/custom", data);
+export const deleteCustomAchievement = (id) => del(`/api/nucleo/achievements/custom/${encodeURIComponent(id)}`);
 export const getPlayer = () => get("/api/nucleo/player");
 // GAM-07: missões do dia e da semana (geradas/avaliadas na leitura)
 export const getMissoes = () => get("/api/nucleo/missoes");

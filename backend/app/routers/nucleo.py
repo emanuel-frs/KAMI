@@ -6,6 +6,8 @@ Endpoints:
   POST /api/nucleo/actions              registra uma ação (form genérico, decisão 13)
   GET  /api/nucleo/log                  log cronológico, filtrável por atributo/período
   GET  /api/nucleo/achievements         galeria de conquistas (desbloqueadas + bloqueadas), com progresso
+  POST /api/nucleo/achievements/custom  cria uma conquista personalizada (GAM-14)
+  DELETE /api/nucleo/achievements/custom/{id}  apaga uma conquista personalizada
   GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias (+ proteções), conquistas
   GET  /api/nucleo/missoes              missões do dia e da semana, com progresso (GAM-07)
   GET  /api/nucleo/recompensas          títulos e temas liberados por nível (GAM-10)
@@ -23,10 +25,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.database import backup_database, get_db, local_now, now_iso
+from app.database import backup_database, get_db, local_now, new_id, now_iso
 from app.xp import level_from_xp
 from app.actions import register_action as register_action_core
-from app.achievements import REFS_BONUS, achievement_progress, streak_info
+from app.achievements import REFS_BONUS, achievement_progress, check_achievements, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
@@ -97,6 +99,14 @@ class LogEntryOut(BaseModel):
     categories: List[str]
     source: str
     created_at: str
+
+
+class CustomAchievementIn(BaseModel):
+    """GAM-14 — conquista criada pelo usuário (critério custom_count, achievements.py)."""
+    title: str = Field(..., min_length=1, max_length=60)
+    attribute: Optional[str] = Field(None, description="atributo da contagem; vazio = qualquer área")
+    count: int = Field(..., ge=1, le=10000)
+    keyword: Optional[str] = Field(None, max_length=40)
 
 
 class AchievementOut(BaseModel):
@@ -331,6 +341,55 @@ def _player_class(db) -> Optional[str]:
     if len(rows) > 1 and top["current_xp"] - rows[1]["current_xp"] < POLYMATH_MARGIN * top["current_xp"]:
         return POLYMATH_CLASS
     return CLASS_BY_ATTRIBUTE.get(top["name"], POLYMATH_CLASS)
+
+
+@router.post("/achievements/custom", response_model=AchievementOut, status_code=201)
+def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
+    """
+    GAM-14: cria uma conquista personalizada — "N ações [em <área>] [com
+    '<palavra>']". Entra na galeria como as outras (área = o atributo, ou
+    núcleo se for qualquer área) e já desbloqueia se o histórico cumprir.
+    Chave "custom:<id>": o seed_achievements nunca confunde com uma do
+    catálogo, nem pelo título.
+    """
+    title = payload.title.strip()
+    keyword = (payload.keyword or "").strip() or None
+    attribute = payload.attribute or None
+    if not title:
+        raise HTTPException(status_code=422, detail="dê um nome pra conquista")
+    if attribute and not db.execute("SELECT 1 FROM attributes WHERE name = ?", (attribute,)).fetchone():
+        raise HTTPException(status_code=422, detail=f"área desconhecida: '{attribute}'")
+    description = f"{payload.count} {'ação' if payload.count == 1 else 'ações'}"
+    if attribute:
+        description += f" em {attribute}"
+    if keyword:
+        description += f' com "{keyword}"'
+    achievement_id = new_id()
+    db.execute(
+        "INSERT INTO achievements (id, chave, title, description, criteria_json, categoria, nivel, secreta, "
+        "rule_type, unlocked_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 0, 'custom', NULL)",
+        (
+            achievement_id, f"custom:{achievement_id}", title, description,
+            json.dumps({"type": "custom_count", "attribute": attribute, "count": payload.count, "keyword": keyword}),
+            attribute or "nucleo",
+        ),
+    )
+    db.commit()
+    check_achievements(db)  # o histórico já pode cumprir a regra
+    db.commit()
+    return next(a for a in list_achievements(db) if a["id"] == achievement_id)
+
+
+@router.delete("/achievements/custom/{achievement_id}", status_code=204)
+def delete_custom_achievement(achievement_id: str, db=Depends(get_db)):
+    """GAM-14: só conquistas personalizadas podem ser apagadas."""
+    row = db.execute(
+        "SELECT 1 FROM achievements WHERE id = ? AND rule_type = 'custom'", (achievement_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="conquista personalizada não encontrada")
+    db.execute("DELETE FROM achievements WHERE id = ?", (achievement_id,))
+    db.commit()
 
 
 @router.get("/player", response_model=PlayerOut)

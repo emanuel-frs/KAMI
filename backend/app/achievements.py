@@ -43,6 +43,9 @@ nunca desbloqueiam. Tipos registrados hoje:
                          até o prazo
   - goal_types:          {"count": 4} — metas de N tipos diferentes
   - links_saved / repos_connected: {"count": N}
+  GAM-14 (conquistas personalizadas, rule_type 'custom'):
+  - custom_count:        {"attribute": "aprendizado" | null, "count": 10,
+                         "keyword": "inglês" | null}
 
 Metadados de cada conquista do seed (colunas próprias em achievements):
   - key (`chave`):        identificador estável entre versões — mudar
@@ -269,7 +272,8 @@ def seed_achievements(conn) -> None:
     duplicar a conquista.
     """
     cur = conn.cursor()
-    rows = cur.execute("SELECT id, title, chave FROM achievements").fetchall()
+    # personalizadas (GAM-14) têm chave "custom:<id>" e nunca entram aqui
+    rows = cur.execute("SELECT id, title, chave FROM achievements WHERE rule_type != 'custom'").fetchall()
     by_key = {r["chave"]: r["id"] for r in rows if r["chave"]}
     legacy_by_title = {r["title"]: r["id"] for r in rows if not r["chave"]}
 
@@ -394,6 +398,34 @@ def streak_info(conn, today: datetime.date = None) -> dict:
     saved_unseen = [r["dia"] for r in unseen]
 
     return {"current": current, "best": best, "active_today": active_today, "saved_unseen": saved_unseen, **info}
+
+
+@criterion("custom_count")
+def _crit_custom_count(conn, c):
+    """
+    GAM-14 — conquista criada pelo usuário: {"attribute": "aprendizado" |
+    None (qualquer área), "count": 10, "keyword": "inglês" | None}. Conta
+    as ações de verdade na área — bônus (REFS_BONUS) e ação manual do Núcleo
+    (source 'form') ficam de fora, senão "crie e marque" virava conquista
+    na hora. A palavra-chave é procurada na descrição da ação sem
+    diferenciar maiúscula/minúscula (casefold no Python: o lower() do
+    SQLite não entende acento).
+    """
+    query = (
+        "SELECT DISTINCT l.id, l.description FROM action_logs l "
+        "JOIN action_log_attributes ala ON ala.action_log_id = l.id "
+        "JOIN attributes a ON a.id = ala.attribute_id "
+        f"WHERE l.source != 'form' AND {_NOT_BONUS.replace('referencia_tipo', 'l.referencia_tipo')}"
+    )
+    args = []
+    if c.get("attribute"):
+        query += " AND a.name = ?"
+        args.append(c["attribute"])
+    rows = conn.execute(query, args).fetchall()
+    keyword = (c.get("keyword") or "").casefold().strip()
+    if keyword:
+        rows = [r for r in rows if keyword in (r["description"] or "").casefold()]
+    return len(rows), c["count"]
 
 
 @criterion("count_by_attribute")

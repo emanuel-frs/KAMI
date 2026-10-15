@@ -65,3 +65,31 @@ test(
     assert.equal(el.querySelector('.ach-filter[data-category="all"]').getAttribute("aria-pressed"), "true");
   })
 );
+
+test(
+  "conquista personalizada (GAM-14): marca 'sua', botão de remover e '+ criar conquista'",
+  withDom('<div class="card"><div id="w"></div></div>', async (dom, t) => {
+    const list = [
+      { id: "c1", key: "custom:c1", category: "aprendizado", tier: null, secret: false, title: "poliglota",
+        description: '2 ações em aprendizado com "inglês"', rule_type: "custom", unlocked: false, unlocked_at: null,
+        progress_current: 1, progress_target: 2 },
+      { id: "s1", key: "streak_3", category: "nucleo", tier: null, secret: false, title: "aquecendo",
+        description: "3 dias", rule_type: "fixed", unlocked: false, unlocked_at: null, progress_current: 0, progress_target: 3 },
+    ];
+    t.mock.method(globalThis, "fetch", async () => ({ ok: true, status: 200, json: async () => list }));
+    globalThis.CustomEvent = dom.window.CustomEvent;
+    t.after(() => delete globalThis.CustomEvent);
+    // o client guarda GETs em cache até a próxima escrita — o teste de cima já buscou a galeria
+    const { post } = await import("../../frontend/js/api/client.js");
+    await post("/api/x", {});
+    const { render } = await import("../../frontend/js/widgets/achievements.js");
+    const el = document.querySelector("#w");
+    await render(el, {});
+    const custom = [...el.querySelectorAll(".ach")].find((c) => c.textContent.includes("poliglota"));
+    const fixed = [...el.querySelectorAll(".ach")].find((c) => c.textContent.includes("aquecendo"));
+    assert.ok(custom.querySelector(".ach-mine"));
+    assert.equal(custom.querySelector("[data-remove-custom]").dataset.removeCustom, "c1");
+    assert.equal(fixed.querySelector(".ach-mine"), null);
+    assert.ok(el.querySelector("[data-create-custom]"));
+  })
+);

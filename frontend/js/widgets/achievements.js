@@ -1,5 +1,8 @@
 // js/widgets/achievements.js
-import { getAchievements } from "../api/nucleo.js";
+import { deleteCustomAchievement, getAchievements } from "../api/nucleo.js";
+import { openConquistaModal } from "../modals/conquista-modal.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
+import { showErrorModal } from "../modals/err-modal.js";
 import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
@@ -85,12 +88,19 @@ function card(a) {
   const tier = a.tier && TIER_MARK[a.tier]
     ? `<span class="ach-tier" data-tooltip="${a.tier}" aria-label="nível ${a.tier}">${TIER_MARK[a.tier]}</span>`
     : "";
+  // GAM-14: conquista criada pelo usuário — marca "sua" e botão de remover
+  const custom = a.rule_type === "custom";
+  const mine = custom
+    ? `<span class="ach-mine" data-tooltip="conquista criada por você">sua</span>
+       <button type="button" class="ach-remove" data-remove-custom="${escapeHtml(a.id)}" data-tooltip="remover conquista" aria-label="remover a conquista ${escapeHtml(a.title)}">${icon("x", { size: 10 })}</button>`
+    : "";
   return `
-    <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}">
+    <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}${custom ? " custom" : ""}">
       <div class="ach-icon-wrap">
         <span class="ach-icon">${icon(ICON_BY_CATEGORY[a.category] ?? "star", { size: 24 })}</span>
         ${!a.unlocked ? '<span class="ach-lock">[x]</span>' : ""}
         ${tier}
+        ${mine}
       </div>
       <div class="a-title">${escapeHtml(a.title)}</div>
       <div class="a-desc">${escapeHtml(a.description ?? "")}</div>
@@ -104,6 +114,8 @@ function card(a) {
  * secretas mascaradas pelo próprio backend ("???"). Bloqueadas mostram
  * quanto falta; a galeria se atualiza sozinha quando o progress-watcher
  * avisa que algo mudou (as áreas escolhidas são mantidas).
+ * GAM-14: "+ criar conquista" abre modals/conquista-modal.js; as criadas
+ * pelo usuário têm a marca "sua" e podem ser removidas.
  */
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando conquistas…</div>';
@@ -117,6 +129,7 @@ export async function render(el, widget) {
     el.innerHTML = `
       <div class="ach-filters" role="group" aria-label="filtrar conquistas por área (dá pra escolher mais de uma)">
         ${filterButtons(achievements, selected)}
+        <button type="button" class="ach-create" data-create-custom>+ criar conquista</button>
       </div>
       <div class="ach-grid">
         ${sortAchievements(visible).map(card).join("")}
@@ -140,7 +153,29 @@ export async function render(el, widget) {
     draw();
   }
 
-  el.addEventListener("click", (e) => {
+  el.addEventListener("click", async (e) => {
+    // GAM-14: criar / remover conquista personalizada
+    if (e.target.closest("[data-create-custom]")) {
+      openConquistaModal({ onSaved: load });
+      return;
+    }
+    const remove = e.target.closest("[data-remove-custom]");
+    if (remove) {
+      const ok = await showConfirmModal("remover esta conquista? ela sai da galeria e não dá pra desfazer.", {
+        title: "remover conquista",
+        confirmText: "remover",
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await deleteCustomAchievement(remove.dataset.removeCustom);
+      } catch (err) {
+        showErrorModal(err.message, "erro ao remover conquista");
+        return;
+      }
+      await load();
+      return;
+    }
     const btn = e.target.closest(".ach-filter");
     if (!btn) return;
     const id = btn.dataset.category;
