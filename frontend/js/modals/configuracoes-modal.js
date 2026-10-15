@@ -105,6 +105,7 @@ import { ACCENT_OPTIONS } from "../components/accent-colors.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { store } from "../state/store.js";
 import { prefersReducedMotion } from "../components/a11y.js";
+import { playSound } from "../components/sound.js";
 
 const RESET_WORD = "excluir";
 const IMPORT_WORD = "importar";
@@ -151,6 +152,13 @@ const EFFECT_OPTIONS = [
   { value: "desligado", label: "desligado", desc: "só os avisos, sem nada animado" },
 ];
 
+// GAM-13: grupos de som (components/sound.js) — coluna do perfil, rótulo, descrição
+const SOUND_GROUPS = [
+  { field: "som_progresso", label: "progresso", desc: "+xp, nível, LEVEL UP, conquista, missão e sequência salva" },
+  { field: "som_interface", label: "interface", desc: "todo botão (com som próprio pra confirmar, apagar, abas e opções), abrir e fechar janelas, trocar de tela, a voz da kami e a abertura do app" },
+  { field: "som_avisos", label: "avisos", desc: "notificações, erros, confirmações e arquivos baixados" },
+];
+
 function buildAparenciaPanel() {
   return `
     <div class="cfg-panel on" data-panel="aparencia">
@@ -171,6 +179,28 @@ function buildAparenciaPanel() {
           </label>`).join("")}
         </div>
         <p class="settings-status" id="cfg-effects-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>sons</h4>
+        <p class="settings-desc">bipes 8-bit gerados na hora, no estilo terminal. cada grupo liga e desliga sozinho.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-sound-on">
+          <span>som ligado<small>liga e desliga todos os sons de uma vez</small></span>
+        </label>
+        <div class="cfg-sound-volume">
+          <label for="cfg-sound-volume">volume</label>
+          <input type="range" id="cfg-sound-volume" min="0" max="100" step="5">
+          <span id="cfg-sound-volume-value" aria-hidden="true"></span>
+          <button type="button" class="btn sm" id="cfg-sound-test">ouvir</button>
+        </div>
+        <div id="cfg-sound-groups">
+          ${SOUND_GROUPS.map((g) => `
+          <label class="cfg-toggle">
+            <input type="checkbox" data-sound-group="${g.field}">
+            <span>${g.label}<small>${g.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-sound-status"></p>
       </div>
       <div class="settings-section">
         <h4>recompensas do nível</h4>
@@ -394,6 +424,17 @@ function wireModal(wrap) {
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
+  wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
+  wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
+    saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
+  );
+  const volume = wrap.querySelector("#cfg-sound-volume");
+  volume.addEventListener("input", () => {
+    wrap.querySelector("#cfg-sound-volume-value").textContent = volume.value;
+  });
+  // salva ao soltar (change), não a cada passo do arrasto (input)
+  volume.addEventListener("change", () => saveSound(wrap, { som_volume: Number(volume.value) }));
+  wrap.querySelector("#cfg-sound-test").addEventListener("click", () => playSound("conquista", { force: true }));
   wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
   wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
   wireBackupTab(wrap);
@@ -440,6 +481,43 @@ async function selectEffectsMode(wrap, value) {
     return;
   }
   store.set("profile", { ...store.get("profile"), efeitos_visuais: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
+}
+
+// ── sons (GAM-13) ──────────────────────────────────────────────────────
+function renderSoundOptions(wrap, profile) {
+  wrap.querySelector("#cfg-sound-on").checked = Boolean(profile.som_ativo);
+  wrap.querySelector("#cfg-sound-volume").value = profile.som_volume ?? 60;
+  wrap.querySelector("#cfg-sound-volume-value").textContent = profile.som_volume ?? 60;
+  wrap.querySelectorAll("[data-sound-group]").forEach((input) => {
+    input.checked = Boolean(profile[input.dataset.soundGroup]);
+  });
+  syncSoundDisabled(wrap);
+}
+
+// com o som desligado, volume e grupos ficam visíveis mas desabilitados
+function syncSoundDisabled(wrap) {
+  const on = wrap.querySelector("#cfg-sound-on").checked;
+  wrap.querySelectorAll("#cfg-sound-volume, [data-sound-group]").forEach((el) => (el.disabled = !on));
+}
+
+async function saveSound(wrap, change) {
+  const statusEl = wrap.querySelector("#cfg-sound-status");
+  statusEl.classList.remove("settings-status--visible");
+  syncSoundDisabled(wrap);
+  let saved;
+  try {
+    saved = await updateProfile(change);
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar sons");
+    renderSoundOptions(wrap, store.get("profile") ?? {});
+    return;
+  }
+  const fields = ["som_ativo", "som_volume", "som_progresso", "som_interface", "som_avisos"];
+  store.set("profile", { ...store.get("profile"), ...Object.fromEntries(fields.map((f) => [f, saved[f]])) });
+  // ao ligar, um bipe confirma que o áudio está funcionando
+  if (change.som_ativo) playSound("aviso", { force: true });
   statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
   statusEl.classList.add("settings-status--visible");
 }
@@ -1325,6 +1403,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
     renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderSoundOptions(modalEl, profile);
     renderRewards(modalEl, profile);
     renderPerfilTab(modalEl, profile);
     renderNotificacoesTab(modalEl, profile);

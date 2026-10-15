@@ -26,6 +26,7 @@ import { wireVisualEffects } from "./components/visual-effects.js";
 import { pageEnter, wireEffectSkip } from "./components/fx.js";
 import { wirePixelCursor } from "./components/pixel-cursor.js";
 import { wireTheme } from "./components/tema.js";
+import { playFollowUp, wireSounds } from "./components/sound.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
 import { startRetrospective } from "./modals/retrospectiva-modal.js";
@@ -127,6 +128,7 @@ async function showPage(name, opts) {
   currentPageModule = mod;
   currentPageName = name;
   await mod.mount(pageRoot, opts);
+  playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
   // (só com efeitos "completo" e sem reduced-motion — ver components/fx.js)
   pageEnter(pageRoot);
@@ -254,6 +256,7 @@ async function boot() {
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
   wireTheme(); // GAM-10: tema de terminal liberado por nível
+  wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
   wireNav();

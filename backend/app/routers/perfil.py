@@ -9,9 +9,9 @@ o backend nunca recebe nem guarda a foto original).
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.database import get_db, now_iso
+from app.database import SOM_COLUNAS, get_db, now_iso
 from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
 
 router = APIRouter()
@@ -29,6 +29,12 @@ class ProfileOut(BaseModel):
     efeitos_visuais: str = "completo"
     titulo: Optional[str] = None  # GAM-10: chave escolhida; None = automático
     tema: str = "padrao"          # GAM-10
+    # GAM-13: sons (ver database.SOM_COLUNAS)
+    som_ativo: bool = True
+    som_volume: int = 60
+    som_progresso: bool = True
+    som_interface: bool = True
+    som_avisos: bool = True
     updated_at: str
 
 
@@ -41,6 +47,12 @@ class ProfileUpdate(BaseModel):
     # GAM-10: "auto" volta pro título automático (o mais alto liberado)
     titulo: Optional[str] = None
     tema: Optional[str] = None
+    # GAM-13: sons
+    som_ativo: Optional[bool] = None
+    som_volume: Optional[int] = Field(None, ge=0, le=100)
+    som_progresso: Optional[bool] = None
+    som_interface: Optional[bool] = None
+    som_avisos: Optional[bool] = None
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -121,6 +133,11 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, efeitos_visuais, titulo, tema,
          now_iso(), row["id"]),
     )
+    # GAM-13: preferências de som — cada uma só muda se veio no payload
+    for col in SOM_COLUNAS:
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
     db.commit()
     return dict(_get_profile_row(db))
 

@@ -1,5 +1,7 @@
 """Testes do router app/routers/perfil.py."""
 
+import re
+
 
 def test_get_profile_returns_seeded_defaults(client):
     resp = client.get("/api/perfil")
@@ -127,3 +129,46 @@ def test_visual_effects_default_and_update(client):
 
 def test_visual_effects_rejects_unknown_value(client):
     assert client.put("/api/perfil", json={"efeitos_visuais": "exagerado"}).status_code == 422
+
+
+# ==================== GAM-13: sons ====================
+
+def test_som_comeca_ligado_com_todos_os_grupos(client):
+    p = client.get("/api/perfil").json()
+    assert (p["som_ativo"], p["som_volume"], p["som_progresso"], p["som_interface"], p["som_avisos"]) == (
+        True, 60, True, True, True,
+    )
+
+
+def test_reset_liga_o_som_mesmo_com_default_antigo_na_tabela(client, db_conn):
+    # banco criado quando o som começava desligado: o DEFAULT 0 fica gravado
+    # na tabela (CREATE TABLE IF NOT EXISTS não o atualiza)
+    sql = db_conn.execute("SELECT sql FROM sqlite_master WHERE name = 'user_profile'").fetchone()["sql"]
+    for col in ("som_ativo", "som_interface"):
+        sql = re.sub(rf"({col}\s+INTEGER NOT NULL DEFAULT )1", r"\g<1>0", sql)
+    db_conn.executescript(
+        "ALTER TABLE user_profile RENAME TO user_profile_old;"
+        f"{sql};"
+        "INSERT INTO user_profile SELECT * FROM user_profile_old;"
+        "DROP TABLE user_profile_old;"
+    )
+    client.put("/api/perfil", json={"som_ativo": False, "som_interface": False})
+
+    assert client.post("/api/sistema/reset", json={"confirmation": "excluir"}).status_code == 200
+    p = client.get("/api/perfil").json()
+    assert (p["som_ativo"], p["som_volume"], p["som_progresso"], p["som_interface"], p["som_avisos"]) == (
+        True, 60, True, True, True,
+    )
+
+
+def test_salva_preferencias_de_som_sem_mexer_no_resto(client):
+    resp = client.put("/api/perfil", json={"som_ativo": False, "som_volume": 35, "som_interface": False})
+    assert resp.status_code == 200, resp.text
+    p = resp.json()
+    assert (p["som_ativo"], p["som_volume"], p["som_interface"], p["som_avisos"]) == (False, 35, False, True)
+    assert client.put("/api/perfil", json={"display_name": "x"}).json()["som_volume"] == 35
+
+
+def test_volume_fora_de_0_a_100_e_recusado(client):
+    assert client.put("/api/perfil", json={"som_volume": 101}).status_code == 422
+    assert client.put("/api/perfil", json={"som_volume": -1}).status_code == 422

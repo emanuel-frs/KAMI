@@ -1,6 +1,7 @@
 import { icon } from "./icons.js";
 import { escapeHtml } from "./format.js";
 import { fxAllows, typeText } from "./fx.js";
+import { playSound } from "./sound.js";
 
 /**
  * Toast empilhável (diferente do singleton de backup-reminder.js — aqui
@@ -61,9 +62,12 @@ function ensureStack() {
 if (typeof document !== "undefined" && document.body) ensureStack();
 
 /**
- * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void }} opts
+ * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void, sound?: boolean }} opts
  */
-export function showToast({ title, message = "", iconName = "bell-ring", duration = 8000, onClick } = {}) {
+export function showToast({ title, message = "", iconName = "bell-ring", duration = 8000, onClick, sound = true } = {}) {
+  // GAM-13: bipe de aviso — `sound: false` quando quem chama já toca um
+  // som próprio (subida de nível, conquista com efeitos desligados)
+  if (sound) playSound("aviso");
   const stack = ensureStack();
 
   const el = document.createElement("div");

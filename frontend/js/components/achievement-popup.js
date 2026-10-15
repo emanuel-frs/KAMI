@@ -13,7 +13,8 @@ import { showToast, toastStack } from "./toast.js";
  *
  * Preferência de efeitos: completo = tudo animado; sutil = aparece sem
  * animação (mesmo card); desligado = vira o toast normal (toast.js). O
- * som (GAM-13) vai se pendurar em `kami:achievement-popup`, disparado aqui.
+ * som (GAM-13, components/sound.js) se pendura em `kami:achievement-popup`,
+ * disparado aqui.
  *
  * Acessível: entra na pilha dos toasts, que já é região aria-live (o texto
  * completo vai num span sr-only, porque o nome "digitado" mudaria letra a
@@ -31,7 +32,7 @@ export function showAchievementPopup({ label, title, detail = "", iconName = "st
   window.dispatchEvent(new CustomEvent("kami:achievement-popup", { detail: { kind } }));
 
   if (effectsMode() === "desligado") {
-    return showToast({ title: `${label}: ${title}`, message: detail, iconName, onClick });
+    return showToast({ title: `${label}: ${title}`, message: detail, iconName, onClick, sound: false });
   }
 
   const animated = fxAllows("completo");

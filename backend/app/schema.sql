@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS user_profile (
     sequencia_protecao_desde TEXT,            -- GAM-06: dia (YYYY-MM-DD) em que a proteção de sequência passou a valer; NULL = gravado no 1º cálculo
     titulo                TEXT,               -- GAM-10: título escolhido (chave em app/recompensas.py); NULL = o mais alto liberado
     tema                  TEXT NOT NULL DEFAULT 'padrao',  -- GAM-10: padrao | fosforo | crt | ambar (liberados por nível)
+    som_ativo             INTEGER NOT NULL DEFAULT 1,   -- GAM-13: sons do app (começa LIGADO — pedido no teste)
+    som_volume            INTEGER NOT NULL DEFAULT 60,  -- GAM-13: 0-100
+    som_progresso         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo +xp, nível, conquista, missão, sequência salva
+    som_interface         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo cliques, modal, troca de tela, voz da kami
+    som_avisos            INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo toast/notificação e erro
     updated_at            TEXT NOT NULL
 );
 

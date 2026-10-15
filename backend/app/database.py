@@ -568,6 +568,27 @@ def _migrate_user_profile_recompensas(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+# GAM-13: preferências de som (coluna → default). Combinado no começo como
+# "som desligado", mudou no teste do Emanuel (2026-10-09): o som começa
+# LIGADO, com todos os grupos ligados — todo botão tem som.
+SOM_COLUNAS = {
+    "som_ativo": 1,
+    "som_volume": 60,
+    "som_progresso": 1,
+    "som_interface": 1,
+    "som_avisos": 1,
+}
+
+
+def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
+    """GAM-13: colunas de som em user_profile (ver SOM_COLUNAS)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    for col, default in SOM_COLUNAS.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} INTEGER NOT NULL DEFAULT {default}")
+    conn.commit()
+
+
 def _migrate_missoes_widget(conn: sqlite3.Connection, had_missoes: bool) -> None:
     """
     GAM-07: põe o widget "missões" no topo do Núcleo de quem já tinha um
@@ -662,6 +683,7 @@ def init_db() -> None:
     _migrate_user_profile_sequencia_protecao(conn)
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)
+    _migrate_user_profile_som(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 
@@ -677,13 +699,18 @@ def init_db() -> None:
 def _seed_defaults(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
 
-    # perfil: linha única, criada vazia se ainda não existir
+    # perfil: linha única, criada vazia se ainda não existir. Os sons vão
+    # explícitos (SOM_COLUNAS): o DEFAULT da coluna fica gravado na tabela
+    # de quem criou o banco quando o som começava desligado, e o reset
+    # (sistema.py) recriaria o perfil mudo
     cur.execute("SELECT COUNT(*) AS c FROM user_profile")
     if cur.fetchone()["c"] == 0:
+        som_cols = ", ".join(SOM_COLUNAS)
+        som_marks = ", ".join("?" * len(SOM_COLUNAS))
         cur.execute(
-            "INSERT INTO user_profile (id, display_name, accent_color, avatar_ascii, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (new_id(), "usuário", "#8fbf8f", None, now_iso()),
+            f"INSERT INTO user_profile (id, display_name, accent_color, avatar_ascii, updated_at, {som_cols}) "
+            f"VALUES (?, ?, ?, ?, ?, {som_marks})",
+            (new_id(), "usuário", "#8fbf8f", None, now_iso(), *SOM_COLUNAS.values()),
         )
 
     # carreira: linha única (área atual/meta), criada vazia se ainda não

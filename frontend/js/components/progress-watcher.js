@@ -1,6 +1,7 @@
 import { getAchievements, getAttributes, getLog, getMissoes, getPlayer, getRecompensas } from "../api/nucleo.js";
 import { ICON_BY_CATEGORY } from "../widgets/achievements.js";
 import { showAchievementPopup } from "./achievement-popup.js";
+import { playSound } from "./sound.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
@@ -127,11 +128,13 @@ async function celebrateLevel(previousLevel, player) {
   } catch {
     // sem catálogo: comemora sem a linha de recompensas
   }
+  playSound("levelup"); // GAM-13
   if (effectsMode() === "completo") {
     showLevelUp({ level: player.level, previousLevel, totalXp: player.total_xp, unlocked });
     return;
   }
   showToast({
+    sound: false,
     title: `nível ${player.level} alcançado`,
     message: `${player.total_xp.toLocaleString("pt-BR")} xp no total${unlocked.length ? ` · desbloqueado: ${unlocked.join(", ")}` : ""}`,
     iconName: "zap",
@@ -150,23 +153,30 @@ function diffAndCelebrate(before, after) {
     for (const cat of b.categories ?? []) bonusByAttr.set(cat, (bonusByAttr.get(cat) ?? 0) + b.xp_gained);
   }
 
+  // GAM-13: um som por escrita (não um por atributo): o mais importante vence
+  let sound = null;
   for (const [name, attr] of after.attrs) {
     const prev = before.attrs.get(name);
     if (!prev) continue;
     const delta = attr.current_xp - prev.current_xp;
     if (delta === 0) continue;
     changed = true;
+    if (delta > 0) sound ??= "xp";
     const base = delta > 0 ? delta - (bonusByAttr.get(name) ?? 0) : delta;
     if (base !== 0) showXpLine(base, name);
     if (attr.current_level > prev.current_level) {
+      sound = "nivel";
       showToast({
         title: `${name} subiu pro nível ${attr.current_level}`,
         message: `nível ${prev.current_level} → ${attr.current_level}`,
         iconName: "trending-up",
         duration: TOAST_MS,
+        sound: false,
       });
     }
   }
+  // subida do nível geral tem o som próprio (celebrateLevel)
+  if (sound && !(after.player.level > before.player.level)) playSound(sound);
 
   for (const b of [...newBonus].reverse()) {
     showFeedLine(`+${b.xp_gained} xp`, b.description.replace(/^bônus · /, ""), false, "bonus");

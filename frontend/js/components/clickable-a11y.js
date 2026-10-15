@@ -158,7 +158,8 @@ const RULES = [
   { sel: ".cal-event-row" },
 ];
 
-const ALL_SEL = RULES.map((r) => r.sel).join(", ");
+// exportado: components/sound.js usa a mesma lista pra dar som a todo clicável
+export const ALL_SEL = RULES.map((r) => r.sel).join(", ");
 const NATIVE_TAGS = new Set(["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "SUMMARY", "OPTION"]);
 const INTERACTIVE = 'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [data-kb]';
 

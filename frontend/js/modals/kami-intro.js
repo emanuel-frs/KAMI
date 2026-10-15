@@ -4,6 +4,7 @@ import { store } from "../state/store.js";
 import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-colors.js";
 import { icon } from "../components/icons.js";
 import { prefersReducedMotion } from "../components/a11y.js";
+import { playSound } from "../components/sound.js";
 
 /**
  * Diálogo de boas-vindas + criação de personagem (etapas 2 e 3
@@ -160,6 +161,17 @@ function wireStaticEvents(wrap) {
 
 // ─── typewriter ──────────────────────────────────────────────────────────
 
+// ritmo de fala (GAM-13, pedido no teste: "parecer quase um diálogo de
+// verdade"): pausa depois de pontuação, como quem respira entre frases
+const CHAR_MS = 24;
+const PAUSE_MS = { ".": 260, "!": 260, "?": 260, "…": 260, ",": 110, ";": 110, ":": 110, "—": 140 };
+// a voz bipa a cada VOICE_EVERY letras (todo caractere ficaria metralhado)
+const VOICE_EVERY = 2;
+
+function setTalking(on) {
+  overlayEl?.querySelector(".ki-avatar-hero")?.classList.toggle("talking", on);
+}
+
 function typeText(el, text, onComplete) {
   if (typing) typing.cancel();
   el.textContent = "";
@@ -174,26 +186,39 @@ function typeText(el, text, onComplete) {
     onComplete?.();
     return;
   }
+  // a kami "fala": letra a letra, com a voz (sound.js, som "voz") e o
+  // avatar mexendo; a pausa depois de pontuação deixa o ritmo de conversa
   let i = 0;
-  const speed = 20;
-  const intervalId = setInterval(() => {
+  let spoken = 0;
+  let timer = null;
+  setTalking(true);
+  const finish = () => {
+    clearTimeout(timer);
+    setTalking(false);
+    typing = null;
+  };
+  const step = () => {
     i++;
+    const ch = text[i - 1];
     el.textContent = text.slice(0, i);
+    if (/[\p{L}\p{N}]/u.test(ch) && spoken++ % VOICE_EVERY === 0) playSound("voz");
     if (i >= text.length) {
-      clearInterval(intervalId);
-      typing = null;
+      finish();
       onComplete?.();
+      return;
     }
-  }, speed);
+    // "..." pausa uma vez só, no último ponto
+    const pause = ch === "." && text[i] === "." ? 0 : PAUSE_MS[ch] ?? 0;
+    timer = setTimeout(step, CHAR_MS + pause);
+  };
+  timer = setTimeout(step, CHAR_MS);
   typing = {
     cancel() {
-      clearInterval(intervalId);
-      typing = null;
+      finish();
     },
     complete() {
-      clearInterval(intervalId);
+      finish();
       el.textContent = text;
-      typing = null;
       onComplete?.();
     },
   };
