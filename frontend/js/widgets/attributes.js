@@ -1,6 +1,7 @@
 // js/widgets/attributes.js
 import { getAttributes } from "../api/nucleo.js";
 import { escapeHtml } from "../components/format.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /**
  * Radar pentagonal (SVG pontilhado) — substitui as antigas barras de
@@ -18,6 +19,11 @@ import { escapeHtml } from "../components/format.js";
  * verdade) — o "quase ascii" pedido original vira aqui o estilo
  * pontilhado (stroke-dasharray) em vez de caracteres, mesma sensação
  * "técnica/baixa resolução", sem o problema de aspecto.
+ *
+ * GAM-09: atributo sem ação há 14 dias ou mais (`forgotten`, calculado
+ * no backend) fica com o vértice apagado — ponto vazado e pontilhado,
+ * sigla esmaecida — e o tooltip diz "sem atividade há N dias". O nível
+ * e o xp não mudam: é só um lembrete.
  */
 
 const VB_W = 120;
@@ -60,7 +66,7 @@ function polygonPath(pts) {
   return pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 }
 
-function buildSvg(fracs) {
+function buildSvg(fracs, forgotten = []) {
   const outer = [0, 1, 2, 3, 4].map((i) => vertex(i, 1));
   const mid = [0, 1, 2, 3, 4].map((i) => vertex(i, 0.66));
   const inner = [0, 1, 2, 3, 4].map((i) => vertex(i, 0.33));
@@ -96,7 +102,13 @@ function buildSvg(fracs) {
       <circle cx="${CX}" cy="${CY}" r="1" class="pg-center-dot" />
       ${stipple}
       <polygon points="${polygonPath(dataPts)}" class="pg-data-poly" />
-      ${dataPts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.6" class="pg-data-dot" />`).join("")}
+      ${dataPts
+        .map((p, i) =>
+          forgotten[i]
+            ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.9" class="pg-data-dot forgotten" />`
+            : `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.6" class="pg-data-dot" />`
+        )
+        .join("")}
     </svg>`;
 }
 
@@ -145,9 +157,13 @@ export async function render(el, widget) {
       .map((a, i) => {
         const cls = LABEL_CLASS[i] || "";
         const sigla = a.name.slice(0, 3).toUpperCase();
-        const tip = `${a.name} — nível ${a.current_level} · faltam ${100 - a.pct}% pro próximo nível`;
+        const idle = a.forgotten
+          ? ` · sem atividade há ${a.days_inactive} ${a.days_inactive === 1 ? "dia" : "dias"}`
+          : "";
+        const tip = `${a.name} — nível ${a.current_level} · faltam ${100 - a.pct}% pro próximo nível${idle}`;
         const on = activeFilter === a.name ? " on" : "";
-        return `<span class="pg-label ${cls}${on}" style="${labelStyle(i)}" data-filter="${escapeHtml(
+        const off = a.forgotten ? " forgotten" : "";
+        return `<span class="pg-label ${cls}${on}${off}" style="${labelStyle(i)}" data-filter="${escapeHtml(
           a.name
         )}" data-tooltip="${escapeHtml(tip)}">${sigla}</span>`;
       })
@@ -156,7 +172,7 @@ export async function render(el, widget) {
     el.innerHTML = `
       <div class="pg-center">
         <div class="pg-wrap">
-          ${buildSvg(fracs)}
+          ${buildSvg(fracs, vertices.map((a) => Boolean(a.forgotten)))}
           ${labels}
         </div>
       </div>`;
@@ -175,7 +191,7 @@ export async function render(el, widget) {
   });
 
   // atualiza níveis/pct quando uma ação é registrada em outro widget da tela
-  window.addEventListener("kami:action-registered", async () => {
+  listenWhileConnected(el, "kami:action-registered", async () => {
     try {
       attributes = await getAttributes();
       const updated = new Map(attributes.map((a) => [a.name, a]));

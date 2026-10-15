@@ -1,13 +1,17 @@
 import { getProfile, updateAvatar } from "../api/perfil.js";
-import { getAttributes, getAchievements } from "../api/nucleo.js";
-import { levelFromXp } from "../components/xp.js";
+import { getAttributes, getPlayer } from "../api/nucleo.js";
 import { escapeHtml } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { icon } from "../components/icons.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openAvatarModal } from "../modals/avatar-modal.js";
+import { openRetrospectivaModal } from "../modals/retrospectiva-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
+import { listenWhileConnected } from "../components/window-listener.js";
+import { setXpBar } from "../components/xp-bar.js";
+import { rollNumber } from "../components/fx.js";
+import { flameOptions, flameSvg, protectionsSummary, protectionsText } from "../components/streak-flame.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -39,10 +43,16 @@ import { store } from "../state/store.js";
  */
 
 let unsubscribeProfile = null;
+let stopProgressListener = null;
+// último nível/% mostrado — a barra de xp anima a partir dele (GAM-05);
+// ao mudar de nível recomeça do zero, que é onde o xp do nível novo começa
+let lastBar = null;
 
 export async function render(el, widget) {
   unsubscribeProfile?.();
   unsubscribeProfile = null;
+  stopProgressListener?.();
+  stopProgressListener = null;
 
   el.innerHTML = '<div class="empty-state">carregando perfil…</div>';
 
@@ -50,26 +60,31 @@ export async function render(el, widget) {
   cardEl?.setAttribute("data-editable", "");
   cardEl?.setAttribute("data-pinned", ""); // sempre 1/1, não arrastável (ver widgets.css)
 
-  let profile, attributes, achievements;
+  let profile, attributes, player;
   try {
-    [profile, attributes, achievements] = await Promise.all([
+    [profile, attributes, player] = await Promise.all([
       getProfile(),
       getAttributes(),
-      getAchievements(),
+      getPlayer(),
     ]);
   } catch (err) {
     el.innerHTML = `<div class="empty-state">erro ao carregar perfil: ${err.message}</div>`;
     return;
   }
 
-  // Métrica cosmética de "nível médio combinado" do perfil: soma o XP de
-  // TODOS os atributos e passa pela mesma curva de levelFromXp usada por
-  // atributo individual — não tem pretensão de bater com o nível de
-  // nenhum atributo específico, é só um número único pra exibir aqui.
-  const totalXp = attributes.reduce((sum, a) => sum + a.current_xp, 0);
-  const { level } = levelFromXp(totalXp);
-  const unlockedCount = achievements.filter((a) => a.unlocked_at).length;
+  // nível geral, xp total, sequência (+ proteções, GAM-06) e conquistas vêm prontos do backend
+  // (GET /api/nucleo/player) — antes a fórmula do nível era copiada aqui
+  // (components/xp.js) e podia divergir da de app/xp.py.
   const top = [...attributes].sort((a, b) => b.current_xp - a.current_xp)[0];
+  // GAM-11: classe vem do atributo com mais xp (backend, nucleo.py::_player_class);
+  // "destaque" virou o tooltip dela
+  const classTip = player.player_class
+    ? `atributo mais forte: ${top?.name ?? "—"} · a classe vem dele; polímata quando os dois maiores estão a menos de 15% um do outro`
+    : "a classe aparece com o primeiro xp — vem do atributo mais forte";
+  const streakLabel = player.streak_current === 1 ? "1 dia" : `${player.streak_current} dias`;
+  const streakTip = `recorde: ${player.streak_best} ${player.streak_best === 1 ? "dia" : "dias"}${
+    player.streak_current > 0 && !player.active_today ? " · registre algo hoje pra não perder a sequência" : ""
+  }`;
 
   el.innerHTML = `
     <div class="view-mode">
@@ -78,20 +93,56 @@ export async function render(el, widget) {
       </div>
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
+          <span class="pw-name-wrap">
+            <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
+            <span class="pw-title" data-tooltip="título liberado pelo nível — troque em configurações › aparência">« ${escapeHtml(player.player_title ?? "iniciante")} »</span>
+          </span>
           <div style="display:flex; gap:6px;">
+            <button type="button" class="btn sm" data-action="retro" data-tooltip="o resumo de cada mês que passou">retrospectivas</button>
             <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar perfil</button>
           </div>
         </div>
         <div style="display:flex; gap:20px; margin-top:14px; flex-wrap:wrap;">
-          <div class="vm-row"><span class="k">nível</span><span class="v">${level}</span></div>
-          <div class="vm-row"><span class="k">xp total</span><span class="v">${totalXp.toLocaleString("pt-BR")}</span></div>
-          <div class="vm-row"><span class="k">conquistas</span><span class="v">${unlockedCount}/${achievements.length}</span></div>
-          <div class="vm-row"><span class="k">destaque</span><span class="v">${top ? escapeHtml(top.name) : "—"}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(`${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}`)}"><span class="k">nível</span><span class="v" data-roll="level">${player.level}</span></div>
+          <div class="vm-row"><span class="k">xp total</span><span class="v" data-roll="xp">${player.total_xp.toLocaleString("pt-BR")}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">sequência</span><span class="v">${streakLabel}</span></div>
+          <div class="vm-row"><span class="k">conquistas</span><span class="v" data-roll="achievements">${player.achievements_unlocked}/${player.achievements_total}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(classTip)}"><span class="k">classe</span><span class="v">${escapeHtml(player.player_class ?? "—")}</span></div>
+        </div>
+        <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
+          <span class="pw-xp-bar" aria-hidden="true"></span>
+          <span class="pw-xp-text">${player.pct}% · ${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}</span>
+        </div>
+        <div class="pw-streak">
+          ${flameSvg(player.streak_current, flameOptions(player))}
+          <div class="pw-streak-info">
+            <div><span class="k">sequência</span> ${streakLabel} · recorde ${player.streak_best}</div>
+            <div data-tooltip="${escapeHtml(protectionsSummary(player))}" aria-label="${escapeHtml(protectionsSummary(player))}">
+              <span class="k">proteções</span> <span class="pw-protections">[${protectionsText(player.streak_protections, player.streak_protections_max)}]</span>${
+                player.streak_protected_yesterday ? ' <span class="pw-protected">· ontem protegido</span>' : ""
+              }
+            </div>
+          </div>
         </div>
       </div>
     </div>
   `;
+
+  // GAM-15: nível, xp e conquistas contam do valor anterior até o novo
+  // quando o card é redesenhado depois de uma ação (components/fx.js)
+  rollNumber(el.querySelector('[data-roll="level"]'), player.level, { key: "profile-level" });
+  rollNumber(el.querySelector('[data-roll="xp"]'), player.total_xp, {
+    key: "profile-xp",
+    format: (n) => n.toLocaleString("pt-BR"),
+  });
+  rollNumber(el.querySelector('[data-roll="achievements"]'), player.achievements_unlocked, {
+    key: "profile-achievements",
+    format: (n) => `${n}/${player.achievements_total}`,
+  });
+
+  const barFrom = lastBar == null ? null : lastBar.level === player.level ? lastBar.pct : 0;
+  setXpBar(el.querySelector(".pw-xp-bar"), player.pct, { from: barFrom, cells: 20 });
+  lastBar = { level: player.level, pct: player.pct };
 
   // ── ajusta o tamanho do mini-avatar ao box maior (ver widgets.css .pw-avatar-btn) ──
   // try/catch: uma falha de medição aqui (ex: canvas indisponível, layout
@@ -113,6 +164,8 @@ export async function render(el, widget) {
   //    "editar perfil" abre o modal de Configurações direto na aba
   //    perfil, onde essa edição acontece. ──
   el.querySelector('[data-action="edit"]')?.addEventListener("click", () => openConfiguracoesModal("perfil"));
+  // GAM-12: reabre as retrospectivas mensais guardadas
+  el.querySelector('[data-action="retro"]')?.addEventListener("click", () => openRetrospectivaModal());
 
   // ── avatar tem atalho próprio: abre direto o modal de avatar (mesmo
   //    padrão do avatar da sidebar em app.js), sem passar por
@@ -138,4 +191,8 @@ export async function render(el, widget) {
   // ── mantém o card em sync com mudanças de perfil feitas em outro
   //    lugar (aba perfil de configurações, avatar da sidebar etc.). ──
   unsubscribeProfile = store.subscribe("profile", () => render(el, widget));
+
+  // xp/nível/sequência mudam por ações em qualquer módulo — o
+  // progress-watcher avisa depois de cada escrita que mexeu no progresso
+  stopProgressListener = listenWhileConnected(el, "kami:action-registered", () => render(el, widget));
 }

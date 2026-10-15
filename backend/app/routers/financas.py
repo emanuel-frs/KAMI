@@ -52,7 +52,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
 from app.business_days import nth_business_day_of_month, add_business_days
-from app.actions import register_action
+from app.actions import has_action, register_action, revert_actions
 from app.finance_utils import (
     create_saida_transaction,
     revert_saida_transaction,
@@ -61,6 +61,13 @@ from app.finance_utils import (
 )
 
 router = APIRouter()
+
+# XP de Finanças (balanceamento da etapa 2 da gamificação): lançar uma
+# transação é rápido e acontece várias vezes por semana; pagar uma conta
+# fixa/receber uma renda acontece no máximo 1x por período e é o hábito
+# de "manter em dia", por isso vale um pouco mais.
+XP_TRANSACAO = 3
+XP_PAGAMENTO_RECORRENTE = 4
 
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
@@ -413,14 +420,18 @@ def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db
             description=f"renda: {source['nome']}",
             date=paid_date,
         )
-        register_action(
-            db,
-            description=f"recebeu renda: {source['nome']}",
-            categories=["financas"],
-            xp=2,
-            impact=2,
-            source="financas",
-        )
+        # marcar de novo uma entrada já paga não credita outra vez
+        if not has_action(db, "renda_entrada", entry_id):
+            register_action(
+                db,
+                description=f"recebeu renda: {source['nome']}",
+                categories=["financas"],
+                xp=XP_PAGAMENTO_RECORRENTE,
+                impact=2,
+                source="financas",
+                referencia_tipo="renda_entrada",
+                referencia_id=entry_id,
+            )
 
     # se o valor recebido for diferente do cadastrado, o usuário pode ter
     # pedido pra atualizar o valor da fonte pra frente (ver
@@ -456,6 +467,8 @@ def unpay_income_entry(entry_id: str, db=Depends(get_db)):
     # unpay_fixed_bill_period (sem isso o saldo fica com um crédito
     # fantasma que o usuário não consegue mais explicar).
     revert_entrada_transaction(db, row["transaction_id"])
+    # estorna o xp do recebimento — sem isso marcar/desmarcar rendia xp infinito
+    revert_actions(db, "renda_entrada", entry_id)
     db.execute(
         "UPDATE income_entries SET paid_date = NULL, amount = ?, status = 'previsto', transaction_id = NULL WHERE id = ?",
         (source["valor"] if source else row["amount"], entry_id),
@@ -748,14 +761,17 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
             description=f"conta fixa: {bill['name']}",
             forma_pagamento=payload.forma_pagamento,
         )
-        register_action(
-            db,
-            description=f"pagou conta fixa: {bill['name']}",
-            categories=["financas"],
-            xp=2,
-            impact=2,
-            source="financas",
-        )
+        if not has_action(db, "conta_fixa_periodo", period_id):
+            register_action(
+                db,
+                description=f"pagou conta fixa: {bill['name']}",
+                categories=["financas"],
+                xp=XP_PAGAMENTO_RECORRENTE,
+                impact=2,
+                source="financas",
+                referencia_tipo="conta_fixa_periodo",
+                referencia_id=period_id,
+            )
 
     db.execute(
         "UPDATE fixed_bill_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
@@ -776,6 +792,7 @@ def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
     # sem isso o saldo ficaria com um desconto fantasma que o usuário não
     # consegue mais explicar (motivo original do item 6).
     revert_saida_transaction(db, row["transaction_id"])
+    revert_actions(db, "conta_fixa_periodo", period_id)
     db.execute(
         "UPDATE fixed_bill_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),
@@ -925,7 +942,7 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
         db,
         description=f"lançou {payload.type}: {payload.description}",
         categories=["financas"],
-        xp=2,
+        xp=XP_TRANSACAO,
         impact=2,
         source="financas",
     )

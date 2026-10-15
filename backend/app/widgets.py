@@ -30,6 +30,14 @@ WIDGET_CATALOG = {
         "max_span": 6,
         "default_span": 2,
     },
+    "missoes": {
+        "label": "missões — do dia e da semana",
+        "screens": ["nucleo"],
+        "removable": True,
+        "min_span": 2,
+        "max_span": 6,
+        "default_span": 6,
+    },
     "priorities": {
         "label": "prioridades da semana",
         "screens": ["nucleo"],

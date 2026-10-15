@@ -23,15 +23,16 @@ Regras de negócio:
   - ao concluir um marco (status -> 'concluido') credita XP_PER_MILESTONE em
     Aprendizado via register_action (mesmo mecanismo do Núcleo), preenche
     completed_at, e guarda o valor creditado em xp_awarded
-  - ao reabrir um marco (status -> 'pendente') ESTORNA exatamente o
-    xp_awarded daquele marco (não um valor fixo recalculado — importa se
-    XP_PER_MILESTONE mudar no futuro, marcos antigos continuam revertendo
-    certo) e zera completed_at/xp_awarded. current_xp nunca fica negativo.
-    [MUDANÇA DE REGRA] Antes o v1 não estornava nada ao reabrir; muda porque
-    o desmarcar agora é uma ação de usuário de primeira classe na UI (roadmap
-    arrastável), não só uma correção administrativa.
-  - o estorno NÃO cria um novo action_log (a conclusão original continua no
-    histórico — só o XP/nível atual do atributo é corrigido)
+  - ao reabrir um marco (status sai de 'concluido', pra 'pendente' ou
+    'esquecido') ESTORNA a ação da conclusão: o action_log referenciado
+    ('marco', id) é apagado e o xp dele debitado (app/actions.py::
+    revert_actions), e completed_at/xp_awarded são zerados. current_xp
+    nunca fica negativo. Remover um marco concluído (ou a trilha inteira)
+    estorna do mesmo jeito.
+  - apagar o log (em vez de só corrigir o xp) mantém as contagens das
+    conquistas honestas: concluir e reabrir o mesmo marco 10 vezes não
+    conta como 10 ações. Marcos concluídos antes de action_logs ter
+    referência caem no estorno legado (só debita xp_awarded do atributo).
   - marco sem atividade por >30 dias vira 'esquecido' automaticamente, calculado
     na leitura (não há job periódico no v1 — é lazy evaluation)
   - status de trilha: 'ativa' | 'pausada' | 'parada'
@@ -47,9 +48,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.database import get_db, new_id, now_iso
-from app.actions import register_action
-from app.xp import level_from_xp
+from app.database import get_db, local_now, new_id, now_iso
+from app.actions import debit_xp, register_action, revert_actions
 from app.routers.metas import sync_learning_goals
 
 router = APIRouter()
@@ -58,7 +58,7 @@ router = APIRouter()
 
 TRACK_STATUSES    = {"ativa", "pausada", "parada"}
 MILESTONE_STATUSES = {"pendente", "concluido", "esquecido"}
-XP_PER_MILESTONE  = 15          # XP creditado ao concluir um marco
+XP_PER_MILESTONE  = 20          # XP creditado ao concluir um marco
 STALE_DAYS        = 30          # dias sem atividade para marcar como 'esquecido'
 
 
@@ -133,7 +133,7 @@ def _apply_staleness(db, track_id: str) -> None:
     STALE_DAYS dias. Lazy: roda na leitura, não precisa de job periódico.
     """
     cutoff = (
-        datetime.datetime.utcnow() - datetime.timedelta(days=STALE_DAYS)
+        local_now() - datetime.timedelta(days=STALE_DAYS)
     ).isoformat()
 
     db.execute(
@@ -151,23 +151,14 @@ def _apply_staleness(db, track_id: str) -> None:
     db.commit()
 
 
-def _debit_xp(db, attribute_name: str, amount: int) -> None:
+def _revert_milestone_xp(db, milestone_id: str, xp_awarded) -> None:
     """
-    Estorna XP de um atributo ao desmarcar um marco — contrapartida de
-    register_action, mas sem criar um novo action_log (a conclusão
-    original continua no histórico; isso só corrige o XP/nível atuais
-    do atributo). Nunca deixa current_xp negativo.
+    Estorna a conclusão de um marco (ao reabrir ou remover). Marcos
+    concluídos antes de action_logs ter referência não têm log
+    identificável — pra eles cai no estorno legado de `xp_awarded`.
     """
-    row = db.execute("SELECT * FROM attributes WHERE name = ?", (attribute_name,)).fetchone()
-    if not row:
-        return
-    new_xp = max(0, row["current_xp"] - amount)
-    new_level = level_from_xp(new_xp)["level"]
-    db.execute(
-        "UPDATE attributes SET current_xp = ?, current_level = ? WHERE id = ?",
-        (new_xp, new_level, row["id"]),
-    )
-    db.commit()
+    if not revert_actions(db, "marco", milestone_id) and xp_awarded:
+        debit_xp(db, "aprendizado", xp_awarded)
 
 
 def _milestone_row_to_out(row) -> dict:
@@ -323,6 +314,14 @@ def update_track(track_id: str, payload: TrackUpdate, db=Depends(get_db)):
 @router.delete("/tracks/{track_id}", status_code=204)
 def delete_track(track_id: str, db=Depends(get_db)):
     _get_track_or_404(db, track_id)
+    # marcos somem por CASCADE — estorna antes a conclusão de cada um,
+    # senão apagar a trilha e recriá-la virava xp infinito
+    done = db.execute(
+        "SELECT id, xp_awarded FROM milestones WHERE track_id = ? AND status = 'concluido'",
+        (track_id,),
+    ).fetchall()
+    for ms in done:
+        _revert_milestone_xp(db, ms["id"], ms["xp_awarded"])
     db.execute("DELETE FROM tracks WHERE id = ?", (track_id,))
     db.commit()
 
@@ -383,14 +382,12 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
         completed_at = now
         xp_awarded = XP_PER_MILESTONE
 
-    elif new_status == "pendente" and row["status"] == "concluido":
-        # reabre o marco — estorna exatamente o xp que foi creditado
-        # nessa conclusão (não um valor fixo recalculado agora), sem
-        # criar um novo action_log (a conclusão original continua no
-        # histórico, só o xp/nível atual do atributo é corrigido)
+    elif row["status"] == "concluido" and new_status != "concluido":
+        # reabre o marco (pra 'pendente' ou 'esquecido') — estorna a ação
+        # da conclusão. Sem cobrir 'esquecido' aqui, concluido -> esquecido
+        # -> concluido creditava xp de novo a cada volta.
         completed_at = None
-        if xp_awarded:
-            _debit_xp(db, "aprendizado", xp_awarded)
+        _revert_milestone_xp(db, milestone_id, xp_awarded)
         xp_awarded = None
 
     db.execute(
@@ -436,6 +433,8 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
             xp=XP_PER_MILESTONE,
             impact=3,
             source="aprendizado",
+            referencia_tipo="marco",
+            referencia_id=milestone_id,
         )
 
     # meta 3.6 (metas v2): metas tipo 'aprendizado' vinculadas a essa trilha
@@ -486,6 +485,8 @@ def delete_milestone(milestone_id: str, db=Depends(get_db)):
     row = _get_milestone_or_404(db, milestone_id)
     db.execute("DELETE FROM milestones WHERE id = ?", (milestone_id,))
     db.commit()
+    if row["status"] == "concluido":
+        _revert_milestone_xp(db, milestone_id, row["xp_awarded"])
     # remover um marco concluído também pode derrubar a contagem que uma
     # meta 'aprendizado' estava usando — recalcula por segurança (não
     # desfaz uma meta já concluída, ver docstring de sync_learning_goals)

@@ -5,6 +5,7 @@ Sem ORM de propósito (alinhado com a filosofia "leve, RAM-consciente"
 do projeto) — sqlite3 puro da stdlib, com row_factory pra devolver
 dicts em vez de tuplas.
 """
+import re
 import sqlite3
 import uuid
 import datetime
@@ -29,8 +30,41 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+def local_now() -> datetime.datetime:
+    """Agora no fuso do computador de quem usa o app, com offset explícito."""
+    return datetime.datetime.now().astimezone()
+
+
 def now_iso() -> str:
-    return datetime.datetime.utcnow().isoformat()
+    """
+    Timestamp gravado em toda coluna *_at: hora LOCAL com offset
+    (ex: '2026-10-07T20:30:00.123456-03:00').
+
+    Antes era utcnow() sem offset — o navegador lia esse texto como hora
+    local e mostrava tudo deslocado pelo fuso (3h a mais no Brasil), e
+    o prefixo YYYY-MM-DD (usado pra sequência de dias, limites diários
+    e calendário) virava o dia seguinte pra qualquer ação depois das
+    21h. Com o fuso local o prefixo é o dia de quem usa, e o offset
+    explícito deixa o horário inequívoco pro frontend.
+    """
+    return local_now().isoformat()
+
+
+def backup_database(conn: sqlite3.Connection, label: str) -> str:
+    """
+    Copia o banco inteiro pra um arquivo ao lado do kami.db (mesma pasta
+    de dados, ver app/paths.py), via API de backup do sqlite — consistente
+    mesmo com o banco aberto. Usado antes de operações que reescrevem
+    dados em massa (ex: revisão de xp). Devolve o caminho do arquivo.
+    """
+    stamp = local_now().strftime("%Y%m%d-%H%M%S")
+    dest_path = DB_PATH.parent / f"kami-{label}-{stamp}.db"
+    dest = sqlite3.connect(dest_path)
+    try:
+        conn.backup(dest)
+    finally:
+        dest.close()
+    return str(dest_path)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -421,9 +455,208 @@ def _migrate_rename_wallet_widget_type(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_action_logs_referencia(conn: sqlite3.Connection) -> None:
+    """
+    Adiciona referencia_tipo/referencia_id em action_logs (integridade
+    do xp): cada ação gerada automaticamente por um módulo passa a
+    apontar pra entidade que a gerou, e desfazer essa entidade estorna
+    o log certo (ver app/actions.py::revert_actions). Logs antigos ficam
+    com NULL — os módulos mantêm o estorno legado por `xp_awarded` pra
+    eles. O índice é criado aqui (e não no schema.sql) porque em bancos
+    antigos a coluna só existe depois do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(action_logs)").fetchall()}
+    if "referencia_tipo" not in cols:
+        conn.execute("ALTER TABLE action_logs ADD COLUMN referencia_tipo TEXT")
+    if "referencia_id" not in cols:
+        conn.execute("ALTER TABLE action_logs ADD COLUMN referencia_id TEXT")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_action_logs_referencia "
+        "ON action_logs(referencia_tipo, referencia_id)"
+    )
+    conn.commit()
+
+
+# timestamp sem offset ('2026-10-07T23:30:00' ou com microssegundos) —
+# o formato que o antigo now_iso() (utcnow) gravava. Datas puras
+# ('YYYY-MM-DD', digitadas pelo usuário) não casam e nunca são tocadas.
+_NAIVE_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$")
+
+# colunas preenchidas por now_iso() que não seguem o padrão de nome *_at
+_EXTRA_TIMESTAMP_COLUMNS = {("goal_contributions", "date")}
+
+
+def _migrate_achievements_chave(conn: sqlite3.Connection) -> None:
+    """
+    Adiciona achievements.chave — identificador estável de cada conquista
+    do seed (antes o seed reconhecia conquistas pelo título, e renomear
+    uma no código criava uma duplicata). O preenchimento das linhas
+    existentes fica com seed_achievements, que casa pelo título uma vez.
+    Índice único criado aqui porque em bancos antigos a coluna só existe
+    depois do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(achievements)").fetchall()}
+    if "chave" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN chave TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_achievements_chave ON achievements(chave)"
+    )
+    conn.commit()
+
+
+def _migrate_achievements_meta(conn: sqlite3.Connection) -> None:
+    """
+    Metadados das conquistas (GAM-01): categoria (área da vida, filtro da
+    galeria), nivel (bronze/prata/ouro) e secreta. Preenchidos pelo
+    seed_achievements logo depois, casando pela chave — bancos antigos
+    só ganham as colunas vazias aqui.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(achievements)").fetchall()}
+    if "categoria" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN categoria TEXT")
+    if "nivel" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN nivel TEXT")
+    if "secreta" not in cols:
+        conn.execute("ALTER TABLE achievements ADD COLUMN secreta INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+
+def _migrate_user_profile_efeitos_visuais(conn: sqlite3.Connection) -> None:
+    """
+    GAM-04: preferência de efeitos visuais da gamificação — 'completo'
+    (tela de subida de nível + linhas de xp + avisos), 'sutil' (sem a tela
+    cheia) ou 'desligado' (só os avisos, sem animação). Bancos antigos
+    nascem em 'completo', o mesmo default do schema.sql.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "efeitos_visuais" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN efeitos_visuais TEXT NOT NULL DEFAULT 'completo'")
+    conn.commit()
+
+
+def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
+    """
+    GAM-06: dia a partir do qual a proteção de sequência vale. Nasce NULL
+    e é preenchido no primeiro cálculo da sequência (app/sequencia.py) —
+    a regra nova não é aplicada no passado, então buracos antigos
+    continuam quebrando a sequência como antes. A tabela dias_protegidos
+    vem do schema.sql (CREATE TABLE IF NOT EXISTS também cria em banco
+    antigo); só a coluna nova de user_profile precisa do ALTER TABLE.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "sequencia_protecao_desde" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN sequencia_protecao_desde TEXT")
+    # aviso "sequência salva" (visto ou não) — veio depois da tabela, então
+    # banco que já tinha dias_protegidos ganha a coluna aqui
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(dias_protegidos)").fetchall()}
+    if "avisado_em" not in cols:
+        conn.execute("ALTER TABLE dias_protegidos ADD COLUMN avisado_em TEXT")
+    conn.commit()
+
+
+def _migrate_user_profile_recompensas(conn: sqlite3.Connection) -> None:
+    """
+    GAM-10: título e tema de terminal escolhidos (recompensas por nível,
+    app/recompensas.py). Bancos antigos nascem sem título escolhido (NULL =
+    mostra o mais alto liberado) e no tema padrão.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "titulo" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN titulo TEXT")
+    if "tema" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN tema TEXT NOT NULL DEFAULT 'padrao'")
+    conn.commit()
+
+
+# GAM-13: preferências de som (coluna → default). Combinado no começo como
+# "som desligado", mudou no teste do Emanuel (2026-10-09): o som começa
+# LIGADO, com todos os grupos ligados — todo botão tem som.
+SOM_COLUNAS = {
+    "som_ativo": 1,
+    "som_volume": 60,
+    "som_progresso": 1,
+    "som_interface": 1,
+    "som_avisos": 1,
+}
+
+
+def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
+    """GAM-13: colunas de som em user_profile (ver SOM_COLUNAS)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    for col, default in SOM_COLUNAS.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} INTEGER NOT NULL DEFAULT {default}")
+    conn.commit()
+
+
+def _migrate_missoes_widget(conn: sqlite3.Connection, had_missoes: bool) -> None:
+    """
+    GAM-07: põe o widget "missões" no topo do Núcleo de quem já tinha um
+    layout — só uma vez, na primeira inicialização com a tabela missoes
+    (`had_missoes` = a tabela já existia ANTES do schema.sql rodar). Quem
+    remover o widget depois não o vê voltar. Instalação nova (layout ainda
+    vazio) recebe o widget pelo DEFAULT_LAYOUTS de _seed_defaults.
+    """
+    if had_missoes:
+        return
+    has_layout = conn.execute("SELECT 1 FROM dashboard_widgets WHERE screen = 'nucleo' LIMIT 1").fetchone()
+    has_widget = conn.execute("SELECT 1 FROM dashboard_widgets WHERE widget_type = 'missoes' LIMIT 1").fetchone()
+    if has_layout and not has_widget:
+        conn.execute("UPDATE dashboard_widgets SET position = position + 1 WHERE screen = 'nucleo'")
+        conn.execute(
+            "INSERT INTO dashboard_widgets (id, screen, widget_type, position, width, height, config_json) "
+            "VALUES (?, 'nucleo', 'missoes', 0, 6, NULL, NULL)",
+            (new_id(),),
+        )
+    conn.commit()
+
+
+def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
+    """
+    Converte timestamps legados (UTC sem offset, gravados pelo antigo
+    now_iso) pra hora local com offset — mesmo formato do now_iso atual.
+    Varre toda coluna *_at de toda tabela (mais _EXTRA_TIMESTAMP_COLUMNS)
+    e só mexe em valores sem offset, então é idempotente: roda a cada
+    init_db e também depois de importar um backup antigo (ver
+    routers/sistema.py::import_data), sem nunca converter duas vezes.
+    Não comita — quem chama decide (o import precisa disso dentro da
+    própria transação). Devolve quantos valores foram convertidos.
+    """
+    converted = 0
+    tables = [
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+    ]
+    for table in tables:
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        for col in cols:
+            if not (col.endswith("_at") or (table, col) in _EXTRA_TIMESTAMP_COLUMNS):
+                continue
+            rows = conn.execute(
+                f"SELECT rowid, {col} FROM {table} WHERE {col} LIKE '____-__-__T%'"
+            ).fetchall()
+            for rowid, value in rows:
+                if not _NAIVE_DATETIME_RE.match(value):
+                    continue
+                as_utc = datetime.datetime.fromisoformat(value).replace(tzinfo=datetime.timezone.utc)
+                conn.execute(
+                    f"UPDATE {table} SET {col} = ? WHERE rowid = ?",
+                    (as_utc.astimezone().isoformat(), rowid),
+                )
+                converted += 1
+    return converted
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
+    # GAM-07: a tabela missoes já existia? (decide se o widget novo entra
+    # no layout de quem já usava o app — ver _migrate_missoes_widget)
+    had_missoes = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'missoes'"
+    ).fetchone() is not None
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
@@ -443,6 +676,16 @@ def init_db() -> None:
     _migrate_email_accounts_sync_by_default(conn)
     _migrate_github_repos_source(conn)
     _migrate_rename_wallet_widget_type(conn)
+    _migrate_action_logs_referencia(conn)
+    _migrate_achievements_chave(conn)
+    _migrate_achievements_meta(conn)
+    _migrate_user_profile_efeitos_visuais(conn)
+    _migrate_user_profile_sequencia_protecao(conn)
+    _migrate_missoes_widget(conn, had_missoes)
+    _migrate_user_profile_recompensas(conn)
+    _migrate_user_profile_som(conn)
+    migrate_timestamps_to_local(conn)
+    conn.commit()
 
     _seed_defaults(conn)
 
@@ -456,13 +699,18 @@ def init_db() -> None:
 def _seed_defaults(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
 
-    # perfil: linha única, criada vazia se ainda não existir
+    # perfil: linha única, criada vazia se ainda não existir. Os sons vão
+    # explícitos (SOM_COLUNAS): o DEFAULT da coluna fica gravado na tabela
+    # de quem criou o banco quando o som começava desligado, e o reset
+    # (sistema.py) recriaria o perfil mudo
     cur.execute("SELECT COUNT(*) AS c FROM user_profile")
     if cur.fetchone()["c"] == 0:
+        som_cols = ", ".join(SOM_COLUNAS)
+        som_marks = ", ".join("?" * len(SOM_COLUNAS))
         cur.execute(
-            "INSERT INTO user_profile (id, display_name, accent_color, avatar_ascii, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (new_id(), "usuário", "#8fbf8f", None, now_iso()),
+            f"INSERT INTO user_profile (id, display_name, accent_color, avatar_ascii, updated_at, {som_cols}) "
+            f"VALUES (?, ?, ?, ?, ?, {som_marks})",
+            (new_id(), "usuário", "#8fbf8f", None, now_iso(), *SOM_COLUNAS.values()),
         )
 
     # carreira: linha única (área atual/meta), criada vazia se ainda não
@@ -518,6 +766,7 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
     # pra altura automática por conteúdo (ver grid.js), igual antes.
     DEFAULT_LAYOUTS = {
         "nucleo": [
+            ("missoes", 6, None),  # GAM-07 — topo do Núcleo, altura por conteúdo
             ("achievements", 3, 396),
             ("registrar", 3, 228),
             ("attributes", 2, 308),

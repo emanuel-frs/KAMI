@@ -52,14 +52,14 @@ def test_completing_milestone_credits_xp_and_sets_completed_at(client):
     assert body["completed_at"] is not None
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["aprendizado"]["current_xp"] == 15  # XP_PER_MILESTONE
+    assert attrs["aprendizado"]["current_xp"] == 20  # XP_PER_MILESTONE
 
 
 def test_reopening_milestone_refunds_the_exact_xp_awarded(client):
     track = _create_track(client)
     m1 = _create_milestone(client, track["id"])
     completed = client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"}).json()
-    assert completed["xp_awarded"] == 15  # XP_PER_MILESTONE
+    assert completed["xp_awarded"] == 20  # XP_PER_MILESTONE
 
     resp = client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "pendente"})
     assert resp.status_code == 200
@@ -67,14 +67,14 @@ def test_reopening_milestone_refunds_the_exact_xp_awarded(client):
     assert body["completed_at"] is None
     assert body["xp_awarded"] is None
 
-    # XP_PER_MILESTONE (15) foi estornado do atributo — volta a 0
+    # XP_PER_MILESTONE (20) foi estornado do atributo — volta a 0
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
     assert attrs["aprendizado"]["current_xp"] == 0
 
 
 def test_reopening_milestone_never_leaves_negative_xp(client):
-    # dois marcos concluídos noutra trilha credita 30xp; desmarcar um só
-    # estorna o que aquele marco específico creditou (15), não os 30
+    # dois marcos concluídos noutra trilha credita 40xp; desmarcar um só
+    # estorna o que aquele marco específico creditou (20), não os 40
     track = _create_track(client)
     m1 = _create_milestone(client, track["id"], "m1")
     m2 = _create_milestone(client, track["id"], "m2")
@@ -84,7 +84,7 @@ def test_reopening_milestone_never_leaves_negative_xp(client):
     client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "pendente"})
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["aprendizado"]["current_xp"] == 15  # 30 - 15 estornado
+    assert attrs["aprendizado"]["current_xp"] == 20  # 40 - 20 estornado
 
 
 def test_completing_milestone_twice_does_not_double_credit_xp(client):
@@ -95,7 +95,7 @@ def test_completing_milestone_twice_does_not_double_credit_xp(client):
     client.put(f"/api/aprendizado/milestones/{m1['id']}", json={"status": "concluido"})
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["aprendizado"]["current_xp"] == 15
+    assert attrs["aprendizado"]["current_xp"] == 20
 
 
 def test_milestone_invalid_status_returns_422(client):
@@ -131,7 +131,7 @@ def test_stale_pending_milestone_becomes_esquecido_on_read(client, db_conn):
     m1 = _create_milestone(client, track["id"])
 
     # simula 31 dias sem atividade, direto no banco (bypassa a API)
-    old_date = (datetime.datetime.utcnow() - datetime.timedelta(days=31)).isoformat()
+    old_date = (datetime.datetime.now().astimezone() - datetime.timedelta(days=31)).isoformat()
     db_conn.execute(
         "UPDATE milestones SET last_activity_at = ?, started_at = ? WHERE id = ?",
         (old_date, old_date, m1["id"]),
@@ -295,7 +295,7 @@ def test_completing_previously_stale_milestone_does_not_unlock_trilha_em_dia(cli
     m1 = _create_milestone(client, track["id"])
 
     # simula 31 dias sem atividade, direto no banco (bypassa a API)
-    old_date = (datetime.datetime.utcnow() - datetime.timedelta(days=31)).isoformat()
+    old_date = (datetime.datetime.now().astimezone() - datetime.timedelta(days=31)).isoformat()
     db_conn.execute(
         "UPDATE milestones SET last_activity_at = ?, started_at = ? WHERE id = ?",
         (old_date, old_date, m1["id"]),
@@ -317,7 +317,7 @@ def test_was_ever_stale_persists_after_reopening_milestone(client, db_conn):
     track = _create_track(client)
     m1 = _create_milestone(client, track["id"])
 
-    old_date = (datetime.datetime.utcnow() - datetime.timedelta(days=31)).isoformat()
+    old_date = (datetime.datetime.now().astimezone() - datetime.timedelta(days=31)).isoformat()
     db_conn.execute(
         "UPDATE milestones SET last_activity_at = ?, started_at = ? WHERE id = ?",
         (old_date, old_date, m1["id"]),

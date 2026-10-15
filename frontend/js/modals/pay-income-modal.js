@@ -1,6 +1,7 @@
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { icon } from "../components/icons.js";
+import { localDateKey } from "../components/format.js";
 
 /**
  * Modal "marcar renda como paga" — usado por widgets/financas-renda.js.
@@ -89,7 +90,7 @@ export function openPayIncomeModal({ nome, valorEsperado, expectedDate, conta = 
 
   modalEl.querySelector(".modal-head-title").textContent = `marcar "${nome}" como paga`;
   modalEl.querySelector("#pim-valor").value = valorEsperado ?? "";
-  modalEl.querySelector("#pim-data").value = expectedDate || new Date().toISOString().slice(0, 10);
+  modalEl.querySelector("#pim-data").value = expectedDate || localDateKey();
   modalEl.querySelector("#pim-conta-info").textContent = conta
     ? `creditado em: ${conta.bankNome} — ${conta.nome}`
     : "sem conta vinculada — só um lembrete, não credita saldo em lugar nenhum";

@@ -158,7 +158,8 @@ const RULES = [
   { sel: ".cal-event-row" },
 ];
 
-const ALL_SEL = RULES.map((r) => r.sel).join(", ");
+// exportado: components/sound.js usa a mesma lista pra dar som a todo clicável
+export const ALL_SEL = RULES.map((r) => r.sel).join(", ");
 const NATIVE_TAGS = new Set(["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "SUMMARY", "OPTION"]);
 const INTERACTIVE = 'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), [data-kb]';
 
@@ -418,9 +419,12 @@ export function auditClickables() {
     // contêiner cujos controles já são focáveis (proxy ou filhos com data-kb)
     if (el.querySelector("[data-kb]")) return;
     const cs = getComputedStyle(el);
-    if (cs.cursor !== "pointer" || cs.display === "none" || cs.visibility === "hidden") return;
+    // endsWith: com o cursor em pixel art (GAM-15) o valor computado é
+    // `url(...) 5 0, pointer`, não só "pointer"
+    const isPointer = (cursor) => cursor === "pointer" || cursor.endsWith(", pointer");
+    if (!isPointer(cs.cursor) || cs.display === "none" || cs.visibility === "hidden") return;
     // cursor é herdado: só interessa o mais externo de cada região "clicável"
-    if (el.parentElement && getComputedStyle(el.parentElement).cursor === "pointer") return;
+    if (el.parentElement && isPointer(getComputedStyle(el.parentElement).cursor)) return;
     found.push(el);
   });
   console.table(found.map((el) => ({ tag: el.tagName.toLowerCase(), classe: el.className, texto: clip(clean(el.textContent), 40) })));

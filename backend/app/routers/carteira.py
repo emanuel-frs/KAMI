@@ -62,9 +62,13 @@ from pydantic import BaseModel, Field
 from app.database import get_db, new_id, now_iso
 from app.finance_utils import create_saida_transaction, revert_saida_transaction
 from app.business_days import months_between
-from app.actions import register_action
+from app.actions import has_action, register_action, revert_actions
 
 router = APIRouter()
+
+# mesmo valor de financas.XP_PAGAMENTO_RECORRENTE (conta fixa/renda):
+# pagar uma assinatura é o mesmo hábito de "manter em dia", 1x por período
+XP_ASSINATURA_PAGA = 4
 
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
@@ -453,14 +457,17 @@ def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
             description=f"assinatura: {sub['nome']}",
             forma_pagamento=payload.forma_pagamento,
         )
-        register_action(
-            db,
-            description=f"pagou assinatura: {sub['nome']}",
-            categories=["financas"],
-            xp=2,
-            impact=2,
-            source="financas",
-        )
+        if not has_action(db, "assinatura_periodo", period_id):
+            register_action(
+                db,
+                description=f"pagou assinatura: {sub['nome']}",
+                categories=["financas"],
+                xp=XP_ASSINATURA_PAGA,
+                impact=2,
+                source="financas",
+                referencia_tipo="assinatura_periodo",
+                referencia_id=period_id,
+            )
 
     db.execute(
         "UPDATE wallet_subscription_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
@@ -480,6 +487,7 @@ def unpay_period(period_id: str, db=Depends(get_db)):
     # saldo/fatura e remove a transação antes de voltar pra "não paga"
     # (motivo original do item 6: evitar desconto fantasma no saldo).
     revert_saida_transaction(db, row["transaction_id"])
+    revert_actions(db, "assinatura_periodo", period_id)
     db.execute(
         "UPDATE wallet_subscription_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),

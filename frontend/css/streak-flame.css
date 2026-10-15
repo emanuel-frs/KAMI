@@ -1,0 +1,60 @@
+/* GAM-06: chama da sequência + proteções (components/streak-flame.js).
+   A chama é um SVG em pixel art (grade 10×12, crispEdges), usado no card
+   de perfil (.pw-streak) e na barra lateral (.sl-row) — só muda o tamanho.
+   Tons da paleta: borda --accent-dim, corpo --accent, miolo --text-bright.
+   Apagada (`data-dim`, cinza) quando a sequência está viva mas hoje ainda
+   não teve ação; blindada (`data-shield`, contorno .sf-s) quando, além
+   disso, ontem foi segurado por uma proteção. viewBox com 1 pixel de
+   folga em volta (12×14) pra caber o contorno.
+
+   Tremor: o SVG tem dois quadros (.sf-frame-a e o espelhado .sf-frame-b);
+   a animação alterna os dois em degraus, só com efeitos "completo"
+   (<html data-effects>, visual-effects.js), sem prefers-reduced-motion e
+   com a chama acesa (a brasa do degrau 0 não tremula). */
+
+.streak-flame { display: block; flex: 0 0 auto; }
+.streak-flame .sf-a { fill: var(--accent-dim); }
+.streak-flame .sf-b { fill: var(--accent); }
+.streak-flame .sf-c { fill: var(--text-bright); }
+.streak-flame[data-dim] .sf-a { fill: var(--border); }
+.streak-flame[data-dim] .sf-b { fill: var(--text-faint); }
+.streak-flame[data-dim] .sf-c { fill: var(--text-dim); }
+/* blindada: contorno de pixel ("escudo") em volta da chama apagada */
+.streak-flame .sf-s { fill: var(--accent); }
+
+.streak-flame .sf-frame-b { visibility: hidden; }
+@keyframes streak-flame-a { 0%, 49.9% { visibility: visible; } 50%, 100% { visibility: hidden; } }
+@keyframes streak-flame-b { 0%, 49.9% { visibility: hidden; } 50%, 100% { visibility: visible; } }
+:root[data-effects="completo"] .streak-flame:not([data-dim]):not([data-stage="0"]) .sf-frame-a {
+  animation: streak-flame-a 0.9s infinite;
+}
+:root[data-effects="completo"] .streak-flame:not([data-dim]):not([data-stage="0"]) .sf-frame-b {
+  animation: streak-flame-b 0.9s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-effects="completo"] .streak-flame .sf-frame-a,
+  :root[data-effects="completo"] .streak-flame .sf-frame-b { animation: none; }
+}
+
+/* ---------- card de perfil (widgets/profile.js) ---------- */
+.pw-streak {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.pw-streak .streak-flame { width: 36px; height: 42px; } /* 3px por pixel, 12×14 */
+.pw-streak-info { display: flex; flex-direction: column; gap: 4px; padding-bottom: 1px; }
+.pw-streak-info .k { color: var(--text-faint); }
+.pw-protections { color: var(--accent); letter-spacing: 1px; }
+.pw-protected { color: var(--text-faint); }
+
+/* ---------- barra lateral (components/sidebar-level.js) ---------- */
+.sidebar-level .sl-row { display: flex; align-items: flex-end; gap: 8px; }
+.sidebar-level .sl-flame .streak-flame { width: 24px; height: 28px; } /* 2px por pixel, 12×14 */
+.sidebar-level .sl-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sidebar-level .sl-streak { color: var(--text-dim); }
+.sidebar-level .sl-protections { color: var(--accent); letter-spacing: 1px; }

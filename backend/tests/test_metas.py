@@ -151,7 +151,7 @@ def test_contribution_updates_current_value_as_sum(client):
 def test_partial_contribution_credits_normal_xp(client):
     goal = _create_goal(client, target_value=100)
     client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 10, "note": "sobrou do mes"})
-    assert _metas_xp(client) == 3  # XP_PER_CONTRIBUTION
+    assert _metas_xp(client) == 5  # XP_PER_CONTRIBUTION
 
 
 def test_reaching_target_marks_goal_as_concluida_and_credits_bonus_xp(client):
@@ -179,7 +179,7 @@ def test_multiple_contributions_only_last_one_credits_completion_bonus(client):
     goal = _create_goal(client, target_value=100)
     client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 60})  # normal: +3
     client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 40})  # completa: +30 (nao +3)
-    assert _metas_xp(client) == 33
+    assert _metas_xp(client) == 35
 
 
 def test_cannot_contribute_to_completed_goal(client):
@@ -391,10 +391,10 @@ def test_create_goal_rejects_invalid_weight(client):
 
 def test_weight_multiplies_contribution_and_completion_xp(client):
     goal = _create_goal(client, target_value=100, weight="epico")  # 3x
-    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 40})  # 3 * 3 = 9
-    assert _metas_xp(client) == 9
+    client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 40})  # 5 * 3 = 15
+    assert _metas_xp(client) == 15
     client.post(f"/api/metas/{goal['id']}/contribute", json={"amount": 60})  # completa: 30 * 3 = 90
-    assert _metas_xp(client) == 99
+    assert _metas_xp(client) == 105
 
 
 def test_low_weight_rounds_xp(client):

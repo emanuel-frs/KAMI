@@ -1,4 +1,5 @@
 import * as carteiraApi from "../api/carteira.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -30,5 +31,5 @@ export async function render(el, widget) {
   }
 
   await reload();
-  window.addEventListener("kami:wallet-changed", reload);
+  listenWhileConnected(el, "kami:wallet-changed", reload);
 }

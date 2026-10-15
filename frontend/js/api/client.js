@@ -147,11 +147,21 @@ async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
 
   if (method !== "GET") {
+    let result;
     try {
-      return await doFetch(path, options);
+      result = await doFetch(path, options);
     } finally {
       clearGetCache();
     }
+    // aviso genérico de "algo foi gravado" — quem precisa reagir a
+    // escritas de qualquer módulo (ex: components/progress-watcher.js,
+    // que confere se a escrita rendeu xp/nível/conquista) escuta isso
+    // em vez de cada tela disparar o próprio evento. A camada de API
+    // continua sem saber nada de gamificação.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kami:data-changed", { detail: { method, path } }));
+    }
+    return result;
   }
 
   const cached = _getCache.get(path);

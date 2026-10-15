@@ -1,5 +1,7 @@
 import { icon } from "./icons.js";
 import { escapeHtml } from "./format.js";
+import { fxAllows, typeText } from "./fx.js";
+import { playSound } from "./sound.js";
 
 /**
  * Toast empilhável (diferente do singleton de backup-reminder.js — aqui
@@ -14,6 +16,29 @@ import { escapeHtml } from "./format.js";
  */
 
 let stackEl = null;
+
+/**
+ * GAM-15: com efeitos "completo", título e mensagem aparecem digitados. O
+ * texto completo vai antes num span sr-only — a região viva anuncia a
+ * frase inteira uma vez, não letra a letra — e o texto visível fica
+ * aria-hidden.
+ */
+function typeToast(el, title, message) {
+  if (!fxAllows("completo")) return;
+  const body = el.querySelector(".toast-body");
+  body.insertAdjacentHTML("afterbegin", `<span class="sr-only">${escapeHtml(message ? `${title}. ${message}` : title)}</span>`);
+  const titleEl = body.querySelector(".toast-title");
+  const messageEl = body.querySelector(".toast-message");
+  titleEl.setAttribute("aria-hidden", "true");
+  messageEl?.setAttribute("aria-hidden", "true");
+  typeText(titleEl, title);
+  if (messageEl) typeText(messageEl, message);
+}
+
+/** A pilha de avisos do canto — os avisos "estilo Steam" (achievement-popup.js) entram nela também. */
+export function toastStack() {
+  return ensureStack();
+}
 
 function ensureStack() {
   if (stackEl) return stackEl;
@@ -37,9 +62,12 @@ function ensureStack() {
 if (typeof document !== "undefined" && document.body) ensureStack();
 
 /**
- * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void }} opts
+ * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void, sound?: boolean }} opts
  */
-export function showToast({ title, message = "", iconName = "bell-ring", duration = 8000, onClick } = {}) {
+export function showToast({ title, message = "", iconName = "bell-ring", duration = 8000, onClick, sound = true } = {}) {
+  // GAM-13: bipe de aviso — `sound: false` quando quem chama já toca um
+  // som próprio (subida de nível, conquista com efeitos desligados)
+  if (sound) playSound("aviso");
   const stack = ensureStack();
 
   const el = document.createElement("div");
@@ -99,6 +127,7 @@ export function showToast({ title, message = "", iconName = "bell-ring", duratio
 
   stack.appendChild(el);
   requestAnimationFrame(() => el.classList.add("open"));
+  typeToast(el, title, message);
   scheduleHide();
 
   return dismiss;

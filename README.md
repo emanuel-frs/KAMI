@@ -52,8 +52,22 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 ## Funcionalidades
 
 - **Núcleo:** os cinco atributos de vida (Carreira, Finanças, Aprendizado, Organização e Metas), cada
-  um com XP e nível, log filtrável de tudo que foi registrado, conquistas automáticas e um painel de
-  widgets que você arruma como quiser.
+  um com XP e nível, nível geral do jogador, log filtrável de tudo que foi registrado, 50 conquistas
+  automáticas (com níveis e algumas secretas), conquistas que você mesmo cria ("10 ações em
+  aprendizado com 'inglês'") e um painel de widgets que você arruma como quiser. Cada ação mostra o XP
+  ganho na hora; subir de nível abre uma tela própria e conquistas sobem num aviso no canto da tela.
+- **Hábito:** sequência de dias com uma chama em pixel art que cresce com ela e proteções que seguram
+  um dia em branco; três missões por dia e uma por semana, sorteadas a partir do que dá para fazer
+  agora; bônus de XP pela primeira ação do dia, pela sequência e por cuidar do atributo mais atrasado;
+  e o radar avisa quando um atributo está parado há duas semanas.
+- **Progressão:** subir o nível geral libera títulos (exibidos sob o seu nome) e temas de terminal
+  (fósforo, CRT e âmbar); sua classe (Erudito, Mercador, Artífice, Estrategista, Arquivista ou Polímata)
+  vem do atributo mais forte; e todo mês abre uma retrospectiva em ASCII do mês que acabou, exportável
+  em `.txt`.
+- **Cara de terminal antigo:** texto que se digita, números que rolam, cards que ligam como um CRT,
+  brilho de fósforo e cursor em pixel art, além de bipes 8-bit gerados na hora para progresso, cliques
+  e avisos. Efeitos (completo, sutil ou desligado) e sons (por grupo, com volume) se ajustam em
+  configurações › aparência.
 - **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
   visão mensal com comparação com o mês anterior.
@@ -181,12 +195,8 @@ Sem datas nem promessas; é o que eu faria em seguida.
   comportamento do antivírus de cada PC.
 - **Mais plataformas e atualização:** macOS e atualização automática.
 - **Segredos:** guardar a chave de cifragem no cofre do sistema (Credential Manager ou Secret Service).
-- **Datas e fuso horário:** alguns registros usam UTC e outros o horário local, o que pode contar uma ação
-  feita à noite como do dia seguinte perto da meia-noite. Ainda preciso confirmar o efeito real em
-  sequências e gráficos.
 - **Ícones dos links:** guardar o ícone localmente ao salvar o link, em vez da inicial.
-- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`) e trocar o
-  `datetime.utcnow()` depreciado.
+- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`).
 - **Distribuição:** PyInstaller em modo pasta (reduz falsos positivos), publicação no AUR e em outros
   repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
 

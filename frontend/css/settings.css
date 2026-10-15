@@ -176,6 +176,26 @@
   line-height: 1.5;
 }
 
+/* GAM-13: linha do volume (rótulo, slider, valor, botão "ouvir") */
+.cfg-sound-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 10.5px;
+  color: var(--text-bright);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+.cfg-sound-volume input[type="range"] { flex: 1; accent-color: var(--accent); }
+.cfg-sound-volume input:disabled { opacity: 0.4; }
+#cfg-sound-volume-value { min-width: 3ch; text-align: right; color: var(--text-dim); }
+
+/* GAM-10: subtítulos da seção "recompensas do nível" e opção ainda travada */
+.cfg-subhead { margin: 10px 0 2px; font-size: 10px; color: var(--text-dim); }
+.cfg-subhead small { color: var(--text-faint); font-size: 9.5px; }
+.cfg-toggle--locked { color: var(--text-faint); cursor: default; }
+
 .settings-status {
   font-size: 10px;
   color: var(--text-faint);
@@ -208,4 +228,44 @@
 }
 .settings-warning .field label strong {
   color: var(--amber);
+}
+/* relatório da revisão de xp (configuracoes-modal.js::renderXpReviewReport)
+   — linhas "nome ........ antes → depois", mesmo tom de .settings-desc */
+.xp-review-report {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-soft);
+}
+.xp-review-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.xp-review-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.xp-review-list li + li {
+  border-top: 1px solid var(--border-soft);
+}
+.xp-review-list li span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xp-review-list li span:last-child {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+.xp-review-list--removed {
+  max-height: 180px;
+  overflow-y: auto;
+}
+.xp-review-more {
+  color: var(--text-faint);
 }

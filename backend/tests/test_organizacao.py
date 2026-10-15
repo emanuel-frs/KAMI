@@ -70,7 +70,7 @@ def test_create_github_repo_success_credits_xp_and_caches_status(client, mock_gi
     assert body["last_synced_at"] is not None
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["organizacao"]["current_xp"] == 2  # XP_GITHUB_SYNC
+    assert attrs["organizacao"]["current_xp"] == 3  # XP_GITHUB_SYNC
 
 
 def test_create_github_repo_not_found_404_from_github_does_not_credit_xp(client, mock_github_urlopen):
@@ -121,7 +121,7 @@ def test_sync_github_repo_success_updates_cache_and_credits_xp(client, mock_gith
     assert resp.json()["cached_status"]["stargazers_count"] == 5
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["organizacao"]["current_xp"] == 4  # 2 (create) + 2 (sync)
+    assert attrs["organizacao"]["current_xp"] == 6  # 3 (create) + 3 (sync)
 
 
 def test_sync_github_repo_error_keeps_previous_cache(client, mock_github_urlopen):
@@ -136,7 +136,7 @@ def test_sync_github_repo_error_keeps_previous_cache(client, mock_github_urlopen
     assert body["sync_error"] is not None
 
     attrs = {a["name"]: a for a in client.get("/api/nucleo/attributes").json()}
-    assert attrs["organizacao"]["current_xp"] == 2  # não creditou de novo
+    assert attrs["organizacao"]["current_xp"] == 3  # não creditou de novo
 
 
 def test_sync_github_repo_not_found_returns_404(client):

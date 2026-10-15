@@ -3,6 +3,7 @@ import { getLog } from "../api/nucleo.js";
 import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { listenWhileConnected } from "../components/window-listener.js";
 
 /** Log cronológico — escuta filtro de attributes.js e refresh de registrar.js. */
 export async function render(el, widget) {
@@ -70,13 +71,13 @@ export async function render(el, widget) {
     load();
   });
 
-  window.addEventListener("kami:nucleo-filter", (e) => {
+  listenWhileConnected(el, "kami:nucleo-filter", (e) => {
     currentAttribute = e.detail.attribute;
     filterLabelEl.textContent = currentAttribute === "all" ? "todos" : currentAttribute;
     load();
   });
 
-  window.addEventListener("kami:action-registered", load);
+  listenWhileConnected(el, "kami:action-registered", load);
 
   load();
 }

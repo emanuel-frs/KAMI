@@ -64,7 +64,7 @@ const STEPS = [
     // por cima, em vez de tentar destacar mais alguma coisa). Por isso este
     // passo só aponta e explica, sem forçar o clique.
     selector: '[data-action="contribute-goal"]',
-    text: "toda vez que avançar de verdade nessa meta, registre aqui — é isso que move a barra de progresso.",
+    text: "toda vez que avançar de verdade nessa meta, registre aqui — é isso que move a barra de progresso. contribuir rende xp uma vez por dia por meta; o bônus de conclusão vem sempre.",
   },
   {
     // informar — só existe se houver meta de aprendizado ativa
