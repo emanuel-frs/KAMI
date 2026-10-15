@@ -76,7 +76,7 @@
  * mostrar/esconder, não um modal separado).
  */
 import { exportData, importData, resetData } from "../api/sistema.js";
-import { applyXpReview, previewXpReview } from "../api/nucleo.js";
+import { applyXpReview, getRecompensas, previewXpReview } from "../api/nucleo.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
 import {
   listEmailAccounts,
@@ -156,7 +156,7 @@ function buildAparenciaPanel() {
     <div class="cfg-panel on" data-panel="aparencia">
       <div class="settings-section" style="padding-top:0;">
         <h4>cor de destaque</h4>
-        <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app. mais opções de aparência chegam depois.</p>
+        <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app.</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
         <p class="settings-status" id="cfg-accent-status"></p>
       </div>
@@ -171,6 +171,15 @@ function buildAparenciaPanel() {
           </label>`).join("")}
         </div>
         <p class="settings-status" id="cfg-effects-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>recompensas do nível</h4>
+        <p class="settings-desc" id="cfg-rewards-desc">títulos e temas de terminal liberados conforme seu nível geral sobe.</p>
+        <p class="cfg-subhead">título <small>(aparece sob o seu nome no perfil)</small></p>
+        <div role="radiogroup" aria-label="título" id="cfg-titles"></div>
+        <p class="cfg-subhead">tema de terminal <small>(por cima da cor de destaque)</small></p>
+        <div role="radiogroup" aria-label="tema de terminal" id="cfg-themes"></div>
+        <p class="settings-status" id="cfg-rewards-status"></p>
       </div>
     </div>`;
 }
@@ -385,6 +394,8 @@ function wireModal(wrap) {
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
+  wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
+  wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
   wireBackupTab(wrap);
 
   wrap.addEventListener("click", (e) => {
@@ -429,6 +440,57 @@ async function selectEffectsMode(wrap, value) {
     return;
   }
   store.set("profile", { ...store.get("profile"), efeitos_visuais: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
+}
+
+// ── recompensas do nível (GAM-10) ──────────────────────────────────────
+// Título e tema de terminal liberados pelo nível geral (catálogo e regra em
+// backend/app/recompensas.py). O que ainda não foi liberado aparece
+// desabilitado com "nível N" — dá pra ver o que vem pela frente.
+function rewardOption(name, item, checked) {
+  const lock = item.unlocked ? "" : ` · liberado no nível ${item.level}`;
+  const desc = item.description ? `${item.description}${lock}` : lock.replace(/^ · /, "");
+  return `
+    <label class="cfg-toggle${item.unlocked ? "" : " cfg-toggle--locked"}">
+      <input type="radio" name="${name}" value="${escapeHtml(item.key)}"${checked ? " checked" : ""}${item.unlocked ? "" : " disabled"}>
+      <span>${escapeHtml(item.label)}${desc ? `<small>${escapeHtml(desc)}</small>` : ""}</span>
+    </label>`;
+}
+
+async function renderRewards(wrap, profile) {
+  let data;
+  try {
+    data = await getRecompensas();
+  } catch {
+    wrap.querySelector("#cfg-rewards-desc").textContent = "não deu pra carregar as recompensas agora.";
+    return;
+  }
+  wrap.querySelector("#cfg-rewards-desc").textContent =
+    `títulos e temas de terminal liberados conforme seu nível geral sobe — você está no nível ${data.level}.`;
+  const auto = { key: "auto", label: "automático", description: "o título mais alto que você já liberou", unlocked: true };
+  wrap.querySelector("#cfg-titles").innerHTML = [auto, ...data.titulos]
+    .map((t) => rewardOption("cfg-title", t, (profile.titulo ?? "auto") === t.key))
+    .join("");
+  wrap.querySelector("#cfg-themes").innerHTML = data.temas
+    .map((t) => rewardOption("cfg-theme", t, (profile.tema ?? "padrao") === t.key))
+    .join("");
+}
+
+async function selectReward(wrap, field, value) {
+  const statusEl = wrap.querySelector("#cfg-rewards-status");
+  statusEl.classList.remove("settings-status--visible");
+  let saved;
+  try {
+    saved = await updateProfile({ [field]: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar recompensa");
+    renderRewards(wrap, store.get("profile") ?? {});
+    return;
+  }
+  // o tema vale na hora (components/tema.js escuta o store); o título
+  // aparece no card de perfil (widgets/profile.js também escuta)
+  store.set("profile", { ...store.get("profile"), titulo: saved.titulo, tema: saved.tema });
   statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
   statusEl.classList.add("settings-status--visible");
 }
@@ -1263,6 +1325,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
     renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderRewards(modalEl, profile);
     renderPerfilTab(modalEl, profile);
     renderNotificacoesTab(modalEl, profile);
     // getProfile() aqui é a fonte mais fresca (pode ter mudado desde a

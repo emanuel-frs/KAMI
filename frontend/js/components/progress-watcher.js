@@ -1,4 +1,4 @@
-import { getAchievements, getAttributes, getLog, getMissoes, getPlayer } from "../api/nucleo.js";
+import { getAchievements, getAttributes, getLog, getMissoes, getPlayer, getRecompensas } from "../api/nucleo.js";
 import { ICON_BY_CATEGORY } from "../widgets/achievements.js";
 import { showAchievementPopup } from "./achievement-popup.js";
 import { showToast } from "./toast.js";
@@ -109,6 +109,36 @@ function showXpLine(delta, attribute) {
   showFeedLine(`${sign}${Math.abs(delta)} xp`, attribute, delta < 0);
 }
 
+/**
+ * Subida do nível geral: tela cheia (efeitos "completo") ou toast, com o
+ * que acabou de ser liberado (GAM-10: títulos e temas de terminal entre o
+ * nível anterior e o novo). Assíncrona só pra buscar o catálogo — se ele
+ * falhar, comemora do mesmo jeito, sem a linha de "desbloqueado".
+ */
+async function celebrateLevel(previousLevel, player) {
+  let unlocked = [];
+  try {
+    const rewards = await getRecompensas();
+    const fresh = (item) => item.level > previousLevel && item.level <= player.level;
+    unlocked = [
+      ...rewards.titulos.filter(fresh).map((t) => `título "${t.label}"`),
+      ...rewards.temas.filter(fresh).map((t) => `tema ${t.label}`),
+    ];
+  } catch {
+    // sem catálogo: comemora sem a linha de recompensas
+  }
+  if (effectsMode() === "completo") {
+    showLevelUp({ level: player.level, previousLevel, totalXp: player.total_xp, unlocked });
+    return;
+  }
+  showToast({
+    title: `nível ${player.level} alcançado`,
+    message: `${player.total_xp.toLocaleString("pt-BR")} xp no total${unlocked.length ? ` · desbloqueado: ${unlocked.join(", ")}` : ""}`,
+    iconName: "zap",
+    duration: TOAST_MS,
+  });
+}
+
 function diffAndCelebrate(before, after) {
   let changed = false;
 
@@ -142,19 +172,8 @@ function diffAndCelebrate(before, after) {
     showFeedLine(`+${b.xp_gained} xp`, b.description.replace(/^bônus · /, ""), false, "bonus");
   }
 
-  if (after.player.level > before.player.level && effectsMode() === "completo") {
-    showLevelUp({
-      level: after.player.level,
-      previousLevel: before.player.level,
-      totalXp: after.player.total_xp,
-    });
-  } else if (after.player.level > before.player.level) {
-    showToast({
-      title: `nível ${after.player.level} alcançado`,
-      message: `${after.player.total_xp.toLocaleString("pt-BR")} xp no total`,
-      iconName: "zap",
-      duration: TOAST_MS,
-    });
+  if (after.player.level > before.player.level) {
+    celebrateLevel(before.player.level, after.player);
   }
 
   for (const [id, ach] of after.unlocked) {

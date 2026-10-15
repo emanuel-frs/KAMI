@@ -10,6 +10,8 @@ export const getAchievements = () => get("/api/nucleo/achievements");
 export const getPlayer = () => get("/api/nucleo/player");
 // GAM-07: missões do dia e da semana (geradas/avaliadas na leitura)
 export const getMissoes = () => get("/api/nucleo/missoes");
+// GAM-10: títulos e temas de terminal liberados por nível
+export const getRecompensas = () => get("/api/nucleo/recompensas");
 // GAM-12: retrospectiva mensal (a lista gera a do mês anterior na leitura)
 export const listRetrospectivas = () => get("/api/nucleo/retrospectivas");
 export const getRetrospectiva = (mes) => get(`/api/nucleo/retrospectivas/${encodeURIComponent(mes)}`);

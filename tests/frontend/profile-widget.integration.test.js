@@ -48,7 +48,7 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
         level: 2, total_xp: 150, current_level_xp: 50, xp_for_next_level: 246, pct: 20,
         streak_current: 3, streak_best: 5, active_today: true,
         streak_protections: 2, streak_protections_max: 2, streak_protected_yesterday: true,
-        streak_next_protection_in: 4, player_class: "artífice",
+        streak_next_protection_in: 4, player_class: "artífice", player_title: "operador",
         achievements_unlocked: 1, achievements_total: 2,
       },
     };
@@ -71,6 +71,7 @@ test("widget de perfil renderiza o estado recebido pela API", async (t) => {
   assert.match(widget.textContent, /nível\s*2/);
   assert.match(widget.textContent, /sequência\s*3 dias/);
   assert.match(widget.textContent, /classe\s*artífice/); // GAM-11
+  assert.equal(widget.querySelector(".pw-title").textContent, "« operador »"); // GAM-10
   assert.equal(widget.querySelector(".pw-xp-bar").textContent, "[####----------------]");
   assert.match(widget.querySelector(".pw-xp-text").textContent, /20% · 50\/246 xp pro nível 3/);
   // GAM-06: chama de 3 dias (degrau 2) + proteções cheias + ontem protegido

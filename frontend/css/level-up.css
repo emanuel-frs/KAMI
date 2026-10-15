@@ -70,6 +70,13 @@
   font-size: 10.5px;
   color: var(--text-faint);
 }
+/* GAM-10: o que a subida liberou (título/tema), na cor de destaque */
+.level-up-unlocked {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
 .level-up-close { margin-top: 6px; }
 
 /* ── movimento (só com .animated) ─────────────────────────────────── */

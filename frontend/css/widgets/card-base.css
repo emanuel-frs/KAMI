@@ -286,6 +286,10 @@ body.kami-resizing * { user-select: none !important; cursor: nwse-resize !import
 .pw-avatar-btn:hover {
   border-color: var(--accent-dim);
 }
+/* GAM-10: título (recompensa por nível) logo sob o nome */
+.pw-name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pw-title { font-size: 10px; color: var(--accent); letter-spacing: 0.04em; }
+
 /* GAM-05: barra de xp do nível geral no card de perfil (widgets/profile.js,
    components/xp-bar.js) — texto "[####----] 40% · 120/300 xp pro nível 4" */
 .pw-xp {

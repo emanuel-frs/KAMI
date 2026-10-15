@@ -93,7 +93,10 @@ export async function render(el, widget) {
       </div>
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
+          <span class="pw-name-wrap">
+            <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
+            <span class="pw-title" data-tooltip="título liberado pelo nível — troque em configurações › aparência">« ${escapeHtml(player.player_title ?? "iniciante")} »</span>
+          </span>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn sm" data-action="retro" data-tooltip="o resumo de cada mês que passou">retrospectivas</button>
             <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar perfil</button>

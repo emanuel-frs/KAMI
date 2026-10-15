@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS user_profile (
     notif_email_enabled   INTEGER NOT NULL DEFAULT 1,  -- config. notificações: seção "e-mails"
     efeitos_visuais       TEXT NOT NULL DEFAULT 'completo',  -- GAM-04: completo | sutil | desligado
     sequencia_protecao_desde TEXT,            -- GAM-06: dia (YYYY-MM-DD) em que a proteção de sequência passou a valer; NULL = gravado no 1º cálculo
+    titulo                TEXT,               -- GAM-10: título escolhido (chave em app/recompensas.py); NULL = o mais alto liberado
+    tema                  TEXT NOT NULL DEFAULT 'padrao',  -- GAM-10: padrao | fosforo | crt | ambar (liberados por nível)
     updated_at            TEXT NOT NULL
 );
 

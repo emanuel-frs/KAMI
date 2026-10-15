@@ -8,6 +8,7 @@ Endpoints:
   GET  /api/nucleo/achievements         galeria de conquistas (desbloqueadas + bloqueadas), com progresso
   GET  /api/nucleo/player               resumo do jogador: nível geral, sequência de dias (+ proteções), conquistas
   GET  /api/nucleo/missoes              missões do dia e da semana, com progresso (GAM-07)
+  GET  /api/nucleo/recompensas          títulos e temas liberados por nível (GAM-10)
   GET  /api/nucleo/retrospectivas       retrospectivas mensais guardadas (GAM-12); gera a do mês anterior
   GET  /api/nucleo/retrospectivas/{mes} resumo de um mês
   POST /api/nucleo/retrospectivas/{mes}/vista  marca como vista
@@ -31,6 +32,7 @@ from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 from app.bonus import atributo_atrasado
 from app.retrospectiva import garantir_retrospectiva
+from app.recompensas import catalogo as recompensas_catalogo, titulo_atual
 
 router = APIRouter()
 
@@ -127,6 +129,7 @@ class PlayerOut(BaseModel):
     streak_next_protection_in: int
     streak_saved_days: List[str]
     player_class: Optional[str] = None  # GAM-11: ver _player_class
+    player_title: str = "iniciante"     # GAM-10: título exibido (app/recompensas.py)
     achievements_unlocked: int
     achievements_total: int
 
@@ -362,6 +365,9 @@ def get_player(db=Depends(get_db)):
         "streak_next_protection_in": streak["next_protection_in"],
         "streak_saved_days": streak["saved_unseen"],
         "player_class": _player_class(db),
+        "player_title": titulo_atual(
+            db.execute("SELECT titulo FROM user_profile LIMIT 1").fetchone()["titulo"], lv["level"]
+        ),
         "achievements_unlocked": ach["unlocked"],
         "achievements_total": ach["total"],
     }
@@ -379,6 +385,12 @@ def get_missoes(db=Depends(get_db)):
     avaliar_missoes(db)
     db.commit()
     return listar_missoes(db)
+
+
+@router.get("/recompensas")
+def get_recompensas(db=Depends(get_db)):
+    """GAM-10: títulos e temas de terminal, com o nível que libera cada um."""
+    return recompensas_catalogo(db)
 
 
 @router.get("/retrospectivas")

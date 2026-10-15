@@ -1,4 +1,5 @@
 import { allowsMotion } from "./visual-effects.js";
+import { escapeHtml } from "./format.js";
 
 /**
  * Tela de subida do NÍVEL GERAL (GAM-04) — disparada pelo
@@ -10,6 +11,9 @@ import { allowsMotion } from "./visual-effects.js";
  * (boot-splash.js, família "ANSI Shadow"), scanlines de CRT e um glitch
  * curto ao entrar — tudo em CSS (css/level-up.css), sem movimento quando
  * allowsMotion() é falso.
+ *
+ * GAM-10: `unlocked` (títulos/temas liberados nesta subida) vira a linha
+ * "desbloqueado: …" — eles se escolhem em configurações > aparência.
  *
  * Acessível: role="dialog" + aria-modal, foco vai pro botão de fechar e
  * volta pra onde estava ao sair; fecha com clique, Esc, Enter/Espaço ou
@@ -39,7 +43,7 @@ export function asciiBanner(text) {
 
 let openEl = null;
 
-export function showLevelUp({ level, previousLevel, totalXp }) {
+export function showLevelUp({ level, previousLevel, totalXp, unlocked = [] }) {
   openEl?.dismiss();
 
   const previousFocus = document.activeElement;
@@ -53,6 +57,7 @@ export function showLevelUp({ level, previousLevel, totalXp }) {
       <pre class="level-up-art" aria-hidden="true">${asciiBanner("LEVEL UP")}</pre>
       <p class="level-up-title" id="level-up-title">nível ${previousLevel} → ${level}</p>
       <p class="level-up-sub">${Number(totalXp).toLocaleString("pt-BR")} xp no total</p>
+      ${unlocked.length ? `<p class="level-up-unlocked">desbloqueado: ${unlocked.map(escapeHtml).join(" · ")}</p>` : ""}
       <button type="button" class="btn sm level-up-close">continuar</button>
     </div>
   `;

@@ -176,6 +176,11 @@
   line-height: 1.5;
 }
 
+/* GAM-10: subtítulos da seção "recompensas do nível" e opção ainda travada */
+.cfg-subhead { margin: 10px 0 2px; font-size: 10px; color: var(--text-dim); }
+.cfg-subhead small { color: var(--text-faint); font-size: 9.5px; }
+.cfg-toggle--locked { color: var(--text-faint); cursor: default; }
+
 .settings-status {
   font-size: 10px;
   color: var(--text-faint);

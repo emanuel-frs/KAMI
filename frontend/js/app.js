@@ -25,6 +25,7 @@ import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
 import { pageEnter, wireEffectSkip } from "./components/fx.js";
 import { wirePixelCursor } from "./components/pixel-cursor.js";
+import { wireTheme } from "./components/tema.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
 import { startRetrospective } from "./modals/retrospectiva-modal.js";
@@ -252,6 +253,7 @@ async function boot() {
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
+  wireTheme(); // GAM-10: tema de terminal liberado por nível
 
   wireSkipLink();
   wireNav();

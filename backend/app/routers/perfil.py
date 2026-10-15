@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.database import get_db, now_iso
+from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
 
 router = APIRouter()
 
@@ -26,6 +27,8 @@ class ProfileOut(BaseModel):
     notif_alerts_enabled: bool
     notif_email_enabled: bool
     efeitos_visuais: str = "completo"
+    titulo: Optional[str] = None  # GAM-10: chave escolhida; None = automático
+    tema: str = "padrao"          # GAM-10
     updated_at: str
 
 
@@ -35,6 +38,9 @@ class ProfileUpdate(BaseModel):
     notif_alerts_enabled: Optional[bool] = None
     notif_email_enabled: Optional[bool] = None
     efeitos_visuais: Optional[str] = None
+    # GAM-10: "auto" volta pro título automático (o mais alto liberado)
+    titulo: Optional[str] = None
+    tema: Optional[str] = None
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -61,6 +67,30 @@ def _get_profile_row(db):
     return row
 
 
+def _recompensas_escolhidas(db, payload, row):
+    """
+    GAM-10: valida título/tema pedidos contra o catálogo e o nível atual
+    (app/recompensas.py). Só o que muda é validado — uma escolha antiga
+    continua valendo mesmo que o nível tenha caído depois.
+    """
+    titulo, tema = row["titulo"], row["tema"]
+    nivel = None
+    for campo, valor, catalogo_ in (("titulo", payload.titulo, TITULOS), ("tema", payload.tema, TEMAS)):
+        if valor is None or (campo == "titulo" and valor == "auto"):
+            continue
+        minimo = nivel_minimo(catalogo_, valor)
+        if minimo is None:
+            raise HTTPException(status_code=422, detail=f"{campo} desconhecido: '{valor}'")
+        nivel = nivel if nivel is not None else nivel_jogador(db)
+        if nivel < minimo:
+            raise HTTPException(status_code=422, detail=f"{campo} '{valor}' é liberado no nível {minimo}")
+    if payload.titulo is not None:
+        titulo = None if payload.titulo == "auto" else payload.titulo
+    if payload.tema is not None:
+        tema = payload.tema
+    return titulo, tema
+
+
 @router.get("", response_model=ProfileOut)
 def get_profile(db=Depends(get_db)):
     return dict(_get_profile_row(db))
@@ -83,10 +113,13 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
             status_code=422,
             detail=f"efeitos_visuais inválido; valores aceitos: {sorted(EFEITOS_VISUAIS)}",
         )
+    titulo, tema = _recompensas_escolhidas(db, payload, row)
     db.execute(
         "UPDATE user_profile SET display_name = ?, accent_color = ?, "
-        "notif_alerts_enabled = ?, notif_email_enabled = ?, efeitos_visuais = ?, updated_at = ? WHERE id = ?",
-        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, efeitos_visuais, now_iso(), row["id"]),
+        "notif_alerts_enabled = ?, notif_email_enabled = ?, efeitos_visuais = ?, titulo = ?, tema = ?, "
+        "updated_at = ? WHERE id = ?",
+        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, efeitos_visuais, titulo, tema,
+         now_iso(), row["id"]),
     )
     db.commit()
     return dict(_get_profile_row(db))

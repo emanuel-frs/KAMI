@@ -554,6 +554,20 @@ def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_recompensas(conn: sqlite3.Connection) -> None:
+    """
+    GAM-10: título e tema de terminal escolhidos (recompensas por nível,
+    app/recompensas.py). Bancos antigos nascem sem título escolhido (NULL =
+    mostra o mais alto liberado) e no tema padrão.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "titulo" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN titulo TEXT")
+    if "tema" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN tema TEXT NOT NULL DEFAULT 'padrao'")
+    conn.commit()
+
+
 def _migrate_missoes_widget(conn: sqlite3.Connection, had_missoes: bool) -> None:
     """
     GAM-07: põe o widget "missões" no topo do Núcleo de quem já tinha um
@@ -647,6 +661,7 @@ def init_db() -> None:
     _migrate_user_profile_efeitos_visuais(conn)
     _migrate_user_profile_sequencia_protecao(conn)
     _migrate_missoes_widget(conn, had_missoes)
+    _migrate_user_profile_recompensas(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 
