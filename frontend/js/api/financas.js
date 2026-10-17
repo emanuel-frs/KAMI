@@ -40,6 +40,9 @@ export const listDebts = () => get("/api/financas/debts");
 export const createDebt = (data) => post("/api/financas/debts", data);
 export const updateDebt = (debtId, data) => put(`/api/financas/debts/${debtId}`, data);
 export const deleteDebt = (debtId) => del(`/api/financas/debts/${debtId}`);
+// P-13: quitar pode lançar a saída numa conta ({ conta_id?, forma_pagamento? }); desquitar desfaz
+export const payDebt = (debtId, payload = {}) => put(`/api/financas/debts/${debtId}/pay`, payload);
+export const unpayDebt = (debtId) => put(`/api/financas/debts/${debtId}/unpay`, {});
 
 // transações + resumo
 // payload de createTransaction agora inclui: description, amount, type

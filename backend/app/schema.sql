@@ -249,7 +249,9 @@ CREATE TABLE IF NOT EXISTS debts (
     counterparty TEXT,
     amount       REAL NOT NULL,
     due_date     TEXT,
-    status       TEXT NOT NULL DEFAULT 'aberta'
+    status       TEXT NOT NULL DEFAULT 'aberta',
+    -- P-13 (CONF-04): saída real lançada ao quitar (NULL = quitada sem conta)
+    transacao_id TEXT REFERENCES transactions(id) ON DELETE SET NULL
 );
 
 -- ---------------- WALLET (bancos → contas) ----------------

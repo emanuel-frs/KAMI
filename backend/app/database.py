@@ -649,6 +649,20 @@ def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     return converted
 
 
+def _migrate_debts_quitacao(conn: sqlite3.Connection) -> None:
+    """
+    P-13 (CONF-04): quitar uma dívida passa a funcionar como pagar uma
+    conta fixa — pode lançar a saída real numa conta. `transacao_id`
+    guarda essa transação pra desmarcar a quitação devolver o dinheiro.
+    Dívidas já marcadas como pagas antes disto ficam com NULL (quitadas
+    sem conta), e continuam valendo pra conquista.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(debts)").fetchall()]
+    if "transacao_id" not in cols:
+        conn.execute("ALTER TABLE debts ADD COLUMN transacao_id TEXT REFERENCES transactions(id) ON DELETE SET NULL")
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -684,6 +698,7 @@ def init_db() -> None:
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
+    _migrate_debts_quitacao(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 

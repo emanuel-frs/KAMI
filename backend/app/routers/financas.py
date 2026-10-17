@@ -53,6 +53,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db, new_id
 from app.business_days import nth_business_day_of_month, add_business_days
 from app.actions import has_action, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 from app.finance_utils import (
     create_saida_transaction,
     revert_saida_transaction,
@@ -164,6 +165,13 @@ class DebtIn(BaseModel):
 
 class DebtOut(DebtIn):
     id: str
+    transacao_id: Optional[str] = None
+
+
+class PayDebtPayload(BaseModel):
+    # sem conta_id: só marca como quitada (sem mexer em saldo nenhum)
+    conta_id: Optional[str] = None
+    forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # só se a conta tiver os dois
 
 
 class TransactionIn(BaseModel):
@@ -819,6 +827,79 @@ def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
     return _period_out(updated)
 
 
+# ==================== dívidas — quitação (P-13, CONF-04) ====================
+# Quitar uma dívida funciona como pagar uma conta fixa: credita o xp de
+# pagamento e, se a pessoa escolher a conta de onde o dinheiro saiu, lança
+# a saída real (categoria "dívidas"). Desmarcar a quitação desfaz tudo:
+# devolve o dinheiro, estorna o xp e rebloqueia a conquista "dívida
+# quitada" se ela não valer mais. Diferente da conta fixa, o xp vem com
+# ou sem conta: quitar é um evento único por dívida, e desmarcar estorna,
+# então não há como repetir.
+
+DEFAULT_DEBT_CATEGORY = "dívidas"
+REF_DIVIDA = "divida"
+
+
+def _pay_debt(db, debt, conta_id: Optional[str], forma_pagamento: Optional[str]) -> None:
+    if debt["status"] == "paga":
+        return  # já quitada: pagar de novo não credita nem lança de novo
+    transacao_id = None
+    if conta_id:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail=f"conta não encontrada: '{conta_id}'")
+        transacao_id = create_saida_transaction(
+            db, conta, debt["amount"],
+            category=DEFAULT_DEBT_CATEGORY,
+            description=f"quitação de dívida: {debt['description']}",
+            forma_pagamento=forma_pagamento,
+        )
+    db.execute("UPDATE debts SET status = 'paga', transacao_id = ? WHERE id = ?", (transacao_id, debt["id"]))
+    if not has_action(db, REF_DIVIDA, debt["id"]):
+        register_action(
+            db,
+            description=f"quitou a dívida: {debt['description']}",
+            categories=["financas"],
+            xp=XP_PAGAMENTO_RECORRENTE,
+            impact=3,
+            source="financas",
+            referencia_tipo=REF_DIVIDA,
+            referencia_id=debt["id"],
+        )
+
+
+def _unpay_debt(db, debt) -> None:
+    if debt["status"] != "paga":
+        return
+    revert_saida_transaction(db, debt["transacao_id"])
+    db.execute("UPDATE debts SET status = 'aberta', transacao_id = NULL WHERE id = ?", (debt["id"],))
+    revert_actions(db, REF_DIVIDA, debt["id"])
+    # dívida quitada antes desta mudança não tem log pra estornar — o
+    # revert_actions não rebloqueia nada nesse caso, então rebloqueia aqui
+    relock_unmet_achievements(db)
+
+
+def _get_debt_or_404(db, debt_id: str):
+    row = db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="dívida não encontrada")
+    return row
+
+
+@router.put("/debts/{debt_id}/pay", response_model=DebtOut)
+def pay_debt(debt_id: str, payload: PayDebtPayload, db=Depends(get_db)):
+    _pay_debt(db, _get_debt_or_404(db, debt_id), payload.conta_id, payload.forma_pagamento)
+    db.commit()
+    return dict(_get_debt_or_404(db, debt_id))
+
+
+@router.put("/debts/{debt_id}/unpay", response_model=DebtOut)
+def unpay_debt(debt_id: str, db=Depends(get_db)):
+    _unpay_debt(db, _get_debt_or_404(db, debt_id))
+    db.commit()
+    return dict(_get_debt_or_404(db, debt_id))
+
+
 @router.get("/debts", response_model=List[DebtOut])
 def list_debts(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM debts ORDER BY due_date").fetchall()
@@ -830,30 +911,42 @@ def create_debt(payload: DebtIn, db=Depends(get_db)):
     debt_id = new_id()
     db.execute(
         "INSERT INTO debts (id, description, counterparty, amount, due_date, status) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (debt_id, payload.description, payload.counterparty, payload.amount, payload.due_date, payload.status),
+        "VALUES (?, ?, ?, ?, ?, 'aberta')",
+        (debt_id, payload.description, payload.counterparty, payload.amount, payload.due_date),
     )
+    # criada já quitada: passa pela quitação (xp + conquista), sem conta (P-13)
+    if payload.status == "paga":
+        _pay_debt(db, _get_debt_or_404(db, debt_id), None, None)
     db.commit()
-    return {"id": debt_id, **payload.model_dump()}
+    return dict(_get_debt_or_404(db, debt_id))
 
 
 @router.put("/debts/{debt_id}", response_model=DebtOut)
 def update_debt(debt_id: str, payload: DebtIn, db=Depends(get_db)):
-    row = db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="dívida não encontrada")
+    row = _get_debt_or_404(db, debt_id)
     db.execute(
-        "UPDATE debts SET description=?, counterparty=?, amount=?, due_date=?, status=? WHERE id=?",
-        (payload.description, payload.counterparty, payload.amount, payload.due_date, payload.status, debt_id),
+        "UPDATE debts SET description=?, counterparty=?, amount=?, due_date=? WHERE id=?",
+        (payload.description, payload.counterparty, payload.amount, payload.due_date, debt_id),
     )
+    # trocar o status pela edição passa pelo mesmo caminho da quitação
+    # (P-13), pra xp e conquista não saírem de sincronia — sem conta,
+    # porque a edição não diz de onde saiu o dinheiro
+    if payload.status != row["status"]:
+        fresh = _get_debt_or_404(db, debt_id)
+        if payload.status == "paga":
+            _pay_debt(db, fresh, None, None)
+        else:
+            _unpay_debt(db, fresh)
     db.commit()
-    return {"id": debt_id, **payload.model_dump()}
+    return dict(_get_debt_or_404(db, debt_id))
 
 
 @router.delete("/debts/{debt_id}")
 def delete_debt(debt_id: str, db=Depends(get_db)):
-    if not db.execute("SELECT 1 FROM debts WHERE id = ?", (debt_id,)).fetchone():
-        raise HTTPException(status_code=404, detail="dívida não encontrada")
+    _get_debt_or_404(db, debt_id)
+    # estorna o xp da quitação; a saída real, se houve, fica em Finanças
+    # (mesma regra de apagar conta fixa/assinatura — P-14)
+    revert_actions(db, REF_DIVIDA, debt_id)
     db.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
     db.commit()
     return {"deleted": True}

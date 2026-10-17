@@ -205,6 +205,110 @@ def test_fin_12_recreating_and_paying_again_does_not_farm_xp(client):
     assert _xp(client, "financas") == 0
 
 
+# ==================== quitação de dívida (P-13, CONF-04) ====================
+# Quitar funciona como pagar conta fixa: xp de pagamento e, com conta, a
+# saída real. Desmarcar desfaz tudo e rebloqueia a conquista "quitado".
+
+def _debt(client, amount=100.0):
+    return client.post("/api/financas/debts", json={"description": "emprestimo", "amount": amount}).json()
+
+
+def _saldo(client, conta_id):
+    for bank in client.get("/api/carteira/banks").json():
+        for acc in bank["accounts"]:
+            if acc["id"] == conta_id:
+                return acc["saldo_atual"]
+    raise AssertionError("conta não encontrada")
+
+
+def _quitado(client):
+    return next(a for a in client.get("/api/nucleo/achievements").json() if a["key"] == "quitado")["unlocked"]
+
+
+def test_fin_13_paying_debt_from_account_debits_balance_and_credits_xp(client):
+    conta = _create_account(client, saldo_atual=1000)
+    debt = _debt(client, 100)
+    resp = client.put(f"/api/financas/debts/{debt['id']}/pay", json={"conta_id": conta["id"]})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "paga" and resp.json()["transacao_id"]
+    assert _saldo(client, conta["id"]) == 900
+    assert _xp(client, "financas") == 4
+    assert _quitado(client) is True
+    tx = [t for t in _transactions(client) if t["id"] == resp.json()["transacao_id"]]
+    assert tx and tx[0]["category"] == "dívidas" and tx[0]["amount"] == 100
+
+
+def test_fin_13_unpaying_debt_returns_money_refunds_xp_and_relocks_achievement(client):
+    conta = _create_account(client, saldo_atual=1000)
+    debt = _debt(client, 100)
+    client.put(f"/api/financas/debts/{debt['id']}/pay", json={"conta_id": conta["id"]})
+
+    resp = client.put(f"/api/financas/debts/{debt['id']}/unpay")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "aberta" and resp.json()["transacao_id"] is None
+    assert _saldo(client, conta["id"]) == 1000
+    assert _xp(client, "financas") == 0
+    assert _quitado(client) is False
+    assert _transactions(client) == []
+
+
+def test_fin_13_paying_debt_without_account_only_marks_and_credits_xp(client):
+    debt = _debt(client)
+    resp = client.put(f"/api/financas/debts/{debt['id']}/pay", json={})
+    assert resp.json()["status"] == "paga" and resp.json()["transacao_id"] is None
+    assert _xp(client, "financas") == 4
+    assert _transactions(client) == []
+
+
+def test_fin_13_paying_debt_twice_credits_and_debits_once(client):
+    conta = _create_account(client, saldo_atual=1000)
+    debt = _debt(client, 100)
+    for _ in range(3):
+        client.put(f"/api/financas/debts/{debt['id']}/pay", json={"conta_id": conta["id"]})
+    assert _saldo(client, conta["id"]) == 900
+    assert _xp(client, "financas") == 4
+
+
+def test_fin_13_pay_unpay_debt_does_not_farm_xp(client):
+    debt = _debt(client)
+    for _ in range(3):
+        client.put(f"/api/financas/debts/{debt['id']}/pay", json={})
+        client.put(f"/api/financas/debts/{debt['id']}/unpay")
+    assert _xp(client, "financas") == 0
+    assert _log(client) == []
+
+
+def test_fin_13_changing_status_in_edit_goes_through_payoff(client):
+    debt = _debt(client)
+    body = {"description": "emprestimo", "amount": 100.0}
+    client.put(f"/api/financas/debts/{debt['id']}", json={**body, "status": "paga"})
+    assert _xp(client, "financas") == 4 and _quitado(client) is True
+    client.put(f"/api/financas/debts/{debt['id']}", json={**body, "status": "aberta"})
+    assert _xp(client, "financas") == 0 and _quitado(client) is False
+
+
+def test_fin_13_deleting_paid_debt_refunds_xp_but_keeps_transaction(client):
+    conta = _create_account(client, saldo_atual=1000)
+    debt = _debt(client, 100)
+    client.put(f"/api/financas/debts/{debt['id']}/pay", json={"conta_id": conta["id"]})
+    assert client.delete(f"/api/financas/debts/{debt['id']}").status_code == 200
+    assert _xp(client, "financas") == 0
+    assert _saldo(client, conta["id"]) == 900  # o dinheiro saiu de verdade
+    assert len(_transactions(client)) == 1
+
+
+def test_fin_13_unpaying_legacy_paid_debt_relocks_achievement(client, db_conn):
+    """Dívida marcada como paga antes da P-13 não tem log — desmarcar ainda rebloqueia."""
+    db_conn.execute(
+        "INSERT INTO debts (id, description, amount, status) VALUES ('legado', 'antiga', 50, 'paga')"
+    )
+    db_conn.commit()
+    client.post("/api/nucleo/actions", json={"description": "x", "categories": ["financas"], "xp": 1})
+    assert _quitado(client) is True
+    client.put("/api/financas/debts/legado/unpay")
+    assert _quitado(client) is False
+
+
 # ==================== aprendizado ====================
 
 def test_reopening_milestone_removes_completion_log(client):
@@ -371,4 +475,26 @@ def test_migration_adds_reference_columns_to_old_database(temp_db_path):
     assert {"referencia_tipo", "referencia_id"} <= cols
     row = conn.execute("SELECT * FROM action_logs WHERE id = 'antigo'").fetchone()
     assert row["referencia_tipo"] is None
+    conn.close()
+
+
+def test_migration_adds_transacao_id_to_old_debts_table(temp_db_path):
+    """P-13: banco de antes da quitação com conta ganha debts.transacao_id; dívida paga antiga fica NULL."""
+    conn = sqlite3.connect(temp_db_path)
+    conn.execute(
+        "CREATE TABLE debts (id TEXT PRIMARY KEY, description TEXT NOT NULL, counterparty TEXT, "
+        "amount REAL NOT NULL, due_date TEXT, status TEXT NOT NULL DEFAULT 'aberta')"
+    )
+    conn.execute("INSERT INTO debts (id, description, amount, status) VALUES ('velha', 'antiga', 10, 'paga')")
+    conn.commit()
+    conn.close()
+
+    database.init_db()
+    database.init_db()  # idempotente
+
+    conn = database.get_connection()
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(debts)").fetchall()}
+    assert "transacao_id" in cols
+    row = conn.execute("SELECT * FROM debts WHERE id = 'velha'").fetchone()
+    assert row["status"] == "paga" and row["transacao_id"] is None
     conn.close()

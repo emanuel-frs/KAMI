@@ -1,4 +1,6 @@
 import * as financasApi from "../api/financas.js";
+import { listBanks } from "../api/carteira.js";
+import { openQuitarDividaModal } from "../modals/quitar-divida-modal.js";
 import { escapeHtml } from "../components/format.js";
 import { openDividaModal } from "../modals/divida-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -10,8 +12,11 @@ import { icon } from "../components/icons.js";
 /**
  * Widget "dívidas" — segue o mesmo padrão simples de financas-resumo.js
  * (sem paginação/filtro, lista tudo que vem de GET /debts). Status é
- * editável inline (select -> PUT), sem precisar reabrir o modal —
- * criar é a única ação que passa pelo modal (divida-modal.js).
+ * editável inline pelo select, sem reabrir o modal. Desde a P-13
+ * (CONF-04), "paga" quita de verdade: abre quitar-divida-modal.js pra
+ * escolher de qual conta o dinheiro saiu (ou nenhuma) e chama
+ * PUT /debts/{id}/pay; voltar pra "aberta" chama /unpay, que devolve o
+ * dinheiro e estorna o xp.
  */
 
 function brl(v) {
@@ -86,11 +91,18 @@ export async function render(el, widget) {
         const debt = debts.find((d) => d.id === id);
         if (!debt) return;
         try {
-          await financasApi.updateDebt(id, { ...debt, status: sel.value });
+          if (sel.value === "paga") {
+            const banks = await listBanks();
+            const accounts = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
+            const choice = await openQuitarDividaModal({ debt, accounts });
+            if (choice) await financasApi.payDebt(id, choice);
+          } else {
+            await financasApi.unpayDebt(id);
+          }
         } catch (err) {
           showErrorModal(err.message, "erro ao atualizar status");
         }
-        await reload();
+        await reload(); // cancelou a quitação: o select volta pra "aberta"
       });
     });
 
