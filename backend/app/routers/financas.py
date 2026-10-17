@@ -481,6 +481,10 @@ def unpay_income_entry(entry_id: str, db=Depends(get_db)):
         "UPDATE income_entries SET paid_date = NULL, amount = ?, status = 'previsto', transaction_id = NULL WHERE id = ?",
         (source["valor"] if source else row["amount"], entry_id),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o recebimento ainda pago, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
     year, mo = (int(x) for x in row["expected_date"][:7].split("-"))
@@ -653,6 +657,10 @@ def delete_income_source(source_id: str, db=Depends(get_db)):
     # a apagar uma meta (ver metas.py::delete_goal).
     _revert_period_xp(db, "renda_entrada", "income_entries", "income_source_id", source_id)
     db.execute("DELETE FROM income_sources WHERE id = ?", (source_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o cadastro ainda existindo, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 
@@ -712,6 +720,10 @@ def delete_fixed_bill(bill_id: str, db=Depends(get_db)):
     # P-14 (CONF-04): estorna o xp dos meses pagos (transações reais ficam)
     _revert_period_xp(db, "conta_fixa_periodo", "fixed_bill_periods", "fixed_bill_id", bill_id)
     db.execute("DELETE FROM fixed_bills WHERE id = ?", (bill_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o cadastro ainda existindo, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 
@@ -822,6 +834,10 @@ def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
         "UPDATE fixed_bill_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o período ainda pago (ex.: "contas em dia"), o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     return _period_out(updated)
@@ -948,6 +964,10 @@ def delete_debt(debt_id: str, db=Depends(get_db)):
     # (mesma regra de apagar conta fixa/assinatura — P-14)
     revert_actions(db, REF_DIVIDA, debt_id)
     db.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o dívida ainda quitada ("quitado"), o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 

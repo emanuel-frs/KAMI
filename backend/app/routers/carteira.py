@@ -63,6 +63,7 @@ from app.database import get_db, new_id, now_iso
 from app.finance_utils import create_saida_transaction, revert_saida_transaction
 from app.business_days import months_between
 from app.actions import has_action, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 
 router = APIRouter()
 
@@ -407,6 +408,10 @@ def delete_subscription(sub_id: str, db=Depends(get_db)):
         revert_actions(db, "assinatura_periodo", row["id"])
     # cascade em wallet_subscription_periods via ON DELETE CASCADE (schema.sql)
     db.execute("DELETE FROM wallet_subscriptions WHERE id = ?", (sub_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o cadastro ainda existindo, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 
@@ -500,6 +505,10 @@ def unpay_period(period_id: str, db=Depends(get_db)):
         "UPDATE wallet_subscription_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o período ainda pago, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     updated = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
     return _period_out(updated)

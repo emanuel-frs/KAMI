@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.actions import debit_xp, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 from app.database import get_db, new_id, now_iso
 from app.routers.metas import sync_academic_goals
 
@@ -435,6 +436,10 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
         "previsao_conclusao=?, xp_awarded=?, updated_at=? WHERE id=?",
         (curso, instituicao, nivel, new_status, previsao_conclusao, xp_awarded, now_iso(), education_id),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o curso ainda concluído, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
     if is_completing:
