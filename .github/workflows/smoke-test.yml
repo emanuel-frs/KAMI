@@ -499,48 +499,18 @@ jobs:
             throw "Ainda há processo kami-backend.exe após fechar a janela do Kami."
           }
 
-      - uses: actions/setup-node@v4
+      # CONF-03: o teste ponta a ponta do Windows roda no job e2e-windows
+      # (windows-2022) com este mesmo executável — ver o comentário lá
+      - name: Keep the compiled app for the Windows end-to-end test
         if: env.RUN_E2E == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          node-version: "22"
-
-      - name: Install end-to-end test tools (tauri-driver, msedgedriver)
-        if: env.RUN_E2E == 'true'
-        shell: pwsh
-        run: |
-          cargo install tauri-driver --locked
-          # msedgedriver tem que ser da MESMA versão do WebView2 instalado —
-          # a ferramenta abaixo (indicada na documentação do Tauri) baixa a certa
-          cargo install --git https://github.com/chippers/msedgedriver-tool
-          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
-
-      - name: End-to-end test of the compiled app
-        if: env.RUN_E2E == 'true'
-        shell: pwsh
-        run: |
-          $env:KAMI_E2E_APP = Join-Path $PWD "src-tauri\target\release\kami.exe"
-          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
-          $env:KAMI_E2E_PYTHON = Join-Path $PWD "backend\.venv\Scripts\python.exe"
-          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
-          # o passo anterior abriu o Kami INSTALADO, que usa a mesma pasta de
-          # dados do WebView2 (com.kami.app): se um msedgewebview2.exe dele
-          # ainda estiver vivo, a janela nova se junta a ele — que não tem a
-          # porta de depuração — e o msedgedriver falha com "DevToolsActivePort
-          # file doesn't exist". Encerra tudo antes de começar.
-          Get-Process kami, kami-backend, msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force
-          Start-Sleep -Seconds 3
-          & $env:KAMI_E2E_NATIVE_DRIVER --version
-          (Get-Item $env:KAMI_E2E_APP).VersionInfo | Format-List FileVersion, ProductVersion
-          Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
-          node tests/e2e/kami-e2e.mjs
-
-      - uses: actions/upload-artifact@v4
-        if: always() && env.RUN_E2E == 'true'
-        with:
-          name: e2e-windows-prints-e-log
-          path: ${{ runner.temp }}/e2e-windows
-          if-no-files-found: warn
-          retention-days: 14
+          name: windows-app-for-e2e
+          path: |
+            src-tauri/target/release/kami.exe
+            src-tauri/target/release/kami-backend.exe
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Collect backend log
         if: always()
@@ -560,3 +530,67 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: warn
           retention-days: 7
+
+  # CONF-03: teste ponta a ponta do app compilado no Windows.
+  #
+  # Por que windows-2022 e não windows-latest: a automação do WebView2 pelo
+  # msedgedriver quebra a partir do WebView2 Runtime 133 (falha sempre com
+  # "DevToolsActivePort file doesn't exist") — problema da Microsoft, sem
+  # correção do lado do runner (actions/runner-images#14738, fechada como
+  # "not planned"; upstream MicrosoftEdge/WebView2Feedback#5415). O
+  # windows-2022 ainda vem com um runtime anterior a isso. O app é
+  # COMPILADO no windows-latest (job acima, igual à release) e só testado
+  # aqui. Limite conhecido: o WebView2 deste teste é mais antigo que o dos
+  # usuários — pega quebra de layout/funcionamento no Windows, não
+  # diferença específica do runtime novo.
+  e2e-windows:
+    name: Windows end-to-end test (compiled app)
+    needs: windows-smoke
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-app-for-e2e
+          path: app
+
+      - name: Install end-to-end test tools (tauri-driver, msedgedriver, httpx)
+        shell: pwsh
+        run: |
+          python -m pip install httpx
+          cargo install tauri-driver --locked
+          # msedgedriver tem que ser da MESMA versão do WebView2 instalado —
+          # a ferramenta abaixo (indicada na documentação do Tauri) baixa a certa
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+
+      - name: End-to-end test of the compiled app
+        shell: pwsh
+        run: |
+          $env:KAMI_E2E_APP = Join-Path $PWD "app\kami.exe"
+          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
+          $env:KAMI_E2E_PYTHON = "python"
+          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          & $env:KAMI_E2E_NATIVE_DRIVER --version
+          Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
+          node tests/e2e/kami-e2e.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-windows-prints-e-log
+          path: ${{ runner.temp }}/e2e-windows
+          if-no-files-found: warn
+          retention-days: 14
