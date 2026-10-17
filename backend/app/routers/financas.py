@@ -629,6 +629,8 @@ def update_income_source(source_id: str, payload: IncomeSourceIn, db=Depends(get
 
 @router.delete("/income-sources/{source_id}")
 def delete_income_source(source_id: str, db=Depends(get_db)):
+    if not db.execute("SELECT 1 FROM income_sources WHERE id = ?", (source_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
     dependents = db.execute(
         "SELECT id FROM income_sources WHERE fonte_referencia_id = ?", (source_id,)
     ).fetchall()
@@ -637,9 +639,20 @@ def delete_income_source(source_id: str, db=Depends(get_db)):
             status_code=422,
             detail="não é possível remover: existe(m) fonte(s) que dependem desta (encadeamento).",
         )
+    # P-14 (CONF-04): apagar a fonte estorna o xp das ocorrências recebidas
+    # — sem isso, criar, receber, apagar e recriar rendia xp de novo. As
+    # transações reais lançadas ficam (dinheiro que entrou é fato), igual
+    # a apagar uma meta (ver metas.py::delete_goal).
+    _revert_period_xp(db, "renda_entrada", "income_entries", "income_source_id", source_id)
     db.execute("DELETE FROM income_sources WHERE id = ?", (source_id,))
     db.commit()
     return {"deleted": True}
+
+
+def _revert_period_xp(db, referencia_tipo: str, table: str, parent_col: str, parent_id: str) -> None:
+    """Estorna o xp de cada período/ocorrência de um cadastro recorrente que vai ser apagado."""
+    for row in db.execute(f"SELECT id FROM {table} WHERE {parent_col} = ?", (parent_id,)).fetchall():
+        revert_actions(db, referencia_tipo, row["id"])
 
 # ==================== cadastros simples (CRUD básico) ====================
 
@@ -686,6 +699,10 @@ def update_fixed_bill(bill_id: str, payload: FixedBillIn, db=Depends(get_db)):
 
 @router.delete("/fixed-bills/{bill_id}")
 def delete_fixed_bill(bill_id: str, db=Depends(get_db)):
+    if not db.execute("SELECT 1 FROM fixed_bills WHERE id = ?", (bill_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+    # P-14 (CONF-04): estorna o xp dos meses pagos (transações reais ficam)
+    _revert_period_xp(db, "conta_fixa_periodo", "fixed_bill_periods", "fixed_bill_id", bill_id)
     db.execute("DELETE FROM fixed_bills WHERE id = ?", (bill_id,))
     db.commit()
     return {"deleted": True}
@@ -835,6 +852,8 @@ def update_debt(debt_id: str, payload: DebtIn, db=Depends(get_db)):
 
 @router.delete("/debts/{debt_id}")
 def delete_debt(debt_id: str, db=Depends(get_db)):
+    if not db.execute("SELECT 1 FROM debts WHERE id = ?", (debt_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="dívida não encontrada")
     db.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
     db.commit()
     return {"deleted": True}

@@ -396,8 +396,16 @@ def update_subscription(sub_id: str, payload: SubscriptionIn, db=Depends(get_db)
 
 @router.delete("/subscriptions/{sub_id}")
 def delete_subscription(sub_id: str, db=Depends(get_db)):
-    # cascade em wallet_subscription_periods via ON DELETE CASCADE (schema.sql),
-    # mesmo padrão de delete_fixed_bill em financas.py.
+    if not db.execute("SELECT 1 FROM wallet_subscriptions WHERE id = ?", (sub_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+    # P-14 (CONF-04): estorna o xp dos meses pagos antes do cascade apagar
+    # os períodos (as transações reais lançadas ficam) — mesmo padrão de
+    # delete_fixed_bill em financas.py.
+    for row in db.execute(
+        "SELECT id FROM wallet_subscription_periods WHERE subscription_id = ?", (sub_id,)
+    ).fetchall():
+        revert_actions(db, "assinatura_periodo", row["id"])
+    # cascade em wallet_subscription_periods via ON DELETE CASCADE (schema.sql)
     db.execute("DELETE FROM wallet_subscriptions WHERE id = ?", (sub_id,))
     db.commit()
     return {"deleted": True}

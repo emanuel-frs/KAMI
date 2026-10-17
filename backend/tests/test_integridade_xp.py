@@ -128,6 +128,83 @@ def test_pay_unpay_income_does_not_farm_xp(client):
     assert _log(client) == []
 
 
+# ==================== apagar cadastro recorrente (P-14, CONF-04) ====================
+# Apagar a conta fixa / assinatura / fonte de renda estorna o xp dos meses
+# pagos (antes ficava: criar, pagar, apagar e recriar rendia xp de novo).
+# As transações reais lançadas continuam em Finanças.
+
+def _transactions(client):
+    """Transações do mês do período E do mês atual (o pagamento é lançado com a data de hoje)."""
+    import datetime
+
+    months = {MONTH, datetime.date.today().strftime("%Y-%m")}
+    return [t for m in months for t in client.get("/api/financas/transactions", params={"month": m}).json()]
+
+
+def test_fin_12_deleting_fixed_bill_refunds_paid_months_but_keeps_transaction(client):
+    conta = _create_account(client)
+    bill = client.post(
+        "/api/financas/fixed-bills",
+        json={"name": "Aluguel", "amount": 10, "due_day": 5, "conta_id": conta["id"]},
+    ).json()
+    period = client.get("/api/financas/fixed-bills/periods", params={"month": MONTH}).json()[0]
+    client.put(f"/api/financas/fixed-bills/periods/{period['id']}/pay", json={})
+    assert _xp(client, "financas") == 4
+
+    assert client.delete(f"/api/financas/fixed-bills/{bill['id']}").status_code == 200
+    assert _xp(client, "financas") == 0
+    assert _log(client) == []
+    assert len(_transactions(client)) == 1  # o dinheiro saiu de verdade
+
+
+def test_fin_12_deleting_subscription_refunds_paid_months_but_keeps_transaction(client):
+    conta = _create_account(client)
+    sub = client.post(
+        "/api/carteira/subscriptions",
+        json={"nome": "Revista", "valor_esperado": 25.0, "dia_cobranca": 10, "conta_id": conta["id"]},
+    ).json()
+    period = client.get("/api/carteira/subscriptions/periods", params={"month": MONTH}).json()[0]
+    client.put(f"/api/carteira/subscriptions/periods/{period['id']}/pay", json={})
+    assert _xp(client, "financas") == 4
+
+    assert client.delete(f"/api/carteira/subscriptions/{sub['id']}").status_code == 200
+    assert _xp(client, "financas") == 0
+    assert len(_transactions(client)) == 1
+
+
+def test_fin_12_deleting_income_source_refunds_received_entries_but_keeps_transaction(client):
+    conta = _create_account(client)
+    source = client.post(
+        "/api/financas/income-sources",
+        json={
+            "nome": "freela", "valor": 500, "conta_id": conta["id"],
+            "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 10,
+        },
+    ).json()
+    entries = client.get("/api/financas/income-entries", params={"month": MONTH}).json()
+    entry = next(e for e in entries if e["income_source_id"] == source["id"])
+    client.put(f"/api/financas/income-entries/{entry['id']}/pay", json={})
+    assert _xp(client, "financas") == 4
+
+    assert client.delete(f"/api/financas/income-sources/{source['id']}").status_code == 200
+    assert _xp(client, "financas") == 0
+    assert len(_transactions(client)) == 1
+
+
+def test_fin_12_recreating_and_paying_again_does_not_farm_xp(client):
+    """O jeito de farmar que existia: criar, pagar, apagar, recriar, pagar..."""
+    conta = _create_account(client)
+    for _ in range(3):
+        bill = client.post(
+            "/api/financas/fixed-bills",
+            json={"name": "Aluguel", "amount": 10, "due_day": 5, "conta_id": conta["id"]},
+        ).json()
+        period = client.get("/api/financas/fixed-bills/periods", params={"month": MONTH}).json()[0]
+        client.put(f"/api/financas/fixed-bills/periods/{period['id']}/pay", json={})
+        client.delete(f"/api/financas/fixed-bills/{bill['id']}")
+    assert _xp(client, "financas") == 0
+
+
 # ==================== aprendizado ====================
 
 def test_reopening_milestone_removes_completion_log(client):
