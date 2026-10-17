@@ -63,13 +63,25 @@ a { color: var(--text-bright); }
   top: 8px;
 }
 
-/* ── scrollbar temática ────────────────────────────────────────────────
- * Antes usava var(--border)/var(--text-dim), cinza neutro igual o
- * scroll padrão do SO só que fininho — pouca diferença visual real.
- * Aqui o thumb já nasce na cor de destaque (--accent-dim) em vez de só
- * mudar de cor no hover, e ganha uma borda no tom do fundo pra criar um
- * respiro entre o thumb e a track (efeito "flutuando"), em vez de ser
- * um bloco colado nas bordas do track.
+/* ── scrollbar temática: "blocos listrados" (AJU-04) ─────────────────
+ * Escolhida pelo Emanuel entre 3 propostas (2026-10-17). A ideia é a
+ * barra ter a cara das barras de texto do app (`[####--]`):
+ *   - thumb listrado em faixas horizontais de 2px (lembra o ▓), na cor
+ *     de destaque apagada; no hover/arrasto, na cor de destaque cheia;
+ *   - trilho liso com uma "régua" de marquinhas a cada 8px no meio e uma
+ *     linha fina separando do conteúdo;
+ *   - tudo reto (sem border-radius), sem setas.
+ * Horizontal é a mesma coisa girada 90°.
+ *
+ * Por que o padrão do Firefox está dentro de @supports: o Chromium
+ * (≥121 — e portanto o WebView2, que é o motor do app no WINDOWS)
+ * IGNORA todo o ::-webkit-scrollbar de um elemento que tenha
+ * `scrollbar-width` ou `scrollbar-color`. Antes isso ficava em `*`, e no
+ * Windows aparecia a barra nativa fina e arredondada, nunca a nossa.
+ * Pelo mesmo motivo, nenhum componente deve declarar essas duas
+ * propriedades solto: pra uma lista com barra mais fina, basta trocar
+ * `--scrollbar-w` no próprio elemento (as listras e a régua acompanham).
+ * `scrollbar-width: none` (esconder de vez) continua valendo.
  *
  * --scrollbar-w / --scroll-gutter: antes cada lista rolável (achievements,
  * log, notificações...) inventava seu próprio padding-right "de olho"
@@ -84,24 +96,58 @@ a { color: var(--text-bright); }
  * da scrollbar só nesse lugar daqui pra frente.
  */
 :root {
-  --scrollbar-w: 10px;
+  --scrollbar-w: 12px;
   --scroll-gutter: calc(var(--scrollbar-w) + 4px); /* barra + respiro visual real */
+  /* listras do thumb: 2px de cor + 1px de "vão" misturado com o trilho */
+  --scrollbar-stripe: var(--accent-dim);
+  --scrollbar-gap: color-mix(in srgb, var(--accent-dim) 45%, var(--bg-alt));
+  --scrollbar-stripe-on: var(--accent);
+  --scrollbar-gap-on: color-mix(in srgb, var(--accent) 55%, var(--bg-alt));
 }
 ::-webkit-scrollbar { width: var(--scrollbar-w); height: var(--scrollbar-w); }
-::-webkit-scrollbar-track { background: var(--bg-alt); }
-::-webkit-scrollbar-thumb {
-  background: var(--accent-dim);
-  border: 2px solid var(--bg-alt);
-  background-clip: padding-box;
-  border-radius: 0; /* reto, no padrão quadrado do resto do app (mesmo princípio de forms.css/base.css:103) — sem isso alguns temas GTK aplicam um arredondado sutil por padrão */
+::-webkit-scrollbar-track {
+  background-color: var(--bg-alt);
+  /* régua: marquinha de 1px a cada 8px, numa faixa de 4px no meio */
+  background-image: repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px 8px);
+  background-size: 4px 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-left: 1px solid var(--border);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
+::-webkit-scrollbar-track:horizontal {
+  background-image: repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px 8px);
+  background-size: 100% 4px;
+  border-left: 0;
+  border-top: 1px solid var(--border);
+}
+::-webkit-scrollbar-thumb {
+  /* a borda no tom do trilho afasta o thumb das beiradas ("flutuando") */
+  border: 2px solid var(--bg-alt);
+  border-radius: 0; /* reto, no padrão quadrado do app — sem isso alguns temas GTK arredondam */
+  background: repeating-linear-gradient(to bottom, var(--scrollbar-stripe) 0 2px, var(--scrollbar-gap) 2px 3px);
+}
+::-webkit-scrollbar-thumb:horizontal {
+  background: repeating-linear-gradient(to right, var(--scrollbar-stripe) 0 2px, var(--scrollbar-gap) 2px 3px);
+}
+/* hover/arrasto: o fundo é declarado de novo (e não só as variáveis
+   trocadas aqui) porque redefinir custom property dentro de um
+   pseudo-elemento de scrollbar não é confiável em todos os motores */
+::-webkit-scrollbar-thumb:vertical:hover,
+::-webkit-scrollbar-thumb:vertical:active {
+  background: repeating-linear-gradient(to bottom, var(--scrollbar-stripe-on) 0 2px, var(--scrollbar-gap-on) 2px 3px);
+}
+::-webkit-scrollbar-thumb:horizontal:hover,
+::-webkit-scrollbar-thumb:horizontal:active {
+  background: repeating-linear-gradient(to right, var(--scrollbar-stripe-on) 0 2px, var(--scrollbar-gap-on) 2px 3px);
+}
+::-webkit-scrollbar-button { display: none; }
 ::-webkit-scrollbar-corner { background: var(--bg-alt); }
-/* Firefox não usa ::-webkit-scrollbar — equivalente pra manter o mesmo
-   visual temático fora do webview do Tauri (ex: durante dev no browser).
-   scrollbar-width:thin já é reto por definição da spec (sem variante
-   "rounded" no Firefox), não precisa de border-radius aqui. */
-* { scrollbar-width: thin; scrollbar-color: var(--accent-dim) var(--bg-alt); }
+/* Firefox não tem ::-webkit-scrollbar: lá fica a barra fina na cor de
+   destaque (já é reta por definição). Só onde ::-webkit-scrollbar NÃO
+   existe — ver o comentário do topo sobre o Chromium/Windows. */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--accent-dim) var(--bg-alt); }
+}
 
 /* ---------- TITLEBAR (janela frameless — decisão: custom em vez de
    decoração nativa do SO) ----------
