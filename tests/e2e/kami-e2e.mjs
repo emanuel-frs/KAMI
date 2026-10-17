@@ -91,7 +91,16 @@ async function main() {
   const wd = new WebDriver();
   try {
     await waitFor("o tauri-driver", async () => (await fetch("http://127.0.0.1:4444/status")).ok, { timeout: 20000 });
-    await wd.start(APP);
+    // uma segunda chance: no Windows, a primeira sessão pode falhar com
+    // "session not created" se um processo do WebView2 ainda estiver saindo
+    try {
+      await wd.start(APP);
+    } catch (e) {
+      if (!/session not created/i.test(e.message)) throw e;
+      log(`primeira tentativa de abrir o app falhou (${e.message.split("\n")[0]}); tentando de novo`);
+      await sleep(5000);
+      await wd.start(APP);
+    }
     log("app aberto");
 
     // 1. backend de pé + dados fictícios

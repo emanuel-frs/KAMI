@@ -522,6 +522,16 @@ jobs:
           $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
           $env:KAMI_E2E_PYTHON = Join-Path $PWD "backend\.venv\Scripts\python.exe"
           $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          # o passo anterior abriu o Kami INSTALADO, que usa a mesma pasta de
+          # dados do WebView2 (com.kami.app): se um msedgewebview2.exe dele
+          # ainda estiver vivo, a janela nova se junta a ele — que não tem a
+          # porta de depuração — e o msedgedriver falha com "DevToolsActivePort
+          # file doesn't exist". Encerra tudo antes de começar.
+          Get-Process kami, kami-backend, msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 3
+          & $env:KAMI_E2E_NATIVE_DRIVER --version
+          (Get-Item $env:KAMI_E2E_APP).VersionInfo | Format-List FileVersion, ProductVersion
+          Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
           node tests/e2e/kami-e2e.mjs
 
       - uses: actions/upload-artifact@v4
