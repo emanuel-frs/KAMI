@@ -2,13 +2,21 @@ name: Smoke test
 
 on:
   push:
-    branches: [develop, main, 'release/**', fix/ci-instalacao]
+    branches: [develop, main, 'release/**']
   pull_request:
     branches: [develop, main, 'release/**']
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# CONF-03: o teste ponta a ponta (tests/e2e/kami-e2e.mjs) abre o app
+# compilado de verdade em Linux e Windows, passa pelas telas em 3 tamanhos
+# e guarda os prints como artefato. Roda só em PR pra main, em push pra
+# release/** e no disparo manual (decisão P-02) — reaproveita o app que os
+# jobs de build já compilam, então não refaz build nenhum.
+env:
+  RUN_E2E: ${{ github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/') }}
 
 jobs:
   tests:
@@ -44,6 +52,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
           shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
+
+  # CONF-03: mesmas suítes no Windows, em todo PR (decisão do Emanuel) —
+  # pega diferença de caminho (\ vs /), fuso, encoding e fim de linha.
+  # Roda em paralelo com o job windows-smoke, que leva ~15 min, então não
+  # atrasa o resultado do PR.
+  tests-windows:
+    name: Backend and frontend tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt pytest
+
+      - name: Run backend tests
+        working-directory: backend
+        run: pytest
+
+      - name: Run frontend tests
+        run: |
+          npm install --no-audit --no-fund
+          npm test
 
   linux-build:
     name: Build Linux bundles and sidecar
@@ -140,6 +180,33 @@ jobs:
           cp scripts/ci/smoke_backend.sh "$staging/scripts/ci/smoke_backend.sh"
           cp packaging/arch/PKGBUILD "$staging/packaging/arch/PKGBUILD"
           cp packaging/arch/.SRCINFO "$staging/packaging/arch/.SRCINFO"
+
+      - uses: actions/setup-node@v4
+        if: env.RUN_E2E == 'true'
+        with:
+          node-version: "22"
+
+      - name: Install end-to-end test tools (WebKitWebDriver, Xvfb, tauri-driver)
+        if: env.RUN_E2E == 'true'
+        run: |
+          sudo apt-get install -y webkit2gtk-driver xvfb
+          cargo install tauri-driver --locked
+
+      - name: End-to-end test of the compiled app
+        if: env.RUN_E2E == 'true'
+        env:
+          KAMI_E2E_APP: src-tauri/target/release/kami
+          KAMI_E2E_PYTHON: backend/.venv/bin/python
+          KAMI_E2E_OUT: ${{ runner.temp }}/e2e-linux
+        run: xvfb-run -a --server-args="-screen 0 2000x1200x24" node tests/e2e/kami-e2e.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always() && env.RUN_E2E == 'true'
+        with:
+          name: e2e-linux-prints-e-log
+          path: ${{ runner.temp }}/e2e-linux
+          if-no-files-found: warn
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -431,6 +498,39 @@ jobs:
           if ($backend) {
             throw "Ainda há processo kami-backend.exe após fechar a janela do Kami."
           }
+
+      - uses: actions/setup-node@v4
+        if: env.RUN_E2E == 'true'
+        with:
+          node-version: "22"
+
+      - name: Install end-to-end test tools (tauri-driver, msedgedriver)
+        if: env.RUN_E2E == 'true'
+        shell: pwsh
+        run: |
+          cargo install tauri-driver --locked
+          # msedgedriver tem que ser da MESMA versão do WebView2 instalado —
+          # a ferramenta abaixo (indicada na documentação do Tauri) baixa a certa
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+
+      - name: End-to-end test of the compiled app
+        if: env.RUN_E2E == 'true'
+        shell: pwsh
+        run: |
+          $env:KAMI_E2E_APP = Join-Path $PWD "src-tauri\target\release\kami.exe"
+          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
+          $env:KAMI_E2E_PYTHON = Join-Path $PWD "backend\.venv\Scripts\python.exe"
+          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          node tests/e2e/kami-e2e.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always() && env.RUN_E2E == 'true'
+        with:
+          name: e2e-windows-prints-e-log
+          path: ${{ runner.temp }}/e2e-windows
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Collect backend log
         if: always()

@@ -277,6 +277,22 @@ cd backend && pytest     # backend
 npm install && npm test  # frontend (runner nativo do Node)
 ```
 
+O CI roda essas duas suítes no Linux e no Windows em todo PR.
+
+**Teste ponta a ponta** (`tests/e2e/kami-e2e.mjs`): abre o app compilado
+com dados fictícios, passa pelas 8 telas em 3 tamanhos de janela e tira
+prints. Também registra uma ação pela interface, derruba o backend para
+conferir que ele volta sozinho e verifica que o log terminou sem erros. No
+CI ele roda em PRs para `main`, em `release/**` e no disparo manual, e os
+prints viram artefato do workflow. Para rodar no Linux, é preciso o
+`WebKitWebDriver` (pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o
+`tauri-driver` (`cargo install tauri-driver --locked`):
+
+```bash
+./scripts/build_sidecar.sh && (cd src-tauri && cargo tauri build --debug --no-bundle)
+KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
+```
+
 ### Build de produção
 
 ```bash
