@@ -25,14 +25,21 @@
 }
 :root:not([data-effects="desligado"]) .btn:hover,
 :root:not([data-effects="desligado"]) .btn:focus-visible {
-  box-shadow: 0 0 10px -3px color-mix(in srgb, var(--accent) 60%, transparent);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
+  /* --btn-tone: botões de cor própria (.danger/.warn) brilham na cor
+     deles, não na do tema (AJU-03, ver forms.css) */
+  box-shadow: 0 0 10px -3px color-mix(in srgb, var(--btn-tone, var(--accent)) 60%, transparent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--btn-tone, var(--accent)) 50%, transparent);
+}
+/* desabilitado não reage (o brilho dava a impressão de clicável) */
+:root:not([data-effects="desligado"]) .btn:disabled:hover {
+  box-shadow: none;
+  text-shadow: none;
 }
 
 /* ── clique "pressionado": o botão inverte as cores por um instante ── */
 :root:not([data-effects="desligado"]) .btn:active:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--btn-tone, var(--accent));
+  border-color: var(--btn-tone, var(--accent));
   color: var(--bg);
   text-shadow: none;
   transition: none;

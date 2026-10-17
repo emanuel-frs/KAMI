@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.database import init_db
+from app.logs import configure_logging
 from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
 from app.routers import perfil, nucleo, financas, carteira
@@ -24,6 +25,11 @@ from app.routers import sistema
 from app.routers import widgets
 from app.routers import calendario
 from app.routers import carreira
+
+# data/hora em toda linha do log (AJU-05, ver app/logs.py) — aqui no
+# import pra valer também no modo dev (`uvicorn app.main:app`), em que o
+# uvicorn configura o log dele antes de importar este módulo
+configure_logging()
 
 app = FastAPI(title="Kami API", version=KAMI_VERSION)
 

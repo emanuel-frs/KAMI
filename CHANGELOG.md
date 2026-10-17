@@ -4,6 +4,22 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.9.1] - 2026-10-17
+
+_Ajustes pedidos depois da 1.9.0: o Windows para de abrir um terminal junto com o app, o scroll ganha a cara do Kami e o log passa a dizer quando cada coisa aconteceu._
+
+### Corrigido
+- no Windows, o app não abre mais uma janela de terminal junto (e fechar essa janela não derruba mais o Kami)
+- botões de cor própria — "importar e sobrescrever" (âmbar), "limpar todos os dados" e "excluir" (vermelho) — não ficam mais com a cor do tema ao passar o mouse, focar pelo teclado ou clicar; desabilitados também mantêm a própria cor
+- no Windows, o scroll aparecia como a barra nativa do sistema em vez da barra temática do app
+- a barra de rolagem do roadmap de aprendizado aparecia no Windows e ficava escondida no Linux; agora aparece nos dois
+
+### Modificado
+- scroll novo em "blocos listrados": barra quadrada e listrada na cor de destaque, trilho com régua de marquinhas, cor cheia ao passar o mouse; listas menores (selects, roadmap) usam uma versão mais fina
+- toda linha do `kami-backend.log` começa com a data e a hora local (ex.: `2026-10-17 16:42:07.684-03:00`), inclusive mensagens soltas e erros
+- o log não grava mais os parâmetros das requisições (`?busca=...`), para buscas e filtros não ficarem no disco
+- o nome "kami" no topo da janela fica sem o cursor piscando
+
 ## [1.9.0] - 2026-10-14
 
 _Gamificação completa do Kami: o motor de xp ficou confiável e o app ganhou cara de jogo — conquistas, hábito, progressão e um visual e som de terminal antigo. Reúne o trabalho que estava versionado localmente como 1.8.3 a 1.8.6, que nunca foi publicado._

@@ -36,6 +36,10 @@ stdout/stderr passam a ser espelhados em `<data_dir>/kami-backend.log`
 (com o stream original também, quando existe), então qualquer falha
 deixa rastro.
 
+Data e hora em toda linha (AJU-05): o uvicorn recebe o `LOG_CONFIG` de
+app/logs.py, e o `_Tee` carimba as linhas que não passam pelo logging
+(print, traceback) — ver o docstring de app/logs.py.
+
 Uso direto (sem empacotar, só pra testar este entrypoint específico):
 
     python run_server.py          # porta livre escolhida pelo SO
@@ -61,21 +65,34 @@ class _Tee:
     engolindo erros de escrita (log nunca pode derrubar o backend).
     Expõe o mínimo que o logging/uvicorn esperam de um stream de texto
     (`isatty()` em especial — é o que quebra quando sys.stderr é None).
+
+    `stamp=True` põe data/hora no começo de cada linha que ainda não
+    tiver (app.logs.stamp_lines) — é o que o log em arquivo usa.
     """
 
     encoding = "utf-8"
     errors = "replace"
 
-    def __init__(self, *streams):
+    def __init__(self, *streams, stamp=False):
         self._streams = [s for s in streams if s is not None]
+        self._stamp = stamp
+        self._at_line_start = True
 
     def write(self, data):
+        length = len(data)
+        if self._stamp:
+            try:
+                from app.logs import stamp_lines
+
+                data, self._at_line_start = stamp_lines(data, self._at_line_start)
+            except Exception:
+                pass  # carimbo é enfeite — nunca pode impedir a escrita
         for stream in self._streams:
             try:
                 stream.write(data)
             except Exception:
                 pass
-        return len(data)
+        return length
 
     def flush(self):
         for stream in self._streams:
@@ -100,6 +117,7 @@ def _setup_file_logging():
     if not getattr(sys, "frozen", False):
         return None
     try:
+        from app.logs import timestamp
         from app.paths import get_data_dir
 
         log_path = get_data_dir() / LOG_FILE_NAME
@@ -111,11 +129,11 @@ def _setup_file_logging():
 
         log_file = open(log_path, "a", encoding="utf-8", errors="replace", buffering=1)
         log_file.write(
-            f"\n===== Kami backend iniciando em {time.strftime('%Y-%m-%d %H:%M:%S')} "
+            f"\n===== Kami backend iniciando em {timestamp()} "
             f"(pid {os.getpid()}, python {sys.version.split()[0]}, {sys.platform}) =====\n"
         )
-        sys.stdout = _Tee(sys.stdout, log_file)
-        sys.stderr = _Tee(sys.stderr, log_file)
+        sys.stdout = _Tee(sys.stdout, log_file, stamp=True)
+        sys.stderr = _Tee(sys.stderr, log_file, stamp=True)
         return log_path
     except Exception:
         return None
@@ -176,6 +194,7 @@ def _run() -> None:
     # uma falha de import também caia no try/except de main() e seja logada
     import uvicorn
 
+    from app.logs import LOG_CONFIG
     from app.main import app
     from app.security import TOKEN_ENV_VAR, generate_token, write_token_file
     from app.version import KAMI_VERSION
@@ -214,7 +233,7 @@ def _run() -> None:
     sock = _bind_socket(requested_port)
     actual_port = sock.getsockname()[1]
 
-    config = uvicorn.Config(app, log_level="info", use_colors=False)
+    config = uvicorn.Config(app, log_level="info", use_colors=False, log_config=LOG_CONFIG)
     server = uvicorn.Server(config)
 
     threading.Thread(

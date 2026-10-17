@@ -206,16 +206,5 @@
   flex-shrink: 0;
   max-height: 220px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-dim) transparent;
-}
-.apr-heatmap-years::-webkit-scrollbar {
-  width: 6px;
-}
-.apr-heatmap-years::-webkit-scrollbar-track {
-  background: transparent;
-}
-.apr-heatmap-years::-webkit-scrollbar-thumb {
-  background: var(--accent-dim);
-  border: 1px solid var(--border-soft);
+  --scrollbar-w: 8px; /* (AJU-04) estilo global de base.css, mais fino */
 }
