@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.9.1] - em desenvolvimento
+
+_Sprint 1 da evolução — ajustes (AJU-01 a AJU-05: terminal que abria junto no Windows, barra piscando no título, botões de cor própria com a borda do tema, scroll com a cara do Kami, data e hora nos logs). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.9.0] - 2026-10-14
 
 _Gamificação completa do Kami: o motor de xp ficou confiável e o app ganhou cara de jogo — conquistas, hábito, progressão e um visual e som de terminal antigo. Reúne o trabalho que estava versionado localmente como 1.8.3 a 1.8.6, que nunca foi publicado._

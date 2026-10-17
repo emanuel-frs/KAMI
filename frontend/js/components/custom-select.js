@@ -150,13 +150,8 @@ const CSS = `
   z-index: 500;
   display: none;
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-dim) var(--panel, #0a0a0a);
+  --scrollbar-w: 8px; /* (AJU-04) barra no estilo global de base.css, mais fina */
 }
-.csel-list::-webkit-scrollbar { width: 7px; }
-.csel-list::-webkit-scrollbar-track { background: var(--panel, #0a0a0a); }
-.csel-list::-webkit-scrollbar-thumb { background: var(--accent-dim); }
-.csel-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 .csel-list.open { display: block; }
 
 .csel-item {

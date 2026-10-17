@@ -1,3 +1,14 @@
+// Subsistema "windows" no build de release (AJU-01): sem isso o .exe é
+// compilado como app de CONSOLE e o Windows abre uma janela de terminal
+// preta junto com o Kami (e fechar essa janela derruba o app). Só em
+// release — em `cargo tauri dev` (debug_assertions ligado) o console
+// continua aparecendo, porque é nele que saem os `print!` do sidecar.
+// Sem console, o print!/eprint! do repasse de log abaixo não dá panic: a
+// std do Rust trata o handle de saída inexistente do Windows como um
+// "ralo" e descarta a escrita (o log de verdade fica no
+// kami-backend.log, gravado pelo próprio sidecar).
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 // Kami — processo principal do Tauri.
 //
 // Responsabilidade: subir o backend (sidecar do PyInstaller, decisão
