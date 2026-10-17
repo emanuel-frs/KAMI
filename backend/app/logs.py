@@ -42,8 +42,14 @@ _STAMPED = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
 
 
 def timestamp(now: datetime | None = None) -> str:
-    """`2026-10-16 14:03:22.481-03:00` — local, com milissegundos e offset."""
-    now = (now or datetime.now()).astimezone()
+    """
+    `2026-10-16 14:03:22.481-03:00` — com milissegundos e offset. Data sem
+    fuso (o caso do log: `datetime.fromtimestamp`) vira hora LOCAL; data
+    que já tem fuso é mantida nele (não depende do fuso da máquina).
+    """
+    now = now or datetime.now()
+    if now.tzinfo is None:
+        now = now.astimezone()
     offset = now.strftime("%z")  # -0300
     offset = f"{offset[:3]}:{offset[3:]}" if offset else ""
     return f"{now.strftime('%Y-%m-%d %H:%M:%S')}.{now.microsecond // 1000:03d}{offset}"
