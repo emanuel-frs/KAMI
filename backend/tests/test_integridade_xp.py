@@ -498,3 +498,37 @@ def test_migration_adds_transacao_id_to_old_debts_table(temp_db_path):
     row = conn.execute("SELECT * FROM debts WHERE id = 'velha'").fetchone()
     assert row["status"] == "paga" and row["transacao_id"] is None
     conn.close()
+
+
+# ==================== rebloqueio depois de desfazer (CONF-04, achado do INV-04) ====================
+# O revert_actions rebloqueava conquistas ANTES de o período/marco voltar
+# pro estado anterior — o critério ainda valia e nada era rebloqueado.
+
+def _unlocked(client, key):
+    return next(a for a in client.get("/api/nucleo/achievements").json() if a["key"] == key)["unlocked"]
+
+
+def test_xp_08_unpaying_fixed_bill_relocks_contas_em_dia(client):
+    conta = _create_account(client)
+    client.post("/api/financas/fixed-bills", json={"name": "Aluguel", "amount": 10, "due_day": 5, "conta_id": conta["id"]})
+    period = client.get("/api/financas/fixed-bills/periods", params={"month": MONTH}).json()[0]
+    client.put(f"/api/financas/fixed-bills/periods/{period['id']}/pay", json={})
+    assert _unlocked(client, "contas_em_dia") is True
+    client.put(f"/api/financas/fixed-bills/periods/{period['id']}/unpay")
+    assert _unlocked(client, "contas_em_dia") is False
+
+
+def test_xp_08_reopening_milestone_relocks_trilha_em_dia(client):
+    _, ms = _create_milestone(client)
+    _set_milestone(client, ms["id"], "concluido")
+    assert _unlocked(client, "marco_em_dia") is True
+    _set_milestone(client, ms["id"], "pendente")
+    assert _unlocked(client, "marco_em_dia") is False
+
+
+def test_xp_08_deleting_paid_debt_relocks_quitado(client):
+    debt = client.post("/api/financas/debts", json={"description": "x", "amount": 10}).json()
+    client.put(f"/api/financas/debts/{debt['id']}/pay", json={})
+    assert _unlocked(client, "quitado") is True
+    client.delete(f"/api/financas/debts/{debt['id']}")
+    assert _unlocked(client, "quitado") is False

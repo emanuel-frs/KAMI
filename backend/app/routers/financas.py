@@ -798,22 +798,26 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
             description=f"conta fixa: {bill['name']}",
             forma_pagamento=payload.forma_pagamento,
         )
-        if not has_action(db, "conta_fixa_periodo", period_id):
-            register_action(
-                db,
-                description=f"pagou conta fixa: {bill['name']}",
-                categories=["financas"],
-                xp=XP_PAGAMENTO_RECORRENTE,
-                impact=2,
-                source="financas",
-                referencia_tipo="conta_fixa_periodo",
-                referencia_id=period_id,
-            )
 
+    # o período vira "paga" ANTES de registrar a ação: register_action roda
+    # a checagem de conquistas, e "contas em dia" (todas as contas do mês
+    # pagas) só vale com este período já pago — na ordem antiga, pagar a
+    # última conta do mês não desbloqueava nada na hora (achado do CONF-04)
     db.execute(
         "UPDATE fixed_bill_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
         (payload.valor_pago, transaction_id, period_id),
     )
+    if transaction_id and not has_action(db, "conta_fixa_periodo", period_id):
+        register_action(
+            db,
+            description=f"pagou conta fixa: {bill['name']}",
+            categories=["financas"],
+            xp=XP_PAGAMENTO_RECORRENTE,
+            impact=2,
+            source="financas",
+            referencia_tipo="conta_fixa_periodo",
+            referencia_id=period_id,
+        )
     db.commit()
     updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     return _period_out(updated)
