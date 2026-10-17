@@ -75,6 +75,22 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.body = body;
+    // CONF-01: formato único de erro do backend (app/erros.py) —
+    // `codigo` é o tipo (erro_interno, banco_ocupado, validacao...) e
+    // `errorId` o código curto que também está no kami-backend.log
+    this.codigo = body?.codigo ?? (status === 0 ? "sem_conexao" : null);
+    this.errorId = body?.id ?? null;
+  }
+
+  /**
+   * Erro que a pessoa não causou e não tem como corrigir no formulário:
+   * backend fora (status 0) ou falha do lado do servidor (5xx). Esses
+   * viram o toast de erro global (components/error-notice.js); os 4xx
+   * (valor inválido, não encontrado...) continuam sendo mostrados por
+   * quem chamou, perto do campo.
+   */
+  get inesperado() {
+    return this.status === 0 || this.status >= 500;
   }
 
   /** Extrai uma mensagem legível de HTTPValidationError/ValidationError ou {detail: str}. */
@@ -143,8 +159,37 @@ function clearGetCache() {
   _getCache.clear();
 }
 
+/**
+ * CONF-01: avisa a tela inteira de um erro inesperado (ver
+ * ApiError.inesperado). Quem mostra é components/error-notice.js — a
+ * camada de API só conta que aconteceu, igual ao kami:data-changed.
+ */
+function announceUnexpected(err, method, path) {
+  if (!(err instanceof ApiError) || !err.inesperado) return;
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent("kami:api-error", {
+        detail: { method, path, status: err.status, message: err.message, codigo: err.codigo, errorId: err.errorId },
+      })
+    );
+  } catch {
+    // o aviso nunca pode trocar o erro original por outro — quem chamou
+    // continua recebendo o ApiError de verdade logo abaixo
+  }
+}
+
 async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
+  try {
+    return await requestInner(path, options, method);
+  } catch (err) {
+    announceUnexpected(err, method, path);
+    throw err;
+  }
+}
+
+async function requestInner(path, options, method) {
 
   if (method !== "GET") {
     let result;

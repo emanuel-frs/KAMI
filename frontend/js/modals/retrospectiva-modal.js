@@ -207,6 +207,8 @@ async function show(i) {
   setTimeout(() => pre.classList.remove("animated"), 900);
   if (!months[index].vista) {
     months[index].vista = true;
+    // marcar como vista é só pra não reabrir sozinha; se falhar, o pior é
+    // ela abrir de novo no próximo mês (CONF-01: silêncio de propósito)
     markRetrospectivaVista(current.mes).catch(() => {});
   }
 }

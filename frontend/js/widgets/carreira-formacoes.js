@@ -45,7 +45,7 @@ export async function render(el, widget) {
     try {
       educations = await carreiraApi.listCareerEducations();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar formações: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar formações: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

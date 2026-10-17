@@ -141,7 +141,7 @@ export async function render(el, widget) {
     try {
       achievements = await getAchievements();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar conquistas: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar conquistas: ${escapeHtml(err.message)}</div>`;
       return;
     }
     if (!achievements.length) {

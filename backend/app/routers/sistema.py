@@ -10,6 +10,9 @@ Endpoints:
                              formato devolvido por /export)
   POST /api/sistema/reset    apaga tudo e recria o estado de instalação
                              nova (mesma seed do primeiro boot)
+  POST /api/sistema/erro-frontend
+                             registra no kami-backend.log um erro de
+                             JavaScript da tela (CONF-01)
 
 Nota sobre /import: `email_accounts.app_password_enc`,
 `github_settings.token_enc` e `search_settings.api_key_enc` no export
@@ -20,7 +23,7 @@ conseguir descriptografar essas credenciais, só o resto dos dados.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
@@ -289,3 +292,56 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
     db.commit()
 
     return {"status": "ok"}
+
+
+# ── erros de JavaScript da tela → kami-backend.log (CONF-01) ─────────────
+#
+# Por que existe: o log do backend é o único lugar que a pessoa consegue
+# anexar num relato de problema, e um erro de JavaScript na tela (ex.: um
+# widget que quebra só no WebView2 do Windows) não deixava rastro nenhum.
+# O frontend (components/error-notice.js) manda aqui a mensagem e o
+# arquivo/linha do erro — nunca dados digitados pelo usuário — e isso
+# vira uma linha com data/hora no mesmo log.
+#
+# Limites: cada campo é cortado no tamanho máximo do modelo, e o processo
+# registra no máximo FRONTEND_ERRORS_MAX erros por execução — um erro num
+# loop de render não pode encher o disco.
+
+FRONTEND_ERRORS_MAX = 50
+_frontend_errors_logged = 0
+frontend_logger = logging.getLogger("app.frontend")
+
+
+class FrontendErrorIn(BaseModel):
+    tipo: str = Field("erro", max_length=20)
+    mensagem: str = Field(..., max_length=500)
+    origem: str = Field("", max_length=300)
+    linha: int | None = None
+    coluna: int | None = None
+    pilha: str = Field("", max_length=2000)
+    tela: str = Field("", max_length=60)
+    versao: str = Field("", max_length=20)
+
+
+@router.post("/erro-frontend", status_code=204)
+def registrar_erro_frontend(payload: FrontendErrorIn):
+    global _frontend_errors_logged
+    if _frontend_errors_logged >= FRONTEND_ERRORS_MAX:
+        return None
+    _frontend_errors_logged += 1
+    onde = payload.origem
+    if payload.linha is not None:
+        posicao = f"{payload.linha}" + (f":{payload.coluna}" if payload.coluna is not None else "")
+        # sem arquivo (código avaliado na hora): "linha 1:24" em vez de ":1:24"
+        onde = f"{onde}:{posicao}" if onde else f"linha {posicao}"
+    frontend_logger.warning(
+        "%s na tela %s: %s%s%s",
+        payload.tipo,
+        payload.tela or "?",
+        payload.mensagem,
+        f" ({onde})" if onde else "",
+        f"\n{payload.pilha}" if payload.pilha else "",
+    )
+    if _frontend_errors_logged == FRONTEND_ERRORS_MAX:
+        frontend_logger.warning("limite de %d erros da tela atingido — os próximos não serão registrados", FRONTEND_ERRORS_MAX)
+    return None

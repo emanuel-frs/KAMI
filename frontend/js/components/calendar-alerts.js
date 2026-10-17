@@ -40,6 +40,9 @@ export async function fetchPendingAlerts() {
     monthStr(windowEndDate.getUTCFullYear(), windowEndDate.getUTCMonth() + 1),
   ]);
 
+  // rotina de fundo: um mês que falhou só não gera lembrete agora (tenta
+  // de novo no próximo ciclo). Erro inesperado da API já virou aviso pelo
+  // kami:api-error (CONF-01) — aqui não precisa avisar de novo.
   const results = await Promise.all([...months].map((m) => listEvents(m).catch(() => [])));
   const events = results.flat();
 

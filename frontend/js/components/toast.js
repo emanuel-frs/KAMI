@@ -13,6 +13,15 @@ import { playSound } from "./sound.js";
  * Auto-some depois de `duration` ms (default 8s) a menos que o mouse
  * esteja em cima — mesma UX de toast convencional (pausa a contagem em
  * hover pra não sumir enquanto o usuário está lendo/clicando).
+ *
+ * CONF-01 (avisos de erro, components/error-notice.js):
+ *   - `variant: "erro"` → borda e ícone vermelhos, som "erro";
+ *   - `duration: 0` → não some sozinho, só no ✕ (erro não pode sumir
+ *     antes de ser lido — decisão do Emanuel);
+ *   - `actions: [{ label, onClick(botão) }]` → botões pequenos embaixo da
+ *     mensagem (ex.: "copiar detalhes"). O onClick recebe o próprio botão
+ *     (pra trocar o rótulo, ex. "copiado ✓"). O clique numa ação não fecha
+ *     o toast, a menos que o onClick devolva true.
  */
 
 let stackEl = null;
@@ -41,7 +50,9 @@ export function toastStack() {
 }
 
 function ensureStack() {
-  if (stackEl) return stackEl;
+  // isConnected: se o documento foi trocado (testes com jsdom novo), a
+  // pilha antiga ficou solta — cria outra no documento atual
+  if (stackEl?.isConnected) return stackEl;
   stackEl = document.createElement("div");
   stackEl.className = "toast-stack";
   stackEl.id = "toast-stack";
@@ -62,31 +73,50 @@ function ensureStack() {
 if (typeof document !== "undefined" && document.body) ensureStack();
 
 /**
- * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void, sound?: boolean }} opts
+ * @param {{ title: string, message?: string, iconName?: string, duration?: number, onClick?: () => void,
+ *           sound?: boolean, variant?: "erro", actions?: { label: string, onClick: (btn: HTMLButtonElement) => (boolean|void) }[] }} opts
  */
-export function showToast({ title, message = "", iconName = "bell-ring", duration = 8000, onClick, sound = true } = {}) {
+export function showToast({
+  title,
+  message = "",
+  iconName = "bell-ring",
+  duration = 8000,
+  onClick,
+  sound = true,
+  variant,
+  actions = [],
+} = {}) {
   // GAM-13: bipe de aviso — `sound: false` quando quem chama já toca um
   // som próprio (subida de nível, conquista com efeitos desligados)
-  if (sound) playSound("aviso");
+  if (sound) playSound(variant === "erro" ? "erro" : "aviso");
   const stack = ensureStack();
 
   const el = document.createElement("div");
-  el.className = "toast-item";
+  el.className = "toast-item" + (variant ? ` toast-${variant}` : "");
   el.innerHTML = `
     <span class="toast-icon">${icon(iconName, { size: 14 })}</span>
     <div class="toast-body">
       <div class="toast-title">${escapeHtml(title)}</div>
       ${message ? `<div class="toast-message">${escapeHtml(message)}</div>` : ""}
+      ${actions.length ? `<div class="toast-actions">${actions
+        .map((a, i) => `<button type="button" class="btn sm" data-toast-action="${i}">${escapeHtml(a.label)}</button>`)
+        .join("")}</div>` : ""}
     </div>
     <button type="button" class="toast-close" aria-label="dispensar">${icon("x", { size: 11 })}</button>
   `;
+  el.querySelectorAll("[data-toast-action]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (actions[Number(btn.dataset.toastAction)].onClick(btn) === true) dismiss();
+    });
+  });
 
   if (onClick) {
     el.classList.add("clickable");
     el.setAttribute("role", "button");
     el.setAttribute("tabindex", "0");
     el.addEventListener("click", (e) => {
-      if (e.target.closest(".toast-close")) return;
+      if (e.target.closest(".toast-close, [data-toast-action]")) return;
       onClick();
       dismiss();
     });
@@ -107,7 +137,7 @@ export function showToast({ title, message = "", iconName = "bell-ring", duratio
   let hideTimer = null;
   function scheduleHide() {
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(dismiss, duration);
+    if (duration > 0) hideTimer = setTimeout(dismiss, duration);
   }
   function dismiss() {
     clearTimeout(hideTimer);

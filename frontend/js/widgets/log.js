@@ -44,7 +44,7 @@ export async function render(el, widget) {
       if (currentAttribute !== "all") params.attribute = currentAttribute;
       entries = await getLog(params);
     } catch (err) {
-      listEl.innerHTML = `<div class="empty-state">erro ao carregar log: ${err.message}</div>`;
+      listEl.innerHTML = `<div class="empty-state">erro ao carregar log: ${escapeHtml(err.message)}</div>`;
       return;
     }
     const focusId = consumePendingFocus("acao");

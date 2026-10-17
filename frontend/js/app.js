@@ -31,6 +31,7 @@ import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
 import { startRetrospective } from "./modals/retrospectiva-modal.js";
 import { registerNavigator } from "./components/navigate.js";
+import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -79,6 +80,9 @@ function preloadPages(exclude) {
     .forEach((name) => {
       PAGES[name]()
         .then((mod) => mod.preload?.())
+        // pré-carga é só esquenta-cache: se falhar, o mount() de verdade
+        // tenta de novo e mostra o erro (e erro inesperado da API já
+        // virou aviso pelo kami:api-error — CONF-01)
         .catch(() => {});
     });
 }
@@ -127,6 +131,7 @@ async function showPage(name, opts) {
   const mod = await PAGES[name]();
   currentPageModule = mod;
   currentPageName = name;
+  setTelaAtual(name); // CONF-01: entra no "copiar detalhes" e no log de erro da tela
   await mod.mount(pageRoot, opts);
   playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
@@ -259,6 +264,8 @@ async function boot() {
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
+  // CONF-01: primeiro de tudo — qualquer erro daqui pra frente já tem aviso
+  wireErrorNotice();
   wireNav();
   wireSettingsButton();
   wireSidebarAvatar();

@@ -64,7 +64,7 @@ export async function render(el, widget) {
         financasApi.listTransactions(month),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar registros: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar registros: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

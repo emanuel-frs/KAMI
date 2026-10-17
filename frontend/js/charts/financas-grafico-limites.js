@@ -14,7 +14,7 @@ export async function render(el, widget) {
     try {
       banks = await carteiraApi.listBanks();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar limites: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar limites: ${escapeHtml(err.message)}</div>`;
       return;
     }
     const contasComCredito = banks.flatMap((b) =>

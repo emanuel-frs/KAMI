@@ -645,7 +645,10 @@ function applySidebarAvatar(ascii) {
       paddingX: 8,
       paddingY: 4,
     });
-  } catch (_) {}
+  } catch (_) {
+    // ajuste de tamanho do ASCII é só cosmético — se falhar, o texto
+    // fica no tamanho padrão (CONF-01: silêncio de propósito)
+  }
 }
 
 function wirePerfilTab(wrap) {

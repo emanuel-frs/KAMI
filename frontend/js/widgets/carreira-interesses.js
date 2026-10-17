@@ -22,7 +22,7 @@ export async function render(el, widget) {
   try {
     interests = await getCareerInterests();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar interesses: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar interesses: ${escapeHtml(err.message)}</div>`;
     return;
   }
 

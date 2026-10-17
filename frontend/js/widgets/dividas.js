@@ -31,7 +31,7 @@ export async function render(el, widget) {
     try {
       debts = await financasApi.listDebts();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar dívidas: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar dívidas: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

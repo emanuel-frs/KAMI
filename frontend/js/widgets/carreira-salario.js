@@ -104,7 +104,7 @@ export async function render(el, widget) {
     try {
       records = await carreiraApi.listCareerSalaryRecords();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar evolução salarial: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar evolução salarial: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();
