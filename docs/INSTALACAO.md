@@ -141,3 +141,10 @@ com o motivo informado pelo backend e o caminho do log. Anexe
 `kami-backend.log` ao report do problema no repositório. Antes de
 compartilhar, revise o arquivo e remova qualquer informação pessoal que
 não queira publicar.
+
+Cada linha do log começa com a data e a hora local (ex.:
+`2026-10-17 16:42:07.684-03:00 INFO [uvicorn.error] ...`), então dá para
+achar o trecho do momento em que o problema aconteceu. Quando passa de
+1 MB, o log atual vira `kami-backend.log.old` e um novo começa. Endereços
+de requisição aparecem sem os parâmetros (`?busca=...`), para não gravar
+buscas e filtros no disco.
