@@ -36,16 +36,18 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r backend/requirements.txt pytest
+          python -m pip install -r backend/requirements.txt pytest pytest-cov
 
-      - name: Run backend tests
+      # CONF-04: piso de cobertura — não pode cair. Sobe aos poucos conforme
+      # entram testes novos (era 89% no backend e 77% no frontend em 2026-10-17).
+      - name: Run backend tests (coverage floor)
         working-directory: backend
-        run: pytest
+        run: pytest --cov=app --cov-report=term --cov-fail-under=89
 
-      - name: Run frontend tests
+      - name: Run frontend tests (coverage floor)
         run: |
           npm install --no-audit --no-fund
-          npm test
+          npm run test:coverage
 
       - name: Check Linux installer with ShellCheck
         run: |

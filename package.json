@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test \"tests/frontend/**/*.test.js\""
+    "test": "node --test \"tests/frontend/**/*.test.js\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=75 \"tests/frontend/**/*.test.js\""
   },
   "devDependencies": {
     "jsdom": "^26.1.0"
