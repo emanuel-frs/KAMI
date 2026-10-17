@@ -1,0 +1,64 @@
+/*
+ * Faixa do vigia do backend (CONF-02, components/backend-watchdog.js).
+ *
+ * Fica fixa logo abaixo da barra de título (--titlebar-h, que vale 0 no
+ * navegador de dev), por cima do conteúdo — não empurra o layout, cuja
+ * altura é calculada sem ela. Mesma linguagem visual dos avisos (borda
+ * fina, sombra dura, fundo --panel), com a borda de baixo em vermelho
+ * quando o backend está fora e em âmbar enquanto reinicia.
+ *
+ * z-index 230: acima de modais (200), dropdowns em modal (210) e da pilha
+ * de toasts (220) — se o backend caiu, nada do que estiver aberto
+ * funciona, então este aviso precisa ficar visível. Abaixo de
+ * tip-sequence (260) e kami-intro (300).
+ */
+.backend-banner {
+  position: fixed;
+  top: var(--titlebar-h, 0px);
+  left: 0;
+  right: 0;
+  z-index: 230;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--red);
+  box-shadow: 0 4px 0 0 #000;
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.backend-banner[hidden] { display: none; }
+
+.backend-banner-icon {
+  flex: 0 0 auto;
+  color: var(--red);
+  margin-top: 1px;
+}
+.backend-banner-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.backend-banner-title { color: var(--red); }
+.backend-banner-message {
+  margin-top: 3px;
+  color: var(--text-dim);
+  /* o motivo do Rust traz o caminho inteiro do log — quebra em vez de vazar */
+  overflow-wrap: anywhere;
+}
+.backend-banner-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+/* reiniciando: âmbar, com os três pontinhos piscando em degraus (terminal) */
+.backend-banner.busy { border-bottom-color: var(--amber); }
+.backend-banner.busy .backend-banner-title,
+.backend-banner.busy .backend-banner-icon { color: var(--amber); }
+.backend-banner.busy .backend-banner-icon { animation: backend-banner-blink 1s steps(2) infinite; }
+@keyframes backend-banner-blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) {
+  .backend-banner.busy .backend-banner-icon { animation: none; }
+}
+:root[data-effects="desligado"] .backend-banner.busy .backend-banner-icon { animation: none; }

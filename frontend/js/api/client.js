@@ -68,6 +68,41 @@ function getBaseUrl() {
   return _baseUrlPromise;
 }
 
+/**
+ * CONF-02 (components/backend-watchdog.js): depois de reiniciar o
+ * backend, porta e token mudam — esquece os antigos (e o cache de GET)
+ * pra próxima chamada perguntar ao Tauri de novo.
+ */
+export function resetBackendConnection() {
+  _baseUrlPromise = null;
+  _sessionToken = "";
+  _getCache.clear();
+}
+
+/**
+ * CONF-02: o backend está respondendo? GET /health com limite de tempo,
+ * sem cache, sem token (a rota é aberta) e SEM avisar ninguém — quem
+ * chama (o vigia) decide o que mostrar. Nunca lança: devolve true/false.
+ */
+export async function pingBackend(timeoutMs = 4000) {
+  let baseUrl;
+  try {
+    baseUrl = await getBaseUrl();
+  } catch {
+    return false; // o Tauri já sabe que o backend não subiu/morreu
+  }
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(`${baseUrl}/health`, { cache: "no-store", signal: ctrl?.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class ApiError extends Error {
   constructor(status, body) {
     const msg = ApiError._extractMessage(body) ?? `Erro HTTP ${status}`;

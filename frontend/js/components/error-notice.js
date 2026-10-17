@@ -1,5 +1,6 @@
 import { ApiError, get, post } from "../api/client.js";
 import { showToast } from "./toast.js";
+import { watchdogHandlesConnection } from "./backend-watchdog.js";
 
 /**
  * Aviso de erro global (CONF-01) — nenhum erro sem aviso.
@@ -134,6 +135,10 @@ function titleFor({ status, method }) {
 
 function onApiError(e) {
   const detail = e.detail;
+  // sem conexão com o vigia ligado (CONF-02): a faixa do vigia é o aviso
+  // dessa situação — ele testa, reinicia e explica; um toast a mais só
+  // repetiria "sem conexão"
+  if (detail.status === 0 && watchdogHandlesConnection()) return;
   // status 0 fica de fora: na abertura do app, o modal "o backend do Kami
   // não iniciou" (app.js) tem a mensagem longa com o motivo e o caminho
   // do log — ele precisa abrir mesmo com o toast genérico na tela
