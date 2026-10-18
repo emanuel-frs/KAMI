@@ -532,3 +532,15 @@ def test_xp_08_deleting_paid_debt_relocks_quitado(client):
     assert _unlocked(client, "quitado") is True
     client.delete(f"/api/financas/debts/{debt['id']}")
     assert _unlocked(client, "quitado") is False
+
+
+def test_cq_07_retroactive_expense_relocks_mes_no_azul(client):
+    """P-17: saída retroativa que deixa negativo um mês já fechado rebloqueia "mês no azul"."""
+    conta = _create_account(client, saldo_atual=10_000)
+    tx = {"category": "outros", "conta_id": conta["id"], "date": f"{MONTH}-10"}
+    client.post("/api/financas/transactions", json={**tx, "description": "salário", "amount": 1000, "type": "entrada"})
+    client.post("/api/financas/transactions", json={**tx, "description": "mercado", "amount": 200, "type": "saida"})
+    assert _unlocked(client, "mes_no_azul") is True
+
+    client.post("/api/financas/transactions", json={**tx, "description": "esquecido", "amount": 900, "type": "saida"})
+    assert _unlocked(client, "mes_no_azul") is False

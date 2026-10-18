@@ -28,8 +28,6 @@ SEEDS = [1, 7, 42, 2026, 31337]
 STEPS = 35
 SALDO_INICIAL = 100_000.0
 MONTH = "2026-03"
-# critérios fora do INV-04 enquanto a P-17 não é decidida (ver _check_invariants)
-INV04_PENDENTES = {"month_positive"}
 
 
 def _attrs(client):
@@ -64,16 +62,11 @@ def _check_invariants(client, db, conta_id, step):
     ).fetchone()["s"]
     assert round(_saldo(client, conta_id), 2) == round(SALDO_INICIAL + mov, 2), f"{step}: INV-03"
 
-    # INV-04 — fora "mês no azul" (month_positive), pendente da P-17: um
-    # lançamento RETROATIVO num mês já fechado pode deixar o mês negativo
-    # sem desfazer nada, e hoje conquista só rebloqueia quando a ação que a
-    # gerou é desfeita. Decidir se ela deve ser reavaliada nesse caso.
+    # INV-04 — inclusive "mês no azul" com lançamento retroativo (P-17)
     import json
 
     for a in db.execute("SELECT title, criteria_json FROM achievements WHERE unlocked_at IS NOT NULL").fetchall():
         criteria = json.loads(a["criteria_json"])
-        if criteria.get("type") in INV04_PENDENTES:
-            continue
         current, target = achievement_progress(db, criteria)
         assert current >= target, f"{step}: INV-04 '{a['title']}' desbloqueada com {current}/{target}"
 

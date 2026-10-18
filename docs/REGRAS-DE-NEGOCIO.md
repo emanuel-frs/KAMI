@@ -43,6 +43,7 @@ verdade é o código e o teste.
 | CQ-04 | Conquista personalizada conta só ações de verdade (sem bônus nem ação manual), com a palavra-chave quando houver | `test_conquistas_personalizadas.py::test_conta_so_acoes_de_verdade_com_a_palavra` |
 | CQ-05 | Concluir e reabrir o mesmo marco não conta como várias conclusões | `test_integridade_xp.py::test_count_achievement_ignores_reverted_completions` |
 | CQ-06 | Pagar a última conta fixa do mês desbloqueia "contas em dia" na hora | `test_integridade_xp.py::test_xp_08_unpaying_fixed_bill_relocks_contas_em_dia` |
+| CQ-07 | Toda ação rebloqueia a conquista que deixou de valer (ex.: saída retroativa que deixa negativo um mês fechado tira "mês no azul"); as de sequência usam o recorde e não somem | `test_integridade_xp.py::test_cq_07_retroactive_expense_relocks_mes_no_azul` |
 
 ## Hábito: sequência, proteções, missões e bônus
 
@@ -163,5 +164,5 @@ Rodam sequências aleatórias, com semente fixa, de ações em vários módulos
 | INV-01 | O xp de cada atributo é a soma do xp do log daquele atributo | `test_invariantes.py::test_inv_01_a_04_sequencia_aleatoria_nunca_quebra_as_regras` |
 | INV-02 | O nível de cada atributo é o que a curva dá para aquele xp | `test_invariantes.py::test_inv_01_a_04_sequencia_aleatoria_nunca_quebra_as_regras` |
 | INV-03 | Saldo da conta = saldo inicial + entradas − saídas lançadas nela | `test_invariantes.py::test_inv_01_a_04_sequencia_aleatoria_nunca_quebra_as_regras` |
-| INV-04 | Toda conquista desbloqueada continua cumprindo o critério ("mês no azul" fica de fora até decidir o que fazer quando um lançamento retroativo deixa negativo um mês já fechado) | `test_invariantes.py::test_inv_01_a_04_sequencia_aleatoria_nunca_quebra_as_regras` |
+| INV-04 | Toda conquista desbloqueada continua cumprindo o critério | `test_invariantes.py::test_inv_01_a_04_sequencia_aleatoria_nunca_quebra_as_regras` |
 | INV-05 | Fazer e desfazer volta xp e saldo exatamente ao estado anterior | `test_invariantes.py::test_inv_05_fazer_e_desfazer_volta_ao_estado_anterior` |

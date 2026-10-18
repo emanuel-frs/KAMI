@@ -92,6 +92,14 @@ def register_action(
 
     db.commit()
     newly_unlocked = check_achievements(db)
+    # P-17 (CONF-04): toda ação também rebloqueia o que deixou de valer — não
+    # só o "desfazer". Caso que motivou: "mês no azul" (mês já fechado com
+    # entradas > saídas) continuava desbloqueada depois de uma saída
+    # RETROATIVA deixar aquele mês negativo, porque lançar não desfaz nada.
+    # Conquistas de sequência usam o recorde (streak_info["best"]), então não
+    # somem quando a sequência quebra.
+    relock_unmet_achievements(db)
+    db.commit()
     if com_bonus:
         aplicar_bonus(db, log_id, categories, xp, atrasado)  # cada bônus é um log próprio, ligado a este
     if not is_bonus:
