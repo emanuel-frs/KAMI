@@ -13,6 +13,10 @@ Endpoints:
   POST /api/sistema/erro-frontend
                              registra no kami-backend.log um erro de
                              JavaScript da tela (CONF-01)
+  GET  /api/sistema/diagnostico
+                             texto pra colar num relato de problema:
+                             versão, sistema e o fim do log, SEM dados
+                             pessoais (CONF-06)
 
 Nota sobre /import: `email_accounts.app_password_enc`,
 `github_settings.token_enc` e `search_settings.api_key_enc` no export
@@ -21,6 +25,9 @@ saem criptografados com a chave local da máquina (app/crypto.py +
 conseguir descriptografar essas credenciais, só o resto dos dados.
 """
 import logging
+import platform
+import re
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -347,3 +354,65 @@ def registrar_erro_frontend(payload: FrontendErrorIn):
     if _frontend_errors_logged == FRONTEND_ERRORS_MAX:
         frontend_logger.warning("limite de %d erros da tela atingido — os próximos não serão registrados", FRONTEND_ERRORS_MAX)
     return None
+
+
+# ── diagnóstico pra relato de problema (CONF-06) ──────────────────────────
+#
+# Junta o que ajuda a investigar um problema (versão, sistema, tamanho do
+# banco, fim do kami-backend.log) num texto pronto pra colar num relato —
+# e tira o que é pessoal ANTES de sair daqui: e-mails, chaves/tokens,
+# valores em R$, senhas, e a pasta pessoal (vira "~"). O log já não grava
+# query string nem headers (app/logs.py), isto é a segunda camada.
+
+DIAGNOSTICO_LINHAS_LOG = 100
+
+_ANONIMIZAR = [
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[e-mail removido]"),
+    (re.compile(r"\b(?:ghp_|gho_|github_pat_|tvly-|sk-)[A-Za-z0-9_\-]+"), "[chave removida]"),
+    (re.compile(r"(?i)\b(senha|password|passwd|token|api[_-]?key|secret)\b(\s*[:=]\s*)\S+"), r"\1\2[removido]"),
+    (re.compile(r"R\$\s?-?[\d.,]+"), "R$ [valor]"),
+    # qualquer sequência longa sem hífen (hash, token, chave) — UUIDs têm
+    # hífen e ficam (ajudam a achar a linha certa, não identificam ninguém)
+    (re.compile(r"\b[A-Za-z0-9_]{32,}\b"), "[removido]"),
+]
+
+
+def anonimizar(texto: str) -> str:
+    home = str(Path.home())
+    if home and home != "/":
+        texto = texto.replace(home, "~")
+    for padrao, troca in _ANONIMIZAR:
+        texto = padrao.sub(troca, texto)
+    return texto
+
+
+def _fim_do_log(path: Path, linhas: int) -> list[str]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", errors="replace") as fh:
+        return [l.rstrip("\n") for l in fh.readlines()[-linhas:]]
+
+
+@router.get("/diagnostico")
+def diagnostico():
+    from app.database import DB_PATH, MIGRATION_BACKUP_PREFIX, backups_dir
+    from app.paths import get_data_dir
+
+    data_dir = get_data_dir()
+    log_path = data_dir / "kami-backend.log"
+    banco_kb = round(DB_PATH.stat().st_size / 1024) if DB_PATH.exists() else 0
+    backups = len(list(backups_dir().glob(f"{MIGRATION_BACKUP_PREFIX}*.db"))) if backups_dir().exists() else 0
+    log = _fim_do_log(log_path, DIAGNOSTICO_LINHAS_LOG)
+
+    cabecalho = [
+        f"Kami v{KAMI_VERSION} — diagnóstico gerado em {now_iso()[:19].replace('T', ' ')}",
+        f"sistema: {platform.platform()} · python {platform.python_version()}",
+        f"pasta de dados: {data_dir}",
+        f"banco: {banco_kb} KB · backups de atualização: {backups}",
+        "",
+        f"--- últimas {len(log)} linhas do kami-backend.log ---" if log
+        else "--- sem kami-backend.log (o app em modo de desenvolvimento não grava log em arquivo) ---",
+    ]
+    texto = anonimizar("\n".join(cabecalho + log))
+    return {"versao": KAMI_VERSION, "texto": texto, "linhas_de_log": len(log)}
+
