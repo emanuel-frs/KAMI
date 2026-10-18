@@ -70,7 +70,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   configurações › aparência.
 - **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
-  visão mensal com comparação com o mês anterior.
+  visão mensal com comparação com o mês anterior. Lançamento digitado errado se corrige ou apaga, e o
+  saldo e o XP acompanham; quitar uma dívida pode lançar a saída na conta.
 - **Aprendizado:** trilhas de estudo com marcos, progresso automático, roadmap reordenável e heatmap de
   atividade.
 - **Metas pessoais:** tipos como financeira, saúde, leitura, hábito, aprendizado e acadêmica, com um peso
@@ -80,6 +81,10 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Carreira e Calendário:** linha do tempo de posições, formação e histórico salarial; calendário
   mensal que reúne contas, dívidas, parcelas, metas e eventos próprios.
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
+- **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
+  se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
+  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
+  configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
 
 Hoje o Kami **não usa inteligência artificial**. O "assistente Kami" que aparece na barra lateral
 está marcado como "em breve" e ainda não faz nada.
