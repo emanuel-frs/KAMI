@@ -141,18 +141,7 @@ def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id
         (*tipos, referencia_id),
     ).fetchall()
     for log in logs:
-        # GAM-08: os bônus desta ação saem junto com ela
-        if REF_BONUS not in tipos:
-            revert_actions(db, REF_BONUS, log["id"])
-        attrs = db.execute(
-            "SELECT a.* FROM action_log_attributes ala "
-            "JOIN attributes a ON a.id = ala.attribute_id "
-            "WHERE ala.action_log_id = ?",
-            (log["id"],),
-        ).fetchall()
-        for row in attrs:
-            _set_attribute_xp(db, row, row["current_xp"] - log["xp_gained"])
-        db.execute("DELETE FROM action_logs WHERE id = ?", (log["id"],))
+        _revert_one(db, log, with_bonus=REF_BONUS not in tipos)
     if logs and REF_MISSAO not in tipos and REF_BONUS not in tipos:
         # GAM-07: a missão que esta ação tinha concluído volta a pendente
         # (e o bônus dela é estornado, pelo próprio revert_actions)
@@ -161,6 +150,42 @@ def revert_actions(db, referencia_tipo: Union[str, Iterable[str]], referencia_id
         relock_unmet_achievements(db)
         db.commit()
     return len(logs)
+
+
+def _revert_one(db, log, with_bonus: bool = True) -> None:
+    """Debita de cada atributo o xp que o log creditou e apaga o log. Não comita."""
+    # GAM-08: os bônus desta ação saem junto com ela
+    if with_bonus:
+        revert_actions(db, REF_BONUS, log["id"])
+    attrs = db.execute(
+        "SELECT a.* FROM action_log_attributes ala "
+        "JOIN attributes a ON a.id = ala.attribute_id "
+        "WHERE ala.action_log_id = ?",
+        (log["id"],),
+    ).fetchall()
+    for row in attrs:
+        _set_attribute_xp(db, row, row["current_xp"] - log["xp_gained"])
+    db.execute("DELETE FROM action_logs WHERE id = ?", (log["id"],))
+
+
+def delete_manual_action(db, log_id: str) -> None:
+    """
+    CONF-07 (P-12): apaga uma ação registrada À MÃO no núcleo (source
+    'form') e estorna o xp dela. Ação gerada por um módulo (lançamento,
+    marco, pagamento...) não se apaga por aqui — desfaz-se na origem, que
+    já estorna o xp e mantém a entidade e o log em sincronia.
+    """
+    log = db.execute("SELECT * FROM action_logs WHERE id = ?", (log_id,)).fetchone()
+    if not log:
+        raise HTTPException(status_code=404, detail="ação não encontrada")
+    if log["source"] != "form" or log["referencia_tipo"]:
+        raise HTTPException(
+            status_code=409,
+            detail="esta ação foi registrada automaticamente por um módulo — desfaça por lá (ex.: reabra o marco, apague o lançamento)",
+        )
+    _revert_one(db, log)
+    relock_unmet_achievements(db)
+    db.commit()
 
 
 def debit_xp(db, attribute_name: str, amount: int) -> None:

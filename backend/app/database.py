@@ -663,6 +663,42 @@ def _migrate_debts_quitacao(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_transacao_referencia(conn: sqlite3.Connection) -> None:
+    """
+    CONF-07: o xp de um lançamento (action_log "lançou entrada: mercado")
+    passou a apontar pra transação (referencia 'transacao'), pra que
+    apagar/corrigir o lançamento estorne o xp certo. Os logs antigos não
+    tinham vínculo: aqui eles são ligados à transação de mesma descrição,
+    na ordem em que os dois foram criados (o log é gravado logo depois da
+    transação, e o rowid guarda a ordem de inserção). Log sem par fica sem
+    vínculo — apagar aquele lançamento antigo só não estorna o xp dele.
+    Idempotente: só olha logs ainda sem referência.
+    """
+    logs = conn.execute(
+        "SELECT id, description FROM action_logs "
+        "WHERE source = 'financas' AND referencia_tipo IS NULL AND description LIKE 'lançou %' "
+        "ORDER BY created_at, rowid"
+    ).fetchall()
+    if not logs:
+        return
+    linked = {
+        r["referencia_id"]
+        for r in conn.execute("SELECT referencia_id FROM action_logs WHERE referencia_tipo = 'transacao'").fetchall()
+    }
+    pending: dict = {}
+    for tx in conn.execute("SELECT id, type, description FROM transactions ORDER BY rowid").fetchall():
+        if tx["id"] not in linked:
+            pending.setdefault(f"lançou {tx['type']}: {tx['description']}", []).append(tx["id"])
+    for log in logs:
+        fila = pending.get(log["description"])
+        if fila:
+            conn.execute(
+                "UPDATE action_logs SET referencia_tipo = 'transacao', referencia_id = ? WHERE id = ?",
+                (fila.pop(0), log["id"]),
+            )
+    conn.commit()
+
+
 def init_db() -> None:
     """Cria as tabelas (se não existirem) e semeia dados default."""
     conn = get_connection()
@@ -699,6 +735,7 @@ def init_db() -> None:
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
     _migrate_debts_quitacao(conn)
+    _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 

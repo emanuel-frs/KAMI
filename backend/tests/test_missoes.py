@@ -277,3 +277,19 @@ def test_geracao_respeita_o_dia_local_passado(db_conn):
     assert {r["referencia"] for r in dias} == {QUARTA.isoformat()}
     assert len(dias) <= 3
     assert [r["referencia"] for r in rows if r["periodo"] == "semana"] == ["2026-06-15"]
+
+
+def test_apagar_o_lancamento_volta_a_missao_e_estorna_o_bonus(client, db_conn):
+    """CONF-07: apagar o lançamento que concluiu "lance um gasto" desfaz a missão."""
+    conta = _account(client)
+    mid = _missao(db_conn, "lancamento")
+    tx = client.post("/api/financas/transactions", json={
+        "description": "mercado", "amount": 10, "type": "saida", "category": "alimentacao",
+        "date": datetime.date.today().isoformat(), "conta_id": conta["id"],
+    }).json()
+    assert _status(db_conn, mid) is not None
+    assert _xp(client, "financas") == 3 + 10
+
+    assert client.delete(f"/api/financas/transactions/{tx['id']}").status_code == 204
+    assert _status(db_conn, mid) is None
+    assert _xp(client, "financas") == 0

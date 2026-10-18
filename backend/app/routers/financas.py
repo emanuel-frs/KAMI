@@ -199,6 +199,9 @@ class TransactionOut(BaseModel):
     forma_pagamento: Optional[str] = None
     conta_destino_id: Optional[str] = None
     destino_externo: Optional[str] = None
+    # CONF-07: de onde veio (None = lançamento avulso). Lançamento que veio
+    # de outro módulo só se desfaz por lá — ver _origem_transacao.
+    origem: Optional[str] = None
 
 
 class CategoryTotal(BaseModel):
@@ -985,11 +988,16 @@ def list_transactions(month: str, db=Depends(get_db)):
         "SELECT * FROM transactions WHERE substr(date,1,7) = ? ORDER BY date DESC",
         (month,),
     ).fetchall()
-    return [dict(r) for r in rows]
+    return [dict(r) | {"origem": _origem_transacao(db, r["id"])} for r in rows]
 
 
-@router.post("/transactions", response_model=TransactionOut)
-def create_transaction(payload: TransactionIn, db=Depends(get_db)):
+def _apply_transaction(db, payload: TransactionIn) -> dict:
+    """
+    Valida e aplica um lançamento (grava a transação e mexe em saldo/fatura).
+    NÃO comita e NÃO credita xp — create_transaction e update_transaction
+    fazem isso; o update usa a falta de commit pra voltar tudo atrás se a
+    validação do lançamento novo falhar (CONF-07).
+    """
     conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
     if not conta:
         raise HTTPException(status_code=422, detail=f"conta não encontrada: '{payload.conta_id}'")
@@ -1072,17 +1080,6 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
             ),
         )
 
-    db.commit()
-
-    register_action(
-        db,
-        description=f"lançou {payload.type}: {payload.description}",
-        categories=["financas"],
-        xp=XP_TRANSACAO,
-        impact=2,
-        source="financas",
-    )
-
     return {
         "id": tx_id,
         "description": payload.description,
@@ -1095,6 +1092,119 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
         "conta_destino_id": conta_destino_id,
         "destino_externo": destino_externo,
     }
+
+# ==================== lançamento: criar, corrigir, apagar (CONF-07) ====================
+# Antes não havia como corrigir um lançamento errado (ex.: R$ 500 em vez de
+# R$ 50) — o erro ficava no saldo e no xp pra sempre (P-12). Agora:
+#   - apagar desfaz o efeito no saldo/fatura e estorna o xp do lançamento;
+#   - corrigir (PUT) troca o lançamento de uma vez: desfaz o antigo, aplica
+#     o novo e, se o novo não passar na validação (saldo, limite...), volta
+#     tudo como estava — sem o risco de "apagar e lançar de novo" falhar
+#     no meio e o lançamento sumir;
+#   - lançamento gerado por outro módulo (conta fixa, assinatura, renda,
+#     meta, dívida) NÃO se apaga nem se corrige por aqui: o vínculo do outro
+#     lado ficaria apontando pra nada. Desfaz-se pela origem (desmarcar o
+#     pagamento, apagar a contribuição...), que já devolve o dinheiro.
+
+REF_TRANSACAO = "transacao"
+
+# (tabela, coluna) que guardam o id de uma transação gerada por outro módulo
+_ORIGENS_TRANSACAO = [
+    ("conta fixa", "fixed_bill_periods", "transaction_id"),
+    ("assinatura", "wallet_subscription_periods", "transaction_id"),
+    ("renda", "income_entries", "transaction_id"),
+    ("meta", "goal_contributions", "transaction_id"),
+    ("dívida", "debts", "transacao_id"),
+]
+
+
+def _origem_transacao(db, tx_id: str) -> Optional[str]:
+    for nome, tabela, coluna in _ORIGENS_TRANSACAO:
+        if db.execute(f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (tx_id,)).fetchone():
+            return nome
+    return None
+
+
+def _get_avulsa_or_error(db, tx_id: str):
+    tx = db.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+    if not tx:
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+    origem = _origem_transacao(db, tx_id)
+    if origem:
+        raise HTTPException(
+            status_code=409,
+            detail=f"este lançamento veio de {origem} — desfaça por lá (ex.: desmarque o pagamento)",
+        )
+    return tx
+
+
+def _undo_transaction(db, tx) -> None:
+    """Desfaz o efeito de um lançamento no saldo/fatura e o remove. Não comita."""
+    conta_id, amount = tx["conta_id"], tx["amount"]
+    if conta_id:  # conta apagada depois: não há saldo pra devolver
+        if tx["type"] == "entrada":
+            db.execute("UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?", (amount, conta_id))
+        elif tx["type"] == "saida" and tx["forma_pagamento"] == "credito":
+            db.execute("UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) - ? WHERE id = ?", (amount, conta_id))
+        else:  # saída no saldo e transferência (sai da origem nos dois casos)
+            db.execute("UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?", (amount, conta_id))
+    if tx["type"] == "transferencia" and tx["conta_destino_id"]:
+        db.execute(
+            "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
+            (amount, tx["conta_destino_id"]),
+        )
+    db.execute("DELETE FROM transactions WHERE id = ?", (tx["id"],))
+
+
+def _credit_transaction_xp(db, out: dict) -> None:
+    register_action(
+        db,
+        description=f"lançou {out['type']}: {out['description']}",
+        categories=["financas"],
+        xp=XP_TRANSACAO,
+        impact=2,
+        source="financas",
+        referencia_tipo=REF_TRANSACAO,
+        referencia_id=out["id"],
+    )
+
+
+@router.post("/transactions", response_model=TransactionOut)
+def create_transaction(payload: TransactionIn, db=Depends(get_db)):
+    out = _apply_transaction(db, payload)
+    db.commit()
+    _credit_transaction_xp(db, out)
+    return out
+
+
+@router.put("/transactions/{tx_id}", response_model=TransactionOut)
+def update_transaction(tx_id: str, payload: TransactionIn, db=Depends(get_db)):
+    old = _get_avulsa_or_error(db, tx_id)
+    _undo_transaction(db, old)
+    try:
+        out = _apply_transaction(db, payload)
+    except HTTPException:
+        db.rollback()  # o lançamento antigo volta exatamente como estava
+        raise
+    db.commit()
+    # xp: o lançamento corrigido rende o mesmo de um novo, e o antigo é
+    # estornado — o total não muda, mas o log aponta pro lançamento certo
+    _credit_transaction_xp(db, out)
+    revert_actions(db, REF_TRANSACAO, tx_id)
+    return out
+
+
+@router.delete("/transactions/{tx_id}", status_code=204)
+def delete_transaction(tx_id: str, db=Depends(get_db)):
+    tx = _get_avulsa_or_error(db, tx_id)
+    _undo_transaction(db, tx)
+    db.commit()
+    revert_actions(db, REF_TRANSACAO, tx_id)
+    # apagar pode mudar conquistas sem log pra estornar (ex.: "mês no azul"
+    # de um lançamento antigo, de antes do vínculo) — confere de novo
+    relock_unmet_achievements(db)
+    db.commit()
+
 
 @router.get("/summary", response_model=SummaryOut)
 def get_summary(month: str, db=Depends(get_db)):

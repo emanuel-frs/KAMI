@@ -25,7 +25,7 @@ from app.achievements import achievement_progress
 from app.xp import level_from_xp
 
 SEEDS = [1, 7, 42, 2026, 31337]
-STEPS = 35
+STEPS = 45
 SALDO_INICIAL = 100_000.0
 MONTH = "2026-03"
 
@@ -101,6 +101,7 @@ class _World:
         ]
         self.dividas_pagas: set = set()
         self.links: list = []
+        self.lancamentos: list = []  # ids de lançamentos avulsos (CONF-07: apagar/corrigir)
 
     # cada ação devolve uma função que a desfaz (ou None se não há desfazer)
     def acao_manual(self):
@@ -109,12 +110,30 @@ class _World:
         assert r.status_code == 200, r.text
 
     def lancamento(self):
-        tipo = self.rng.choice(["entrada", "saida"])
-        r = self.c.post("/api/financas/transactions", json={
-            "description": "t", "amount": round(self.rng.uniform(1, 500), 2), "type": tipo,
-            "category": "outros", "date": f"{MONTH}-15", "conta_id": self.conta["id"],
-        })
+        r = self.c.post("/api/financas/transactions", json=self._tx_body())
         assert r.status_code == 200, r.text
+        self.lancamentos.append(r.json()["id"])
+
+    def _tx_body(self):
+        return {
+            "description": "t", "amount": round(self.rng.uniform(1, 500), 2),
+            "type": self.rng.choice(["entrada", "saida"]),
+            "category": "outros", "date": f"{MONTH}-{self.rng.randint(1, 28):02d}", "conta_id": self.conta["id"],
+        }
+
+    def apagar_lancamento(self):
+        if not self.lancamentos:
+            return self.lancamento()
+        tx_id = self.lancamentos.pop(self.rng.randrange(len(self.lancamentos)))
+        assert self.c.delete(f"/api/financas/transactions/{tx_id}").status_code == 204
+
+    def corrigir_lancamento(self):
+        if not self.lancamentos:
+            return self.lancamento()
+        i = self.rng.randrange(len(self.lancamentos))
+        r = self.c.put(f"/api/financas/transactions/{self.lancamentos[i]}", json=self._tx_body())
+        assert r.status_code == 200, r.text
+        self.lancamentos[i] = r.json()["id"]
 
     def conta_fixa(self):
         acao = "unpay" if self.periodo_pago else "pay"
@@ -153,7 +172,8 @@ class _World:
                 self.links.append(r.json()["id"])
         assert r.status_code < 300, r.text
 
-    ACOES = ["acao_manual", "lancamento", "conta_fixa", "marco", "contribuicao", "divida", "link"]
+    ACOES = ["acao_manual", "lancamento", "apagar_lancamento", "corrigir_lancamento",
+             "conta_fixa", "marco", "contribuicao", "divida", "link"]
 
 
 @pytest.mark.parametrize("seed", SEEDS)
