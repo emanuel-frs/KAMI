@@ -109,6 +109,8 @@ def export_data(db=Depends(get_db)):
         for r in db.execute(
             "SELECT name FROM sqlite_master "
             "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+            # sistema_info é do banco, não do usuário (CONF-05)
+            "AND name != 'sistema_info' "
             "ORDER BY name"
         ).fetchall()
     ]

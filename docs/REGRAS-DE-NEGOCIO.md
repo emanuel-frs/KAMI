@@ -159,6 +159,9 @@ verdade é o código e o teste.
 | SIS-02 | Exportar e importar preserva os dados (inclui dias protegidos e retrospectivas) | `test_sistema.py::test_import_restores_a_previous_backup`, `test_protecao_sequencia.py::test_backup_leva_os_dias_protegidos` |
 | SIS-03 | Reset volta ao estado de instalação nova | `test_sistema.py::test_reset_reseeds_fresh_install_defaults` |
 | SIS-04 | Exportar marca a data do último backup no perfil | `test_sistema.py::test_export_sets_last_backup_at_on_profile` |
+| SIS-05 | Ao abrir uma versão nova, o banco é copiado para `backups/` antes de qualquer atualização (instalação nova não gera cópia; a mesma versão não copia de novo) | `test_backup_migracao.py::test_sis_05_opening_a_new_version_backs_up_first_and_only_once`, `test_backup_migracao.py::test_sis_05_fresh_install_makes_no_backup_and_records_version` |
+| SIS-06 | Ficam só as 3 cópias mais recentes | `test_backup_migracao.py::test_sis_06_keeps_only_the_3_most_recent_backups` |
+| SIS-07 | Se a atualização do banco falhar, ele volta sozinho para a cópia e o app não abre com o banco pela metade | `test_backup_migracao.py::test_sis_07_failed_migration_restores_the_backup_and_stops` |
 
 ## Invariantes (sequências aleatórias)
 
