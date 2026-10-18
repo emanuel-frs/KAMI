@@ -32,6 +32,7 @@ verdade é o código e o teste.
 | XP-07 | O dia da ação é o dia local, não o UTC | `test_tempo_e_progresso.py::test_late_night_action_counts_for_the_local_day` |
 | XP-08 | Desfazer também rebloqueia a conquista que deixou de valer, mesmo quando o estado muda depois do estorno | `test_integridade_xp.py::test_xp_08_unpaying_fixed_bill_relocks_contas_em_dia`, `test_integridade_xp.py::test_xp_08_reopening_milestone_relocks_trilha_em_dia`, `test_integridade_xp.py::test_xp_08_deleting_paid_debt_relocks_quitado` |
 | XP-09 | A revisão do xp antigo simula sem mudar nada e só aplica depois de salvar uma cópia do banco | `test_revisao_xp.py::test_preview_does_not_change_anything`, `test_revisao_xp.py::test_apply_saves_a_backup_copy_first` |
+| XP-10 | Ação registrada à mão pode ser apagada e estorna o xp; ação automática só se desfaz na origem | `test_lancamentos.py::test_xp_10_deleting_manual_action_refunds_xp`, `test_lancamentos.py::test_xp_10_automatic_action_is_only_undone_at_its_origin` |
 
 ## Conquistas
 
@@ -76,6 +77,11 @@ verdade é o código e o teste.
 | FIN-11 | Fonte de renda encadeada não pode se referir a si mesma nem formar ciclo, e não pode ser apagada se outra depende dela | `test_financas.py::test_income_source_offset_fonte_rejects_cycle`, `test_financas.py::test_delete_income_source_blocked_when_referenced_by_chain` |
 | FIN-12 | Apagar conta fixa, assinatura ou fonte de renda estorna o xp dos meses pagos; as transações reais ficam | `test_integridade_xp.py::test_fin_12_deleting_fixed_bill_refunds_paid_months_but_keeps_transaction`, `test_integridade_xp.py::test_fin_12_recreating_and_paying_again_does_not_farm_xp` |
 | FIN-13 | Quitar dívida rende xp e, com conta, lança a saída; desmarcar desfaz tudo e rebloqueia "quitado"; quitar duas vezes conta uma | `test_integridade_xp.py::test_fin_13_paying_debt_from_account_debits_balance_and_credits_xp`, `test_integridade_xp.py::test_fin_13_unpaying_debt_returns_money_refunds_xp_and_relocks_achievement`, `test_integridade_xp.py::test_fin_13_paying_debt_twice_credits_and_debits_once` |
+| FIN-14 | Apagar um lançamento avulso desfaz o efeito (entrada, saída no saldo ou no crédito, transferência interna ou externa) e estorna o xp | `test_lancamentos.py::test_fin_14_deleting_entrada_removes_money_and_xp`, `test_lancamentos.py::test_fin_14_deleting_credit_purchase_lowers_the_bill`, `test_lancamentos.py::test_fin_14_deleting_transfers_restores_both_sides` |
+| FIN-15 | Corrigir um lançamento troca de uma vez; se o novo não passa na validação, o antigo fica como estava; o xp continua o de um lançamento | `test_lancamentos.py::test_fin_15_correcting_amount_fixes_balance_and_keeps_one_xp`, `test_lancamentos.py::test_fin_15_correction_that_fails_validation_keeps_the_old_transaction` |
+| FIN-16 | Lançamento gerado por outro módulo (conta fixa, assinatura, renda, meta, dívida) mostra a origem e só se desfaz por lá | `test_lancamentos.py::test_fin_16_transaction_from_another_module_is_marked_and_only_undone_there` |
+| FIN-17 | Lançamentos antigos ganham o vínculo com o xp pela descrição e ordem, então apagá-los também estorna | `test_lancamentos.py::test_fin_17_migration_links_old_transaction_xp_so_deleting_refunds_it` |
+| FIN-18 | Apagar o lançamento que concluiu uma missão volta a missão a pendente e estorna o bônus | `test_missoes.py::test_apagar_o_lancamento_volta_a_missao_e_estorna_o_bonus` |
 
 ## Carteira (bancos, contas, assinaturas, parcelas)
 

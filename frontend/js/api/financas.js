@@ -51,6 +51,10 @@ export const unpayDebt = (debtId) => put(`/api/financas/debts/${debtId}/unpay`, 
 // conta_destino_id (transferência interna) OU destino_externo (transferência externa)
 export const listTransactions = (month) => get(`/api/financas/transactions?month=${month}`);
 export const createTransaction = (data) => post("/api/financas/transactions", data);
+// CONF-07: corrigir troca o lançamento de uma vez (se o novo não passar na
+// validação, o antigo fica como estava); só lançamentos avulsos (origem null)
+export const updateTransaction = (id, data) => put(`/api/financas/transactions/${id}`, data);
+export const deleteTransaction = (id) => del(`/api/financas/transactions/${id}`);
 export const getSummary = (month) => get(`/api/financas/summary?month=${month}`);
 
 // NOTA: listCreditCards/createCreditCard/deleteCreditCard e
