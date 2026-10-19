@@ -163,6 +163,7 @@ verdade é o código e o teste.
 | SIS-06 | Ficam só as 3 cópias mais recentes | `test_backup_migracao.py::test_sis_06_keeps_only_the_3_most_recent_backups` |
 | SIS-07 | Se a atualização do banco falhar, ele volta sozinho para a cópia e o app não abre com o banco pela metade | `test_backup_migracao.py::test_sis_07_failed_migration_restores_the_backup_and_stops` |
 | SIS-08 | O diagnóstico (versão, sistema e o fim do log) sai sem e-mails, chaves, senhas, valores em R$ e sem o nome da pasta pessoal | `test_diagnostico.py::test_sis_08_diagnostico_tira_dados_pessoais_do_log`, `test_diagnostico.py::test_sis_08_diagnostico_so_traz_o_fim_do_log` |
+| SIS-09 | O backend termina junto com o app: fechar a janela encerra a árvore inteira do sidecar, e se o app sumir sem avisar o backend percebe e sai sozinho | `test_processo.py::test_sis_09_backend_notices_when_the_app_process_is_gone`, `test_processo.py::test_sis_09_without_the_app_pid_there_is_nothing_to_watch` |
 
 ## Segurança
 

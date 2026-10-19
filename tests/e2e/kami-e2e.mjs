@@ -72,9 +72,23 @@ async function waitFor(what, fn, { timeout = 30000, every = 500 } = {}) {
 }
 
 function killBackend() {
-  // no CI só existe o nosso sidecar; nome do processo igual nos dois sistemas
-  if (IS_WINDOWS) execSync("taskkill /F /T /IM kami-backend.exe", { stdio: "ignore" });
-  else execSync("pkill -9 -x kami-backend", { stdio: "ignore" });
+  // no CI só existe o nosso sidecar
+  if (IS_WINDOWS) {
+    execSync("taskkill /F /T /IM kami-backend.exe", { stdio: "ignore" });
+    return;
+  }
+  // Linux: só o backend DESTE teste (pela pasta de dados) — rodando na
+  // máquina de alguém, um Kami de verdade aberto não pode cair junto
+  const pids = execSync("pgrep -x kami-backend || true", { encoding: "utf8" }).split(/\s+/).filter(Boolean);
+  for (const pid of pids) {
+    let env = "";
+    try {
+      env = readFileSync(`/proc/${pid}/environ`, "utf8");
+    } catch {
+      continue;
+    }
+    if (env.split("\0").includes(`KAMI_DATA_DIR=${DATA_DIR}`)) execSync(`kill -9 ${pid}`, { stdio: "ignore" });
+  }
 }
 
 async function main() {
