@@ -33,7 +33,7 @@ def test_seg_15_turning_on_shows_a_recovery_code_once_and_keeps_only_hashes(clie
     codigo = _ligar(client)
     assert re.fullmatch(r"KAMI-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}", codigo)
     assert client.get("/api/perfil").status_code == 200  # quem ligou continua usando
-    texto = pin.PIN_PATH.read_text()
+    texto = pin.PIN_PATH.read_text(encoding="utf-8")
     assert PIN not in texto and codigo[5:9] not in texto
     if os.name != "nt":
         assert stat.S_IMODE(pin.PIN_PATH.stat().st_mode) == 0o600
@@ -78,7 +78,7 @@ def test_seg_17_five_wrong_attempts_make_it_wait_and_restart_does_not_reset(clie
     assert client.get("/api/seguranca/pin").json()["espera_s"] == 60  # cada erro a mais dobra
     agora[0] += 61
     assert client.post("/api/seguranca/pin/desbloquear", json={"pin": PIN}).status_code == 200
-    assert json.loads(pin.PIN_PATH.read_text())["erros"] == 0
+    assert json.loads(pin.PIN_PATH.read_text(encoding="utf-8"))["erros"] == 0
 
 
 def test_seg_17_wait_is_capped_at_15_minutes(client, monkeypatch):
@@ -147,7 +147,7 @@ def test_seg_20_inactivity_lock_is_optional_and_locks_on_request(client):
 
 
 def test_seg_21_damaged_pin_file_does_not_lock_the_person_out(client):
-    pin.PIN_PATH.write_text("{isso não é json")
+    pin.PIN_PATH.write_text("{isso não é json", encoding="utf-8")
     _reabrir()
     assert client.get("/api/perfil").status_code == 200
 

@@ -58,7 +58,8 @@ def test_seg_22_exceptions_need_a_date_and_stop_counting_after_it(tmp_path):
     arq = tmp_path / "excecoes.toml"
     arq.write_text(
         '[[excecao]]\nid = "GHSA-x"\nmotivo = "não usamos a função afetada"\nrevisar_ate = "2026-12-31"\n'
-        '[[excecao]]\nid = "GHSA-velha"\nmotivo = "x"\nrevisar_ate = "2026-01-01"\n'
+        '[[excecao]]\nid = "GHSA-velha"\nmotivo = "x"\nrevisar_ate = "2026-01-01"\n',
+        encoding="utf-8",
     )
     validas, vencidas = auditoria.carregar_excecoes(str(arq), dt.date(2026, 10, 19))
     assert set(validas) == {"GHSA-x"} and vencidas == ["GHSA-velha (venceu em 2026-01-01)"]
