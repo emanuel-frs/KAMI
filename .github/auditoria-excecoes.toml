@@ -1,0 +1,12 @@
+# Exceções da auditoria de dependências (SEG-04, scripts/auditoria.py).
+#
+# Uma vulnerabilidade alta/crítica faz o CI falhar. Se ela não afeta o
+# Kami (ex.: a função vulnerável não é usada) ou ainda não tem correção,
+# registre aqui — sempre com o motivo e uma data pra revisar. Passou da
+# data, a exceção deixa de valer e o CI volta a falhar, pra nenhuma ficar
+# esquecida.
+#
+# [[excecao]]
+# id = "GHSA-xxxx-xxxx-xxxx"          # ou RUSTSEC-AAAA-NNNN / PYSEC-AAAA-NNN
+# motivo = "por que não afeta o Kami / o que falta pra corrigir"
+# revisar_ate = "2027-01-31"
