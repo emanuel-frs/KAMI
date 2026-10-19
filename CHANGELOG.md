@@ -4,6 +4,11 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.11.0] - em desenvolvimento
+
+_Sprint 3 da evolução — segurança (SEG-01 a SEG-06: chave dos segredos no cofre do sistema, limites de entrada, backup com senha, PIN opcional pra abrir o app, auditoria de dependências, documentação de segurança). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
+
 ## [1.10.0] - 2026-10-19
 
 _Sprint de confiabilidade: quando algo dá errado o Kami avisa, se recupera sozinho e guarda o que é preciso para investigar — e as regras de saldo e xp ganharam uma rede de testes que achou e corrigiu cinco bugs._
