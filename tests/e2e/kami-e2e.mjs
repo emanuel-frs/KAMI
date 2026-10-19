@@ -115,6 +115,29 @@ async function main() {
     await wd.execute("document.querySelectorAll('.toast-item').forEach((t) => t.remove())");
     log("dados fictícios carregados");
 
+    // 1b. SEG-01: a chave das senhas salvas — no Windows tem que ir pro
+    // Gerenciador de Credenciais; no Linux do CI (sem Secret Service) fica
+    // no arquivo. E uma senha salva tem que voltar decifrada: o sync de um
+    // IMAP inexistente falha na CONEXÃO, não na leitura da senha.
+    const api = async (path, init = {}) => {
+      const r = await fetch(`http://127.0.0.1:${port}${path}`, {
+        ...init,
+        headers: { "X-Kami-Token": token, "Content-Type": "application/json" },
+      });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    };
+    const chave = (await api("/api/seguranca/chave")).body;
+    log(`chave das senhas: ${chave.local}${chave.cofre ? ` (${chave.cofre})` : ""}${chave.motivo ? ` — ${chave.motivo}` : ""}`);
+    if (IS_WINDOWS && chave.local !== "cofre") fail(`no Windows a chave deveria estar no cofre: ${JSON.stringify(chave)}`);
+    const conta = await api("/api/organizacao/email-accounts", {
+      method: "POST",
+      body: JSON.stringify({ label: "e2e", imap_host: "127.0.0.1", imap_port: 1, username: "e2e@exemplo.invalid", app_password: "senha-e2e" }),
+    });
+    const sync = await api(`/api/organizacao/email-accounts/${conta.body?.id}/sync`, { method: "POST" });
+    if (!/conectar/.test(sync.body?.detail || "")) fail(`senha salva não voltou decifrada: ${sync.status} ${JSON.stringify(sync.body)}`);
+    else log("senha salva e lida de volta pela chave");
+    await api(`/api/organizacao/email-accounts/${conta.body?.id}`, { method: "DELETE" });
+
     // 2. telas × tamanhos
     for (const [w, h] of SIZES) {
       const resized = await wd.setWindowSize(w, h);
