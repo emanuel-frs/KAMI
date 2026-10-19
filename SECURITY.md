@@ -19,10 +19,13 @@ poder corrigir.
   (`backend_token.txt`, permissão `0600` em Linux/macOS) na pasta de dados.
   Uma página aberta no navegador não consegue obtê-lo.
 - Senhas de app (IMAP) e tokens (GitHub, busca) ficam **cifrados** no
-  banco com uma chave (`.secret_key`) guardada na mesma pasta de dados.
-  Isso evita segredos em texto puro, mas **não** protege contra outro
-  programa rodando com o seu usuário nem contra quem tenha acesso à sua
-  conta do sistema. Guardar a chave no cofre do sistema está no roadmap.
+  banco. Desde a 1.11 a chave fica no **cofre do sistema** (Gerenciador
+  de Credenciais no Windows, Secret Service — GNOME Keyring, KWallet —
+  no Linux), não na pasta de dados: quem copiar a pasta (backup em
+  nuvem, pendrive) não leva a chave. Sem cofre disponível, a chave fica
+  num arquivo `.secret_key` só do dono, e configurações › segurança
+  avisa. Isso **não** protege contra outro programa rodando com o seu
+  usuário (ele pode pedir a chave ao cofre como o Kami pede).
 - Os instaladores do Windows **não são assinados** (veja
   [docs/INSTALACAO.md](docs/INSTALACAO.md)). Confira o SHA-256 publicado
   na Release.

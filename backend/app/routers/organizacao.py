@@ -86,7 +86,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
-from app.crypto import encrypt_password, decrypt_password
+from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
 
 router = APIRouter()
 
@@ -353,7 +353,7 @@ def _get_github_headers(db) -> dict:
         try:
             token = decrypt_password(row["token_enc"])
             headers["Authorization"] = f"Bearer {token}"
-        except ValueError:
+        except (ValueError, ChaveIndisponivel):
             pass
     return headers
 
@@ -644,7 +644,7 @@ def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20, aut
     except ValueError:
         raise HTTPException(
             status_code=422,
-            detail="não foi possível decriptar a senha salva; remova e recadastre a conta",
+            detail="não foi possível ler a senha salva; edite a conta e informe a senha de app de novo",
         )
 
     try:

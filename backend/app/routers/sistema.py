@@ -20,8 +20,8 @@ Endpoints:
 
 Nota sobre /import: `email_accounts.app_password_enc`,
 `github_settings.token_enc` e `search_settings.api_key_enc` no export
-saem criptografados com a chave local da máquina (app/crypto.py +
-.secret_key) — um export importado numa instalação diferente não vai
+saem criptografados com a chave local da máquina (app/crypto.py —
+no cofre do sistema desde a 1.11) — um export importado numa instalação diferente não vai
 conseguir descriptografar essas credenciais, só o resto dos dados.
 """
 import logging
@@ -393,6 +393,17 @@ def _fim_do_log(path: Path, linhas: int) -> list[str]:
         return [l.rstrip("\n") for l in fh.readlines()[-linhas:]]
 
 
+def _local_da_chave() -> str:
+    from app import crypto
+
+    try:
+        estado = crypto.estado_da_chave()
+    except Exception as exc:  # noqa: BLE001 — o diagnóstico nunca pode falhar por isso
+        return f"erro ao consultar ({type(exc).__name__})"
+    texto = estado["local"] + (f" ({estado['cofre']})" if estado["cofre"] else "")
+    return texto + (f" — {estado['motivo']}" if estado["motivo"] else "")
+
+
 @router.get("/diagnostico")
 def diagnostico():
     from app.database import DB_PATH, MIGRATION_BACKUP_PREFIX, backups_dir
@@ -409,6 +420,7 @@ def diagnostico():
         f"sistema: {platform.platform()} · python {platform.python_version()}",
         f"pasta de dados: {data_dir}",
         f"banco: {banco_kb} KB · backups de atualização: {backups}",
+        f"chave dos segredos: {_local_da_chave()}",
         "",
         f"--- últimas {len(log)} linhas do kami-backend.log ---" if log
         else "--- sem kami-backend.log (o app em modo de desenvolvimento não grava log em arquivo) ---",

@@ -76,6 +76,7 @@
  * mostrar/esconder, não um modal separado).
  */
 import { exportData, getDiagnostico, importData, resetData } from "../api/sistema.js";
+import { getChave, redefinirChave } from "../api/seguranca.js";
 import { copyText } from "../components/clipboard.js";
 import { applyXpReview, getRecompensas, previewXpReview } from "../api/nucleo.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
@@ -109,6 +110,7 @@ import { prefersReducedMotion } from "../components/a11y.js";
 import { playSound } from "../components/sound.js";
 
 const RESET_WORD = "excluir";
+const REDEFINIR_WORD = "redefinir";
 const IMPORT_WORD = "importar";
 
 const TABS = [
@@ -116,6 +118,7 @@ const TABS = [
   { id: "perfil", label: "perfil", iconName: "user" },
   { id: "notificacoes", label: "notificações", iconName: "bell" },
   { id: "chaves", label: "chaves", iconName: "key" },
+  { id: "seguranca", label: "segurança", iconName: "shield" },
   { id: "backup", label: "backup e dados", iconName: "download" },
   { id: "sobre", label: "sobre", iconName: "circle-help" },
 ];
@@ -382,6 +385,88 @@ function buildBackupPanel() {
     </div>`;
 }
 
+// ── aba segurança (SEG-01) ─────────────────────────────────────────────
+// Onde está a chave que abre as senhas salvas (senha de app do e-mail,
+// token do github, chave da busca): no cofre do sistema (o normal), num
+// arquivo (sistema sem cofre) ou indisponível (o cofre perdeu a chave —
+// aí a única saída é redefinir, apagando esses segredos). Ver app/crypto.py.
+function buildSegurancaPanel() {
+  return `
+    <div class="cfg-panel" data-panel="seguranca">
+      <div class="settings-section" style="padding-top:0;">
+        <h4>senhas salvas</h4>
+        <p class="settings-desc">a senha de app do e-mail, o token do github e a chave da busca ficam cifrados no banco. a chave que abre esses dados fica:</p>
+        <p class="cfg-seg-chave" id="cfg-seg-chave">verificando…</p>
+        <p class="settings-status" id="cfg-seg-status"></p>
+        <p class="settings-note">a chave não vai junto quando a pasta de dados é copiada pra outro computador — lá, essas senhas precisam ser informadas de novo.</p>
+      </div>
+      <div class="settings-section settings-danger" id="cfg-seg-redefinir" hidden>
+        <h4>redefinir a chave</h4>
+        <p class="settings-desc" id="cfg-seg-redefinir-desc"></p>
+        <div class="field">
+          <label for="cfg-seg-confirm">digite <strong>${REDEFINIR_WORD}</strong> pra habilitar o botão abaixo</label>
+          <input type="text" id="cfg-seg-confirm" placeholder="${REDEFINIR_WORD}" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn sm danger" id="cfg-seg-redefinir-btn" disabled>redefinir chave</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function describeChave(estado) {
+  if (estado.local === "cofre") {
+    return `${icon("check", { size: 12 })} no cofre do sistema (${escapeHtml(estado.cofre)}) — quem copiar a pasta de dados não leva a chave junto.`;
+  }
+  if (estado.local === "arquivo") {
+    return `<span class="cfg-seg-warn">[!]</span> num arquivo na pasta de dados — ${escapeHtml(estado.motivo || "o sistema não tem cofre")}. funciona, mas quem copiar a pasta leva a chave junto.`;
+  }
+  return `<span class="cfg-seg-warn">[!]</span> indisponível — ${escapeHtml(estado.motivo || "o cofre não entregou a chave")}. as senhas salvas não podem ser lidas até a chave voltar.`;
+}
+
+async function loadSeguranca(wrap) {
+  const el = wrap.querySelector("#cfg-seg-chave");
+  const redefinir = wrap.querySelector("#cfg-seg-redefinir");
+  try {
+    const estado = await getChave();
+    el.innerHTML = describeChave(estado);
+    el.dataset.local = estado.local;
+    redefinir.hidden = estado.local !== "indisponivel";
+    const n = estado.segredos_salvos;
+    const perda =
+      n === 0
+        ? "não há senha salva agora, então nada é apagado."
+        : `${n === 1 ? "a senha salva é apagada" : `as ${n} senhas salvas são apagadas`} e precisa${n === 1 ? "" : "m"} ser informada${n === 1 ? "" : "s"} de novo em configurações › chaves.`;
+    wrap.querySelector("#cfg-seg-redefinir-desc").textContent =
+      `se o cofre não vai mais devolver a chave (outro computador, outro ambiente gráfico, cofre apagado), dá pra criar uma chave nova. ${perda} o resto dos dados não muda.`;
+  } catch (err) {
+    el.textContent = `não deu pra verificar: ${err.message}`;
+  }
+}
+
+function wireSegurancaTab(wrap) {
+  wrap.querySelector('.cfg-tab[data-tab="seguranca"]').addEventListener("click", () => loadSeguranca(wrap));
+  const input = wrap.querySelector("#cfg-seg-confirm");
+  const btn = wrap.querySelector("#cfg-seg-redefinir-btn");
+  input.addEventListener("input", () => {
+    btn.disabled = input.value.trim().toLowerCase() !== REDEFINIR_WORD;
+  });
+  btn.addEventListener("click", async () => {
+    const status = wrap.querySelector("#cfg-seg-status");
+    btn.disabled = true;
+    try {
+      const res = await redefinirChave(input.value.trim().toLowerCase());
+      input.value = "";
+      status.innerHTML = `${icon("check", { size: 12 })} chave nova criada${res.segredos_apagados ? ` — informe de novo em configurações › chaves ${res.segredos_apagados === 1 ? "a senha apagada" : `as ${res.segredos_apagados} senhas apagadas`}` : ""}.`;
+      status.classList.add("settings-status--visible");
+      await loadSeguranca(wrap);
+    } catch (err) {
+      showErrorModal(err.message, "não deu pra redefinir a chave");
+      btn.disabled = false;
+    }
+  });
+}
+
 // ── aba sobre (CONF-06) ────────────────────────────────────────────────
 // Versão do app e o "copiar diagnóstico": versão, sistema, tamanho do
 // banco e o fim do kami-backend.log, montado no BACKEND já sem dado
@@ -480,6 +565,7 @@ function buildModal() {
           ${buildPerfilPanel()}
           ${buildNotificacoesPanel()}
           ${buildChavesPanel()}
+          ${buildSegurancaPanel()}
           ${buildBackupPanel()}
           ${buildSobrePanel()}
         </div>
@@ -528,6 +614,7 @@ function wireModal(wrap) {
   wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
   wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
   wireBackupTab(wrap);
+  wireSegurancaTab(wrap);
   wireSobreTab(wrap);
 
   wrap.addEventListener("click", (e) => {

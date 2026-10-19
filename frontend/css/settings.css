@@ -287,3 +287,19 @@
   overflow-wrap: anywhere;
 }
 .cfg-diag-preview:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* SEG-01: onde está a chave das senhas salvas */
+.cfg-seg-chave {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cfg-seg-chave svg { vertical-align: -2px; color: var(--accent); }
+.cfg-seg-chave[data-local="arquivo"] { border-color: var(--amber); }
+.cfg-seg-chave[data-local="indisponivel"] { border-color: var(--red); }
+.cfg-seg-warn { font-weight: 700; color: var(--amber); }
+.cfg-seg-chave[data-local="indisponivel"] .cfg-seg-warn { color: var(--red); }

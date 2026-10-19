@@ -14,7 +14,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import init_db
-from app.erros import ErrosInesperadosMiddleware, http_exception_handler
+from app.crypto import ChaveIndisponivel
+from app.erros import ErrosInesperadosMiddleware, corpo_erro, http_exception_handler
 from app.logs import configure_logging
 from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
@@ -27,6 +28,7 @@ from app.routers import sistema
 from app.routers import widgets
 from app.routers import calendario
 from app.routers import carreira
+from app.routers import seguranca
 
 # data/hora em toda linha do log (AJU-05, ver app/logs.py) — aqui no
 # import pra valer também no modo dev (`uvicorn app.main:app`), em que o
@@ -122,6 +124,14 @@ def validation_exception_handler(request, exc):
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 
+# SEG-01: a chave das senhas salvas está no cofre, mas o cofre não a
+# entregou — 409 com código próprio, apontando pra configurações ›
+# segurança (em vez de virar "erro interno" ou "recadastre a senha")
+@app.exception_handler(ChaveIndisponivel)
+def chave_indisponivel_handler(request, exc):
+    return JSONResponse(status_code=409, content=corpo_erro(str(exc), "chave_indisponivel"))
+
+
 app.include_router(perfil.router, prefix="/api/perfil", tags=["perfil"])
 app.include_router(nucleo.router, prefix="/api/nucleo", tags=["nucleo"])
 app.include_router(financas.router, prefix="/api/financas", tags=["financas"])
@@ -134,3 +144,4 @@ app.include_router(sistema.router, prefix="/api/sistema", tags=["sistema"])
 app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
 app.include_router(calendario.router, prefix="/api/calendario", tags=["calendario"])
 app.include_router(carreira.router, prefix="/api/carreira", tags=["carreira"])
+app.include_router(seguranca.router, prefix="/api/seguranca", tags=["seguranca"])

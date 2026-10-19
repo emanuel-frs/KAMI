@@ -164,6 +164,16 @@ verdade é o código e o teste.
 | SIS-07 | Se a atualização do banco falhar, ele volta sozinho para a cópia e o app não abre com o banco pela metade | `test_backup_migracao.py::test_sis_07_failed_migration_restores_the_backup_and_stops` |
 | SIS-08 | O diagnóstico (versão, sistema e o fim do log) sai sem e-mails, chaves, senhas, valores em R$ e sem o nome da pasta pessoal | `test_diagnostico.py::test_sis_08_diagnostico_tira_dados_pessoais_do_log`, `test_diagnostico.py::test_sis_08_diagnostico_so_traz_o_fim_do_log` |
 
+## Segurança
+
+| Código | Regra | Teste |
+|---|---|---|
+| SEG-01 | A chave que protege as senhas salvas fica no cofre do sistema, não num arquivo; cada pasta de dados tem a sua entrada | `test_crypto.py::test_seg_01_new_install_keeps_key_in_the_vault_not_in_a_file`, `test_crypto.py::test_seg_01_each_data_folder_has_its_own_vault_entry`, `test_crypto.py::test_seg_01_status_and_diagnostic_say_where_the_key_is` |
+| SEG-02 | A chave antiga (arquivo `.secret_key`) vai pro cofre sem perder nenhuma senha, e o arquivo só é apagado depois que o cofre devolveu a chave igual | `test_crypto.py::test_seg_02_old_key_file_moves_to_the_vault_and_secrets_still_open`, `test_crypto.py::test_seg_02_vault_that_does_not_keep_the_key_leaves_the_file_alone` |
+| SEG-03 | Sem cofre no sistema, a chave fica num arquivo só do dono e o app avisa | `test_crypto.py::test_seg_03_without_a_vault_the_key_stays_in_a_private_file`, `test_crypto.py::test_seg_03_vault_can_be_turned_off_by_env` |
+| SEG-04 | Se o cofre não tem mais a chave, nenhuma chave nova é criada por cima: salvar ou ler senha responde 409 `chave_indisponivel` | `test_crypto.py::test_seg_04_lost_vault_key_is_never_replaced_silently`, `test_crypto.py::test_seg_04_vault_offline_after_migration_does_not_create_a_file_key`, `test_crypto.py::test_seg_04_unavailable_key_answers_409_with_its_own_code` |
+| SEG-05 | Redefinir a chave (com a palavra de confirmação) apaga as senhas, o token e a chave da busca salvos, e salvar volta a funcionar | `test_crypto.py::test_seg_05_redefining_the_key_erases_old_secrets_and_works_again` |
+
 ## Invariantes (sequências aleatórias)
 
 Rodam sequências aleatórias, com semente fixa, de ações em vários módulos
