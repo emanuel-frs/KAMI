@@ -306,3 +306,13 @@
 
 /* SEG-03: exportar sem senha */
 .cfg-export-aviso { color: var(--amber); }
+
+/* SEG-02: PIN */
+.cfg-pin-label { display: block; margin-bottom: 6px; color: var(--text-dim); font-size: 10.5px; }
+.cfg-pin-inat { display: flex; gap: 6px; flex-wrap: wrap; }
+.cfg-pin-inat .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.cfg-pin-mais { margin-top: 10px; }
+.cfg-pin-mais summary { cursor: pointer; color: var(--text-dim); font-size: 11px; }
+.cfg-pin-mais summary:hover { color: var(--accent); }
+.cfg-pin-mais[open] summary { margin-bottom: 8px; }
+.settings-status--erro { color: var(--red); }

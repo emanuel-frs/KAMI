@@ -18,6 +18,7 @@ from app.crypto import ChaveIndisponivel
 from app.erros import ErrosInesperadosMiddleware, corpo_erro, http_exception_handler
 from app.limites import LimiteDeCorpoMiddleware
 from app.logs import configure_logging
+from app.pin import BloqueioMiddleware
 from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
 from app.routers import perfil, nucleo, financas, carteira
@@ -72,6 +73,9 @@ app.add_middleware(ErrosInesperadosMiddleware)
 # SEG-05: corpo de no máximo 1 MB (50 MB no import) — por dentro do token,
 # então requisição sem token nem chega a ser lida (app/limites.py)
 app.add_middleware(LimiteDeCorpoMiddleware)
+# SEG-02: PIN ligado e app bloqueado → 423 em tudo menos o desbloqueio;
+# por dentro do token (sem token nem dá pra saber se há PIN)
+app.add_middleware(BloqueioMiddleware)
 app.add_middleware(SessionTokenMiddleware)
 app.add_middleware(
     CORSMiddleware,

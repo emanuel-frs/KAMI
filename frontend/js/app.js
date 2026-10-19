@@ -7,6 +7,7 @@ import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
 import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
+import { garantirDesbloqueio, startInactivityLock, wireLockScreen } from "./components/lock-screen.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
@@ -301,6 +302,12 @@ async function boot() {
       await reloadCurrentPage();
     },
   });
+  // SEG-02: com o PIN ligado, nada de dado carrega antes do desbloqueio
+  // (o backend também recusa: 423). Um 423 no meio do uso — o vigia
+  // reiniciou o backend, que nasce bloqueado — reabre a tela.
+  wireLockScreen();
+  await garantirDesbloqueio();
+  startInactivityLock();
   wireNav();
   wireSettingsButton();
   wireSidebarAvatar();

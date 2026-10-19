@@ -11,14 +11,26 @@ Endpoints:
                                        GitHub, chave da busca) — saída de
                                        quando o cofre perdeu a chave
 
-Ver app/crypto.py pro funcionamento do cofre.
+  GET  /api/seguranca/pin              PIN ligado? bloqueado? espera?
+  POST /api/seguranca/pin              liga o PIN; devolve o código de
+                                       recuperação (mostrado uma vez)
+  PUT  /api/seguranca/pin              troca o PIN (pede o atual)
+  POST /api/seguranca/pin/desativar    tira o PIN (pede o atual)
+  POST /api/seguranca/pin/desbloquear  PIN certo → libera a API
+  POST /api/seguranca/pin/recuperar    código de recuperação + PIN novo
+  POST /api/seguranca/pin/bloquear     bloqueia agora (inatividade)
+  PUT  /api/seguranca/pin/inatividade  5/15/30 min ou desligado
+
+Ver app/crypto.py pro funcionamento do cofre e app/pin.py pro PIN.
 """
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app import crypto
+from typing import Optional
+
+from app import crypto, pin
 from app.database import get_db
 from app.limites import Entrada
 
@@ -62,3 +74,105 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     db.execute("UPDATE search_settings SET api_key_enc = NULL")
     db.commit()
     return {**estado, "segredos_salvos": 0, "segredos_apagados": apagados}
+
+
+# ── PIN pra abrir o app (SEG-02) ─────────────────────────────────────────
+
+class PinIn(Entrada):
+    pin: str = Field(..., max_length=8)
+
+
+class TrocarPinIn(Entrada):
+    pin_atual: str = Field(..., max_length=8)
+    pin_novo: str = Field(..., max_length=8)
+
+
+class DesativarPinIn(Entrada):
+    pin_atual: str = Field(..., max_length=8)
+
+
+class RecuperarPinIn(Entrada):
+    codigo: str = Field(..., max_length=40)
+    pin_novo: str = Field(..., max_length=8)
+
+
+class InatividadeIn(Entrada):
+    minutos: Optional[int] = None
+
+
+def _erro_de_pin(exc: Exception):
+    if isinstance(exc, pin.Esperando):
+        return HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": str(exc.segundos)})
+    return HTTPException(status_code=422, detail=str(exc))
+
+
+@router.get("/pin")
+def get_pin():
+    return pin.estado()
+
+
+@router.post("/pin", status_code=201)
+def ativar_pin(payload: PinIn):
+    try:
+        codigo = pin.ativar(payload.pin)
+    except ValueError as exc:
+        raise _erro_de_pin(exc) from exc
+    logger.info("PIN de abertura ligado")
+    return {**pin.estado(), "codigo_recuperacao": codigo}
+
+
+@router.put("/pin")
+def trocar_pin(payload: TrocarPinIn):
+    try:
+        pin.trocar(payload.pin_atual, payload.pin_novo)
+    except (ValueError, pin.Esperando) as exc:
+        raise _erro_de_pin(exc) from exc
+    logger.info("PIN de abertura trocado")
+    return pin.estado()
+
+
+@router.post("/pin/desativar")
+def desativar_pin(payload: DesativarPinIn):
+    try:
+        pin.desativar(payload.pin_atual)
+    except (ValueError, pin.Esperando) as exc:
+        raise _erro_de_pin(exc) from exc
+    logger.info("PIN de abertura desligado")
+    return pin.estado()
+
+
+@router.post("/pin/desbloquear")
+def desbloquear(payload: PinIn):
+    try:
+        pin.desbloquear(payload.pin)
+    except (ValueError, pin.Esperando) as exc:
+        raise _erro_de_pin(exc) from exc
+    return pin.estado()
+
+
+@router.post("/pin/recuperar")
+def recuperar_pin(payload: RecuperarPinIn):
+    try:
+        codigo = pin.recuperar(payload.codigo, payload.pin_novo)
+    except pin.PinErrado as exc:
+        raise HTTPException(status_code=422, detail="código de recuperação errado") from exc
+    except (ValueError, pin.Esperando) as exc:
+        raise _erro_de_pin(exc) from exc
+    logger.warning("PIN redefinido pelo código de recuperação")
+    return {**pin.estado(), "codigo_recuperacao": codigo}
+
+
+@router.post("/pin/bloquear")
+def bloquear():
+    pin.bloquear()
+    return pin.estado()
+
+
+@router.put("/pin/inatividade")
+def definir_inatividade(payload: InatividadeIn):
+    try:
+        pin.definir_inatividade(payload.minutos)
+    except ValueError as exc:
+        raise _erro_de_pin(exc) from exc
+    return pin.estado()
+

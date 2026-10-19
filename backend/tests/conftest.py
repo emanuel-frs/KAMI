@@ -123,6 +123,19 @@ def cofre_de_teste(tmp_path, monkeypatch):
     keyring.set_keyring(previous)
 
 
+@pytest.fixture(autouse=True)
+def pin_de_teste(tmp_path, monkeypatch):
+    """SEG-02: pin.json numa pasta temporária, app destravado no começo de cada teste."""
+    from app import pin
+
+    monkeypatch.setattr(pin, "PIN_PATH", tmp_path / "pin.json")
+    # scrypt leve só nos testes (o de verdade leva ~0,3 s por conferência)
+    monkeypatch.setattr(pin, "SCRYPT", {"n": 2**4, "r": 8, "p": 1})
+    pin._resetar_para_testes()
+    yield pin
+    pin._resetar_para_testes()
+
+
 @pytest.fixture()
 def isolated_fernet_key(cofre_de_teste):
     """Chave Fernet conhecida já carregada (no cofre de teste)."""

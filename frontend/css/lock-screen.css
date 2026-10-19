@@ -1,0 +1,112 @@
+/*
+ * Tela de bloqueio do PIN (SEG-02, components/lock-screen.js).
+ * Abaixo da barra de título (--titlebar-h): minimizar e fechar continuam
+ * funcionando. z-index 950: acima do splash do boot (900), de modais,
+ * toasts e da faixa do vigia; abaixo só da textura de scanline (999),
+ * que não recebe clique.
+ */
+.lock-screen {
+  position: fixed;
+  top: var(--titlebar-h, 0px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--bg);
+  font-family: var(--font);
+}
+
+.lock-box {
+  width: min(340px, 100%);
+  padding: 22px 22px 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.lock-brand {
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-bright);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.lock-brand-tag { display: inline-flex; gap: 6px; align-items: center; color: var(--accent); font-size: 10.5px; letter-spacing: 0.5px; }
+
+.lock-prompt { margin: 0 0 10px; color: var(--accent); font-size: 12px; }
+.lock-cursor { animation: lock-blink 1s steps(1) infinite; }
+@keyframes lock-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lock-cursor { animation: none; } }
+
+.lock-desc { margin: 0 0 10px; color: var(--text-dim); font-size: 10.5px; line-height: 1.5; }
+
+.lock-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-bright);
+  font-family: var(--font);
+  font-size: 20px;
+  letter-spacing: 8px;
+  text-align: center;
+}
+.lock-input:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+.lock-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+.lock-key {
+  padding: 9px 0;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  cursor: pointer;
+}
+.lock-key:hover:not(:disabled),
+.lock-key:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.lock-key:active:not(:disabled) { background: var(--accent); color: var(--bg); }
+.lock-key--ok { color: var(--accent); border-color: var(--accent); }
+.lock-key:disabled { opacity: 0.4; cursor: default; }
+
+.lock-msg { min-height: 16px; margin: 10px 0 4px; font-size: 10.5px; color: var(--text-dim); }
+.lock-msg--erro { color: var(--red); }
+
+.lock-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-family: var(--font);
+  font-size: 10.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.lock-link:hover, .lock-link:focus-visible { color: var(--accent); outline: none; }
+
+.lock-sem-codigo { margin-top: 12px; color: var(--text-dim); font-size: 10.5px; line-height: 1.5; }
+.lock-sem-codigo summary { cursor: pointer; color: var(--text-faint); }
+.lock-sem-codigo summary:hover { color: var(--accent); }
+.lock-sem-codigo code, .lock-desc code { color: var(--text-bright); overflow-wrap: anywhere; }
+
+.lock-nota { margin: 16px 0 0; padding-top: 10px; border-top: 1px solid var(--border-soft); color: var(--text-faint); font-size: 9.5px; }
+
+/* código de recuperação — também usado em configurações › segurança */
+.lock-codigo { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--accent); background: var(--bg); }
+.lock-codigo-titulo { margin: 0 0 6px; color: var(--text-dim); font-size: 10.5px; }
+.lock-codigo-valor { margin: 0 0 8px; color: var(--accent); font-size: 16px; letter-spacing: 1.5px; user-select: all; overflow-wrap: anywhere; }
+.lock-codigo-aviso { margin: 0 0 8px; color: var(--amber); font-size: 10.5px; line-height: 1.5; }
+.lock-codigo-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.lock-codigo-status { min-height: 14px; margin: 6px 0 0; color: var(--text-dim); font-size: 10px; }
