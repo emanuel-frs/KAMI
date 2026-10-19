@@ -85,6 +85,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
   configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
+- **Segurança:** PIN opcional para abrir o app (com código de recuperação e bloqueio por
+  inatividade), backup exportado com senha, e as senhas salvas protegidas por uma chave no cofre do
+  sistema. Detalhes e limites em [SECURITY.md](./SECURITY.md).
 
 Hoje o Kami **não usa inteligência artificial**. O "assistente Kami" que aparece na barra lateral
 está marcado como "em breve" e ainda não faz nada.
@@ -137,9 +140,10 @@ Sem isso, nada sai do computador. Não há telemetria nem conta de usuário.
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
 | Microsoft (Windows) | só na instalação, se faltar o WebView2 | download do runtime |
 
-Senhas de app e tokens ficam cifrados no banco, com uma chave guardada na mesma pasta de dados. Isso
-evita segredo em texto puro, mas **não substitui um cofre de senhas** e não protege contra outro
-programa rodando com o seu usuário.
+Senhas de app e tokens ficam cifrados no banco, com a chave no cofre do sistema (Gerenciador de
+Credenciais no Windows, Secret Service no Linux), não na pasta de dados. Isso não protege contra outro
+programa rodando com o seu usuário; o [SECURITY.md](./SECURITY.md) descreve o que o Kami protege e o
+que não protege.
 
 ## Como funciona por dentro
 
@@ -184,6 +188,12 @@ porque a origem real do Tauri não era a documentada. A solução foi não depen
 sessão por execução, que uma página web não consegue obter. Os testes do sidecar em Linux conferem que a
 API responde `401` sem ele.
 
+**Fechar o app tem que fechar tudo.** O backend é um executável PyInstaller de arquivo único: um
+inicializador que roda o Python num processo filho. No Linux, encerrar o app matava só o inicializador,
+e o backend de verdade ficava rodando órfão a cada fechada. Só apareceu testando o app real, contando
+processos depois de fechar a janela. Agora o app encerra a árvore inteira, e o backend também sai sozinho
+se o app sumir sem avisar.
+
 **Promessas de privacidade precisam bater com o código.** Ao revisar, descobri que o app ainda pedia o
 ícone de cada link salvo a um serviço do Google. Troquei por uma inicial local, e a tabela acima descreve
 só o que realmente sai da máquina.
@@ -195,11 +205,11 @@ tem custo: alguns arquivos ficaram grandes (veja o roadmap).
 
 Sem datas nem promessas; é o que eu faria em seguida.
 
-- **Windows:** assinatura de código (hoje o aviso do SmartScreen aparece) e testar em mais
+- **Windows:** assinatura de código (hoje o aviso do SmartScreen aparece; a opção gratuita para open
+  source não vale para a licença atual, veja o [SECURITY.md](./SECURITY.md#instaladores)) e testar em mais
   configurações de Defender e Smart App Control. O CI valida instalação e backend, mas não o
   comportamento do antivírus de cada PC.
 - **Mais plataformas e atualização:** macOS e atualização automática.
-- **Segredos:** guardar a chave de cifragem no cofre do sistema (Credential Manager ou Secret Service).
 - **Ícones dos links:** guardar o ícone localmente ao salvar o link, em vez da inicial.
 - **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`).
 - **Distribuição:** PyInstaller em modo pasta (reduz falsos positivos), publicação no AUR e em outros
