@@ -19,6 +19,33 @@ test(
 );
 
 test(
+  "cor e tema ficam lembrados pra pintar a tela do PIN antes do perfil chegar (SEG-02)",
+  withDom("<body></body>", async (dom, t) => {
+    globalThis.localStorage = dom.window.localStorage;
+    t.after(() => delete globalThis.localStorage);
+    const { store } = await import("../../frontend/js/state/store.js");
+    const { wireTheme, restaurarAparencia } = await import("../../frontend/js/components/tema.js");
+    wireTheme();
+    store.set("profile", { accent_color: "#ff8800", tema: "ambar" });
+
+    // "próxima abertura": documento limpo, perfil ainda não carregou
+    document.documentElement.removeAttribute("style");
+    delete document.documentElement.dataset.tema;
+    restaurarAparencia();
+    assert.equal(document.documentElement.style.getPropertyValue("--accent"), "#ff8800");
+    assert.equal(document.documentElement.dataset.tema, "ambar");
+
+    // valor estranho guardado não vira CSS
+    localStorage.setItem("kami:aparencia", JSON.stringify({ accent: "red; background:url(x)", tema: "<script>" }));
+    document.documentElement.removeAttribute("style");
+    delete document.documentElement.dataset.tema;
+    restaurarAparencia();
+    assert.equal(document.documentElement.style.getPropertyValue("--accent"), "");
+    assert.equal(document.documentElement.dataset.tema, undefined);
+  })
+);
+
+test(
   "LEVEL UP mostra o que a subida desbloqueou",
   withDom("<body></body>", async (dom, t) => {
     globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
