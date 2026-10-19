@@ -54,7 +54,7 @@ Endpoints:
 """
 import re
 import datetime
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -64,6 +64,7 @@ from app.finance_utils import create_saida_transaction, revert_saida_transaction
 from app.business_days import months_between
 from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
+from app.limites import Entrada, SAIDA_CONFIG
 
 router = APIRouter()
 
@@ -100,12 +101,12 @@ class BankOut(BaseModel):
     accounts: List[AccountOut]
 
 
-class BankIn(BaseModel):
+class BankIn(Entrada):
     nome: str
     icon_ascii: Optional[str] = None
 
 
-class AccountIn(BaseModel):
+class AccountIn(Entrada):
     nome: str
     possui_saldo: bool = False
     saldo_atual: Optional[float] = None
@@ -130,7 +131,7 @@ class SummaryOut(BaseModel):
     total_a_pagar: float
 
 
-class SubscriptionIn(BaseModel):
+class SubscriptionIn(Entrada):
     nome: str
     valor_esperado: float
     dia_cobranca: int = Field(..., ge=1, le=31)
@@ -140,6 +141,8 @@ class SubscriptionIn(BaseModel):
 
 
 class SubscriptionOut(SubscriptionIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
 
 
@@ -152,7 +155,7 @@ class PeriodOut(BaseModel):
     gerou_transacao: bool = False  # True quando 'paga' veio de uma transação real (não só lembrete)
 
 
-class PayPeriodPayload(BaseModel):
+class PayPeriodPayload(Entrada):
     valor_pago: Optional[float] = None
     forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # obrigatório só se a conta tiver os dois
     gerar_transacao: bool = True  # se False, comporta-se como antes: só marca como lembrete
@@ -563,7 +566,7 @@ def _compra_parcelada_out(row) -> dict:
     }
 
 
-class CompraParceladaIn(BaseModel):
+class CompraParceladaIn(Entrada):
     nome: str
     valor_total: float = Field(..., gt=0)
     num_parcelas: int = Field(..., ge=1)
@@ -597,7 +600,7 @@ class CompraParceladaMesOut(BaseModel):
     conta_id: Optional[str] = None
 
 
-class AjustarParcelasPayload(BaseModel):
+class AjustarParcelasPayload(Entrada):
     delta: int  # +1 avança uma parcela, -1 desfaz um adiantamento por engano
 
 

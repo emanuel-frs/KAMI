@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
+from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +95,11 @@ _TABLES_DELETE_ORDER = [
 _TABLES_IMPORT_ORDER = list(reversed(_TABLES_DELETE_ORDER))
 
 
-class ResetIn(BaseModel):
+class ResetIn(Entrada):
     confirmation: str
 
 
-class ImportIn(BaseModel):
+class ImportIn(Entrada):
     confirmation: str
     tables: dict[str, list[dict]]
 
@@ -321,7 +322,7 @@ _frontend_errors_logged = 0
 frontend_logger = logging.getLogger("app.frontend")
 
 
-class FrontendErrorIn(BaseModel):
+class FrontendErrorIn(Entrada):
     tipo: str = Field("erro", max_length=20)
     mensagem: str = Field(..., max_length=500)
     origem: str = Field("", max_length=300)

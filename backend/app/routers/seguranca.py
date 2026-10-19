@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from app import crypto
 from app.database import get_db
+from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ router = APIRouter()
 REDEFINIR_CONFIRMATION_WORD = "redefinir"
 
 
-class RedefinirChaveIn(BaseModel):
+class RedefinirChaveIn(Entrada):
     confirmation: str = Field(..., max_length=20)
 
 

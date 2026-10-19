@@ -79,14 +79,15 @@ import urllib.error
 import urllib.request
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
+from app.limites import Entrada, SAIDA_CONFIG
 
 router = APIRouter()
 
@@ -126,17 +127,19 @@ BODY_PREVIEW_MAX_LEN = 280
 
 # ==================== schemas ====================
 
-class LinkIn(BaseModel):
+class LinkIn(Entrada):
     title: str
     url: str
     category: str
 
 
 class LinkOut(LinkIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
 
 
-class LinkUpdate(BaseModel):
+class LinkUpdate(Entrada):
     """Todos os campos opcionais — mesmo padrão de EmailAccountUpdate acima:
     só reescreve o que vier no payload, sem obrigar o cliente a reenviar
     tudo pra editar só um campo."""
@@ -145,7 +148,7 @@ class LinkUpdate(BaseModel):
     category: Optional[str] = None
 
 
-class GithubRepoIn(BaseModel):
+class GithubRepoIn(Entrada):
     repo_full_name: str = Field(..., description="formato 'usuario/repositorio'")
 
 
@@ -158,7 +161,7 @@ class GithubRepoOut(BaseModel):
     source: str = "manual"            # 'manual' (cadastrado à mão) ou 'auto' (importado do token)
     owner_login: Optional[str] = None # login da conta dona do token, só preenchido pra source='auto'
 
-class GithubTokenIn(BaseModel):
+class GithubTokenIn(Entrada):
     token: str
 
 
@@ -188,7 +191,7 @@ class CommitActivityOut(BaseModel):
                               # um erro definitivo (rate limit, sem acesso, etc.)
 
 
-class SearchApiKeyIn(BaseModel):
+class SearchApiKeyIn(Entrada):
     api_key: str
 
 
@@ -207,7 +210,7 @@ class SearchOut(BaseModel):
     answer: Optional[str] = None   # resumo pronto que a tavily já devolve (include_answer)
     results: List[SearchResultItem]
 
-class EmailAccountIn(BaseModel):
+class EmailAccountIn(Entrada):
     label: str
     imap_host: str
     imap_port: int = 993
@@ -217,7 +220,7 @@ class EmailAccountIn(BaseModel):
                                     # já nasce selecionada na visualização combinada
 
 
-class EmailAccountUpdate(BaseModel):
+class EmailAccountUpdate(Entrada):
     """
     Todos os campos opcionais — é um PATCH-like via PUT (só reescreve o
     que vier no payload). app_password só é recriptografado/trocado se
@@ -261,7 +264,7 @@ class EmailCacheOut(BaseModel):
     is_muted: bool = False  # calculado via lookup contra muted_accounts — não persistido no cache
 
 
-class MutedAccountIn(BaseModel):
+class MutedAccountIn(Entrada):
     account_id: str
 
 
@@ -634,7 +637,9 @@ def delete_email_account(account_id: str, db=Depends(get_db)):
 
 
 @router.post("/email-accounts/{account_id}/sync", response_model=EmailSyncResult)
-def sync_email_account(account_id: str, db=Depends(get_db), limit: int = 20, automatic: bool = False):
+def sync_email_account(
+    account_id: str, db=Depends(get_db), limit: int = Query(20, ge=1, le=500), automatic: bool = False
+):
     account = db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
     if not account:
         raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
