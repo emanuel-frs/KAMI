@@ -142,6 +142,12 @@ com o motivo informado pelo backend e o caminho do log. Anexe
 compartilhar, revise o arquivo e remova qualquer informação pessoal que
 não queira publicar.
 
+Quando algo dá errado do lado do Kami, aparece um aviso vermelho com um
+código (ex.: `código #k7f2a9`) e o botão **copiar detalhes**. O mesmo
+código está na linha do erro no `kami-backend.log`. Cole os detalhes no
+relato para achar o problema rápido. Erros da própria tela também vão
+para o log, como `[app.frontend]`.
+
 Cada linha do log começa com a data e a hora local (ex.:
 `2026-10-17 16:42:07.684-03:00 INFO [uvicorn.error] ...`), então dá para
 achar o trecho do momento em que o problema aconteceu. Quando passa de

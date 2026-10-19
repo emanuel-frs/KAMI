@@ -10,6 +10,13 @@ Endpoints:
                              formato devolvido por /export)
   POST /api/sistema/reset    apaga tudo e recria o estado de instalação
                              nova (mesma seed do primeiro boot)
+  POST /api/sistema/erro-frontend
+                             registra no kami-backend.log um erro de
+                             JavaScript da tela (CONF-01)
+  GET  /api/sistema/diagnostico
+                             texto pra colar num relato de problema:
+                             versão, sistema e o fim do log, SEM dados
+                             pessoais (CONF-06)
 
 Nota sobre /import: `email_accounts.app_password_enc`,
 `github_settings.token_enc` e `search_settings.api_key_enc` no export
@@ -18,9 +25,12 @@ saem criptografados com a chave local da máquina (app/crypto.py +
 conseguir descriptografar essas credenciais, só o resto dos dados.
 """
 import logging
+import platform
+import re
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
@@ -106,6 +116,8 @@ def export_data(db=Depends(get_db)):
         for r in db.execute(
             "SELECT name FROM sqlite_master "
             "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+            # sistema_info é do banco, não do usuário (CONF-05)
+            "AND name != 'sistema_info' "
             "ORDER BY name"
         ).fetchall()
     ]
@@ -289,3 +301,118 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
     db.commit()
 
     return {"status": "ok"}
+
+
+# ── erros de JavaScript da tela → kami-backend.log (CONF-01) ─────────────
+#
+# Por que existe: o log do backend é o único lugar que a pessoa consegue
+# anexar num relato de problema, e um erro de JavaScript na tela (ex.: um
+# widget que quebra só no WebView2 do Windows) não deixava rastro nenhum.
+# O frontend (components/error-notice.js) manda aqui a mensagem e o
+# arquivo/linha do erro — nunca dados digitados pelo usuário — e isso
+# vira uma linha com data/hora no mesmo log.
+#
+# Limites: cada campo é cortado no tamanho máximo do modelo, e o processo
+# registra no máximo FRONTEND_ERRORS_MAX erros por execução — um erro num
+# loop de render não pode encher o disco.
+
+FRONTEND_ERRORS_MAX = 50
+_frontend_errors_logged = 0
+frontend_logger = logging.getLogger("app.frontend")
+
+
+class FrontendErrorIn(BaseModel):
+    tipo: str = Field("erro", max_length=20)
+    mensagem: str = Field(..., max_length=500)
+    origem: str = Field("", max_length=300)
+    linha: int | None = None
+    coluna: int | None = None
+    pilha: str = Field("", max_length=2000)
+    tela: str = Field("", max_length=60)
+    versao: str = Field("", max_length=20)
+
+
+@router.post("/erro-frontend", status_code=204)
+def registrar_erro_frontend(payload: FrontendErrorIn):
+    global _frontend_errors_logged
+    if _frontend_errors_logged >= FRONTEND_ERRORS_MAX:
+        return None
+    _frontend_errors_logged += 1
+    onde = payload.origem
+    if payload.linha is not None:
+        posicao = f"{payload.linha}" + (f":{payload.coluna}" if payload.coluna is not None else "")
+        # sem arquivo (código avaliado na hora): "linha 1:24" em vez de ":1:24"
+        onde = f"{onde}:{posicao}" if onde else f"linha {posicao}"
+    frontend_logger.warning(
+        "%s na tela %s: %s%s%s",
+        payload.tipo,
+        payload.tela or "?",
+        payload.mensagem,
+        f" ({onde})" if onde else "",
+        f"\n{payload.pilha}" if payload.pilha else "",
+    )
+    if _frontend_errors_logged == FRONTEND_ERRORS_MAX:
+        frontend_logger.warning("limite de %d erros da tela atingido — os próximos não serão registrados", FRONTEND_ERRORS_MAX)
+    return None
+
+
+# ── diagnóstico pra relato de problema (CONF-06) ──────────────────────────
+#
+# Junta o que ajuda a investigar um problema (versão, sistema, tamanho do
+# banco, fim do kami-backend.log) num texto pronto pra colar num relato —
+# e tira o que é pessoal ANTES de sair daqui: e-mails, chaves/tokens,
+# valores em R$, senhas, e a pasta pessoal (vira "~"). O log já não grava
+# query string nem headers (app/logs.py), isto é a segunda camada.
+
+DIAGNOSTICO_LINHAS_LOG = 100
+
+_ANONIMIZAR = [
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[e-mail removido]"),
+    (re.compile(r"\b(?:ghp_|gho_|github_pat_|tvly-|sk-)[A-Za-z0-9_\-]+"), "[chave removida]"),
+    (re.compile(r"(?i)\b(senha|password|passwd|token|api[_-]?key|secret)\b(\s*[:=]\s*)\S+"), r"\1\2[removido]"),
+    (re.compile(r"R\$\s?-?[\d.,]+"), "R$ [valor]"),
+    # qualquer sequência longa sem hífen (hash, token, chave) — UUIDs têm
+    # hífen e ficam (ajudam a achar a linha certa, não identificam ninguém)
+    (re.compile(r"\b[A-Za-z0-9_]{32,}\b"), "[removido]"),
+]
+
+
+def anonimizar(texto: str) -> str:
+    home = str(Path.home())
+    if home and home != "/":
+        texto = texto.replace(home, "~")
+    for padrao, troca in _ANONIMIZAR:
+        texto = padrao.sub(troca, texto)
+    return texto
+
+
+def _fim_do_log(path: Path, linhas: int) -> list[str]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", errors="replace") as fh:
+        return [l.rstrip("\n") for l in fh.readlines()[-linhas:]]
+
+
+@router.get("/diagnostico")
+def diagnostico():
+    from app.database import DB_PATH, MIGRATION_BACKUP_PREFIX, backups_dir
+    from app.paths import get_data_dir
+
+    data_dir = get_data_dir()
+    log_path = data_dir / "kami-backend.log"
+    banco_kb = round(DB_PATH.stat().st_size / 1024) if DB_PATH.exists() else 0
+    backups = len(list(backups_dir().glob(f"{MIGRATION_BACKUP_PREFIX}*.db"))) if backups_dir().exists() else 0
+    log = _fim_do_log(log_path, DIAGNOSTICO_LINHAS_LOG)
+
+    cabecalho = [
+        f"Kami v{KAMI_VERSION} — diagnóstico gerado em {now_iso()[:19].replace('T', ' ')}",
+        f"sistema: {platform.platform()} · python {platform.python_version()}",
+        f"pasta de dados: {data_dir}",
+        f"banco: {banco_kb} KB · backups de atualização: {backups}",
+        "",
+        f"--- últimas {len(log)} linhas do kami-backend.log ---" if log
+        else "--- sem kami-backend.log (o app em modo de desenvolvimento não grava log em arquivo) ---",
+    ]
+    texto = anonimizar("\n".join(cabecalho + log))
+    return {"versao": KAMI_VERSION, "texto": texto, "linhas_de_log": len(log)}
+

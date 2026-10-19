@@ -31,6 +31,8 @@ import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
 import { startRetrospective } from "./modals/retrospectiva-modal.js";
 import { registerNavigator } from "./components/navigate.js";
+import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
+import { startBackendWatchdog } from "./components/backend-watchdog.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -50,6 +52,9 @@ const PAGES = {
 const pageRoot = document.getElementById("page-root");
 let currentPageModule = null;
 let currentPageName = null;
+// CONF-02: o perfil carregou no boot? (senão, a recuperação do backend
+// recarrega o app inteiro em vez de só a tela)
+let bootedWithBackend = false;
 
 // teto pro requestIdleCallback — se o navegador não achar uma folga antes
 // disso (pouco provável, o splash sozinho já segura uns 3s+), força o
@@ -79,6 +84,9 @@ function preloadPages(exclude) {
     .forEach((name) => {
       PAGES[name]()
         .then((mod) => mod.preload?.())
+        // pré-carga é só esquenta-cache: se falhar, o mount() de verdade
+        // tenta de novo e mostra o erro (e erro inesperado da API já
+        // virou aviso pelo kami:api-error — CONF-01)
         .catch(() => {});
     });
 }
@@ -100,6 +108,19 @@ function schedulePreload(exclude) {
  *   hoje só pages/organizacao.js usa, pra abrir já na aba de e-mail
  *   numa mensagem específica vinda do modal de notificações).
  */
+/**
+ * CONF-02: remonta a tela atual de verdade (showPage ignora a tela que já
+ * está aberta). Usado quando o backend volta depois de uma queda: os
+ * widgets precisam buscar tudo de novo no backend novo.
+ */
+async function reloadCurrentPage() {
+  const name = currentPageName || "nucleo";
+  currentPageModule?.unmount?.();
+  currentPageModule = null;
+  currentPageName = null;
+  await showPage(name);
+}
+
 async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
 
@@ -127,6 +148,7 @@ async function showPage(name, opts) {
   const mod = await PAGES[name]();
   currentPageModule = mod;
   currentPageName = name;
+  setTelaAtual(name); // CONF-01: entra no "copiar detalhes" e no log de erro da tela
   await mod.mount(pageRoot, opts);
   playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
@@ -232,12 +254,12 @@ async function loadProfile() {
         : err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
     }
     console.warn("loadProfile falhou, mas continuamos:", err);
-    // status 0 = sem conexão com o backend. Sem isso o usuário só via
-    // widgets vazios e telas quebradas, sem saber por quê — agora o
-    // motivo (e o caminho do kami-backend.log) aparece na cara.
-    if (err instanceof ApiError && err.status === 0) {
-      showErrorModal(err.message, "o backend do Kami não iniciou");
-    }
+    // status 0 = sem conexão com o backend. Antes (até a 1.9) abria um
+    // modal com o motivo; agora (CONF-02) o vigia do backend recebe o
+    // mesmo erro pelo kami:api-error, tenta reiniciar sozinho uma vez e,
+    // se não der, mostra a faixa no topo com o motivo do Rust (que traz o
+    // caminho do kami-backend.log) e os botões [reiniciar] [abrir pasta
+    // do log].
   }
 }
 
@@ -259,6 +281,26 @@ async function boot() {
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
+  // CONF-01: primeiro de tudo — qualquer erro daqui pra frente já tem aviso
+  wireErrorNotice();
+  // CONF-02: backend caiu → faixa no topo + reinício (sozinho uma vez, e
+  // pelo botão depois). Ao voltar:
+  //   - se o boot nunca completou (o backend já falhou na abertura): sem
+  //     perfil, sem nível na sidebar, sem a foto inicial do
+  //     progress-watcher — recarrega o app inteiro, que agora sobe limpo;
+  //   - se o app já estava funcionando: recarrega o perfil e REMONTA a
+  //     tela atual (visto no teste real: só chamar showPage não
+  //     remontava, e a tela da abertura com falha ficava vazia).
+  startBackendWatchdog({
+    onRecovered: async () => {
+      if (!bootedWithBackend) {
+        window.location.reload();
+        return;
+      }
+      await loadProfile();
+      await reloadCurrentPage();
+    },
+  });
   wireNav();
   wireSettingsButton();
   wireSidebarAvatar();
@@ -273,6 +315,7 @@ async function boot() {
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
+  bootedWithBackend = !!store.get("profile");
   startProgressWatcher(); // depois do perfil: a foto inicial precisa do backend de pé
   startSidebarLevel();
   await showPage("nucleo"); // tela inicial

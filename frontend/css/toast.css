@@ -108,3 +108,15 @@
     width: auto;
   }
 }
+
+/* ── variante de erro (CONF-01, components/error-notice.js) ──────────────
+   Mesma caixa, com a borda e o ícone em vermelho — a cor do tema fica
+   pros avisos comuns. Não some sozinho (duration: 0). */
+.toast-item.toast-erro { border-color: var(--red); }
+.toast-item.toast-erro .toast-icon { color: var(--red); }
+.toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}

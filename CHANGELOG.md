@@ -4,6 +4,33 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.10.0] - 2026-10-19
+
+_Sprint de confiabilidade: quando algo dá errado o Kami avisa, se recupera sozinho e guarda o que é preciso para investigar — e as regras de saldo e xp ganharam uma rede de testes que achou e corrigiu cinco bugs._
+
+### Adicionado
+- aviso de erro com código: um erro inesperado do backend aparece num aviso com um código (ex.: `#7f3a2c`) que também está no `kami-backend.log`, com "copiar detalhes"; banco ocupado, sem espaço em disco ou banco inacessível ou corrompido ganham uma mensagem própria. Erros da tela também passam a ir para o log
+- vigia do backend: se o backend cair com o app aberto, uma faixa no topo avisa, o Kami reinicia o backend sozinho em ~15 s e recarrega a tela, sem fechar o app; se não voltar, a faixa oferece "reiniciar" e "abrir pasta do log"
+- backup automático do banco antes de atualizar para uma versão nova, em `backups/` na pasta de dados (guarda as 3 últimas); se a atualização do banco falhar, ele volta sozinho para a cópia e o app avisa em vez de abrir pela metade
+- configurações > sobre: versão do app e diagnóstico para relatar um problema (versão, sistema, tamanho do banco e fim do log), já sem dados pessoais — e-mails, chaves, senhas, valores em R$ e o nome da pasta pessoal saem antes; copiar, salvar `.txt`, abrir a pasta do log e "relatar um problema"
+- corrigir e apagar um lançamento em finanças (lápis e lixeira): o saldo da conta e o xp acompanham. Lançamentos criados por conta fixa, assinatura, renda, meta ou dívida mostram a origem e se desfazem por ela
+- apagar uma ação registrada à mão no log do núcleo, estornando o xp
+- quitar dívida: marcar como paga escolhe a conta de onde sai o dinheiro (ou nenhuma), lança a saída e dá xp; voltar para "aberta" desfaz tudo
+
+### Corrigido
+- desfazer um pagamento ou reabrir um marco ou curso mantinha desbloqueada a conquista que deixou de valer
+- pagar a última conta do mês só desbloqueava "contas em dia" na ação seguinte
+- uma saída lançada com data retroativa não tirava "mês no azul" do mês que deixou de fechar positivo
+- apagar uma conta fixa, assinatura ou fonte de renda deixava o xp dos meses pagos
+- corrigir o valor ou a data de um salário não recalculava o xp dele
+- abrir um mês novo podia dar erro no calendário ou nas contas fixas e assinaturas, quando a tela pedia o mês em várias requisições ao mesmo tempo
+- apagar algo que não existe respondia de jeitos diferentes conforme a tela; agora é sempre "não encontrado"
+
+### Modificado
+- a tela de "não deu pra conectar" na abertura virou a mesma faixa do vigia, com as mesmas opções
+- regras de negócio documentadas em `docs/REGRAS-DE-NEGOCIO.md`, cada uma com o teste que a garante
+- testes rodam também no Windows em todo PR, e o app compilado é testado de ponta a ponta no Linux e no Windows (8 telas em 3 tamanhos, queda e volta do backend)
+
 ## [1.9.1] - 2026-10-17
 
 _Ajustes pedidos depois da 1.9.0: o Windows para de abrir um terminal junto com o app, o scroll ganha a cara do Kami e o log passa a dizer quando cada coisa aconteceu._

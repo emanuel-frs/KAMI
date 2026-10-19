@@ -30,7 +30,7 @@ export async function render(el, widget) {
     try {
       summary = await financasApi.getSummary(month);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw(summary.top_categories || []);

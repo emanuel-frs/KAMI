@@ -57,3 +57,8 @@ __pycache__/
 /docs/FLUXO-DE-DESENVOLVIMENTO-E-RELEASE.md
 /docs/GAMIFICACAO-CARDS.md
 /docs/EVOLUCAO-CARDS.md
+
+# relatório do coverage (gerado ao medir a cobertura dos testes)
+.coverage
+.coverage.*
+htmlcov/

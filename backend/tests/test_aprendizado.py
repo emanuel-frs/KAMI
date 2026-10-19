@@ -333,3 +333,19 @@ def test_was_ever_stale_persists_after_reopening_milestone(client, db_conn):
     achievements = client.get("/api/nucleo/achievements").json()
     unlocked_titles = {a["title"] for a in achievements if a["unlocked"]}
     assert "trilha em dia" not in unlocked_titles
+
+def test_apr_09_editing_track_name_goal_and_status_does_not_touch_xp(client):
+    track = client.post("/api/aprendizado/tracks", json={"name": "Rust"}).json()
+    ms = client.post(f"/api/aprendizado/tracks/{track['id']}/milestones", json={"title": "ler"}).json()
+    client.put(f"/api/aprendizado/milestones/{ms['id']}", json={"status": "concluido"})
+    xp_before = {a["name"]: a["current_xp"] for a in client.get("/api/nucleo/attributes").json()}["aprendizado"]
+
+    resp = client.put(f"/api/aprendizado/tracks/{track['id']}", json={"name": "Rust avançado", "general_goal": "CLI", "status": "pausada"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert (body["name"], body["general_goal"], body["status"]) == ("Rust avançado", "CLI", "pausada")
+    xp_after = {a["name"]: a["current_xp"] for a in client.get("/api/nucleo/attributes").json()}["aprendizado"]
+    assert xp_after == xp_before
+
+    assert client.put(f"/api/aprendizado/tracks/{track['id']}", json={"status": "inexistente"}).status_code == 422
+    assert client.put("/api/aprendizado/tracks/nao-existe", json={"name": "x"}).status_code == 404

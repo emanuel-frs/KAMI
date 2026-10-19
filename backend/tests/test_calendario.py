@@ -202,3 +202,85 @@ def test_no_income_events_in_calendar(client):
     client.get("/api/financas/income-entries", params={"month": _current_month()})
     resp = client.get("/api/calendario/events", params={"month": _current_month()})
     assert "renda" not in {e["type"] for e in resp.json()}
+
+# ---------------- eventos próprios (CONF-04: CAL-05..CAL-08) ----------------
+
+def _evento(client, **extra):
+    body = {"title": "dentista", "date": "2026-03-10", **extra}
+    resp = client.post("/api/calendario/events/evento", json=body)
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def _eventos(client, month):
+    return [e for e in client.get("/api/calendario/events", params={"month": month}).json() if e["type"] == "evento"]
+
+
+def test_cal_05_evento_proprio_aparece_so_no_seu_mes(client):
+    _evento(client)
+    assert [e["date"] for e in _eventos(client, "2026-03")] == ["2026-03-10"]
+    assert _eventos(client, "2026-04") == []
+
+
+def test_cal_06_recorrencia_semanal_respeita_o_fim(client):
+    _evento(client, date="2026-03-02", recurrence="weekly", recurrence_end="2026-03-20")
+    assert [e["date"] for e in _eventos(client, "2026-03")] == ["2026-03-02", "2026-03-09", "2026-03-16"]
+    assert _eventos(client, "2026-04") == []
+
+
+def test_cal_06_recorrencia_mensal_no_dia_31_cai_no_ultimo_dia_do_mes_curto(client):
+    _evento(client, date="2026-01-31", recurrence="monthly")
+    assert [e["date"] for e in _eventos(client, "2026-02")] == ["2026-02-28"]
+    assert [e["date"] for e in _eventos(client, "2026-04")] == ["2026-04-30"]
+
+
+def test_cal_07_editar_e_mover_data_do_evento(client):
+    ev = _evento(client)
+    resp = client.put(f"/api/calendario/events/evento/{ev['id']}", json={"title": "consulta", "date": "2026-03-12"})
+    assert resp.status_code == 200
+    assert [(e["title"], e["date"]) for e in _eventos(client, "2026-03")] == [("consulta", "2026-03-12")]
+
+    resp = client.patch(f"/api/calendario/events/evento/{ev['id']}/date", json={"date": "2026-04-01"})
+    assert resp.status_code == 200
+    assert _eventos(client, "2026-03") == []
+    assert [(e["title"], e["date"]) for e in _eventos(client, "2026-04")] == [("consulta", "2026-04-01")]
+
+
+def test_cal_08_apagar_evento_e_validacoes(client):
+    ev = _evento(client)
+    assert client.delete(f"/api/calendario/events/evento/{ev['id']}").status_code == 204
+    assert _eventos(client, "2026-03") == []
+    for bad in ({"title": " ", "date": "2026-03-10"}, {"title": "x", "date": "10/03/2026"},
+                {"title": "x", "date": "2026-03-10", "time": "9h"}, {"title": "x", "date": "2026-03-10", "recurrence": "hourly"}):
+        assert client.post("/api/calendario/events/evento", json=bad).status_code == 422, bad
+
+
+def test_concurrent_reads_of_a_new_month_do_not_collide(client):
+    """
+    A tela abre o mês com várias requisições ao mesmo tempo (calendário,
+    contas fixas, assinaturas) e cada uma cria o período do mês se ainda não
+    existe. Duas criando o mesmo período juntas davam 500 por UNIQUE — o
+    teste ponta a ponta do Windows pegou. Criar tem que tolerar o empate.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    for i in range(5):
+        client.post("/api/financas/fixed-bills", json={"name": f"Conta {i}", "amount": 10, "due_day": 5})
+        client.post("/api/carteira/subscriptions", json={"nome": f"Assin {i}", "valor_esperado": 10.0, "dia_cobranca": 12})
+
+    urls = ["/api/calendario/events", "/api/financas/fixed-bills/periods", "/api/carteira/subscriptions/periods"]
+    for month in ["2027-01", "2027-02", "2027-03", "2027-04"]:
+        barrier = Barrier(9)
+
+        def hit(i):
+            barrier.wait()
+            return client.get(urls[i % 3], params={"month": month}).status_code
+
+        with ThreadPoolExecutor(9) as pool:
+            assert set(pool.map(hit, range(9))) == {200}
+
+        periods = client.get("/api/financas/fixed-bills/periods", params={"month": month}).json()
+        assert len(periods) == 5
+        subs = client.get("/api/carteira/subscriptions/periods", params={"month": month}).json()
+        assert len(subs) == 5

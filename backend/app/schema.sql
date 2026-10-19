@@ -249,7 +249,9 @@ CREATE TABLE IF NOT EXISTS debts (
     counterparty TEXT,
     amount       REAL NOT NULL,
     due_date     TEXT,
-    status       TEXT NOT NULL DEFAULT 'aberta'
+    status       TEXT NOT NULL DEFAULT 'aberta',
+    -- P-13 (CONF-04): saída real lançada ao quitar (NULL = quitada sem conta)
+    transacao_id TEXT REFERENCES transactions(id) ON DELETE SET NULL
 );
 
 -- ---------------- WALLET (bancos → contas) ----------------
@@ -598,3 +600,13 @@ CREATE INDEX IF NOT EXISTS idx_transactions_conta ON transactions(conta_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_accounts_bank ON wallet_accounts(bank_id);
 CREATE INDEX IF NOT EXISTS idx_email_cache_account ON email_cache(account_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_screen ON dashboard_widgets(screen);
+
+-- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
+-- versão do app que atualizou o banco por último — ao abrir uma versão
+-- nova, o backend copia o banco pra backups/ ANTES de migrar (ver
+-- database.init_db). Fica fora do export/import/reset (não é dado do usuário).
+CREATE TABLE IF NOT EXISTS sistema_info (
+    chave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
+

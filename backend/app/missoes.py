@@ -176,7 +176,12 @@ def progresso(db, m) -> int:
     tipo, alvo = m["tipo"], m["alvo_id"]
 
     if tipo in ("lancamento", "lancamentos"):
-        feito = _conta(db, "l.source = 'financas' AND l.referencia_tipo IS NULL", (), inicio, fim)
+        # lançamento = log de transação: desde o CONF-07 ele tem referência
+        # 'transacao'; os antigos (de antes do vínculo) não têm nenhuma
+        feito = _conta(
+            db, "l.source = 'financas' AND (l.referencia_tipo = 'transacao' OR l.referencia_tipo IS NULL)",
+            (), inicio, fim,
+        )
     elif tipo == "conta_fixa":
         feito = _conta(
             db,

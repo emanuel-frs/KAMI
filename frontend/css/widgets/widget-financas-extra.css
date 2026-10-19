@@ -412,3 +412,41 @@
   margin-left:auto;
 }
 .renda-toggle.pago{ border-color:var(--accent); color:var(--accent); }
+
+/* CONF-07: corrigir / apagar lançamento avulso; lançamento de outro módulo
+   mostra só de onde veio (desfaz-se por lá) */
+/* flex: 0 0 auto — sem isso a linha (flex) espremia o grupo e a lixeira
+   ficava com 8px, invisível (visto no print do teste) */
+.registro-actions { display: inline-flex; flex: 0 0 auto; gap: 4px; margin-left: 8px; }
+.registro-actions .icon-btn { flex: 0 0 auto; }
+.registro-actions .icon-btn,
+.log-item .icon-btn {
+  appearance: none;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px 3px;
+  line-height: 1;
+  display: inline-flex;
+}
+.registro-actions .icon-btn:hover,
+.log-item .icon-btn:hover { color: var(--accent); border-color: var(--border-soft); }
+.registro-actions .icon-btn.danger:hover,
+.log-item .icon-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.registro-actions .icon-btn:focus-visible,
+.log-item .icon-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.registro-origem {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+/* ação automática (sem lixeira) reserva o mesmo espaço do botão, pra hora e
+   xp ficarem alinhados com as linhas que têm o botão */
+.log-item .log-action-slot { display: inline-block; flex: 0 0 auto; width: 18px; }
+.log-item .icon-btn { flex: 0 0 auto; }
+

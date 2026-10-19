@@ -51,7 +51,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar contas fixas: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar contas fixas: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

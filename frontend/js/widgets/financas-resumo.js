@@ -1,5 +1,6 @@
 import * as carteiraApi from "../api/carteira.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { escapeHtml } from "../components/format.js";
 
 function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -13,7 +14,7 @@ export async function render(el, widget) {
     try {
       summary = await carteiraApi.getWalletSummary();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar resumo: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar resumo: ${escapeHtml(err.message)}</div>`;
       return;
     }
     el.innerHTML = `

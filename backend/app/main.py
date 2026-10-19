@@ -11,8 +11,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import init_db
+from app.erros import ErrosInesperadosMiddleware, http_exception_handler
 from app.logs import configure_logging
 from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
@@ -57,6 +59,13 @@ app = FastAPI(title="Kami API", version=KAMI_VERSION)
 # externo. O CORS fica por fora pra responder o preflight e anexar os
 # headers CORS até nas respostas 401 do token (senão o navegador
 # esconderia o erro atrás de um "network error" genérico).
+#
+# ErrosInesperadosMiddleware (CONF-01) é o MAIS INTERNO dos três de
+# propósito: transforma qualquer exceção numa resposta JSON com código, e
+# essa resposta ainda passa pelo CORS na volta. Sem ele o 500 era montado
+# pelo ServerErrorMiddleware do Starlette, por fora do CORS — sem headers
+# CORS, e o webview mostrava "sem conexão" com o backend vivo.
+app.add_middleware(ErrosInesperadosMiddleware)
 app.add_middleware(SessionTokenMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -105,7 +114,12 @@ def validation_exception_handler(request, exc):
         else:
             msg = f"{field}: {e.get('msg', 'valor inválido')}"
         errors.append(msg)
-    return JSONResponse(status_code=422, content={"detail": "; ".join(errors)})
+    return JSONResponse(status_code=422, content={"detail": "; ".join(errors), "codigo": "validacao"})
+
+
+# formato único de erro (CONF-01, ver app/erros.py): HTTPException das
+# rotas ganha o campo `codigo` junto do `detail` de sempre
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 
 app.include_router(perfil.router, prefix="/api/perfil", tags=["perfil"])

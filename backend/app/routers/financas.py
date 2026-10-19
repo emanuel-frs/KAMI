@@ -53,6 +53,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db, new_id
 from app.business_days import nth_business_day_of_month, add_business_days
 from app.actions import has_action, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 from app.finance_utils import (
     create_saida_transaction,
     revert_saida_transaction,
@@ -164,6 +165,13 @@ class DebtIn(BaseModel):
 
 class DebtOut(DebtIn):
     id: str
+    transacao_id: Optional[str] = None
+
+
+class PayDebtPayload(BaseModel):
+    # sem conta_id: só marca como quitada (sem mexer em saldo nenhum)
+    conta_id: Optional[str] = None
+    forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # só se a conta tiver os dois
 
 
 class TransactionIn(BaseModel):
@@ -191,6 +199,9 @@ class TransactionOut(BaseModel):
     forma_pagamento: Optional[str] = None
     conta_destino_id: Optional[str] = None
     destino_externo: Optional[str] = None
+    # CONF-07: de onde veio (None = lançamento avulso). Lançamento que veio
+    # de outro módulo só se desfaz por lá — ver _origem_transacao.
+    origem: Optional[str] = None
 
 
 class CategoryTotal(BaseModel):
@@ -473,6 +484,10 @@ def unpay_income_entry(entry_id: str, db=Depends(get_db)):
         "UPDATE income_entries SET paid_date = NULL, amount = ?, status = 'previsto', transaction_id = NULL WHERE id = ?",
         (source["valor"] if source else row["amount"], entry_id),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o recebimento ainda pago, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
     year, mo = (int(x) for x in row["expected_date"][:7].split("-"))
@@ -629,6 +644,8 @@ def update_income_source(source_id: str, payload: IncomeSourceIn, db=Depends(get
 
 @router.delete("/income-sources/{source_id}")
 def delete_income_source(source_id: str, db=Depends(get_db)):
+    if not db.execute("SELECT 1 FROM income_sources WHERE id = ?", (source_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
     dependents = db.execute(
         "SELECT id FROM income_sources WHERE fonte_referencia_id = ?", (source_id,)
     ).fetchall()
@@ -637,9 +654,24 @@ def delete_income_source(source_id: str, db=Depends(get_db)):
             status_code=422,
             detail="não é possível remover: existe(m) fonte(s) que dependem desta (encadeamento).",
         )
+    # P-14 (CONF-04): apagar a fonte estorna o xp das ocorrências recebidas
+    # — sem isso, criar, receber, apagar e recriar rendia xp de novo. As
+    # transações reais lançadas ficam (dinheiro que entrou é fato), igual
+    # a apagar uma meta (ver metas.py::delete_goal).
+    _revert_period_xp(db, "renda_entrada", "income_entries", "income_source_id", source_id)
     db.execute("DELETE FROM income_sources WHERE id = ?", (source_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o cadastro ainda existindo, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
+
+
+def _revert_period_xp(db, referencia_tipo: str, table: str, parent_col: str, parent_id: str) -> None:
+    """Estorna o xp de cada período/ocorrência de um cadastro recorrente que vai ser apagado."""
+    for row in db.execute(f"SELECT id FROM {table} WHERE {parent_col} = ?", (parent_id,)).fetchall():
+        revert_actions(db, referencia_tipo, row["id"])
 
 # ==================== cadastros simples (CRUD básico) ====================
 
@@ -686,7 +718,15 @@ def update_fixed_bill(bill_id: str, payload: FixedBillIn, db=Depends(get_db)):
 
 @router.delete("/fixed-bills/{bill_id}")
 def delete_fixed_bill(bill_id: str, db=Depends(get_db)):
+    if not db.execute("SELECT 1 FROM fixed_bills WHERE id = ?", (bill_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+    # P-14 (CONF-04): estorna o xp dos meses pagos (transações reais ficam)
+    _revert_period_xp(db, "conta_fixa_periodo", "fixed_bill_periods", "fixed_bill_id", bill_id)
     db.execute("DELETE FROM fixed_bills WHERE id = ?", (bill_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o cadastro ainda existindo, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 
@@ -720,8 +760,10 @@ def list_fixed_bill_periods(month: str, db=Depends(get_db)):
             (b["id"], month),
         ).fetchone()
         if not existing:
+            # OR IGNORE: a tela pede o mês em várias requisições ao mesmo tempo e
+            # duas podem criar o mesmo período juntas (UNIQUE) — quem chega depois só usa o que já existe
             db.execute(
-                "INSERT INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
+                "INSERT OR IGNORE INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
                 "VALUES (?, ?, ?, 0, NULL)",
                 (new_id(), b["id"], month),
             )
@@ -761,22 +803,26 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
             description=f"conta fixa: {bill['name']}",
             forma_pagamento=payload.forma_pagamento,
         )
-        if not has_action(db, "conta_fixa_periodo", period_id):
-            register_action(
-                db,
-                description=f"pagou conta fixa: {bill['name']}",
-                categories=["financas"],
-                xp=XP_PAGAMENTO_RECORRENTE,
-                impact=2,
-                source="financas",
-                referencia_tipo="conta_fixa_periodo",
-                referencia_id=period_id,
-            )
 
+    # o período vira "paga" ANTES de registrar a ação: register_action roda
+    # a checagem de conquistas, e "contas em dia" (todas as contas do mês
+    # pagas) só vale com este período já pago — na ordem antiga, pagar a
+    # última conta do mês não desbloqueava nada na hora (achado do CONF-04)
     db.execute(
         "UPDATE fixed_bill_periods SET paga = 1, valor_pago = ?, transaction_id = ? WHERE id = ?",
         (payload.valor_pago, transaction_id, period_id),
     )
+    if transaction_id and not has_action(db, "conta_fixa_periodo", period_id):
+        register_action(
+            db,
+            description=f"pagou conta fixa: {bill['name']}",
+            categories=["financas"],
+            xp=XP_PAGAMENTO_RECORRENTE,
+            impact=2,
+            source="financas",
+            referencia_tipo="conta_fixa_periodo",
+            referencia_id=period_id,
+        )
     db.commit()
     updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     return _period_out(updated)
@@ -797,9 +843,86 @@ def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
         "UPDATE fixed_bill_periods SET paga = 0, valor_pago = NULL, transaction_id = NULL WHERE id = ?",
         (period_id,),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o período ainda pago (ex.: "contas em dia"), o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     updated = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     return _period_out(updated)
+
+
+# ==================== dívidas — quitação (P-13, CONF-04) ====================
+# Quitar uma dívida funciona como pagar uma conta fixa: credita o xp de
+# pagamento e, se a pessoa escolher a conta de onde o dinheiro saiu, lança
+# a saída real (categoria "dívidas"). Desmarcar a quitação desfaz tudo:
+# devolve o dinheiro, estorna o xp e rebloqueia a conquista "dívida
+# quitada" se ela não valer mais. Diferente da conta fixa, o xp vem com
+# ou sem conta: quitar é um evento único por dívida, e desmarcar estorna,
+# então não há como repetir.
+
+DEFAULT_DEBT_CATEGORY = "dívidas"
+REF_DIVIDA = "divida"
+
+
+def _pay_debt(db, debt, conta_id: Optional[str], forma_pagamento: Optional[str]) -> None:
+    if debt["status"] == "paga":
+        return  # já quitada: pagar de novo não credita nem lança de novo
+    transacao_id = None
+    if conta_id:
+        conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (conta_id,)).fetchone()
+        if not conta:
+            raise HTTPException(status_code=422, detail=f"conta não encontrada: '{conta_id}'")
+        transacao_id = create_saida_transaction(
+            db, conta, debt["amount"],
+            category=DEFAULT_DEBT_CATEGORY,
+            description=f"quitação de dívida: {debt['description']}",
+            forma_pagamento=forma_pagamento,
+        )
+    db.execute("UPDATE debts SET status = 'paga', transacao_id = ? WHERE id = ?", (transacao_id, debt["id"]))
+    if not has_action(db, REF_DIVIDA, debt["id"]):
+        register_action(
+            db,
+            description=f"quitou a dívida: {debt['description']}",
+            categories=["financas"],
+            xp=XP_PAGAMENTO_RECORRENTE,
+            impact=3,
+            source="financas",
+            referencia_tipo=REF_DIVIDA,
+            referencia_id=debt["id"],
+        )
+
+
+def _unpay_debt(db, debt) -> None:
+    if debt["status"] != "paga":
+        return
+    revert_saida_transaction(db, debt["transacao_id"])
+    db.execute("UPDATE debts SET status = 'aberta', transacao_id = NULL WHERE id = ?", (debt["id"],))
+    revert_actions(db, REF_DIVIDA, debt["id"])
+    # dívida quitada antes desta mudança não tem log pra estornar — o
+    # revert_actions não rebloqueia nada nesse caso, então rebloqueia aqui
+    relock_unmet_achievements(db)
+
+
+def _get_debt_or_404(db, debt_id: str):
+    row = db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="dívida não encontrada")
+    return row
+
+
+@router.put("/debts/{debt_id}/pay", response_model=DebtOut)
+def pay_debt(debt_id: str, payload: PayDebtPayload, db=Depends(get_db)):
+    _pay_debt(db, _get_debt_or_404(db, debt_id), payload.conta_id, payload.forma_pagamento)
+    db.commit()
+    return dict(_get_debt_or_404(db, debt_id))
+
+
+@router.put("/debts/{debt_id}/unpay", response_model=DebtOut)
+def unpay_debt(debt_id: str, db=Depends(get_db)):
+    _unpay_debt(db, _get_debt_or_404(db, debt_id))
+    db.commit()
+    return dict(_get_debt_or_404(db, debt_id))
 
 
 @router.get("/debts", response_model=List[DebtOut])
@@ -813,29 +936,47 @@ def create_debt(payload: DebtIn, db=Depends(get_db)):
     debt_id = new_id()
     db.execute(
         "INSERT INTO debts (id, description, counterparty, amount, due_date, status) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (debt_id, payload.description, payload.counterparty, payload.amount, payload.due_date, payload.status),
+        "VALUES (?, ?, ?, ?, ?, 'aberta')",
+        (debt_id, payload.description, payload.counterparty, payload.amount, payload.due_date),
     )
+    # criada já quitada: passa pela quitação (xp + conquista), sem conta (P-13)
+    if payload.status == "paga":
+        _pay_debt(db, _get_debt_or_404(db, debt_id), None, None)
     db.commit()
-    return {"id": debt_id, **payload.model_dump()}
+    return dict(_get_debt_or_404(db, debt_id))
 
 
 @router.put("/debts/{debt_id}", response_model=DebtOut)
 def update_debt(debt_id: str, payload: DebtIn, db=Depends(get_db)):
-    row = db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="dívida não encontrada")
+    row = _get_debt_or_404(db, debt_id)
     db.execute(
-        "UPDATE debts SET description=?, counterparty=?, amount=?, due_date=?, status=? WHERE id=?",
-        (payload.description, payload.counterparty, payload.amount, payload.due_date, payload.status, debt_id),
+        "UPDATE debts SET description=?, counterparty=?, amount=?, due_date=? WHERE id=?",
+        (payload.description, payload.counterparty, payload.amount, payload.due_date, debt_id),
     )
+    # trocar o status pela edição passa pelo mesmo caminho da quitação
+    # (P-13), pra xp e conquista não saírem de sincronia — sem conta,
+    # porque a edição não diz de onde saiu o dinheiro
+    if payload.status != row["status"]:
+        fresh = _get_debt_or_404(db, debt_id)
+        if payload.status == "paga":
+            _pay_debt(db, fresh, None, None)
+        else:
+            _unpay_debt(db, fresh)
     db.commit()
-    return {"id": debt_id, **payload.model_dump()}
+    return dict(_get_debt_or_404(db, debt_id))
 
 
 @router.delete("/debts/{debt_id}")
 def delete_debt(debt_id: str, db=Depends(get_db)):
+    _get_debt_or_404(db, debt_id)
+    # estorna o xp da quitação; a saída real, se houve, fica em Finanças
+    # (mesma regra de apagar conta fixa/assinatura — P-14)
+    revert_actions(db, REF_DIVIDA, debt_id)
     db.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o dívida ainda quitada ("quitado"), o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
     return {"deleted": True}
 
@@ -849,11 +990,16 @@ def list_transactions(month: str, db=Depends(get_db)):
         "SELECT * FROM transactions WHERE substr(date,1,7) = ? ORDER BY date DESC",
         (month,),
     ).fetchall()
-    return [dict(r) for r in rows]
+    return [dict(r) | {"origem": _origem_transacao(db, r["id"])} for r in rows]
 
 
-@router.post("/transactions", response_model=TransactionOut)
-def create_transaction(payload: TransactionIn, db=Depends(get_db)):
+def _apply_transaction(db, payload: TransactionIn) -> dict:
+    """
+    Valida e aplica um lançamento (grava a transação e mexe em saldo/fatura).
+    NÃO comita e NÃO credita xp — create_transaction e update_transaction
+    fazem isso; o update usa a falta de commit pra voltar tudo atrás se a
+    validação do lançamento novo falhar (CONF-07).
+    """
     conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
     if not conta:
         raise HTTPException(status_code=422, detail=f"conta não encontrada: '{payload.conta_id}'")
@@ -936,17 +1082,6 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
             ),
         )
 
-    db.commit()
-
-    register_action(
-        db,
-        description=f"lançou {payload.type}: {payload.description}",
-        categories=["financas"],
-        xp=XP_TRANSACAO,
-        impact=2,
-        source="financas",
-    )
-
     return {
         "id": tx_id,
         "description": payload.description,
@@ -959,6 +1094,119 @@ def create_transaction(payload: TransactionIn, db=Depends(get_db)):
         "conta_destino_id": conta_destino_id,
         "destino_externo": destino_externo,
     }
+
+# ==================== lançamento: criar, corrigir, apagar (CONF-07) ====================
+# Antes não havia como corrigir um lançamento errado (ex.: R$ 500 em vez de
+# R$ 50) — o erro ficava no saldo e no xp pra sempre (P-12). Agora:
+#   - apagar desfaz o efeito no saldo/fatura e estorna o xp do lançamento;
+#   - corrigir (PUT) troca o lançamento de uma vez: desfaz o antigo, aplica
+#     o novo e, se o novo não passar na validação (saldo, limite...), volta
+#     tudo como estava — sem o risco de "apagar e lançar de novo" falhar
+#     no meio e o lançamento sumir;
+#   - lançamento gerado por outro módulo (conta fixa, assinatura, renda,
+#     meta, dívida) NÃO se apaga nem se corrige por aqui: o vínculo do outro
+#     lado ficaria apontando pra nada. Desfaz-se pela origem (desmarcar o
+#     pagamento, apagar a contribuição...), que já devolve o dinheiro.
+
+REF_TRANSACAO = "transacao"
+
+# (tabela, coluna) que guardam o id de uma transação gerada por outro módulo
+_ORIGENS_TRANSACAO = [
+    ("conta fixa", "fixed_bill_periods", "transaction_id"),
+    ("assinatura", "wallet_subscription_periods", "transaction_id"),
+    ("renda", "income_entries", "transaction_id"),
+    ("meta", "goal_contributions", "transaction_id"),
+    ("dívida", "debts", "transacao_id"),
+]
+
+
+def _origem_transacao(db, tx_id: str) -> Optional[str]:
+    for nome, tabela, coluna in _ORIGENS_TRANSACAO:
+        if db.execute(f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (tx_id,)).fetchone():
+            return nome
+    return None
+
+
+def _get_avulsa_or_error(db, tx_id: str):
+    tx = db.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+    if not tx:
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+    origem = _origem_transacao(db, tx_id)
+    if origem:
+        raise HTTPException(
+            status_code=409,
+            detail=f"este lançamento veio de {origem} — desfaça por lá (ex.: desmarque o pagamento)",
+        )
+    return tx
+
+
+def _undo_transaction(db, tx) -> None:
+    """Desfaz o efeito de um lançamento no saldo/fatura e o remove. Não comita."""
+    conta_id, amount = tx["conta_id"], tx["amount"]
+    if conta_id:  # conta apagada depois: não há saldo pra devolver
+        if tx["type"] == "entrada":
+            db.execute("UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?", (amount, conta_id))
+        elif tx["type"] == "saida" and tx["forma_pagamento"] == "credito":
+            db.execute("UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) - ? WHERE id = ?", (amount, conta_id))
+        else:  # saída no saldo e transferência (sai da origem nos dois casos)
+            db.execute("UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?", (amount, conta_id))
+    if tx["type"] == "transferencia" and tx["conta_destino_id"]:
+        db.execute(
+            "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
+            (amount, tx["conta_destino_id"]),
+        )
+    db.execute("DELETE FROM transactions WHERE id = ?", (tx["id"],))
+
+
+def _credit_transaction_xp(db, out: dict) -> None:
+    register_action(
+        db,
+        description=f"lançou {out['type']}: {out['description']}",
+        categories=["financas"],
+        xp=XP_TRANSACAO,
+        impact=2,
+        source="financas",
+        referencia_tipo=REF_TRANSACAO,
+        referencia_id=out["id"],
+    )
+
+
+@router.post("/transactions", response_model=TransactionOut)
+def create_transaction(payload: TransactionIn, db=Depends(get_db)):
+    out = _apply_transaction(db, payload)
+    db.commit()
+    _credit_transaction_xp(db, out)
+    return out
+
+
+@router.put("/transactions/{tx_id}", response_model=TransactionOut)
+def update_transaction(tx_id: str, payload: TransactionIn, db=Depends(get_db)):
+    old = _get_avulsa_or_error(db, tx_id)
+    _undo_transaction(db, old)
+    try:
+        out = _apply_transaction(db, payload)
+    except HTTPException:
+        db.rollback()  # o lançamento antigo volta exatamente como estava
+        raise
+    db.commit()
+    # xp: o lançamento corrigido rende o mesmo de um novo, e o antigo é
+    # estornado — o total não muda, mas o log aponta pro lançamento certo
+    _credit_transaction_xp(db, out)
+    revert_actions(db, REF_TRANSACAO, tx_id)
+    return out
+
+
+@router.delete("/transactions/{tx_id}", status_code=204)
+def delete_transaction(tx_id: str, db=Depends(get_db)):
+    tx = _get_avulsa_or_error(db, tx_id)
+    _undo_transaction(db, tx)
+    db.commit()
+    revert_actions(db, REF_TRANSACAO, tx_id)
+    # apagar pode mudar conquistas sem log pra estornar (ex.: "mês no azul"
+    # de um lançamento antigo, de antes do vínculo) — confere de novo
+    relock_unmet_achievements(db)
+    db.commit()
+
 
 @router.get("/summary", response_model=SummaryOut)
 def get_summary(month: str, db=Depends(get_db)):

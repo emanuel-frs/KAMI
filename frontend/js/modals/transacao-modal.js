@@ -15,6 +15,7 @@ import { escapeHtml, localDateKey } from "../components/format.js";
 let modalEl = null;
 let onSavedCb = null;
 let accountsFlat = [];
+let editingId = null; // CONF-07: id do lançamento sendo corrigido (null = lançamento novo)
 
 function buildModal() {
   const wrap = document.createElement("div");
@@ -22,7 +23,7 @@ function buildModal() {
   wrap.id = "transaction-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">novo lançamento <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span id="tm-title">novo lançamento</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
           <label for="tm-type">tipo</label>
@@ -135,9 +136,11 @@ async function submitTransaction(wrap) {
   }
 
   try {
-    await financasApi.createTransaction(payload);
+    // CONF-07: corrigindo, troca o lançamento de uma vez no backend
+    if (editingId) await financasApi.updateTransaction(editingId, payload);
+    else await financasApi.createTransaction(payload);
   } catch (err) {
-    showErrorModal(err.message, "erro ao lançar");
+    showErrorModal(err.message, editingId ? "erro ao corrigir" : "erro ao lançar");
     return;
   }
   closeTransacaoModal();
@@ -157,14 +160,19 @@ function wireModal(wrap) {
 }
 
 /**
- * @param {{ accounts: Array, onSaved: () => Promise<void>|void }} opts
+ * @param {{ accounts: Array, onSaved: () => Promise<void>|void, editing?: object }} opts
  *   `accounts` já achatadas com bankNome — ex: banks.flatMap(b =>
  *   b.accounts.map(a => ({ ...a, bankNome: b.nome }))).
+ *   `editing`: um lançamento avulso a corrigir (CONF-07) — o modal abre
+ *   preenchido e salvar chama PUT /transactions/{id}.
  */
-export function openTransacaoModal({ accounts, onSaved } = {}) {
+export function openTransacaoModal({ accounts, onSaved, editing = null } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   accountsFlat = accounts || [];
+  editingId = editing?.id || null;
+  modalEl.querySelector("#tm-title").textContent = editing ? "corrigir lançamento" : "novo lançamento";
+  modalEl.querySelector('[data-action="save"]').textContent = editing ? "salvar correção" : "+ lançar";
 
   modalEl.querySelector("#tm-type").value = "entrada";
   refreshCustomSelect(modalEl.querySelector("#tm-type"));
@@ -176,8 +184,30 @@ export function openTransacaoModal({ accounts, onSaved } = {}) {
   refreshCustomSelect(modalEl.querySelector("#tm-destino-tipo"));
   modalEl.querySelector("#tm-destino-externo").value = "";
   populateContaSelects(modalEl);
+  if (editing) fillFrom(modalEl, editing);
   updateVisibility(modalEl);
   modalEl.classList.add("open");
+}
+
+/** Preenche o modal com um lançamento existente (modo corrigir, CONF-07). */
+function fillFrom(wrap, t) {
+  const set = (sel, v) => {
+    const el = wrap.querySelector(sel);
+    el.value = v ?? "";
+    if (el.tagName === "SELECT") refreshCustomSelect(el);
+  };
+  set("#tm-type", t.type);
+  set("#tm-desc", t.description);
+  set("#tm-amount", t.amount);
+  set("#tm-date", t.date);
+  if (t.type !== "transferencia") set("#tm-category", t.category);
+  set("#tm-conta", t.conta_id);
+  if (t.forma_pagamento) set("#tm-forma-pagamento", t.forma_pagamento);
+  if (t.type === "transferencia") {
+    set("#tm-destino-tipo", t.conta_destino_id ? "interna" : "externa");
+    if (t.conta_destino_id) set("#tm-conta-destino", t.conta_destino_id);
+    else set("#tm-destino-externo", t.destino_externo);
+  }
 }
 
 export function closeTransacaoModal() {

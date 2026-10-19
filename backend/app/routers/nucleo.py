@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 
 from app.database import backup_database, get_db, local_now, new_id, now_iso
 from app.xp import level_from_xp
-from app.actions import register_action as register_action_core
+from app.actions import delete_manual_action, register_action as register_action_core
 from app.achievements import REFS_BONUS, achievement_progress, check_achievements, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
@@ -227,6 +227,12 @@ def register_action(payload: ActionCreate, db=Depends(get_db)):
         impact=payload.impact,
         source="form",
     )
+
+
+@router.delete("/actions/{action_id}", status_code=204)
+def delete_action(action_id: str, db=Depends(get_db)):
+    """Apaga uma ação registrada à mão e estorna o xp (CONF-07, ver actions.delete_manual_action)."""
+    delete_manual_action(db, action_id)
 
 
 @router.get("/log", response_model=List[LogEntryOut])

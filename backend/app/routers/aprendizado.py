@@ -50,6 +50,7 @@ from pydantic import BaseModel
 
 from app.database import get_db, local_now, new_id, now_iso
 from app.actions import debit_xp, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 from app.routers.metas import sync_learning_goals
 
 router = APIRouter()
@@ -323,6 +324,10 @@ def delete_track(track_id: str, db=Depends(get_db)):
     for ms in done:
         _revert_milestone_xp(db, ms["id"], ms["xp_awarded"])
     db.execute("DELETE FROM tracks WHERE id = ?", (track_id,))
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o marco ainda concluído, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
 
@@ -415,6 +420,10 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
             milestone_id,
         ),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o marco ainda concluído, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
     if is_completing:

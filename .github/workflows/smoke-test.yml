@@ -2,7 +2,7 @@ name: Smoke test
 
 on:
   push:
-    branches: [develop, main, 'release/**', fix/ci-instalacao]
+    branches: [develop, main, 'release/**']
   pull_request:
     branches: [develop, main, 'release/**']
   workflow_dispatch:
@@ -10,10 +10,58 @@ on:
 permissions:
   contents: read
 
+# CONF-03: o teste ponta a ponta (tests/e2e/kami-e2e.mjs) abre o app
+# compilado de verdade em Linux e Windows, passa pelas telas em 3 tamanhos
+# e guarda os prints como artefato. Roda só em PR pra main, em push pra
+# release/** e no disparo manual (decisão P-02) — reaproveita o app que os
+# jobs de build já compilam, então não refaz build nenhum.
+env:
+  RUN_E2E: ${{ github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/') }}
+
 jobs:
   tests:
     name: Backend and frontend tests
     runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt pytest pytest-cov
+
+      # CONF-04: piso de cobertura — não pode cair. Sobe aos poucos conforme
+      # entram testes novos (era 89% no backend e 77% no frontend em 2026-10-17).
+      - name: Run backend tests (coverage floor)
+        working-directory: backend
+        run: pytest --cov=app --cov-report=term --cov-fail-under=89
+
+      - name: Run frontend tests (coverage floor)
+        run: |
+          npm install --no-audit --no-fund
+          npm run test:coverage
+
+      - name: Check Linux installer with ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
+
+  # CONF-03: mesmas suítes no Windows, em todo PR (decisão do Emanuel) —
+  # pega diferença de caminho (\ vs /), fuso, encoding e fim de linha.
+  # Roda em paralelo com o job windows-smoke, que leva ~15 min, então não
+  # atrasa o resultado do PR.
+  tests-windows:
+    name: Backend and frontend tests (Windows)
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -38,12 +86,6 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm test
-
-      - name: Check Linux installer with ShellCheck
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
 
   linux-build:
     name: Build Linux bundles and sidecar
@@ -140,6 +182,33 @@ jobs:
           cp scripts/ci/smoke_backend.sh "$staging/scripts/ci/smoke_backend.sh"
           cp packaging/arch/PKGBUILD "$staging/packaging/arch/PKGBUILD"
           cp packaging/arch/.SRCINFO "$staging/packaging/arch/.SRCINFO"
+
+      - uses: actions/setup-node@v4
+        if: env.RUN_E2E == 'true'
+        with:
+          node-version: "22"
+
+      - name: Install end-to-end test tools (WebKitWebDriver, Xvfb, tauri-driver)
+        if: env.RUN_E2E == 'true'
+        run: |
+          sudo apt-get install -y webkit2gtk-driver xvfb
+          cargo install tauri-driver --locked
+
+      - name: End-to-end test of the compiled app
+        if: env.RUN_E2E == 'true'
+        env:
+          KAMI_E2E_APP: src-tauri/target/release/kami
+          KAMI_E2E_PYTHON: backend/.venv/bin/python
+          KAMI_E2E_OUT: ${{ runner.temp }}/e2e-linux
+        run: xvfb-run -a --server-args="-screen 0 2000x1200x24" node tests/e2e/kami-e2e.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always() && env.RUN_E2E == 'true'
+        with:
+          name: e2e-linux-prints-e-log
+          path: ${{ runner.temp }}/e2e-linux
+          if-no-files-found: warn
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -432,6 +501,19 @@ jobs:
             throw "Ainda há processo kami-backend.exe após fechar a janela do Kami."
           }
 
+      # CONF-03: o teste ponta a ponta do Windows roda no job e2e-windows
+      # (windows-2022) com este mesmo executável — ver o comentário lá
+      - name: Keep the compiled app for the Windows end-to-end test
+        if: env.RUN_E2E == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-app-for-e2e
+          path: |
+            src-tauri/target/release/kami.exe
+            src-tauri/target/release/kami-backend.exe
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Collect backend log
         if: always()
         shell: pwsh
@@ -450,3 +532,67 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: warn
           retention-days: 7
+
+  # CONF-03: teste ponta a ponta do app compilado no Windows.
+  #
+  # Por que windows-2022 e não windows-latest: a automação do WebView2 pelo
+  # msedgedriver quebra a partir do WebView2 Runtime 133 (falha sempre com
+  # "DevToolsActivePort file doesn't exist") — problema da Microsoft, sem
+  # correção do lado do runner (actions/runner-images#14738, fechada como
+  # "not planned"; upstream MicrosoftEdge/WebView2Feedback#5415). O
+  # windows-2022 ainda vem com um runtime anterior a isso. O app é
+  # COMPILADO no windows-latest (job acima, igual à release) e só testado
+  # aqui. Limite conhecido: o WebView2 deste teste é mais antigo que o dos
+  # usuários — pega quebra de layout/funcionamento no Windows, não
+  # diferença específica do runtime novo.
+  e2e-windows:
+    name: Windows end-to-end test (compiled app)
+    needs: windows-smoke
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-app-for-e2e
+          path: app
+
+      - name: Install end-to-end test tools (tauri-driver, msedgedriver, httpx)
+        shell: pwsh
+        run: |
+          python -m pip install httpx
+          cargo install tauri-driver --locked
+          # msedgedriver tem que ser da MESMA versão do WebView2 instalado —
+          # a ferramenta abaixo (indicada na documentação do Tauri) baixa a certa
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+
+      - name: End-to-end test of the compiled app
+        shell: pwsh
+        run: |
+          $env:KAMI_E2E_APP = Join-Path $PWD "app\kami.exe"
+          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
+          $env:KAMI_E2E_PYTHON = "python"
+          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          & $env:KAMI_E2E_NATIVE_DRIVER --version
+          Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
+          node tests/e2e/kami-e2e.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-windows-prints-e-log
+          path: ${{ runner.temp }}/e2e-windows
+          if-no-files-found: warn
+          retention-days: 14

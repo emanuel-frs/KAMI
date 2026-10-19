@@ -401,7 +401,10 @@ function buildAvatarControls(container) {
     pre.textContent = ascii;
     try {
       fitAsciiText(pre, ascii, { container: preview, maxHeight: 150, maxFont: 12, minFont: 1, paddingX: 12, paddingY: 8 });
-    } catch (_) {}
+    } catch (_) {
+      // ajuste de tamanho do ASCII é só cosmético — se falhar, o texto
+      // fica no tamanho padrão (CONF-01: silêncio de propósito)
+    }
   }
 
   function loadFile(file) {
@@ -526,7 +529,10 @@ function applySidebarAvatar(ascii) {
   el.textContent = ascii;
   try {
     fitAsciiText(el, ascii, { container: el.parentElement, maxHeight: 25, maxFont: 3, minFont: 1, paddingX: 8, paddingY: 4 });
-  } catch (_) {}
+  } catch (_) {
+    // ajuste de tamanho do ASCII é só cosmético — se falhar, o texto
+    // fica no tamanho padrão (CONF-01: silêncio de propósito)
+  }
 }
 
 function closeOverlay() {

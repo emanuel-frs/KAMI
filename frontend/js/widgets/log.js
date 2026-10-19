@@ -1,5 +1,8 @@
 // js/widgets/log.js
-import { getLog } from "../api/nucleo.js";
+import { deleteAction, getLog } from "../api/nucleo.js";
+import { icon } from "../components/icons.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
+import { showErrorModal } from "../modals/err-modal.js";
 import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
@@ -44,7 +47,7 @@ export async function render(el, widget) {
       if (currentAttribute !== "all") params.attribute = currentAttribute;
       entries = await getLog(params);
     } catch (err) {
-      listEl.innerHTML = `<div class="empty-state">erro ao carregar log: ${err.message}</div>`;
+      listEl.innerHTML = `<div class="empty-state">erro ao carregar log: ${escapeHtml(err.message)}</div>`;
       return;
     }
     const focusId = consumePendingFocus("acao");
@@ -59,11 +62,35 @@ export async function render(el, widget) {
         <span class="desc">${escapeHtml(l.description)}</span>
         <span class="meta">${fmtRelDate(l.created_at)}</span>
         <span class="tag">+${l.xp_gained}xp</span>
+        ${l.source === "form"
+          ? `<button type="button" class="icon-btn danger" data-delete-action="${escapeHtml(l.id)}" data-tooltip="apagar ação" aria-label="apagar ação">${icon("trash-2", { size: 10 })}</button>`
+          : `<span class="log-action-slot" aria-hidden="true"></span>`}
       </div>`
       )
       .join("");
 
     if (focusId) focusRow(listEl.querySelector(`[data-id="${focusId}"]`), "acao");
+
+    // CONF-07: só ações registradas à mão — as automáticas (lançamento,
+    // marco, pagamento...) se desfazem na origem, que estorna o xp junto
+    listEl.querySelectorAll("[data-delete-action]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const entry = entries.find((x) => x.id === btn.dataset.deleteAction);
+        if (!entry) return;
+        const ok = await showConfirmModal(
+          `apagar "${entry.description}"? os ${entry.xp_gained} de xp dessa ação saem.`,
+          { title: "apagar ação", confirmText: "apagar", danger: true },
+        );
+        if (!ok) return;
+        try {
+          await deleteAction(entry.id);
+        } catch (err) {
+          showErrorModal(err.message, "erro ao apagar");
+          return;
+        }
+        load();
+      });
+    });
   }
 
   periodEl.addEventListener("change", () => {
