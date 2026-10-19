@@ -75,7 +75,7 @@
  * atrás de um botão "+ nova conta" (mesmo padrão de toggle
  * mostrar/esconder, não um modal separado).
  */
-import { exportData, getDiagnostico, importData, resetData } from "../api/sistema.js";
+import { exportData, exportProtegido, getDiagnostico, importData, importProtegido, resetData } from "../api/sistema.js";
 import { getChave, redefinirChave } from "../api/seguranca.js";
 import { copyText } from "../components/clipboard.js";
 import { applyXpReview, getRecompensas, previewXpReview } from "../api/nucleo.js";
@@ -111,6 +111,7 @@ import { playSound } from "../components/sound.js";
 
 const RESET_WORD = "excluir";
 const REDEFINIR_WORD = "redefinir";
+const SENHA_BACKUP_MIN = 8; // = SENHA_MIN em app/backup_cifrado.py
 const IMPORT_WORD = "importar";
 
 const TABS = [
@@ -134,6 +135,8 @@ const PLACEHOLDER_COPY = {};
 
 let modalEl = null;
 let busy = false;
+// SEG-03: backup escolhido no import, já lido (pra saber se pede senha)
+let importParsed = null;
 
 // aba chaves — estado da lista de contas de e-mail (ver wireChavesTab()
 // mais abaixo). Módulo-level porque a lista é recarregada e
@@ -340,6 +343,16 @@ function buildBackupPanel() {
       <div class="settings-section" style="padding-top:0;">
         <h4>exportar dados</h4>
         <p class="settings-desc">baixa um arquivo .json com todos os seus dados (perfil, núcleo, finanças, aprendizado, organização, metas) — útil como backup antes de trocar de máquina ou reinstalar.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="sm-export-protect" checked>
+          <span>proteger com senha<small>o arquivo só abre com a senha, e leva junto as senhas salvas (e-mail, github, busca) — funciona em outro computador</small></span>
+        </label>
+        <div id="sm-export-protect-fields">
+          <div class="field"><label for="sm-export-senha">senha (mínimo ${SENHA_BACKUP_MIN} caracteres)</label><input type="password" id="sm-export-senha" autocomplete="new-password" maxlength="200"></div>
+          <div class="field"><label for="sm-export-senha2">repita a senha</label><input type="password" id="sm-export-senha2" autocomplete="new-password" maxlength="200"></div>
+          <p class="settings-note">sem a senha o arquivo não abre — nem o kami consegue recuperar. guarde a senha num lugar seguro.</p>
+        </div>
+        <p class="settings-note cfg-export-aviso" id="sm-export-unprotected-note" hidden>sem senha, qualquer pessoa com o arquivo lê todos os seus dados (finanças, e-mails, anotações) — e as senhas salvas não funcionam em outro computador.</p>
         <div class="form-actions">
           <button class="btn sm" id="sm-export-btn" data-action="export">baixar backup (.json)</button>
         </div>
@@ -357,10 +370,14 @@ function buildBackupPanel() {
       <div class="settings-section settings-warning">
         <h4>importar dados</h4>
         <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
-        <p class="settings-note">nota: senha de e-mail, token do github e chave de busca são salvos criptografados com uma chave que fica só nesta instalação. se este backup for de <strong>outra máquina</strong>, esses três campos não vêm junto — o resto dos dados restaura normalmente, mas você vai precisar reconfigurar essas credenciais em organização.</p>
+        <p class="settings-note">backup <strong>com senha</strong> traz também as senhas salvas (e-mail, github, busca), em qualquer computador. backup <strong>sem senha</strong> de outra máquina restaura o resto, mas essas senhas precisam ser cadastradas de novo em configurações › chaves.</p>
         <div class="field">
           <label for="sm-import-file">arquivo de backup (.json)</label>
           <input type="file" id="sm-import-file" accept="application/json,.json">
+        </div>
+        <div class="field" id="sm-import-senha-field" hidden>
+          <label for="sm-import-senha">${icon("shield", { size: 12 })} backup protegido — senha</label>
+          <input type="password" id="sm-import-senha" autocomplete="current-password" maxlength="200">
         </div>
         <div class="field">
           <label for="sm-import-confirm">digite <strong>${IMPORT_WORD}</strong> pra habilitar o botão abaixo</label>
@@ -398,7 +415,7 @@ function buildSegurancaPanel() {
         <p class="settings-desc">a senha de app do e-mail, o token do github e a chave da busca ficam cifrados no banco. a chave que abre esses dados fica:</p>
         <p class="cfg-seg-chave" id="cfg-seg-chave">verificando…</p>
         <p class="settings-status" id="cfg-seg-status"></p>
-        <p class="settings-note">a chave não vai junto quando a pasta de dados é copiada pra outro computador — lá, essas senhas precisam ser informadas de novo.</p>
+        <p class="settings-note">a chave não vai junto quando a pasta de dados é copiada pra outro computador — lá, essas senhas precisam ser informadas de novo. pra levar tudo, use o backup <strong>com senha</strong> (backup e dados).</p>
       </div>
       <div class="settings-section settings-danger" id="cfg-seg-redefinir" hidden>
         <h4>redefinir a chave</h4>
@@ -1256,13 +1273,38 @@ function wireBackupTab(wrap) {
   const importFile = wrap.querySelector("#sm-import-file");
   const importConfirmInput = wrap.querySelector("#sm-import-confirm");
   const importBtn = wrap.querySelector("#sm-import-btn");
+  const importSenhaField = wrap.querySelector("#sm-import-senha-field");
+  const importSenha = wrap.querySelector("#sm-import-senha");
   const updateImportBtn = () => {
     const wordOk = importConfirmInput.value.trim().toLowerCase() === IMPORT_WORD;
     const fileOk = importFile.files.length > 0;
-    importBtn.disabled = !(wordOk && fileOk);
+    const senhaOk = importSenhaField.hidden || importSenha.value.length > 0;
+    importBtn.disabled = !(wordOk && fileOk && senhaOk);
   };
-  importFile.addEventListener("change", updateImportBtn);
+  // SEG-03: lê o arquivo ao escolher, pra saber já se ele pede senha
+  importFile.addEventListener("change", async () => {
+    importParsed = null;
+    importSenhaField.hidden = true;
+    importSenha.value = "";
+    const file = importFile.files[0];
+    if (file) {
+      try {
+        importParsed = await readFileAsJson(file);
+        importSenhaField.hidden = !importParsed?.kami_backup_cifrado;
+      } catch {
+        importParsed = null; // o handleImport mostra o erro de leitura
+      }
+    }
+    updateImportBtn();
+  });
   importConfirmInput.addEventListener("input", updateImportBtn);
+  importSenha.addEventListener("input", updateImportBtn);
+
+  const protect = wrap.querySelector("#sm-export-protect");
+  protect.addEventListener("change", () => {
+    wrap.querySelector("#sm-export-protect-fields").hidden = !protect.checked;
+    wrap.querySelector("#sm-export-unprotected-note").hidden = protect.checked;
+  });
 
   const confirmInput = wrap.querySelector("#sm-reset-confirm");
   const resetBtn = wrap.querySelector("#sm-reset-btn");
@@ -1287,13 +1329,41 @@ async function handleExport(wrap) {
   statusEl.textContent = "";
   statusEl.classList.remove("settings-status--visible");
 
+  const protegido = wrap.querySelector("#sm-export-protect").checked;
+  const senhaInput = wrap.querySelector("#sm-export-senha");
+  const senha2Input = wrap.querySelector("#sm-export-senha2");
+  const senhaErro = protegido && (
+    senhaInput.value.length < SENHA_BACKUP_MIN ? `a senha precisa de pelo menos ${SENHA_BACKUP_MIN} caracteres`
+      : senhaInput.value !== senha2Input.value ? "as duas senhas não são iguais"
+        : ""
+  );
+  if (senhaErro) {
+    statusEl.textContent = senhaErro;
+    statusEl.classList.add("settings-status--visible");
+    busy = false;
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    (senhaInput.value.length < SENHA_BACKUP_MIN ? senhaInput : senha2Input).focus();
+    return;
+  }
+
   try {
-    const data = await exportData();
+    let data;
+    let fora = 0;
+    if (protegido) {
+      const res = await exportProtegido(senhaInput.value);
+      data = res.arquivo;
+      fora = res.segredos_fora;
+      senhaInput.value = "";
+      senha2Input.value = "";
+    } else {
+      data = await exportData();
+    }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const today = localDateKey();
-    const filename = `kami-backup-${today}.json`;
+    const filename = protegido ? `kami-backup-${today}-protegido.json` : `kami-backup-${today}.json`;
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -1301,7 +1371,8 @@ async function handleExport(wrap) {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)`;
+    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)` +
+      (fora ? ` — ${fora === 1 ? "1 senha salva não pôde ser lida e ficou" : `${fora} senhas salvas não puderam ser lidas e ficaram`} de fora (veja configurações › segurança)` : "");
     statusEl.classList.add("settings-status--visible");
 
     // confirmação visível mesmo se o usuário já tiver trocado de aba/fechado
@@ -1450,12 +1521,14 @@ async function handleImport(wrap) {
 
   let parsed;
   try {
-    parsed = await readFileAsJson(file);
+    parsed = importParsed ?? (await readFileAsJson(file));
   } catch (err) {
     showErrorModal(err.message, "erro ao importar dados");
     return;
   }
-  if (!parsed || typeof parsed !== "object" || !parsed.tables || typeof parsed.tables !== "object") {
+  const protegido = Boolean(parsed?.kami_backup_cifrado);
+  const senhaInput = wrap.querySelector("#sm-import-senha");
+  if (!protegido && (!parsed || typeof parsed !== "object" || !parsed.tables || typeof parsed.tables !== "object")) {
     showErrorModal("o arquivo selecionado não parece ser um backup válido do Kami (formato inesperado).", "erro ao importar dados");
     return;
   }
@@ -1469,11 +1542,13 @@ async function handleImport(wrap) {
   busy = true;
   fileInput.disabled = true;
   confirmInput.disabled = true;
+  senhaInput.disabled = true;
   importBtn.disabled = true;
   importBtn.textContent = "importando...";
 
   try {
-    await importData(confirmation, parsed.tables);
+    if (protegido) await importProtegido(confirmation, parsed, senhaInput.value);
+    else await importData(confirmation, parsed.tables);
     // recarrega o app inteiro em vez de tentar resetar o estado em
     // memória de cada tela na mão (store.js, widgets já montados
     // etc.) — garante que tudo volte a buscar do backend já com os
@@ -1484,6 +1559,7 @@ async function handleImport(wrap) {
     busy = false;
     fileInput.disabled = false;
     confirmInput.disabled = false;
+    senhaInput.disabled = false;
     importBtn.disabled = false;
     importBtn.textContent = "importar e sobrescrever";
   }

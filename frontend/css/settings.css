@@ -303,3 +303,6 @@
 .cfg-seg-chave[data-local="indisponivel"] { border-color: var(--red); }
 .cfg-seg-warn { font-weight: 700; color: var(--amber); }
 .cfg-seg-chave[data-local="indisponivel"] .cfg-seg-warn { color: var(--red); }
+
+/* SEG-03: exportar sem senha */
+.cfg-export-aviso { color: var(--amber); }

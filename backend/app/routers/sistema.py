@@ -5,9 +5,13 @@ o banco inteiro em vez de um módulo específico.
 
 Endpoints:
   GET  /api/sistema/export   devolve TODAS as tabelas do usuário em JSON
+  POST /api/sistema/export-protegido
+                             o mesmo backup, cifrado com uma senha e com
+                             as senhas salvas dentro (SEG-03)
   POST /api/sistema/import   substitui TODOS os dados atuais pelo
                              conteúdo de um export anterior (mesmo
-                             formato devolvido por /export)
+                             formato devolvido por /export, ou o arquivo
+                             protegido + a senha)
   POST /api/sistema/reset    apaga tudo e recria o estado de instalação
                              nova (mesma seed do primeiro boot)
   POST /api/sistema/erro-frontend
@@ -18,22 +22,26 @@ Endpoints:
                              versão, sistema e o fim do log, SEM dados
                              pessoais (CONF-06)
 
-Nota sobre /import: `email_accounts.app_password_enc`,
-`github_settings.token_enc` e `search_settings.api_key_enc` no export
-saem criptografados com a chave local da máquina (app/crypto.py —
-no cofre do sistema desde a 1.11) — um export importado numa instalação diferente não vai
-conseguir descriptografar essas credenciais, só o resto dos dados.
+Nota sobre /import: no backup SEM senha, `email_accounts.app_password_enc`,
+`github_settings.token_enc` e `search_settings.api_key_enc` saem
+cifrados com a chave local da máquina (app/crypto.py — no cofre do
+sistema desde a 1.11): importado em outra instalação, esses três não
+abrem, só o resto. No backup COM senha eles vão decifrados dentro do
+arquivo cifrado e voltam cifrados com a chave de quem importa.
 """
 import logging
 import platform
 import re
 from pathlib import Path
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
+from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
+from app.crypto import ChaveIndisponivel, decrypt_password, encrypt_password
 from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
@@ -101,13 +109,31 @@ class ResetIn(Entrada):
 
 class ImportIn(Entrada):
     confirmation: str
-    tables: dict[str, list[dict]]
+    # backup sem senha: as tabelas direto. Com senha (SEG-03): o arquivo
+    # inteiro em `cifrado` + a `senha` — um dos dois, nunca os dois.
+    tables: Optional[dict[str, list[dict]]] = None
+    cifrado: Optional[dict[str, Any]] = None
+    senha: Optional[str] = Field(None, max_length=200)
 
 
-@router.get("/export")
-def export_data(db=Depends(get_db)):
+class ExportProtegidoIn(Entrada):
+    senha: str = Field(..., min_length=SENHA_MIN, max_length=200)
+
+
+# colunas com segredo cifrado pela chave local (app/crypto.py): no backup
+# COM senha elas vão decifradas, dentro do arquivo cifrado, e voltam
+# cifradas com a chave da máquina que importa — por isso esse backup
+# funciona em outro computador e o sem senha não (SEG-03)
+SEGREDOS = [
+    ("email_accounts", "app_password_enc"),
+    ("github_settings", "token_enc"),
+    ("search_settings", "api_key_enc"),
+]
+
+
+def _montar_export(db) -> tuple[dict, str]:
     """
-    Dump completo em JSON de todas as tabelas de usuário — introspecta
+    Dump completo de todas as tabelas de usuário — introspecta
     `sqlite_master` em vez de listar tabelas na mão, pra não exigir
     lembrar de atualizar este endpoint toda vez que schema.sql ganhar
     uma tabela nova.
@@ -142,11 +168,68 @@ def export_data(db=Depends(get_db)):
         db.commit()
         tables["user_profile"][0]["last_backup_at"] = exported_at
 
+    return tables, exported_at
+
+
+@router.get("/export")
+def export_data(db=Depends(get_db)):
+    tables, exported_at = _montar_export(db)
     return {
         "kami_version": KAMI_VERSION,
         "exported_at": exported_at,
         "tables": tables,
     }
+
+
+@router.post("/export-protegido")
+def export_protegido(payload: ExportProtegidoIn, db=Depends(get_db)):
+    """
+    Backup com senha (SEG-03): o mesmo conteúdo do /export, com as senhas
+    salvas decifradas numa seção `segredos`, tudo cifrado pela senha
+    (app/backup_cifrado.py). Devolve o arquivo pronto em `arquivo`.
+    Segredo que não dá pra decifrar agora (chave indisponível, dado
+    corrompido) fica de fora — `segredos_fora` conta quantos.
+    """
+    tables, exported_at = _montar_export(db)
+    segredos, fora = {}, 0
+    for table, col in SEGREDOS:
+        for row in tables.get(table, []):
+            if not row.get(col):
+                continue
+            try:
+                segredos.setdefault(table, {})[row["id"]] = decrypt_password(row[col])
+            except (ValueError, ChaveIndisponivel):
+                fora += 1
+                continue
+            row[col] = "" if table == "email_accounts" else None
+    conteudo = {"kami_version": KAMI_VERSION, "exported_at": exported_at, "tables": tables, "segredos": segredos}
+    arquivo = cifrar(conteudo, payload.senha, kami_version=KAMI_VERSION, exported_at=exported_at)
+    return {
+        "arquivo": arquivo,
+        "segredos_incluidos": sum(len(v) for v in segredos.values()),
+        "segredos_fora": fora,
+    }
+
+
+def _restaurar_segredos(db, segredos: dict) -> tuple[int, int]:
+    """Cifra de novo, com a chave DESTA máquina, as senhas que vieram no backup protegido."""
+    restaurados, fora = 0, 0
+    validos = dict(SEGREDOS)
+    for table, por_id in (segredos or {}).items():
+        col = validos.get(table)
+        if not col or not isinstance(por_id, dict):
+            continue
+        for row_id, plain in por_id.items():
+            if not isinstance(plain, str):
+                continue
+            try:
+                enc = encrypt_password(plain)
+            except ChaveIndisponivel:
+                fora += 1
+                continue
+            db.execute(f"UPDATE {table} SET {col} = ? WHERE id = ?", (enc, row_id))  # table/col da lista fixa SEGREDOS
+            restaurados += 1
+    return restaurados, fora
 
 
 @router.post("/import")
@@ -184,7 +267,22 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
             detail=f"confirmação inválida; envie confirmation='{IMPORT_CONFIRMATION_WORD}' pra prosseguir",
         )
 
-    if "user_profile" not in payload.tables:
+    tables, segredos = payload.tables, {}
+    if payload.cifrado is not None:
+        if not payload.senha:
+            raise HTTPException(status_code=422, detail="este backup é protegido — informe a senha")
+        try:
+            conteudo = decifrar(payload.cifrado, payload.senha)
+        except SenhaErrada as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except ArquivoInvalido as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        tables = conteudo.get("tables") if isinstance(conteudo, dict) else None
+        segredos = conteudo.get("segredos") or {}
+        if not isinstance(tables, dict):
+            raise HTTPException(status_code=422, detail="arquivo não parece ser um backup válido do Kami")
+
+    if not tables or "user_profile" not in tables:
         raise HTTPException(
             status_code=422,
             detail="arquivo não parece ser um backup válido do Kami (faltando user_profile)",
@@ -217,7 +315,7 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         for table in _TABLES_IMPORT_ORDER:
             if table not in existing_tables:
                 continue
-            rows = payload.tables.get(table)
+            rows = tables.get(table)
             if not rows:
                 continue
             valid_cols = {r["name"] for r in db.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -237,6 +335,9 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         # backups de versões antigas trazem horários em UTC sem offset —
         # converte pro fuso local, igual ao que init_db faz no banco
         migrate_timestamps_to_local(db)
+
+        # backup protegido: as senhas salvas voltam cifradas pela chave daqui
+        segredos_restaurados, segredos_fora = _restaurar_segredos(db, segredos)
 
         violations = db.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
@@ -265,7 +366,7 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
     from app.achievements import seed_achievements
     seed_achievements(db)
 
-    return {"status": "ok"}
+    return {"status": "ok", "segredos_restaurados": segredos_restaurados, "segredos_fora": segredos_fora}
 
 
 @router.post("/reset")
