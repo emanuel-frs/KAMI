@@ -760,8 +760,10 @@ def list_fixed_bill_periods(month: str, db=Depends(get_db)):
             (b["id"], month),
         ).fetchone()
         if not existing:
+            # OR IGNORE: a tela pede o mês em várias requisições ao mesmo tempo e
+            # duas podem criar o mesmo período juntas (UNIQUE) — quem chega depois só usa o que já existe
             db.execute(
-                "INSERT INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
+                "INSERT OR IGNORE INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
                 "VALUES (?, ?, ?, 0, NULL)",
                 (new_id(), b["id"], month),
             )

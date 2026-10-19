@@ -140,8 +140,10 @@ def _conta_fixa_events(db, year: int, month: int, month_str: str) -> List[dict]:
         ).fetchone()
         if not existing:
             from app.database import new_id
+            # OR IGNORE: a tela pede o mês em várias requisições ao mesmo tempo e
+            # duas podem criar o mesmo período juntas (UNIQUE) — quem chega depois só usa o que já existe
             db.execute(
-                "INSERT INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
+                "INSERT OR IGNORE INTO fixed_bill_periods (id, fixed_bill_id, mes_ano, paga, valor_pago) "
                 "VALUES (?, ?, ?, 0, NULL)",
                 (new_id(), r["id"], month_str),
             )
@@ -196,8 +198,10 @@ def _assinatura_events(db, year: int, month: int, month_str: str) -> List[dict]:
         ).fetchone()
         if not existing:
             from app.database import new_id
+            # OR IGNORE: a tela pede o mês em várias requisições ao mesmo tempo e
+            # duas podem criar o mesmo período juntas (UNIQUE) — quem chega depois só usa o que já existe
             db.execute(
-                "INSERT INTO wallet_subscription_periods (id, subscription_id, mes_ano, paga, valor_pago) "
+                "INSERT OR IGNORE INTO wallet_subscription_periods (id, subscription_id, mes_ano, paga, valor_pago) "
                 "VALUES (?, ?, ?, 0, NULL)",
                 (new_id(), s["id"], month_str),
             )

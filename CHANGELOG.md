@@ -23,6 +23,7 @@ _Sprint de confiabilidade: quando algo dá errado o Kami avisa, se recupera sozi
 - uma saída lançada com data retroativa não tirava "mês no azul" do mês que deixou de fechar positivo
 - apagar uma conta fixa, assinatura ou fonte de renda deixava o xp dos meses pagos
 - corrigir o valor ou a data de um salário não recalculava o xp dele
+- abrir um mês novo podia dar erro no calendário ou nas contas fixas e assinaturas, quando a tela pedia o mês em várias requisições ao mesmo tempo
 - apagar algo que não existe respondia de jeitos diferentes conforme a tela; agora é sempre "não encontrado"
 
 ### Modificado

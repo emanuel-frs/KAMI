@@ -253,3 +253,34 @@ def test_cal_08_apagar_evento_e_validacoes(client):
     for bad in ({"title": " ", "date": "2026-03-10"}, {"title": "x", "date": "10/03/2026"},
                 {"title": "x", "date": "2026-03-10", "time": "9h"}, {"title": "x", "date": "2026-03-10", "recurrence": "hourly"}):
         assert client.post("/api/calendario/events/evento", json=bad).status_code == 422, bad
+
+
+def test_concurrent_reads_of_a_new_month_do_not_collide(client):
+    """
+    A tela abre o mês com várias requisições ao mesmo tempo (calendário,
+    contas fixas, assinaturas) e cada uma cria o período do mês se ainda não
+    existe. Duas criando o mesmo período juntas davam 500 por UNIQUE — o
+    teste ponta a ponta do Windows pegou. Criar tem que tolerar o empate.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    for i in range(5):
+        client.post("/api/financas/fixed-bills", json={"name": f"Conta {i}", "amount": 10, "due_day": 5})
+        client.post("/api/carteira/subscriptions", json={"nome": f"Assin {i}", "valor_esperado": 10.0, "dia_cobranca": 12})
+
+    urls = ["/api/calendario/events", "/api/financas/fixed-bills/periods", "/api/carteira/subscriptions/periods"]
+    for month in ["2027-01", "2027-02", "2027-03", "2027-04"]:
+        barrier = Barrier(9)
+
+        def hit(i):
+            barrier.wait()
+            return client.get(urls[i % 3], params={"month": month}).status_code
+
+        with ThreadPoolExecutor(9) as pool:
+            assert set(pool.map(hit, range(9))) == {200}
+
+        periods = client.get("/api/financas/fixed-bills/periods", params={"month": month}).json()
+        assert len(periods) == 5
+        subs = client.get("/api/carteira/subscriptions/periods", params={"month": month}).json()
+        assert len(subs) == 5
