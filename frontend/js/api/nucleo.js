@@ -2,6 +2,8 @@
 import { del, get, post } from "./client.js";
 export const getAttributes = () => get("/api/nucleo/attributes");
 export const registerAction = (data) => post("/api/nucleo/actions", data);
+// CONF-07: só ações registradas à mão (source "form") — as automáticas se desfazem na origem
+export const deleteAction = (id) => del(`/api/nucleo/actions/${encodeURIComponent(id)}`);
 export const getLog = (params = {}) => {
   const qs = new URLSearchParams(params).toString();
   return get(`/api/nucleo/log${qs ? `?${qs}` : ""}`);

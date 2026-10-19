@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.10.0] - em desenvolvimento
+
+_Sprint 2 da evolução — confiabilidade (CONF-01 a CONF-06: nenhum erro do backend sem aviso, vigia que reinicia o backend, testes no Windows e ponta a ponta, rede de proteção das regras de negócio, backup automático antes de migrar o banco, diagnóstico para copiar). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.9.1] - 2026-10-17
 
 _Ajustes pedidos depois da 1.9.0: o Windows para de abrir um terminal junto com o app, o scroll ganha a cara do Kami e o log passa a dizer quando cada coisa aconteceu._

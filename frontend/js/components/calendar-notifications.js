@@ -85,6 +85,9 @@ async function fetchRelevantEvents() {
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   months.add(monthStr(next));
 
+  // rotina de fundo: um mês que falhou só não gera lembrete agora (tenta
+  // de novo no próximo ciclo). Erro inesperado da API já virou aviso pelo
+  // kami:api-error (CONF-01) — aqui não precisa avisar de novo.
   const results = await Promise.all([...months].map((m) => listEvents(m).catch(() => [])));
   return results.flat();
 }

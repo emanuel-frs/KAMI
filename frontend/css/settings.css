@@ -269,3 +269,21 @@
 .xp-review-more {
   color: var(--text-faint);
 }
+
+/* CONF-06: prévia do diagnóstico (aba sobre) — mostra exatamente o que vai
+   ser copiado/salvo, já sem dado pessoal */
+.cfg-diag-preview {
+  margin: 10px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px var(--scroll-gutter) 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cfg-diag-preview:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }

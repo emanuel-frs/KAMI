@@ -40,6 +40,9 @@ export const listDebts = () => get("/api/financas/debts");
 export const createDebt = (data) => post("/api/financas/debts", data);
 export const updateDebt = (debtId, data) => put(`/api/financas/debts/${debtId}`, data);
 export const deleteDebt = (debtId) => del(`/api/financas/debts/${debtId}`);
+// P-13: quitar pode lançar a saída numa conta ({ conta_id?, forma_pagamento? }); desquitar desfaz
+export const payDebt = (debtId, payload = {}) => put(`/api/financas/debts/${debtId}/pay`, payload);
+export const unpayDebt = (debtId) => put(`/api/financas/debts/${debtId}/unpay`, {});
 
 // transações + resumo
 // payload de createTransaction agora inclui: description, amount, type
@@ -48,6 +51,10 @@ export const deleteDebt = (debtId) => del(`/api/financas/debts/${debtId}`);
 // conta_destino_id (transferência interna) OU destino_externo (transferência externa)
 export const listTransactions = (month) => get(`/api/financas/transactions?month=${month}`);
 export const createTransaction = (data) => post("/api/financas/transactions", data);
+// CONF-07: corrigir troca o lançamento de uma vez (se o novo não passar na
+// validação, o antigo fica como estava); só lançamentos avulsos (origem null)
+export const updateTransaction = (id, data) => put(`/api/financas/transactions/${id}`, data);
+export const deleteTransaction = (id) => del(`/api/financas/transactions/${id}`);
 export const getSummary = (month) => get(`/api/financas/summary?month=${month}`);
 
 // NOTA: listCreditCards/createCreditCard/deleteCreditCard e

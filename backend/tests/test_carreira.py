@@ -386,6 +386,38 @@ def test_update_salary_record_does_not_credit_xp(client):
     assert _attrs(client)["carreira"]["current_xp"] == 15
 
 
+def test_car_08_fixing_typo_in_realtime_salary_recalculates_xp(client):
+    """P-15: digitou 100000 em vez de 1100 → +220; corrigiu → fica o xp do salto real."""
+    _create_salary(client, amount=1000.0, date="2019-01-01")  # 15 (baseline)
+    record = _create_salary(client, amount=100000.0, date=TODAY)  # 220 (teto)
+    assert _attrs(client)["carreira"]["current_xp"] == 15 + 220
+
+    resp = client.put(f"/api/carreira/salarios/{record['id']}", json={"amount": 1100.0, "date": TODAY})
+    assert resp.status_code == 200
+    # +10% em tempo real: 40 + 10 * 3 = 70
+    assert _attrs(client)["carreira"]["current_xp"] == 15 + 70
+    # o log tem UMA ação pro registro (a antiga foi estornada, não somada)
+    log = client.get("/api/nucleo/log", params={"attribute": "carreira"}).json()
+    assert len(log) == 2
+
+
+def test_car_08_moving_realtime_salary_to_the_past_becomes_retroactive_xp(client):
+    _create_salary(client, amount=1000.0, date="2019-01-01")  # 15
+    record = _create_salary(client, amount=1100.0, date=TODAY)  # 70
+    client.put(f"/api/carreira/salarios/{record['id']}", json={"amount": 1100.0, "date": "2020-06-01"})
+    assert _attrs(client)["carreira"]["current_xp"] == 15 + 15  # retroativo
+
+
+def test_car_08_editing_other_fields_keeps_salary_xp(client):
+    _create_salary(client, amount=1000.0, date="2019-01-01")  # 15
+    record = _create_salary(client, amount=1100.0, date=TODAY)  # 70
+    client.put(
+        f"/api/carreira/salarios/{record['id']}",
+        json={"amount": 1100.0, "date": TODAY, "reason": "promoção"},
+    )
+    assert _attrs(client)["carreira"]["current_xp"] == 15 + 70
+
+
 def test_delete_salary_record_refunds_xp(client):
     record = _create_salary(client, amount=5000.0, date="2019-01-01")  # 15
     resp = client.delete(f"/api/carreira/salarios/{record['id']}")

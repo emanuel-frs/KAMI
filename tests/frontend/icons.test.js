@@ -32,3 +32,17 @@ test("icon respeita fill/strokeWidth customizados e usa fill=none/stroke-width=1
   assert.match(custom, /fill="currentColor"/);
   assert.match(custom, /stroke-width="2"/);
 });
+
+test("todo icon(\"nome\") do frontend usa um ícone que existe (nome errado vira botão vazio, sem erro)", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? (e.name === "vendor" ? [] : walk(join(d, e.name))) : e.name.endsWith(".js") ? [join(d, e.name)] : []);
+  const faltando = [];
+  for (const file of walk("frontend/js")) {
+    for (const [, name] of readFileSync(file, "utf8").matchAll(/\bicon\(\s*["']([a-z0-9-]+)["']/g)) {
+      if (icon(name) === "" && name !== "nao-existe") faltando.push(`${file}: ${name}`);
+    }
+  }
+  assert.deepEqual(faltando, []);
+});

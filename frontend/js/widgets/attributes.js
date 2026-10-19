@@ -124,7 +124,7 @@ export async function render(el, widget) {
   try {
     attributes = await getAttributes();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar atributos: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar atributos: ${escapeHtml(err.message)}</div>`;
     return;
   }
 

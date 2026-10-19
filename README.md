@@ -70,7 +70,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   configurações › aparência.
 - **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
-  visão mensal com comparação com o mês anterior.
+  visão mensal com comparação com o mês anterior. Lançamento digitado errado se corrige ou apaga, e o
+  saldo e o XP acompanham; quitar uma dívida pode lançar a saída na conta.
 - **Aprendizado:** trilhas de estudo com marcos, progresso automático, roadmap reordenável e heatmap de
   atividade.
 - **Metas pessoais:** tipos como financeira, saúde, leitura, hábito, aprendizado e acadêmica, com um peso
@@ -80,6 +81,10 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Carreira e Calendário:** linha do tempo de posições, formação e histórico salarial; calendário
   mensal que reúne contas, dívidas, parcelas, metas e eventos próprios.
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
+- **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
+  se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
+  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
+  configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
 
 Hoje o Kami **não usa inteligência artificial**. O "assistente Kami" que aparece na barra lateral
 está marcado como "em breve" e ainda não faz nada.
@@ -275,6 +280,22 @@ dependem de credenciais.
 ```bash
 cd backend && pytest     # backend
 npm install && npm test  # frontend (runner nativo do Node)
+```
+
+O CI roda essas duas suítes no Linux e no Windows em todo PR.
+
+**Teste ponta a ponta** (`tests/e2e/kami-e2e.mjs`): abre o app compilado
+com dados fictícios, passa pelas 8 telas em 3 tamanhos de janela e tira
+prints. Também registra uma ação pela interface, derruba o backend para
+conferir que ele volta sozinho e verifica que o log terminou sem erros. No
+CI ele roda em PRs para `main`, em `release/**` e no disparo manual, e os
+prints viram artefato do workflow. Para rodar no Linux, é preciso o
+`WebKitWebDriver` (pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o
+`tauri-driver` (`cargo install tauri-driver --locked`):
+
+```bash
+./scripts/build_sidecar.sh && (cd src-tauri && cargo tauri build --debug --no-bundle)
+KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
 ```
 
 ### Build de produção

@@ -1,6 +1,7 @@
 import { getAttributes, registerAction } from "../api/nucleo.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 
 /** Form pra registrar uma ação — credita xp num atributo (ver app/actions.py). */
 export async function render(el, widget) {
@@ -8,7 +9,7 @@ export async function render(el, widget) {
   try {
     attributes = await getAttributes();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${escapeHtml(err.message)}</div>`;
     return;
   }
   const active = attributes.filter((a) => a.is_active);

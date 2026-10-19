@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.actions import debit_xp, register_action, revert_actions
+from app.achievements import relock_unmet_achievements
 from app.database import get_db, new_id, now_iso
 from app.routers.metas import sync_academic_goals
 
@@ -435,6 +436,10 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
         "previsao_conclusao=?, xp_awarded=?, updated_at=? WHERE id=?",
         (curso, instituicao, nivel, new_status, previsao_conclusao, xp_awarded, now_iso(), education_id),
     )
+    # CONF-04 (INV-04): o revert_actions acima rebloqueia conquistas, mas
+    # rodou ANTES desta mudança de estado — com o curso ainda concluído, o
+    # critério ainda valia e nada era rebloqueado. Confere de novo agora.
+    relock_unmet_achievements(db)
     db.commit()
 
     if is_completing:
@@ -496,8 +501,9 @@ def delete_education(education_id: str, db=Depends(get_db)):
 #     histórico): XP fixo simbólico, igual ao primeiro registro —
 #     backfill não é o evento em si, é só recuperar dado passado.
 #
-# Editar NUNCA credita XP (só a criação é o "evento real", mesmo
-# tratamento de career_positions); remover estorna o XP da criação
+# Editar não gera XP NOVO (só a criação é o "evento real", mesmo
+# tratamento de career_positions) — mas corrigir VALOR ou DATA recalcula
+# o xp daquele registro (P-15, ver update_salary_record); remover estorna o XP da criação
 # (mesmo tratamento de career_positions.delete_position) — senão lançar
 # um "reajuste" enorme com data de hoje e apagar rendia até
 # SALARY_XP_REALTIME_MAX a cada repetição.
@@ -511,6 +517,24 @@ def _pct_change(previous: float, current: float) -> Optional[float]:
     if not previous:
         return None
     return round((current - previous) / previous * 100, 2)
+
+
+def _salary_xp(previous, amount: float, is_realtime: bool) -> tuple[int, str]:
+    """
+    XP e descrição de um registro salarial (regra no comentário acima).
+    `previous` é o registro anterior que servia de base quando este foi
+    lançado (None = primeiro registro, a baseline).
+    """
+    if previous is None:
+        return SALARY_XP_BASELINE_OR_RETROACTIVE, "registrou o primeiro salário (baseline da evolução salarial)"
+    if is_realtime:
+        salto_pct = _pct_change(previous["amount"], amount) or 0.0
+        xp = min(
+            SALARY_XP_REALTIME_MAX,
+            round(SALARY_XP_REALTIME_BASE + max(salto_pct, 0) * SALARY_XP_REALTIME_PER_PCT),
+        )
+        return xp, f"novo reajuste salarial ({salto_pct:+.1f}%)"
+    return SALARY_XP_BASELINE_OR_RETROACTIVE, "registrou salário retroativo (histórico)"
 
 
 class SalaryRecordIn(BaseModel):
@@ -592,19 +616,7 @@ def create_salary_record(payload: SalaryRecordIn, db=Depends(get_db)):
     db.commit()
 
     is_realtime = payload.date == date.today().isoformat()
-    if previous is None:
-        xp = SALARY_XP_BASELINE_OR_RETROACTIVE
-        description = "registrou o primeiro salário (baseline da evolução salarial)"
-    elif is_realtime:
-        salto_pct = _pct_change(previous["amount"], payload.amount) or 0.0
-        xp = min(
-            SALARY_XP_REALTIME_MAX,
-            round(SALARY_XP_REALTIME_BASE + max(salto_pct, 0) * SALARY_XP_REALTIME_PER_PCT),
-        )
-        description = f"novo reajuste salarial ({salto_pct:+.1f}%)"
-    else:
-        xp = SALARY_XP_BASELINE_OR_RETROACTIVE
-        description = "registrou salário retroativo (histórico)"
+    xp, description = _salary_xp(previous, payload.amount, is_realtime)
 
     register_action(
         db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira",
@@ -616,7 +628,7 @@ def create_salary_record(payload: SalaryRecordIn, db=Depends(get_db)):
 
 @router.put("/salarios/{record_id}", response_model=SalaryRecordOut)
 def update_salary_record(record_id: str, payload: SalaryRecordIn, db=Depends(get_db)):
-    _get_salary_record_or_404(db, record_id)
+    old = _get_salary_record_or_404(db, record_id)
     if payload.amount <= 0:
         raise HTTPException(status_code=422, detail="valor deve ser maior que zero")
     currency = payload.currency.strip() or "BRL"
@@ -631,7 +643,25 @@ def update_salary_record(record_id: str, payload: SalaryRecordIn, db=Depends(get
         ),
     )
     db.commit()
-    # sem register_action aqui de propósito — ver comentário da regra de XP acima
+    # P-15 (CONF-04): editar outros campos não mexe no xp (regra "editar não
+    # credita"), mas VALOR e DATA são a base do xp deste registro — corrigir
+    # um valor digitado errado (ex.: 10x o salário) deixava o xp do
+    # "aumento" errado pra sempre. Mudou um dos dois: estorna o xp deste
+    # registro e credita de novo com a mesma base de quando ele foi lançado
+    # (o registro anterior que já existia; "tempo real" = a data é o dia em
+    # que foi registrado).
+    if payload.amount != old["amount"] or payload.date != old["date"]:
+        previous = db.execute(
+            "SELECT * FROM career_salary_records WHERE id != ? AND created_at < ? "
+            "ORDER BY date DESC, created_at DESC LIMIT 1",
+            (record_id, old["created_at"]),
+        ).fetchone()
+        xp, description = _salary_xp(previous, payload.amount, payload.date == old["created_at"][:10])
+        revert_actions(db, "salario", record_id)
+        register_action(
+            db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira",
+            referencia_tipo="salario", referencia_id=record_id,
+        )
     return dict(db.execute("SELECT * FROM career_salary_records WHERE id = ?", (record_id,)).fetchone())
 
 
@@ -640,8 +670,8 @@ def delete_salary_record(record_id: str, db=Depends(get_db)):
     _get_salary_record_or_404(db, record_id)
     db.execute("DELETE FROM career_salary_records WHERE id = ?", (record_id,))
     db.commit()
+    # estorna o xp que este registro rendeu (mesmo tratamento de posições)
     revert_actions(db, "salario", record_id)
-    # sem estorno de xp — mesmo tratamento do resto do módulo (ver acima)
 
 
 @router.get("/salarios/estatisticas", response_model=SalaryStatsOut)

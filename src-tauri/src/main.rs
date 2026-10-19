@@ -44,6 +44,17 @@
 // que descubra a porta não consegue usar a API (ver
 // backend/app/security.py). Em modo dev sem sidecar não há token.
 //
+// Reinício (CONF-02): o frontend (components/backend-watchdog.js) checa
+// o /health de tempos em tempos; se o backend caiu, chama
+// `restart_backend`, que encerra o processo antigo (se ainda houver) e
+// sobe outro com porta e token novos — sem fechar o app. Cada processo
+// tem uma GERAÇÃO: os eventos do processo antigo (inclusive o
+// "Terminated" de quando nós mesmos o matamos pra reiniciar) só contam
+// se a geração ainda for a atual, senão marcariam o processo novo como
+// falho. `open_log_folder` abre a pasta de dados com o kami-backend.log
+// selecionado (caminho fixo no Rust — a janela não ganha permissão
+// nenhuma de abrir caminhos arbitrários).
+//
 // Pasta de dados: `KAMI_DATA_DIR` (opcional) substitui o caminho padrão
 // — é o "modo demo" (dados fictícios sem tocar nos reais). Precisa
 // continuar igual ao backend/app/paths.py.
@@ -63,6 +74,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use tauri::Manager;
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -81,6 +93,9 @@ struct BackendState {
     failure: Option<String>,
     /// Últimas linhas de stdout/stderr do sidecar (pra mensagem de erro).
     tail: Vec<String>,
+    /// Geração do processo atual (CONF-02) — sobe a cada reinício; evento
+    /// de processo de geração antiga é ignorado.
+    generation: u64,
 }
 
 #[derive(Default)]
@@ -155,9 +170,12 @@ fn failure_message(reason: &str, tail: &[String]) -> String {
     msg
 }
 
-fn set_failure(app: &tauri::AppHandle, reason: &str) {
+fn set_failure(app: &tauri::AppHandle, generation: u64, reason: &str) {
     let status = app.state::<BackendStatus>();
     let mut state = status.0.lock().unwrap();
+    if state.generation != generation {
+        return; // processo antigo (já substituído por um reinício)
+    }
     // mantém o PRIMEIRO motivo — os seguintes costumam ser consequência
     if state.failure.is_none() {
         let msg = failure_message(reason, &state.tail);
@@ -165,13 +183,16 @@ fn set_failure(app: &tauri::AppHandle, reason: &str) {
     }
 }
 
-fn push_tail(app: &tauri::AppHandle, line: &[u8]) {
+fn push_tail(app: &tauri::AppHandle, generation: u64, line: &[u8]) {
     let text = String::from_utf8_lossy(line).trim().to_string();
     if text.is_empty() {
         return;
     }
     let status = app.state::<BackendStatus>();
     let mut state = status.0.lock().unwrap();
+    if state.generation != generation {
+        return;
+    }
     state.tail.push(text);
     if state.tail.len() > TAIL_MAX_LINES {
         state.tail.remove(0);
@@ -273,6 +294,114 @@ async fn get_backend_token(
     }
 }
 
+/// Sobe o sidecar e liga o loop de eventos dele. Usado no startup e no
+/// reinício (CONF-02). Falha ao iniciar não derruba o app: vira o motivo
+/// devolvido por `get_backend_port`.
+fn spawn_backend(app: &tauri::AppHandle) {
+    let generation = app.state::<BackendStatus>().0.lock().unwrap().generation;
+
+    // apaga port/token de uma execução anterior antes de subir o sidecar
+    // novo — sem isso, get_backend_port poderia devolver a porta velha por
+    // um instante caso seja chamado antes do sidecar novo sobrescrever o
+    // arquivo (ver ALINHAMENTO.md, nota sobre "porta fantasma")
+    let _ = std::fs::remove_file(port_file_path());
+    let _ = std::fs::remove_file(token_file_path());
+
+    let spawn_result = app
+        .shell()
+        .sidecar("kami-backend")
+        .and_then(|command| command.spawn());
+
+    match spawn_result {
+        Ok((mut rx, child)) => {
+            app.state::<BackendProcess>().0.lock().unwrap().replace(child);
+
+            // Repassa stdout/stderr do backend pro console do Tauri (útil em
+            // dev), guarda as últimas linhas pra mensagem de erro e registra
+            // quando o processo morre — tudo marcado com a geração.
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            print!("[kami-backend] {}", String::from_utf8_lossy(&line));
+                            push_tail(&handle, generation, &line);
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprint!("[kami-backend] {}", String::from_utf8_lossy(&line));
+                            push_tail(&handle, generation, &line);
+                        }
+                        CommandEvent::Error(err) => {
+                            set_failure(&handle, generation, &format!("reportou um erro ({})", err));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            set_failure(
+                                &handle,
+                                generation,
+                                &format!("encerrou inesperadamente (código {:?})", payload.code),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            });
+        }
+        Err(err) => {
+            set_failure(
+                app,
+                generation,
+                &format!(
+                    "não pôde ser iniciado ({}) — verifique se o antivírus não bloqueou ou colocou o arquivo em quarentena",
+                    err
+                ),
+            );
+        }
+    }
+}
+
+/// Reinicia o backend (CONF-02): encerra o processo atual, se ainda
+/// existir, zera o estado de saúde com uma geração nova e sobe outro. O
+/// frontend depois chama `get_backend_port`/`get_backend_token` de novo,
+/// que esperam a porta e o token NOVOS (os arquivos antigos foram
+/// apagados em spawn_backend).
+#[tauri::command]
+async fn restart_backend(
+    app: tauri::AppHandle,
+    dev_override: tauri::State<'_, DevPortOverride>,
+) -> Result<(), String> {
+    if dev_override.0.is_some() {
+        return Err(
+            "Modo dev (KAMI_DEV_NO_SIDECAR): o backend roda à parte — suba o uvicorn de novo no terminal."
+                .to_string(),
+        );
+    }
+    if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+        kill_backend(child);
+    }
+    {
+        let status = app.state::<BackendStatus>();
+        let mut state = status.0.lock().unwrap();
+        state.generation += 1;
+        state.failure = None;
+        state.tail.clear();
+    }
+    spawn_backend(&app);
+    Ok(())
+}
+
+/// Abre a pasta de dados com o kami-backend.log selecionado (ou só a
+/// pasta, se o log ainda não existir).
+#[tauri::command]
+fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let log = log_file_path();
+    let result = if log.exists() {
+        app.opener().reveal_item_in_dir(&log)
+    } else {
+        app.opener().open_path(kami_data_dir().to_string_lossy(), None::<&str>)
+    };
+    result.map_err(|e| format!("não foi possível abrir a pasta do log ({}): {}", kami_data_dir().display(), e))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -280,7 +409,12 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(BackendStatus::default())
-        .invoke_handler(tauri::generate_handler![get_backend_port, get_backend_token])
+        .invoke_handler(tauri::generate_handler![
+            get_backend_port,
+            get_backend_token,
+            restart_backend,
+            open_log_folder
+        ])
         .setup(|app| {
             if std::env::var("KAMI_DEV_NO_SIDECAR").is_ok() {
                 println!(
@@ -292,71 +426,7 @@ fn main() {
             }
             app.manage(DevPortOverride(None));
 
-            // apaga um port file de uma execução anterior antes de subir o
-            // sidecar novo — sem isso, get_backend_port poderia devolver a
-            // porta velha por um instante caso seja chamado antes do
-            // sidecar novo sobrescrever o arquivo (ver ALINHAMENTO.md,
-            // nota sobre "porta fantasma")
-            let _ = std::fs::remove_file(port_file_path());
-            let _ = std::fs::remove_file(token_file_path());
-
-            let spawn_result = app
-                .shell()
-                .sidecar("kami-backend")
-                .and_then(|command| command.spawn());
-
-            match spawn_result {
-                Ok((mut rx, child)) => {
-                    app.state::<BackendProcess>()
-                        .0
-                        .lock()
-                        .unwrap()
-                        .replace(child);
-
-                    // Repassa stdout/stderr do backend pro console do Tauri
-                    // (útil em dev), guarda as últimas linhas pra mensagem
-                    // de erro e registra quando o processo morre.
-                    let handle = app.handle().clone();
-                    tauri::async_runtime::spawn(async move {
-                        while let Some(event) = rx.recv().await {
-                            match event {
-                                CommandEvent::Stdout(line) => {
-                                    print!("[kami-backend] {}", String::from_utf8_lossy(&line));
-                                    push_tail(&handle, &line);
-                                }
-                                CommandEvent::Stderr(line) => {
-                                    eprint!("[kami-backend] {}", String::from_utf8_lossy(&line));
-                                    push_tail(&handle, &line);
-                                }
-                                CommandEvent::Error(err) => {
-                                    set_failure(&handle, &format!("reportou um erro ({})", err));
-                                }
-                                CommandEvent::Terminated(payload) => {
-                                    set_failure(
-                                        &handle,
-                                        &format!(
-                                            "encerrou inesperadamente (código {:?})",
-                                            payload.code
-                                        ),
-                                    );
-                                }
-                                _ => {}
-                            }
-                        }
-                    });
-                }
-                Err(err) => {
-                    // não derruba o app: ele abre e mostra o motivo pro
-                    // usuário (via get_backend_port -> frontend)
-                    set_failure(
-                        app.handle(),
-                        &format!(
-                            "não pôde ser iniciado ({}) — verifique se o antivírus não bloqueou ou colocou o arquivo em quarentena",
-                            err
-                        ),
-                    );
-                }
-            }
+            spawn_backend(app.handle());
 
             Ok(())
         })

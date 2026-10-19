@@ -6,6 +6,8 @@ import { openTransacaoModal } from "../modals/transacao-modal.js";
 import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
+import { showErrorModal } from "../modals/err-modal.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -64,7 +66,7 @@ export async function render(el, widget) {
         financasApi.listTransactions(month),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar registros: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar registros: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();
@@ -109,6 +111,12 @@ export async function render(el, widget) {
                   </div>
                 </div>
                 <div class="registro-date">${formatDate(t.date)}</div>
+                ${t.origem
+                  ? `<span class="registro-origem" data-tooltip="veio de ${escapeHtml(t.origem)} — corrija ou desfaça por lá">${escapeHtml(t.origem)}</span>`
+                  : `<span class="registro-actions">
+                      <button type="button" class="icon-btn" data-edit-tx="${escapeHtml(t.id)}" data-tooltip="corrigir lançamento" aria-label="corrigir lançamento">${icon("pencil", { size: 11 })}</button>
+                      <button type="button" class="icon-btn danger" data-delete-tx="${escapeHtml(t.id)}" data-tooltip="apagar lançamento" aria-label="apagar lançamento">${icon("trash-2", { size: 11 })}</button>
+                    </span>`}
               </div>
             </div>`;
         }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? "nenhum lançamento bate com o filtro." : `nenhum lançamento em ${monthLabel(month)}.`}</div>`}
@@ -124,6 +132,33 @@ export async function render(el, widget) {
     el.querySelector('[data-action="next-month"]').addEventListener("click", () => { month = shiftMonth(month, 1); reload(); });
     el.querySelector('[data-action="add-transaction"]').addEventListener("click", () => {
       openTransacaoModal({ accounts: accountsFlat(), onSaved: reload });
+    });
+    // CONF-07: corrigir abre o lançamento preenchido; apagar pede confirmação
+    // e devolve saldo/fatura e xp (o backend faz tudo de uma vez)
+    el.querySelectorAll("[data-edit-tx]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const t = transactions.find((x) => x.id === btn.dataset.editTx);
+        if (t) openTransacaoModal({ accounts: accountsFlat(), onSaved: reload, editing: t });
+      });
+    });
+    el.querySelectorAll("[data-delete-tx]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const t = transactions.find((x) => x.id === btn.dataset.deleteTx);
+        if (!t) return;
+        const ok = await showConfirmModal(
+          `apagar "${t.description}" (${brl(t.amount)})? o valor volta pra conta e o xp do lançamento sai.`,
+          { title: "apagar lançamento", confirmText: "apagar", danger: true },
+        );
+        if (!ok) return;
+        try {
+          await financasApi.deleteTransaction(t.id);
+        } catch (err) {
+          showErrorModal(err.message, "erro ao apagar");
+          return;
+        }
+        window.dispatchEvent(new CustomEvent("kami:wallet-changed"));
+        await reload();
+      });
     });
     el.querySelector('[data-action="filter"]').addEventListener("click", () => {
       const categories = [...new Set(transactions.map((t) => t.category).filter(Boolean))].sort();

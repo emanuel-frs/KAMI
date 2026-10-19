@@ -68,7 +68,7 @@ export async function render(el, widget) {
       getPlayer(),
     ]);
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar perfil: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar perfil: ${escapeHtml(err.message)}</div>`;
     return;
   }
 

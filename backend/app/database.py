@@ -5,12 +5,18 @@ Sem ORM de propósito (alinhado com a filosofia "leve, RAM-consciente"
 do projeto) — sqlite3 puro da stdlib, com row_factory pra devolver
 dicts em vez de tuplas.
 """
+import logging
 import re
+import shutil
 import sqlite3
 import uuid
 import datetime
+from pathlib import Path
 from app.widgets import WIDGET_CATALOG
 from app.paths import APP_DIR, get_data_dir
+from app.version import KAMI_VERSION
+
+logger = logging.getLogger(__name__)
 
 # kami.db mora na pasta de dados do usuário (get_data_dir), não mais
 # fixo em "ao lado do código" — ver app/paths.py pro motivo (fase
@@ -649,9 +655,156 @@ def migrate_timestamps_to_local(conn: sqlite3.Connection) -> int:
     return converted
 
 
+def _migrate_debts_quitacao(conn: sqlite3.Connection) -> None:
+    """
+    P-13 (CONF-04): quitar uma dívida passa a funcionar como pagar uma
+    conta fixa — pode lançar a saída real numa conta. `transacao_id`
+    guarda essa transação pra desmarcar a quitação devolver o dinheiro.
+    Dívidas já marcadas como pagas antes disto ficam com NULL (quitadas
+    sem conta), e continuam valendo pra conquista.
+    """
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(debts)").fetchall()]
+    if "transacao_id" not in cols:
+        conn.execute("ALTER TABLE debts ADD COLUMN transacao_id TEXT REFERENCES transactions(id) ON DELETE SET NULL")
+    conn.commit()
+
+
+def _migrate_transacao_referencia(conn: sqlite3.Connection) -> None:
+    """
+    CONF-07: o xp de um lançamento (action_log "lançou entrada: mercado")
+    passou a apontar pra transação (referencia 'transacao'), pra que
+    apagar/corrigir o lançamento estorne o xp certo. Os logs antigos não
+    tinham vínculo: aqui eles são ligados à transação de mesma descrição,
+    na ordem em que os dois foram criados (o log é gravado logo depois da
+    transação, e o rowid guarda a ordem de inserção). Log sem par fica sem
+    vínculo — apagar aquele lançamento antigo só não estorna o xp dele.
+    Idempotente: só olha logs ainda sem referência.
+    """
+    logs = conn.execute(
+        "SELECT id, description FROM action_logs "
+        "WHERE source = 'financas' AND referencia_tipo IS NULL AND description LIKE 'lançou %' "
+        "ORDER BY created_at, rowid"
+    ).fetchall()
+    if not logs:
+        return
+    linked = {
+        r["referencia_id"]
+        for r in conn.execute("SELECT referencia_id FROM action_logs WHERE referencia_tipo = 'transacao'").fetchall()
+    }
+    pending: dict = {}
+    for tx in conn.execute("SELECT id, type, description FROM transactions ORDER BY rowid").fetchall():
+        if tx["id"] not in linked:
+            pending.setdefault(f"lançou {tx['type']}: {tx['description']}", []).append(tx["id"])
+    for log in logs:
+        fila = pending.get(log["description"])
+        if fila:
+            conn.execute(
+                "UPDATE action_logs SET referencia_tipo = 'transacao', referencia_id = ? WHERE id = ?",
+                (fila.pop(0), log["id"]),
+            )
+    conn.commit()
+
+
+# ==================== backup antes de migrar (CONF-05) ====================
+# Uma versão nova do app pode mexer no banco (migrações _migrate_* abaixo).
+# Se isso der errado no meio, o banco do usuário ficava pela metade. Agora:
+#   - ao abrir uma versão diferente da que atualizou o banco por último
+#     (sistema_info.versao_banco), o banco é copiado pra
+#     <pasta de dados>/backups/kami-antes-da-<versão>-<data>.db ANTES de
+#     qualquer migração; ficam os MIGRATION_BACKUPS_KEEP mais recentes;
+#   - se alguma migração falhar, o banco volta sozinho pra essa cópia e o
+#     backend não sobe (erro claro no log e na faixa do vigia, CONF-02) —
+#     nunca abre com o banco pela metade;
+#   - instalação nova (banco vazio) não gera backup.
+
+BACKUPS_DIR_NAME = "backups"
+MIGRATION_BACKUPS_KEEP = 3
+MIGRATION_BACKUP_PREFIX = "kami-antes-da-"
+
+
+class MigracaoFalhou(RuntimeError):
+    """A atualização do banco falhou e ele foi restaurado do backup."""
+
+
+def backups_dir() -> Path:
+    return DB_PATH.parent / BACKUPS_DIR_NAME
+
+
+def _stored_db_version(conn: sqlite3.Connection):
+    """
+    Versão do app que atualizou o banco por último. None = banco novo
+    (sem tabelas — nada a proteger); "" = banco de antes do CONF-05 (sem
+    sistema_info), que precisa de backup como qualquer versão diferente.
+    """
+    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+    if "user_profile" not in tables:
+        return None
+    if "sistema_info" not in tables:
+        return ""
+    row = conn.execute("SELECT valor FROM sistema_info WHERE chave = 'versao_banco'").fetchone()
+    return row["valor"] if row else ""
+
+
+def _backup_before_migration(conn: sqlite3.Connection) -> Path:
+    folder = backups_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = local_now().strftime("%Y%m%d-%H%M%S")
+    dest_path = folder / f"{MIGRATION_BACKUP_PREFIX}{KAMI_VERSION}-{stamp}.db"
+    dest = sqlite3.connect(dest_path)
+    try:
+        conn.backup(dest)  # API de backup do sqlite: consistente com o WAL
+    finally:
+        dest.close()
+    # mantém só os mais recentes — ordena pela data/hora que está no FIM do
+    # nome (…-AAAAMMDD-HHMMSS.db), não pela versão nem pelo mtime do arquivo
+    old = sorted(folder.glob(f"{MIGRATION_BACKUP_PREFIX}*.db"), key=lambda p: p.stem[-15:])
+    for path in old[:-MIGRATION_BACKUPS_KEEP]:
+        path.unlink(missing_ok=True)
+    logger.info("banco copiado pra %s antes de atualizar pra versão %s", dest_path.name, KAMI_VERSION)
+    return dest_path
+
+
+def _restore_backup(backup_path: Path) -> None:
+    """Volta o kami.db pra cópia. Os arquivos -wal/-shm do banco quebrado saem junto."""
+    for suffix in ("-wal", "-shm"):
+        Path(str(DB_PATH) + suffix).unlink(missing_ok=True)
+    shutil.copyfile(backup_path, DB_PATH)
+
+
+def _set_db_version(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "INSERT INTO sistema_info (chave, valor) VALUES ('versao_banco', ?) "
+        "ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
+        (KAMI_VERSION,),
+    )
+    conn.commit()
+
+
 def init_db() -> None:
-    """Cria as tabelas (se não existirem) e semeia dados default."""
+    """
+    Cria as tabelas (se não existirem), roda as migrações e semeia dados
+    default — com backup antes e restauração se a migração falhar (CONF-05).
+    """
     conn = get_connection()
+    stored = _stored_db_version(conn)
+    backup_path = _backup_before_migration(conn) if stored is not None and stored != KAMI_VERSION else None
+    try:
+        _init_db(conn)
+    except Exception as exc:
+        conn.close()
+        if backup_path is None:
+            raise
+        _restore_backup(backup_path)
+        logger.exception("a atualização do banco pra versão %s falhou; banco restaurado de %s", KAMI_VERSION, backup_path.name)
+        raise MigracaoFalhou(
+            f"a atualização do banco de dados pra versão {KAMI_VERSION} falhou e o banco foi restaurado "
+            f"da cópia {backup_path.name} (em {backup_path.parent}). Nada foi perdido. Volte pra versão "
+            f"anterior do Kami e envie o kami-backend.log num relato de problema."
+        ) from exc
+    conn.close()
+
+
+def _init_db(conn: sqlite3.Connection) -> None:
     # GAM-07: a tabela missoes já existia? (decide se o widget novo entra
     # no layout de quem já usava o app — ver _migrate_missoes_widget)
     had_missoes = conn.execute(
@@ -684,6 +837,8 @@ def init_db() -> None:
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
+    _migrate_debts_quitacao(conn)
+    _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)
     conn.commit()
 
@@ -693,7 +848,7 @@ def init_db() -> None:
     from app.achievements import seed_achievements
     seed_achievements(conn)
 
-    conn.close()
+    _set_db_version(conn)
 
 
 def _seed_defaults(conn: sqlite3.Connection) -> None:

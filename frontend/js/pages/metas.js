@@ -618,7 +618,7 @@ async function loadProgressPanel(goalId) {
     const contributions = await listContributions(goalId);
     renderProgressChart(panel, goal, contributions);
   } catch (err) {
-    panel.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${err.message}</div>`;
+    panel.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -686,7 +686,7 @@ async function refreshGoals() {
   try {
     goals = await listGoals();
   } catch (err) {
-    activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${err.message}</div>`;
+    activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${escapeHtml(err.message)}</div>`;
     doneEl.innerHTML = "";
     return;
   }

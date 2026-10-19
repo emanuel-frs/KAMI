@@ -32,7 +32,7 @@ export async function render(el, widget) {
     try {
       positions = await carreiraApi.listCareerPositions();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar posições: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar posições: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

@@ -13,7 +13,7 @@ export async function render(el, widget) {
     try {
       [attributes, goals] = await Promise.all([getAttributes(), listGoals()]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar prioridades: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar prioridades: ${escapeHtml(err.message)}</div>`;
       return;
     }
 

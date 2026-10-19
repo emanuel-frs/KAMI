@@ -33,7 +33,7 @@ export async function render(el, widget) {
   try {
     profile = await getCareerProfile();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar carreira: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar carreira: ${escapeHtml(err.message)}</div>`;
     return;
   }
 

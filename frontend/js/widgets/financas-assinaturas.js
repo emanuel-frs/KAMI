@@ -54,7 +54,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar assinaturas: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar assinaturas: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

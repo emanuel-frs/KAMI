@@ -176,7 +176,7 @@ export async function render(el, widget) {
         expandedBankId = null;
       }
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar carteira: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar carteira: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw();

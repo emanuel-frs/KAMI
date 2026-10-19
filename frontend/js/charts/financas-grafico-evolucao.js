@@ -2,6 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { escapeHtml } from "../components/format.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -39,7 +40,7 @@ export async function render(el, widget) {
     try {
       data = await Promise.all(months.map((m) => financasApi.getSummary(m)));
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${err.message}</div>`;
+      el.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${escapeHtml(err.message)}</div>`;
       return;
     }
     draw(months, data);

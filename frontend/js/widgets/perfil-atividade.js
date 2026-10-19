@@ -63,7 +63,7 @@ export async function render(el, widget) {
   try {
     entries = await getLog({ period_days: PERIOD_DAYS + 7, limit: LIMIT });
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar atividade: ${err.message}</div>`;
+    el.innerHTML = `<div class="empty-state">erro ao carregar atividade: ${escapeHtml(err.message)}</div>`;
     return;
   }
 

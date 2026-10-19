@@ -1251,7 +1251,7 @@ async function refreshTracks() {
     tracks = await listTracks();
   } catch (err) {
     pendingTrackFocusId = null;
-    listEl.innerHTML = `<div class="empty-state">erro: ${err.message}</div>`;
+    listEl.innerHTML = `<div class="empty-state">erro: ${escapeHtml(err.message)}</div>`;
     return;
   }
   renderTracks();
@@ -1415,7 +1415,7 @@ async function refreshMilestones() {
   } catch (err) {
     milestones = [];
     const detail = containerEl.querySelector("#apr-detail-body");
-    if (detail) detail.innerHTML = `<div class="empty-state">erro ao carregar módulos: ${err.message}</div>`;
+    if (detail) detail.innerHTML = `<div class="empty-state">erro ao carregar módulos: ${escapeHtml(err.message)}</div>`;
     return;
   }
   renderMilestones();
