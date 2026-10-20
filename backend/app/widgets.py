@@ -227,51 +227,54 @@ def screens_for(widget_type: str):
 
 # ── layout padrão por tela (LAY-02) ─────────────────────────────────────
 #
-# Montado como composição numa grade de 6 colunas: em cada faixa as
-# larguras fecham 6 (4+2, 3+3, 2+2+2), e o que fica lado a lado tem altura
-# parecida — o empacotamento (frontend/js/widgets/grid.js, packLayout)
-# alinha o resto esticando o desenho. Cada item é (widget, largura em
+# Montado pra cada widget ficar no tamanho em que ele fica bonito, com
+# vizinhos de altura parecida lado a lado — o empacotamento
+# (frontend/js/widgets/grid.js, packLayout) só sobe os cards pros vãos,
+# nunca estica nenhum. Vale pras duas grades mais comuns: 6 colunas
+# (≥1400px de área útil, ex.: 1920) e 4 colunas (ex.: 1366), onde 2/6 vira
+# 1 coluna, 3/6 vira 2 e 4/6 vira 3. Cada item é (widget, largura em
 # sextos, altura em px ou None = pela altura do conteúdo). A ordem importa:
 # é a ordem em que os cards são encaixados.
 #
 # Mudou o padrão? Suba LAYOUT_PADRAO_VERSAO: quem já usa o app vê o aviso
 # "o layout padrão melhorou — aplicar?" (P-23, routers/dashboard.py).
-LAYOUT_PADRAO_VERSAO = 2
+# v3: sem widgets esticados pra tapar buraco (a v2 esticava).
+LAYOUT_PADRAO_VERSAO = 3
 LAYOUT_PADRAO = {
     "nucleo": [
-        ("missoes", 6, None),
-        ("achievements", 4, 396),   # galeria larga | registrar + prioridades empilhados
-        ("registrar", 2, None),
+        ("missoes", 3, None),       # missões | registrar
+        ("registrar", 3, None),
+        ("achievements", 4, None),  # galeria | prioridades + radar empilhados
         ("priorities", 2, None),
-        ("log", 3, 308),            # log | radar, lado a lado
-        ("attributes", 3, 308),
+        ("attributes", 2, None),
+        ("log", 6, None),
     ],
     "perfil": [
-        ("profile", 4, None),       # fixo em 1/1
-        ("attributes", 2, None),
-        ("achievements", 4, 492),
+        ("profile", 3, None),       # fixo em 1/1; embaixo dele radar + atividade
+        ("achievements", 3, 548),   # galeria alta, até perto da base da coluna da esquerda
+        ("attributes", 1, None),
         ("perfil_atividade", 2, None),
     ],
     "financas": [
-        ("financas_resumo", 2, None),           # visão geral: 3 cards de 2/6
+        ("financas_resumo", 2, None),           # visão geral (+ uso de limite na 4ª coluna em 1366)
         ("financas_grafico_fluxo", 2, None),
         ("financas_grafico_evolucao", 2, None),
-        ("financas_registros", 3, 420),         # lançamentos | contas fixas + dívidas
-        ("contas_fixas", 3, None),
-        ("dividas", 3, None),
-        ("carteira", 2, None),                  # contas, renda, assinaturas
+        ("financas_grafico_limites", 2, None),
+        ("financas_registros", 4, None),        # lançamentos | contas fixas + dívidas
+        ("contas_fixas", 2, None),
+        ("dividas", 2, None),
+        ("carteira", 2, None),                  # o resto em colunas de 2/6
         ("financas_renda", 2, None),
         ("financas_assinaturas", 2, None),
-        ("financas_grafico_categorias", 2, None),
-        ("financas_grafico_limites", 2, None),
         ("compras_parceladas", 2, None),
+        ("financas_grafico_categorias", 2, None),
     ],
     "carreira": [
-        ("carreira_posicoes", 3, None),         # linha do tempo | formação + área (o nivelamento alinha)
-        ("carreira_formacoes", 3, None),
-        ("carreira_perfil", 3, None),
+        ("carreira_perfil", 3, None),           # área | interesses (os dois baixos)
         ("carreira_interesses", 3, None),
+        ("carreira_posicoes", 3, None),         # linha do tempo | salário (os dois altos)
         ("carreira_salario", 3, None),
+        ("carreira_formacoes", 6, None),
     ],
 }
 

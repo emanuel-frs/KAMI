@@ -49,6 +49,19 @@
   stroke: var(--border-soft);
   stroke-width: 1;
   stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke; /* o svg do fluxo estica na horizontal */
+}
+/* altura fixa: antes o svg seguia a proporção do viewBox e crescia junto
+   com a largura do widget (num card largo o gráfico ocupava a tela). O
+   fluxo estica só na horizontal (barras continuam barras); a evolução é
+   desenhada na largura real (charts/na-largura.js). */
+.chart-fluxo .chart-svg{
+  flex: 0 0 auto;
+  height: 110px;
+}
+.chart-plot{
+  flex: 0 0 auto;
+  height: 110px;
 }
 .chart-legend,
 .chart-fluxo-labels{

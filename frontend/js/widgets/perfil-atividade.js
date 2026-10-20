@@ -113,7 +113,7 @@ export async function render(el, widget) {
   const totalActions = entries.length;
 
   el.innerHTML = `
-    <div class="pa-wrap">
+    <div class="pa-wrap" style="--pa-semanas: ${weeks.length};">
       <div class="pa-months" aria-hidden="true">${monthLabels}</div>
       <div class="pa-grid" aria-hidden="true" style="grid-template-columns: repeat(${weeks.length}, 1fr);">${cells}</div>
       <div class="pa-legend" aria-hidden="true">

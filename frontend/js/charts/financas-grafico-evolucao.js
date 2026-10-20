@@ -1,5 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
+import { desenharNaLargura } from "./na-largura.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { escapeHtml } from "../components/format.js";
@@ -25,8 +26,8 @@ function escapeAttr(str) {
 }
 
 const MESES_JANELA = 6;
-const W = 600;
-const H = 150;
+const H = 110; // altura do traçado em px (.chart-plot); a largura é a do widget — ver na-largura.js
+const PAD = 4; // pros pontos das pontas não ficarem cortados ao meio
 
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando evolução…</div>';
@@ -55,32 +56,37 @@ export async function render(el, widget) {
     const minV = Math.min(0, ...points);
     const maxV = Math.max(0, ...points);
     const range = Math.max(1, maxV - minV);
-    const stepX = W / (points.length - 1 || 1);
+    const plotH = H - PAD * 2;
+    const yOf = (v) => PAD + plotH - ((v - minV) / range) * plotH;
+    const zeroY = yOf(0);
 
-    const coords = points.map((v, i) => [i * stepX, H - ((v - minV) / range) * H]);
-    const linePath = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-    const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H} L0,${H} Z`;
-    const zeroY = H - ((0 - minV) / range) * H;
+    const svgDaLargura = (W) => {
+      const stepX = (W - PAD * 2) / (points.length - 1 || 1);
+      const coords = points.map((v, i) => [PAD + i * stepX, yOf(v)]);
+      const linePath = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+      const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H} L${coords[0][0].toFixed(1)},${H} Z`;
 
-    const dots = coords.map(([x, y], i) => {
-      const tip = escapeAttr(`${monthAbbrev(months[i])}: ${brl(points[i])}`);
-      // duas circles sobrepostas: a visível (raio pequeno, só pra manter o
-      // desenho fino da linha) e uma invisível bem maior por cima, que é
-      // quem realmente recebe o hover — com o widget pequeno, um raio de
-      // 3 no viewBox vira poucos pixels reais na tela e fica quase
-      // impossível de acertar o mouse nela (ver feedback).
-      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" class="chart-dot" data-tip="${tip}"></circle>` +
-        `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" class="chart-dot-hit" data-tip="${tip}"></circle>`;
-    }).join("");
+      const dots = coords.map(([x, y], i) => {
+        const tip = escapeAttr(`${monthAbbrev(months[i])}: ${brl(points[i])}`);
+        // duas circles sobrepostas: a visível (raio pequeno, só pra manter o
+        // desenho fino da linha) e uma invisível bem maior por cima, que é
+        // quem realmente recebe o hover (fácil de acertar com o mouse)
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" class="chart-dot" data-tip="${tip}"></circle>` +
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" class="chart-dot-hit" data-tip="${tip}"></circle>`;
+      }).join("");
 
-    el.innerHTML = `
-      <div class="chart-evolucao">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg" aria-hidden="true">
+      return `
+        <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="chart-svg" aria-hidden="true">
           <line x1="0" y1="${zeroY.toFixed(1)}" x2="${W}" y2="${zeroY.toFixed(1)}" class="chart-grid-line" />
           <path d="${areaPath}" class="chart-area" />
           <path d="${linePath}" class="chart-line" />
           ${dots}
-        </svg>
+        </svg>`;
+    };
+
+    el.innerHTML = `
+      <div class="chart-evolucao">
+        <div class="chart-plot"></div>
         <div class="chart-fluxo-labels" aria-hidden="true">
           ${months.map((m) => `<span>${monthAbbrev(m)}</span>`).join("")}
         </div>
@@ -91,6 +97,7 @@ export async function render(el, widget) {
         })}
       </div>
     `;
+    desenharNaLargura(el.querySelector(".chart-evolucao .chart-plot"), svgDaLargura);
     attachChartTooltip(el.querySelector(".chart-evolucao"));
   }
 

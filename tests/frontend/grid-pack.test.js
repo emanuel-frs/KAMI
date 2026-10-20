@@ -42,7 +42,7 @@ test(
       { span: 2, rows: 40 },
       { span: 2, rows: 40 },
     ];
-    const pos = packLayout(items, 6, { fill: false });
+    const pos = packLayout(items, 6);
     ocupacao(items, pos, 6);
     assert.deepEqual([pos[0].col, pos[0].row], [1, 1]);
     assert.deepEqual([pos[1].col, pos[1].row], [4, 1]);
@@ -56,7 +56,7 @@ test(
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
     const items = [{ span: 3, rows: 50, pinned: true }, { span: 3, rows: 30 }, { span: 6, rows: 20 }];
-    const pos = packLayout(items, 6, { fill: false });
+    const pos = packLayout(items, 6);
     ocupacao(items, pos, 6);
     assert.deepEqual([pos[0].col, pos[0].row], [1, 1]);
     assert.deepEqual([pos[2].col, pos[2].row], [1, 51]);
@@ -73,7 +73,7 @@ test(
       { span: 2, rows: 30 }, // empilha sob o anterior, à direita
       { span: 2, rows: 30 }, // o readicionado: vai pro buraco que sobra à direita
     ];
-    const pos = packLayout(items, 6, { fill: false });
+    const pos = packLayout(items, 6);
     ocupacao(items, pos, 6);
     assert.deepEqual([pos[3].col, pos[3].row], [5, 61]);
   })
@@ -83,79 +83,22 @@ test(
   "largura maior que a grade é limitada e uma coluna empilha tudo na ordem",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
-    const pos = packLayout([{ span: 6, rows: 10 }, { span: 3, rows: 5 }, { span: 2, rows: 7 }], 1, { fill: false });
+    const pos = packLayout([{ span: 6, rows: 10 }, { span: 3, rows: 5 }, { span: 2, rows: 7 }], 1);
     assert.deepEqual(pos.map(({ col, row }) => ({ col, row })), [{ col: 1, row: 1 }, { col: 1, row: 11 }, { col: 1, row: 16 }]);
   })
 );
 
 test(
-  "preenchimento: a coluna que sobra numa linha (3/6 + 2/6) é ocupada pelo vizinho",
+  "o empacotamento nunca estica um card: a largura e a altura são as dele",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
+    // 3/6 + 2/6 deixa uma coluna livre, e o 1º é mais baixo que o vizinho:
+    // antes o 2º alargava até a borda e o 1º descia até o de baixo
     const items = [{ span: 3, rows: 40 }, { span: 2, rows: 50 }, { span: 6, rows: 20 }];
     const pos = packLayout(items, 6);
-    ocupacao(items.map((it, i) => ({ ...it, span: pos[i].span, rows: pos[i].rows })), pos, 6);
-    assert.deepEqual([pos[1].col, pos[1].span], [4, 3]); // o gráfico estica até a borda
-    // o resumo (40) encosta no de baixo (que começa na 51): vão de 10 linhas fechado
-    assert.equal(pos[0].rows, 50);
+    ocupacao(items, pos, 6);
+    assert.deepEqual(pos.map((p) => [p.span, p.rows]), [[3, 40], [2, 50], [6, 20]]);
     assert.equal(pos[2].row, 51);
-  })
-);
-
-test(
-  "preenchimento não estica pra baixo o último card (vão aberto) nem um vão grande",
-  withDom("<body></body>", async () => {
-    const { packLayout } = await grid();
-    const pos = packLayout([{ span: 3, rows: 20 }, { span: 3, rows: 200 }, { span: 3, rows: 30 }], 6);
-    // 3º vai sob o 1º; o 1º não estica (vão = 0); o 3º é o último da coluna: fica como está
-    assert.equal(pos[2].row, 21);
-    assert.equal(pos[2].rows, 30);
-    const grande = packLayout([{ span: 3, rows: 20 }, { span: 3, rows: 300 }, { span: 6, rows: 10 }], 6);
-    // vão de 280 linhas embaixo do 1º: grande demais pra esticar (vira só um vazio)
-    assert.equal(grande[0].rows, 20);
-  })
-);
-
-test(
-  "durante o resize manual não estica (a pessoa vê a largura que escolheu)",
-  withDom("<body></body>", async () => {
-    const { packLayout } = await grid();
-    const pos = packLayout([{ span: 2, rows: 10 }], 6, { fill: false });
-    assert.equal(pos[0].span, 2);
-    assert.equal(packLayout([{ span: 2, rows: 10 }], 6)[0].span, 6);
-  })
-);
-
-test(
-  "nivelamento: coluna da direita 40px mais baixa estica e a faixa seguinte começa reta",
-  withDom("<body></body>", async () => {
-    const { packLayout } = await grid();
-    // lançamentos (3/6, 130) | contas fixas (3/6, 70) + dívidas (3/6, 50) = 120: 10 linhas de degrau
-    const items = [
-      { span: 3, rows: 130 },
-      { span: 3, rows: 70 },
-      { span: 3, rows: 50 },
-      { span: 2, rows: 40 },
-      { span: 2, rows: 40 },
-      { span: 2, rows: 40 },
-    ];
-    const pos = packLayout(items, 6);
-    ocupacao(items.map((it, i) => ({ ...it, span: pos[i].span, rows: pos[i].rows })), pos, 6);
-    assert.equal(pos[2].row + pos[2].rows, 131); // dívidas desceu até a base dos lançamentos
-    assert.deepEqual(pos.slice(3).map((p) => [p.col, p.row]), [[1, 131], [3, 131], [5, 131]]);
-  })
-);
-
-test(
-  "nivelamento tem teto acumulado: um card não estica duas vezes até virar um bloco vazio",
-  withDom("<body></body>", async () => {
-    const { packLayout } = await grid();
-    // Carreira: posições (60) | formação (45); área (40) embaixo das posições; interesses (35)
-    const items = [{ span: 3, rows: 60 }, { span: 3, rows: 45 }, { span: 3, rows: 40 }, { span: 3, rows: 35 }];
-    const pos = packLayout(items, 6);
-    ocupacao(items.map((it, i) => ({ ...it, span: pos[i].span, rows: pos[i].rows })), pos, 6);
-    assert.ok(pos[1].rows - 45 <= Math.min(40, 23), `formação esticou ${pos[1].rows - 45} linhas`);
-    // interesses vai pra baixo da formação (lado direito), não pra esquerda
-    assert.equal(pos[3].col, 4);
+    assert.deepEqual(packLayout([{ span: 2, rows: 10 }], 6), [{ col: 1, row: 1, span: 2, rows: 10 }]);
   })
 );

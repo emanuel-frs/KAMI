@@ -17,6 +17,11 @@
   flex-direction: column;
   gap: 4px;
   width: 100%;
+  /* célula de no máximo ~18px: a altura da grade segue a largura (ver
+     .pa-grid), então num widget largo os quadradinhos ficavam enormes e o
+     card crescia à toa. Acima do teto, a grade fica centralizada. */
+  max-width: calc(var(--pa-semanas, 14) * 21px);
+  margin-inline: auto;
 }
 
 .pa-months {
