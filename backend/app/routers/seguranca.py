@@ -50,6 +50,7 @@ def _segredos_salvos(db) -> int:
         db.execute("SELECT COUNT(*) FROM email_accounts WHERE app_password_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM github_settings WHERE token_enc IS NOT NULL AND token_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM search_settings WHERE api_key_enc IS NOT NULL AND api_key_enc <> ''").fetchone()[0]
+        + db.execute("SELECT COUNT(*) FROM notas WHERE conteudo_cifrado IS NOT NULL").fetchone()[0]
     )
 
 
@@ -79,6 +80,9 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     )
     db.execute("UPDATE github_settings SET token_enc = NULL")
     db.execute("UPDATE search_settings SET api_key_enc = NULL")
+    # ORG-01: o texto das notas trancadas também era cifrado com a chave
+    # antiga — perdido (a tela de trancar avisa disso). Título e o resto ficam.
+    db.execute("UPDATE notas SET conteudo_cifrado = NULL WHERE trancada = 1")
     db.commit()
     return {**estado, "segredos_salvos": 0, "segredos_apagados": apagados}
 

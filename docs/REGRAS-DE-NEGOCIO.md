@@ -152,6 +152,11 @@ verdade é o código e o teste.
 | ORG-04 | Chave da busca só é salva depois de validada | `test_organizacao.py::test_save_search_key_invalid_key_returns_422_and_does_not_save` |
 | ORG-05 | E-mail vira só texto limpo: nada de HTML guardado nem mostrado, link sem URL longa na prévia, e-mail só em HTML tem prévia | `test_email_texto.py::test_html_converts_structure_and_drops_hidden_and_scripts`, `test_organizacao.py::test_sync_html_only_email_has_clean_preview_and_full_text`, `email-texto.test.js` (desenho sem HTML) |
 | ORG-06 | Texto completo do e-mail é guardado só por 90 dias (a prévia fica) | `test_organizacao.py::test_old_full_text_is_pruned_on_sync` |
+| ORG-07 | Nota rende xp só ao ser criada, no máximo 3 por dia; apagar a de hoje estorna sem abrir brecha pra repetir | `test_notas.py::test_only_three_notes_a_day_give_xp`, `test_notas.py::test_deleting_a_note_from_today_reverts_xp_and_cannot_farm` |
+| ORG-08 | Nota guarda markdown, nunca HTML; a lista mostra só a prévia em texto puro | `test_notas.py::test_create_edit_and_get_note_keeps_markdown`, `test_notas.py::test_preview_strips_markdown` |
+| ORG-09 | Trancar exige o PIN ligado; o texto vai cifrado e some da lista, da busca e do widget (o título fica) | `test_notas.py::test_lock_requires_pin_on`, `test_notas.py::test_locked_note_hides_text_everywhere_and_opens_with_pin` |
+| ORG-10 | Nota trancada só abre, muda ou é apagada com o PIN (mesma espera crescente do app) | `test_notas.py::test_locked_note_edit_and_delete_need_the_access_key`, `test_notas.py::test_wrong_pin_on_notes_counts_toward_the_wait` |
+| ORG-11 | Texto de nota trancada vai no backup com senha e se perde se a chave dos segredos for redefinida | `test_notas.py::test_protected_backup_carries_locked_text_and_plain_backup_does_not`, `test_notas.py::test_key_reset_loses_locked_text_but_keeps_the_note` |
 
 ## Sistema (backup e reset)
 

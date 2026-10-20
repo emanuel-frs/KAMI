@@ -198,6 +198,18 @@ def desbloquear(pin: str) -> None:
         _desbloqueado = True
 
 
+def conferir(pin: str) -> None:
+    """Confere o PIN sem mexer no bloqueio do app (ORG-01: abrir uma nota
+    trancada). Mesma espera crescente do desbloqueio — o erro conta igual,
+    senão a nota viraria um jeito de adivinhar o PIN sem espera.
+    Levanta PinErrado/Esperando; ValueError se o PIN não está ligado."""
+    with _lock:
+        dados = _ler()
+        if dados is None:
+            raise ValueError("o PIN não está ligado")
+        _tentativa(dados, lambda: isinstance(pin, str) and _confere(pin, dados["pin"]))
+
+
 def bloquear() -> None:
     global _desbloqueado
     with _lock:

@@ -363,6 +363,33 @@ CREATE TABLE IF NOT EXISTS milestones (
 );
 
 -- ---------------- ORGANIZAÇÃO ----------------
+-- ---------------- NOTAS (ORG-01) ----------------
+-- texto em markdown (nunca HTML — o editor é WYSIWYG só na tela, ver
+-- frontend/js/components/nota-markdown.js). Trancada: o texto vai em
+-- conteudo_cifrado (chave do cofre, app/crypto.py) e conteudo fica ''.
+-- Regras e rotas em app/routers/notas.py.
+CREATE TABLE IF NOT EXISTS notas (
+    id                TEXT PRIMARY KEY,
+    titulo            TEXT NOT NULL DEFAULT '',
+    conteudo          TEXT NOT NULL DEFAULT '',
+    conteudo_cifrado  TEXT,
+    cor               TEXT,              -- cor de destaque opcional (nome da paleta do app)
+    fixada            INTEGER NOT NULL DEFAULT 0,
+    arquivada         INTEGER NOT NULL DEFAULT 0,
+    trancada          INTEGER NOT NULL DEFAULT 0,
+    vinculo_tipo      TEXT,              -- 'meta' | 'trilha' | 'evento' | 'posicao' (opcional)
+    vinculo_id        TEXT,              -- id na tabela do tipo; item apagado = vínculo some na leitura
+    criada_em         TEXT NOT NULL,
+    atualizada_em     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS notas_tags (
+    nota_id  TEXT NOT NULL REFERENCES notas(id) ON DELETE CASCADE,
+    tag      TEXT NOT NULL,
+    PRIMARY KEY (nota_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_notas_vinculo ON notas(vinculo_tipo, vinculo_id);
+CREATE INDEX IF NOT EXISTS idx_notas_tags_tag ON notas_tags(tag);
+
 CREATE TABLE IF NOT EXISTS links (
     id       TEXT PRIMARY KEY,
     title    TEXT NOT NULL,
