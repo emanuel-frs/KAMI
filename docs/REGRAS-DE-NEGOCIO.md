@@ -160,6 +160,10 @@ verdade é o código e o teste.
 | ORG-13 | Busca não revela texto de nota trancada nem conquista secreta ainda bloqueada | `test_busca.py::test_locked_note_is_found_by_title_only`, `test_busca.py::test_locked_secret_achievement_is_not_a_spoiler` |
 | ORG-14 | Captura rápida não rende xp (rende o que ela virar); tarefa entra como "- [ ] texto" na nota "tarefas" (criada e fixada uma vez) | `test_entrada.py::test_capturing_gives_no_xp`, `test_entrada.py::test_task_goes_to_the_tasks_note_creating_it_once` |
 | ORG-11 | Texto de nota trancada vai no backup com senha e se perde se a chave dos segredos for redefinida | `test_notas.py::test_protected_backup_carries_locked_text_and_plain_backup_does_not`, `test_notas.py::test_key_reset_loses_locked_text_but_keeps_the_note` |
+| ORG-15 | Marcar um hábito rende +5 xp no atributo dele, uma vez por dia por hábito; desmarcar estorna; apagar o hábito estorna todas as marcas | `test_habitos.py::test_marking_gives_xp_once_and_unmarking_reverts`, `test_habitos.py::test_delete_reverts_all_xp` |
+| ORG-16 | Hábito se marca até 2 dias atrás, nunca no futuro nem fora dos dias fixos dele; pausado/arquivado não se marca | `test_habitos.py::test_past_days_up_to_two_back`, `test_habitos.py::test_fixed_day_off_cannot_be_marked`, `test_habitos.py::test_pause_resume_and_archive` |
+| ORG-17 | Sequência do hábito: dia fora da programação, pausado ou hoje ainda sem marca não quebra; "x por semana" conta em semanas cumpridas | `test_habitos.py::test_daily_streak_counts_back_and_today_unmarked_does_not_break`, `test_habitos.py::test_fixed_days_skip_the_days_off`, `test_habitos.py::test_paused_days_neither_count_nor_break`, `test_habitos.py::test_weekly_streak_is_in_weeks` |
+| ORG-18 | Marca de hábito é ação de verdade: conta na sequência geral e nas missões (marcar o hábito do dia; dias com todos os hábitos feitos) | `test_habitos.py::test_marking_counts_for_global_streak`, `test_habitos.py::test_daily_mission_for_a_habit_due_today`, `test_habitos.py::test_weekly_mission_counts_days_with_everything_done` |
 
 ## Sistema (backup e reset)
 

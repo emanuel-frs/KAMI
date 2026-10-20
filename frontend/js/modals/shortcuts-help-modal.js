@@ -59,7 +59,7 @@ function renderBody() {
   }
 
   // Atalhos globais "de ação" (cada um faz uma coisa diferente) e os de
-  // navegação entre telas (Alt+1..8: mesmo padrão repetido 8 vezes)
+  // navegação entre telas (Alt+1..9: mesmo padrão repetido 9 vezes)
   // ficam em blocos separados — 8 linhas inteiras dizendo "ir para X"
   // eram a parte mais cansativa de escanear da lista inteira. A grade
   // compacta abaixo cabe em metade do espaço vertical de 8 linhas

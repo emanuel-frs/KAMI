@@ -56,6 +56,15 @@ WIDGET_CATALOG = {
         "max_span": 6,
         "default_span": 2,
     },
+    # ORG-04: os hábitos que valem hoje, marcáveis direto do widget
+    "habitos_hoje": {
+        "label": "hábitos de hoje",
+        "screens": ["nucleo", "perfil"],
+        "removable": True,
+        "min_span": 1,
+        "max_span": 6,
+        "default_span": 2,
+    },
     "log": {
         "label": "log recente",
         "screens": ["nucleo"],

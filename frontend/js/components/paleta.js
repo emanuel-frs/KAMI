@@ -59,6 +59,7 @@ const TELAS = [
   ["organizacao", "organização", "link"],
   ["metas", "metas pessoais", "target"],
   ["calendario", "calendário", "calendar-days"],
+  ["habitos", "hábitos", "repeat"],
 ];
 
 /** Vai pra tela e roda a ação "N" dela (nova meta/trilha/evento…). */
@@ -93,6 +94,7 @@ function acoes(pinLigado) {
     { rotulo: "nova meta", extra: "objetivo", icone: "target", run: () => rodarNaTela("metas", "KeyN") },
     { rotulo: "nova trilha", extra: "curso estudo aprendizado", icone: "target", run: () => rodarNaTela("aprendizado", "KeyN") },
     { rotulo: "novo evento", extra: "compromisso agenda calendário", icone: "calendar-days", run: () => rodarNaTela("calendario", "KeyN") },
+    { rotulo: "novo hábito", extra: "rotina diário todo dia", icone: "repeat", run: () => rodarNaTela("habitos", "KeyN") },
     {
       rotulo: "sincronizar e-mails",
       extra: "email caixa atualizar",
@@ -132,6 +134,7 @@ function acoes(pinLigado) {
 const TIPOS = {
   nota: { grupo: "notas", icone: "pencil", abrir: (r) => navigateTo("organizacao", { tab: "notas", notaId: r.id }) },
   meta: { grupo: "metas", icone: "target", abrir: (r) => foco("meta", r.id, "metas") },
+  habito: { grupo: "hábitos", icone: "repeat", abrir: (r) => foco("habito", r.id, "habitos") },
   trilha: { grupo: "trilhas", icone: "trending-up", abrir: (r) => foco("trilha", r.id, "aprendizado") },
   marco: { grupo: "marcos de trilha", icone: "check", abrir: (r) => foco("trilha", r.ref, "aprendizado") },
   lancamento: { grupo: "lançamentos", icone: "receipt", abrir: (r) => foco("lancamento", `${r.id}|${r.data || ""}`, "financas") },

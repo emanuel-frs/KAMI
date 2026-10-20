@@ -1,7 +1,7 @@
 """
 Busca global (ORG-03) — o que a paleta Ctrl+K procura no banco.
 
-Uma consulta por fonte (notas, metas, trilhas, marcos, lançamentos,
+Uma consulta por fonte (notas, metas, hábitos, trilhas, marcos, lançamentos,
 contas fixas, assinaturas, dívidas, compras parceladas, contas,
 eventos, conquistas, posições, formações, links, repositórios e
 e-mails), todas com o mesmo critério:
@@ -151,6 +151,12 @@ FONTES = [
         "select": 'id, curso AS titulo, instituicao AS detalhe, NULL AS data, NULL AS valor, NULL AS ref',
         "de": 'FROM career_educations',
         "campos": ["curso", "instituicao"],
+    },
+    {
+        "tipo": "habito",
+        "select": "id, nome AS titulo, CASE frequencia WHEN 'diario' THEN 'todo dia' WHEN 'dias' THEN 'dias fixos' ELSE vezes_semana || 'x por semana' END || CASE status WHEN 'pausado' THEN ' · pausado' WHEN 'arquivado' THEN ' · arquivado' ELSE '' END AS detalhe, NULL AS data, NULL AS valor, NULL AS ref",
+        "de": 'FROM habitos',
+        "campos": ["nome"],
     },
     {
         "tipo": "link",

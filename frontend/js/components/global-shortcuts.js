@@ -7,7 +7,7 @@
  * aparece sozinho na lista de Alt+H — não existe texto de ajuda
  * separado pra ficar desatualizado, mesma ideia do resto do app.
  *
- * Alt+1 a Alt+8 — ir direto pra qualquer tela:
+ * Alt+1 a Alt+9 — ir direto pra qualquer tela:
  *   Mesma ordem do menu (#nav-tree em index.html), casada por posição
  *   com PAGE_ORDER abaixo. "assistente kami" fica de fora (link
  *   desabilitado, pós-mvp, sem tela pra abrir). Usa `navigateTo` de
@@ -63,6 +63,8 @@ const PAGE_ORDER = [
   { page: "organizacao", label: "ir para organização", shortLabel: "organização" },
   { page: "metas", label: "ir para metas pessoais", shortLabel: "metas pessoais" },
   { page: "calendario", label: "ir para calendário", shortLabel: "calendário" },
+  // ORG-04 (P-55): por último (Alt+9), pra Alt+1..8 não mudarem de tela
+  { page: "habitos", label: "ir para hábitos", shortLabel: "hábitos" },
 ];
 
 /** Registra os atalhos globais. Chamar uma vez no boot (app.js), junto

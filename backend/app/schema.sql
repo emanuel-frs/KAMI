@@ -399,6 +399,43 @@ CREATE TABLE IF NOT EXISTS caixa_entrada (
     criado_em  TEXT NOT NULL
 );
 
+-- ---------------- HÁBITOS (ORG-04) ----------------
+-- frequencia: 'diario' | 'dias' (dias_semana = "0,2,4", 0 = segunda) |
+-- 'semana' (vezes_semana por semana, qualquer dia). status: 'ativo' |
+-- 'pausado' | 'arquivado'. Marcar dá xp (action_logs com referencia
+-- 'habito_marca' = id da marca). Rotas e regras em app/routers/habitos.py
+-- e app/habitos.py.
+CREATE TABLE IF NOT EXISTS habitos (
+    id            TEXT PRIMARY KEY,
+    nome          TEXT NOT NULL,
+    frequencia    TEXT NOT NULL DEFAULT 'diario',
+    dias_semana   TEXT NOT NULL DEFAULT '',
+    vezes_semana  INTEGER NOT NULL DEFAULT 3,
+    atributo      TEXT NOT NULL DEFAULT 'organizacao',
+    status        TEXT NOT NULL DEFAULT 'ativo',
+    posicao       INTEGER NOT NULL DEFAULT 0,
+    criado_em     TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+);
+
+-- um dia feito de um hábito (no máximo uma marca por dia)
+CREATE TABLE IF NOT EXISTS habitos_marcas (
+    id         TEXT PRIMARY KEY,
+    habito_id  TEXT NOT NULL REFERENCES habitos(id) ON DELETE CASCADE,
+    dia        TEXT NOT NULL,
+    criada_em  TEXT NOT NULL,
+    UNIQUE (habito_id, dia)
+);
+
+-- períodos pausados (P-59): dias pausados não contam nem quebram a
+-- sequência. fim NULL = pausa em andamento.
+CREATE TABLE IF NOT EXISTS habitos_pausas (
+    id         TEXT PRIMARY KEY,
+    habito_id  TEXT NOT NULL REFERENCES habitos(id) ON DELETE CASCADE,
+    inicio     TEXT NOT NULL,
+    fim        TEXT
+);
+
 CREATE TABLE IF NOT EXISTS links (
     id       TEXT PRIMARY KEY,
     title    TEXT NOT NULL,

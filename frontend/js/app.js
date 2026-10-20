@@ -51,6 +51,7 @@ const PAGES = {
   organizacao: () => import("./pages/organizacao.js"),
   metas: () => import("./pages/metas.js"),
   calendario: () => import("./pages/calendario.js"),
+  habitos: () => import("./pages/habitos.js"), // ORG-04
   carreira: () => import("./pages/carreira.js"),
 };
 
