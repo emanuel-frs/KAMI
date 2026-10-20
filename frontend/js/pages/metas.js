@@ -21,6 +21,7 @@ import { maybeStartMetasTips, replayMetasTips } from "./metas-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
@@ -524,6 +525,9 @@ async function saveContribution() {
 
 // ─── renderização ───────────────────────────────────────────────────────────
 
+// ORG-01: {id da meta: notas vinculadas} — "notas (N)" no card
+let notasPorMeta = {};
+
 function goalCardHtml(goal) {
   const isDone = goal.status === "concluida";
   const isLearning = goal.type === "aprendizado";
@@ -552,6 +556,7 @@ function goalCardHtml(goal) {
           <span>${pct}%</span>
         </div>
         ${goal.deadline ? `<div class="goal-meta">prazo: ${fmtDeadline(goal.deadline)}</div>` : ""}
+        <div class="goal-meta">${linkNotasHtml("meta", goal.id, goal.title, notasPorMeta[goal.id] || 0)}</div>
         ${isLearning && goal.linked_track_name
           ? `<div class="goal-meta">sincronizado com a trilha «${escapeHtml(goal.linked_track_name)}»</div>`
           : ""
@@ -686,7 +691,7 @@ async function refreshGoals() {
   const activeEl = containerEl.querySelector("#goals-grid-active");
   const doneEl = containerEl.querySelector("#goals-grid-done");
   try {
-    goals = await listGoals();
+    [goals, notasPorMeta] = await Promise.all([listGoals(), contarNotas("meta")]);
   } catch (err) {
     activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${escapeHtml(err.message)}</div>`;
     doneEl.innerHTML = "";

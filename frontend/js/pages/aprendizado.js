@@ -21,6 +21,7 @@ import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/s
 import { showErrorModal } from "../modals/err-modal.js";
 import { makeFocusable, announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -671,6 +672,7 @@ async function renderMilestones() {
       <div style="min-width:0;flex:1;">
         <div style="font-size:12px;font-weight:500;color:var(--text-dim);">${escapeHtml(track.name)}</div>
         ${track.general_goal ? `<div class="track-goal-subtitle" data-tooltip="${escapeHtml(track.general_goal)}">${escapeHtml(track.general_goal)}</div>` : ''}
+        <div class="track-notas" data-track-notas="${track.id}"></div>
       </div>
       <button type="button" class="btn sm" id="btn-edit-track">editar</button>
     </div>
@@ -682,6 +684,12 @@ async function renderMilestones() {
     if (left) left.style.display = 'none';
     const grid = containerEl.querySelector('.apr-grid');
     if (grid) grid.style.gridTemplateColumns = '1fr';
+  });
+
+  // ORG-01: "notas (N)" da trilha — contagem chega depois, sem segurar o desenho
+  contarNotas("trilha").then((c) => {
+    const alvo = headerEl.querySelector(`[data-track-notas="${track.id}"]`);
+    if (alvo) alvo.innerHTML = linkNotasHtml("trilha", track.id, track.name, c[track.id] || 0);
   });
 
   let html = renderRoadmapTimeline(milestones, { editable: false, listId: 'milestone-list' });

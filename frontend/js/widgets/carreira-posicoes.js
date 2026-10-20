@@ -3,6 +3,7 @@ import { escapeHtml } from "../components/format.js";
 import { openPosicaoModal } from "../modals/posicao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 
 /**
  * Widget "linha do tempo de posições" (seção 3 do documento de regras
@@ -27,10 +28,11 @@ function formatDate(iso) {
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando linha do tempo…</div>';
   let positions = [];
+  let notasPorPosicao = {}; // ORG-01: "notas (N)" por posição
 
   async function reload() {
     try {
-      positions = await carreiraApi.listCareerPositions();
+      [positions, notasPorPosicao] = await Promise.all([carreiraApi.listCareerPositions(), contarNotas("posicao")]);
     } catch (err) {
       el.innerHTML = `<div class="empty-state">erro ao carregar posições: ${escapeHtml(err.message)}</div>`;
       return;
@@ -53,7 +55,7 @@ export async function render(el, widget) {
                 <span class="cp-remove" data-remove-position="${p.id}" data-tooltip="remover posição" aria-label="remover posição">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-company">${escapeHtml(p.company)}${p.area ? ` · ${escapeHtml(p.area)}` : ""}${p.employment_type ? ` · ${escapeHtml(p.employment_type)}` : ""}</div>
-              <div class="cp-dates">${formatDate(p.start_date)} — ${p.end_date ? formatDate(p.end_date) : "atual"}</div>
+              <div class="cp-dates">${formatDate(p.start_date)} — ${p.end_date ? formatDate(p.end_date) : "atual"} · ${linkNotasHtml("posicao", p.id, `${p.role} — ${p.company}`, notasPorPosicao[p.id] || 0)}</div>
             </div>
           </div>`).join("") : `<div class="wallet-empty">nenhuma posição registrada ainda.</div>`}
       </div>

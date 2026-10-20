@@ -36,6 +36,7 @@ import { startRetrospective } from "./modals/retrospectiva-modal.js";
 import { registerNavigator } from "./components/navigate.js";
 import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
+import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -325,6 +326,7 @@ async function boot() {
   wireShortcuts();
   wireShortcutsHelp();
   wireGlobalShortcuts();
+  wireNotasVinculadas(); // ORG-01: "notas (N)" em metas/trilhas/eventos/posições
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();

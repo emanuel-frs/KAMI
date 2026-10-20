@@ -47,7 +47,7 @@ const st = {
   raiz: null,
   notas: [],
   tags: [],
-  filtro: { q: "", tag: "", arquivadas: false },
+  filtro: { q: "", tag: "", arquivadas: false, vinculo: null }, // vinculo: {tipo, id, nome}
   atual: null, // nota aberta (formato NotaOut); id null = nova, ainda não salva
   chave: null, // chave de acesso da nota trancada aberta
   editor: null,
@@ -125,8 +125,9 @@ function template() {
 function renderFiltros() {
   const el = $("#notas-filtros");
   if (!el) return;
-  const { arquivadas, tag } = st.filtro;
+  const { arquivadas, tag, vinculo } = st.filtro;
   el.innerHTML = `
+    ${vinculo ? `<span class="nota-tag-filtro on" data-nt-sem-vinculo data-tooltip="mostrar todas">${icon("link", { size: 9 })} ${esc(vinculo.nome || "vínculo")} ${icon("x", { size: 9 })}</span>` : ""}
     <span class="email-filter-opt${arquivadas ? "" : " on"}" data-nt-arquivadas="0">ativas</span>
     <span class="email-filter-opt${arquivadas ? " on" : ""}" data-nt-arquivadas="1">arquivadas</span>
     ${st.tags
@@ -158,7 +159,7 @@ function renderLista() {
   if (!el) return;
   const novaNaLista = st.atual && !st.atual.id ? `<div class="nota-item on nova" role="listitem"><div class="nota-item-topo"><span class="nota-item-titulo">${esc(st.atual.titulo || "nova nota")}</span><span class="nota-item-data">rascunho</span></div></div>` : "";
   if (!st.notas.length && !novaNaLista) {
-    const vazio = st.filtro.q || st.filtro.tag
+    const vazio = st.filtro.q || st.filtro.tag || st.filtro.vinculo
       ? "nenhuma nota encontrada."
       : st.filtro.arquivadas
         ? "nenhuma nota arquivada."
@@ -172,8 +173,11 @@ function renderLista() {
 // ---------------------------------------------------------------- dados
 
 async function carregarLista() {
-  const { q, tag, arquivadas } = st.filtro;
-  const [notas, tags] = await Promise.all([api.listNotas({ q, tag, arquivadas }), api.listTagsNotas()]);
+  const { q, tag, arquivadas, vinculo } = st.filtro;
+  const [notas, tags] = await Promise.all([
+    api.listNotas({ q, tag, arquivadas, vinculo_tipo: vinculo?.tipo, vinculo_id: vinculo?.id }),
+    api.listTagsNotas(),
+  ]);
   if (!st.raiz) return;
   st.notas = notas;
   st.tags = tags;
@@ -599,12 +603,16 @@ async function carregarAlvos() {
 // ---------------------------------------------------------------- eventos
 
 function onClick(e) {
-  const alvo = e.target.closest("[data-nt], [data-nt-abrir], [data-nt-tag], [data-nt-arquivadas], [data-nt-cor], [data-nt-tirar-tag]");
+  const alvo = e.target.closest("[data-nt], [data-nt-abrir], [data-nt-tag], [data-nt-arquivadas], [data-nt-cor], [data-nt-tirar-tag], [data-nt-sem-vinculo]");
   if (!alvo) {
     if (!e.target.closest(".nota-cor-wrap")) $("#nota-cores")?.setAttribute("hidden", "");
     return;
   }
   if (alvo.dataset.ntAbrir) return abrir(alvo.dataset.ntAbrir);
+  if (alvo.dataset.ntSemVinculo !== undefined) {
+    st.filtro.vinculo = null;
+    return carregarLista();
+  }
   if (alvo.dataset.ntTag !== undefined) {
     st.filtro.tag = st.filtro.tag === alvo.dataset.ntTag ? "" : alvo.dataset.ntTag;
     return carregarLista();
@@ -707,6 +715,13 @@ export async function montarNotas(painel, opts = {}) {
 /** Abrir uma nota específica / criar uma nova vinculada (vindo de outra tela). */
 export async function focarNotas(opts = {}) {
   if (!st.raiz) return;
+  if (opts.vinculo) {
+    // "notas (N)" de uma meta/trilha/evento/posição: lista só as dela
+    st.filtro = { q: "", tag: "", arquivadas: false, vinculo: opts.vinculo };
+    const busca = $("#notas-busca");
+    if (busca) busca.value = "";
+    await carregarLista();
+  }
   if (opts.notaId) await abrir(opts.notaId);
   else if (opts.novaNota) await nova(opts.novaNota);
 }
@@ -721,5 +736,5 @@ export function desmontarNotas() {
   st.raiz.removeEventListener("change", onChange);
   st.raiz.removeEventListener("input", onInputBusca);
   Object.assign(st, { raiz: null, notas: [], tags: [], atual: null, chave: null, status: "" });
-  st.filtro = { q: "", tag: "", arquivadas: false };
+  st.filtro = { q: "", tag: "", arquivadas: false, vinculo: null };
 }

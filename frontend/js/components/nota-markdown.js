@@ -340,6 +340,9 @@ function listaMd(lista, nivel, saida) {
     const copia = li.cloneNode(true);
     copia.querySelectorAll(":scope > ul, :scope > ol").forEach((c) => c.remove());
     const texto = linhasDeTexto(copia).join(" ").trim();
+    // item vazio (Enter no fim da lista) não vai pro markdown — "- " sozinho
+    // virava um parágrafo "-" ao reabrir
+    if (!texto && !sub.length) continue;
     const marca = ordenada ? `${n++}.` : "-";
     const caixa = li.dataset.checked === undefined ? "" : li.dataset.checked === "true" ? "[x] " : "[ ] ";
     saida.push(`${"  ".repeat(nivel)}${marca} ${caixa}${texto}`);

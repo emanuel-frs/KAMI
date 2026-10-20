@@ -10,7 +10,8 @@
 
 .notas {
   display: grid;
-  grid-template-columns: minmax(230px, 300px) 1fr;
+  /* lista estreita na janela mínima (960px), até 300px nas grandes */
+  grid-template-columns: clamp(200px, 28%, 300px) 1fr;
   gap: 12px;
   /* ocupa a altura útil da tela: só a lista e o texto rolam */
   height: calc(100vh - var(--titlebar-h) - 190px);
@@ -266,17 +267,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  padding: 5px 12px;
+  gap: 1px;
+  padding: 5px 8px;
   border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-alt);
 }
-.ne-sep { width: 1px; height: 16px; background: var(--border-soft); margin: 0 5px; }
+.ne-sep { width: 1px; height: 16px; background: var(--border-soft); margin: 0 3px; }
+/* compactos o bastante pra barra caber numa linha na janela mínima (960px) */
 .ne-btn {
-  min-width: 26px;
+  min-width: 22px;
   height: 24px;
-  padding: 0 6px;
+  padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -428,3 +430,17 @@
 }
 .nrm-dica { flex: 1 1 auto; font-size: 9.5px; color: var(--text-faint); }
 .nrm-rodape .btn { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- "notas (N)" em metas, trilhas, eventos e posições ---------- */
+.notas-vinc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-faint);
+  text-decoration: none;
+}
+.notas-vinc.tem { color: var(--accent); }
+.notas-vinc:hover, .notas-vinc:focus-visible { color: var(--text-bright); text-decoration: underline dotted; text-underline-offset: 3px; }
+.track-notas { margin-top: 3px; }
+.cem-notas-vinc { margin: -4px 0 10px; }

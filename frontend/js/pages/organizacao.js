@@ -175,7 +175,7 @@ export async function focus(opts) {
 async function applyFocus(opts) {
   if (!opts) return;
   if (opts.tab) switchTab(opts.tab);
-  if (opts.tab === "notas" && (opts.notaId || opts.novaNota)) await focarNotas(opts);
+  if (opts.tab === "notas" && (opts.notaId || opts.novaNota || opts.vinculo)) await focarNotas(opts);
   if (opts.focusSearch) {
     // campo de busca fica acima das abas, sempre visível — não depende
     // de qual aba (github/e-mail/links) estava selecionada antes.

@@ -25,7 +25,7 @@ import { switchTab } from "./organizacao.js";
  * ANTES do próprio passo ser posicionado — não dá pra confiar que o
  * passo anterior já deixou a aba certa ativa, porque o replay manual
  * ("rever dicas desta tela") pode começar com o usuário em qualquer
- * aba, não só "github" (a aba padrão só vale pra quem acabou de
+ * aba, não só "notas" (a aba padrão só vale pra quem acabou de
  * montar a tela). `switchTab` é idempotente (trocar pra uma aba já
  * ativa não faz nada), então não custa nada incluir o onEnter em mais
  * de um passo do mesmo grupo.
@@ -52,7 +52,7 @@ const STEPS = [
   // ─── busca (topo da tela, independe de aba) ──────────────────────────
   {
     selector: "#org-search",
-    text: "busca na web sem sair do kami — funciona em qualquer uma das três abas abaixo.",
+    text: "busca na web sem sair do kami — funciona em qualquer uma das abas abaixo.",
   },
   {
     selector: "#org-search-key-badge",
@@ -66,10 +66,21 @@ const STEPS = [
   // ─── visão geral das abas ─────────────────────────────────────────────
   {
     selector: ".tabs",
-    text: "organização guarda três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
+    text: "organização junta suas notas e três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
   },
 
-  // ─── aba: github (padrão ao entrar na tela) ────────────────────────────
+  // ─── aba: notas (padrão ao entrar na tela, ORG-01) ─────────────────────
+  {
+    selector: '.tab[data-tab="notas"]',
+    text: "notas: texto com formatação (negrito, listas, checklist, tabela…), tags, cor, e dá pra fixar, arquivar ou trancar com o PIN. tudo salva sozinho enquanto você escreve.",
+  },
+  {
+    onEnter: () => switchTab("notas"),
+    selector: '[data-nt="nova"]',
+    text: "\"+ nova nota\" começa uma nota aqui; de qualquer tela, alt+shift+n abre uma nota rápida. markdown funciona ao digitar: \"- \" vira lista, \"[] \" vira tarefa, \"# \" vira título. criar nota rende xp (até 3 por dia).",
+  },
+
+  // ─── aba: github ───────────────────────────────────────────────────────
   {
     selector: '.tab[data-tab="github"]',
     text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github. sincronizar rende xp uma vez por dia por repositório.",

@@ -103,3 +103,7 @@ test("markdown vazio ou só espaços não gera nada", () => {
 test("citações vizinhas (uma por Enter no editor) viram uma só", () => {
   assert.equal(domParaMarkdown(domDe("<blockquote>a</blockquote><blockquote>b</blockquote><blockquote><br></blockquote><p>fim</p>")), "> a\n> b\n\nfim");
 });
+
+test("item de lista vazio (Enter no fim da lista) não vira texto", () => {
+  assert.equal(domParaMarkdown(domDe("<ul><li>a</li><li><br></li></ul><p>b</p>")), "- a\n\nb");
+});
