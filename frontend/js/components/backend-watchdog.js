@@ -2,6 +2,7 @@ import { pingBackend, resetBackendConnection } from "../api/client.js";
 import { icon } from "./icons.js";
 import { showToast } from "./toast.js";
 import { playSound } from "./sound.js";
+import { estaNoDocumento } from "./no-documento.js";
 
 /**
  * Vigia do backend (CONF-02): o backend caiu → avisa e reinicia.
@@ -73,7 +74,7 @@ export function watchdogState() {
 }
 
 function ensureBanner() {
-  if (bannerEl?.isConnected) return bannerEl;
+  if (estaNoDocumento(bannerEl)) return bannerEl;
   bannerEl = document.createElement("div");
   bannerEl.className = "backend-banner";
   bannerEl.id = "backend-banner";
