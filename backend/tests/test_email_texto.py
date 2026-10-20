@@ -209,11 +209,12 @@ def test_sender_split():
 
 def test_webmail_gmail_opens_message_by_id():
     url = et.url_webmail("imap.gmail.com", "eu@gmail.com", "<abc.123@mail.gmail.com>")
-    assert url == "https://mail.google.com/mail/u/eu@gmail.com/#search/rfc822msgid%3Aabc.123%40mail.gmail.com"
+    assert url == "https://mail.google.com/mail/?authuser=eu@gmail.com#search/rfc822msgid%3Aabc.123%40mail.gmail.com"
 
 
 def test_webmail_known_and_unknown_hosts():
-    assert et.url_webmail("IMAP.GMAIL.COM", "eu@gmail.com", None) == "https://mail.google.com/mail/u/eu@gmail.com/"
+    assert et.url_webmail("IMAP.GMAIL.COM", "eu@gmail.com", None) == "https://mail.google.com/mail/?authuser=eu@gmail.com"
+    assert et.url_webmail("imap.gmail.com", "", None) == "https://mail.google.com/mail/"
     assert et.url_webmail("outlook.office365.com", "eu", None) == "https://outlook.office.com/mail/"
     assert et.url_webmail("mail.empresa.com", "eu", "<x>") is None
 

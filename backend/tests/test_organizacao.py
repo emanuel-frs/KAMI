@@ -444,7 +444,7 @@ def test_sync_html_only_email_has_clean_preview_and_full_text(client, isolated_f
     assert "Statica" in detail["body_text"] and _STATICA in detail["body_text"]
     assert "\n\nSegundo parágrafo." in detail["body_text"]
     assert detail["body_cortado"] is False
-    assert detail["webmail_url"] == "https://mail.google.com/mail/u/voce@gmail.com/#search/rfc822msgid%3Am1%40gmail.com"
+    assert detail["webmail_url"] == "https://mail.google.com/mail/?authuser=voce@gmail.com#search/rfc822msgid%3Am1%40gmail.com"
     assert "<p>" not in detail["body_text"]
 
 

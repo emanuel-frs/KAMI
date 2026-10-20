@@ -372,13 +372,21 @@ _WEBMAIL = {
 
 def url_webmail(imap_host: str, usuario: str, message_id: Optional[str]) -> Optional[str]:
     """Link pro webmail da conta. No Gmail abre o próprio e-mail (busca
-    pelo Message-ID, `rfc822msgid:`); nos outros, a caixa de entrada."""
+    pelo Message-ID, `rfc822msgid:`); nos outros, a caixa de entrada.
+
+    Gmail: a conta vai em `?authuser=<e-mail>`. O formato
+    `/mail/u/<e-mail>/` dava "Temporary Error (404)" no navegador do
+    Emanuel (visto no teste do ORG-06); `authuser` é o parâmetro que o
+    próprio Google usa pra escolher entre contas logadas e aceita o
+    endereço (não só o índice 0, 1, 2...)."""
     from urllib.parse import quote
 
     destino = _WEBMAIL.get((imap_host or "").strip().lower())
     if destino != "gmail":
         return destino
-    base = f"https://mail.google.com/mail/u/{quote(usuario or '0', safe='@')}/"
+    base = "https://mail.google.com/mail/"
+    if usuario and "@" in usuario:
+        base += "?authuser=" + quote(usuario, safe="@")
     mid = (message_id or "").strip().strip("<>")
     if not mid:
         return base
