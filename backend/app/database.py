@@ -115,7 +115,16 @@ def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(email_cache)").fetchall()]
     if "body_preview" not in cols:
         conn.execute("ALTER TABLE email_cache ADD COLUMN body_preview TEXT")
-        conn.commit()
+    # ORG-06: texto completo limpo + Message-ID (ver schema.sql). E-mails
+    # antigos ficam com NULL e são completados na próxima sincronização
+    # que os trouxer de novo (routers/organizacao.py).
+    if "body_text" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN body_text TEXT")
+    if "body_cortado" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN body_cortado INTEGER NOT NULL DEFAULT 0")
+    if "message_id" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN message_id TEXT")
+    conn.commit()
 
 
 def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:

@@ -150,6 +150,8 @@ verdade é o código e o teste.
 | ORG-02 | Repositório do GitHub só rende xp se existir; apagar e readicionar não zera o limite diário | `test_organizacao.py::test_create_github_repo_not_found_404_from_github_does_not_credit_xp`, `test_integridade_xp.py::test_github_delete_and_readd_does_not_reset_daily_sync_limit` |
 | ORG-03 | Senha de e-mail nunca volta pela API | `test_organizacao.py::test_create_email_account_never_returns_password`, `test_organizacao.py::test_list_email_accounts_never_returns_password` |
 | ORG-04 | Chave da busca só é salva depois de validada | `test_organizacao.py::test_save_search_key_invalid_key_returns_422_and_does_not_save` |
+| ORG-05 | E-mail vira só texto limpo: nada de HTML guardado nem mostrado, link sem URL longa na prévia, e-mail só em HTML tem prévia | `test_email_texto.py::test_html_converts_structure_and_drops_hidden_and_scripts`, `test_organizacao.py::test_sync_html_only_email_has_clean_preview_and_full_text`, `email-texto.test.js` (desenho sem HTML) |
+| ORG-06 | Texto completo do e-mail é guardado só por 90 dias (a prévia fica) | `test_organizacao.py::test_old_full_text_is_pruned_on_sync` |
 
 ## Sistema (backup e reset)
 

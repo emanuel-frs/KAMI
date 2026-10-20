@@ -193,14 +193,14 @@ function emailItemHtml(e) {
   return `
     <div class="nbell-item unread" data-id="${e.id}" data-tooltip="marcar como lida e abrir">
       <span class="nbell-dot" aria-hidden="true"></span>
-      <span class="nbell-avatar" style="--chip-color:${emailAccountColor(e.account_id)};">${emailInitial(e.sender)}</span>
+      <span class="nbell-avatar" style="--chip-color:${emailAccountColor(e.account_id)};">${emailInitial(e.sender_name || e.sender)}</span>
       <span class="nbell-main">
         <span class="nbell-top">
           <span class="nbell-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
           <span class="nbell-time">${fmtRelDate(e.received_at)}</span>
         </span>
-        <span class="nbell-sender" data-tooltip="${escapeHtml(e.sender)}">${escapeHtml(e.sender)}</span>
-        ${e.body_preview ? `<span class="nbell-preview" data-tooltip="${escapeHtml(e.body_preview)}">${escapeHtml(e.body_preview)}</span>` : ""}
+        <span class="nbell-sender"${e.sender_email ? ` data-tooltip="${escapeHtml(e.sender_email)}"` : ""}>${escapeHtml(e.sender_name || e.sender)}</span>
+        ${e.body_preview ? `<span class="nbell-preview">${escapeHtml(e.body_preview)}</span>` : ""}
       </span>
       <span class="icon-btn nbell-mute" data-action="notif-mute-account" data-account-id="${escapeHtml(e.account_id)}" data-tooltip="silenciar esta conta">${icon("bell-off", { size: 12 })}</span>
     </div>`;

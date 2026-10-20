@@ -56,10 +56,21 @@
 .org-account.is-muted .org-account-actions [data-mute-account] { color: var(--accent); }
 
 /* ── lista de e-mails (mais rica que .log-item — tem avatar, remetente e
-   prévia do corpo) ── */
+   prévia do corpo). ORG-06: agrupada por dia (.email-grupo), remetente
+   em cima (nome em destaque, endereço menor), assunto, prévia limpa;
+   não lido = ponto na cor de destaque + texto claro. ── */
+.email-grupo {
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 12px 3px 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.email-grupo:first-child { padding-top: 2px; }
 .email-item {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
   padding: 9px 3px;
   border-bottom: 1px dashed var(--border-soft);
@@ -67,6 +78,15 @@
 }
 .email-item:last-child { border-bottom: none; }
 .email-item:hover { background: rgba(255, 255, 255, 0.03); }
+.email-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.email-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 11px;
+  background: transparent;
+}
+.email-item.unread .email-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent-dim); }
 .email-avatar {
   flex: 0 0 auto;
   width: 26px;
@@ -85,15 +105,17 @@
   text-transform: uppercase;
 }
 .email-main { flex: 1 1 auto; min-width: 0; }
-.email-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.email-subject {
-  font-size: 11.5px;
-  color: var(--text-dim);
+.email-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.email-from {
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.email-item.unread .email-subject { color: var(--text-bright); }
+.email-from-name { font-size: 11.5px; color: var(--text-dim); }
+.email-item.unread .email-from-name { color: var(--text-bright); font-weight: 600; }
+.email-from-addr { font-size: 9.5px; color: var(--text-faint); margin-left: 4px; }
 .email-tag {
   flex-shrink: 0;
   font-size: 8.5px;
@@ -101,8 +123,15 @@
   text-transform: uppercase;
   color: var(--text-faint);
 }
-.email-item.unread .email-tag { color: var(--amber); }
-.email-sender,
+.email-subject {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.email-item.unread .email-subject { color: var(--text); }
 .email-preview {
   font-size: 10px;
   color: var(--text-faint);
@@ -111,34 +140,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.email-preview { opacity: 0.8; }
 .email-meta {
   flex: 0 0 auto;
   font-size: 9.5px;
   color: var(--text-faint);
   white-space: nowrap;
-  padding-top: 2px;
 }
+.email-item.unread .email-meta { color: var(--accent); }
 
-/* ── modal de detalhe do e-mail ── */
-.email-detail-field { margin-bottom: 12px; }
-.email-detail-field label {
-  display: block;
-  font-size: 10px;
-  color: var(--text-faint);
-  letter-spacing: 0.3px;
-  margin-bottom: 3px;
-}
-.email-detail-field .val { font-size: 12px; color: var(--text-dim); }
-.email-detail-field .val.subject { color: var(--text-bright); font-size: 13px; }
-.email-detail-field .val.preview {
-  line-height: 1.6;
-  white-space: pre-wrap;   /* quebra em espaços/linhas normalmente */
-  overflow-wrap: break-word; /* só força quebra no meio de um "token" (ex: url longa) quando não há outro jeito */
-  max-height: 140px;
-  overflow: hidden;
-}
-.email-detail-field .val.preview.expanded { max-height: none; }
 .vm-row {
   display: flex;
   justify-content: space-between;

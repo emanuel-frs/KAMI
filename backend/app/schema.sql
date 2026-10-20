@@ -400,9 +400,14 @@ CREATE TABLE IF NOT EXISTS email_cache (
     received_at  TEXT NOT NULL,
     is_read      INTEGER NOT NULL DEFAULT 0,
     summary_text TEXT,                -- NULL no v1 (sem IA); campo reservado pro pós-mvp
-    body_preview TEXT                 -- trecho em TEXTO PURO do corpo (sem HTML), truncado
-                                       -- na extração (ver app/routers/organizacao.py) — nunca
-                                       -- o corpo original/HTML bruto, por segurança (XSS/tracking)
+    body_preview TEXT,                -- prévia de uma linha em TEXTO PURO (sem HTML, sem URL
+                                       -- longa), ver app/email_texto.py — nunca o corpo
+                                       -- original/HTML bruto, por segurança (XSS/tracking)
+    body_text    TEXT,                -- ORG-06: texto completo LIMPO (até 20 mil caracteres;
+                                       -- links marcados, formato em app/email_texto.py).
+                                       -- NULL = e-mail antigo ou com mais de 90 dias (podado)
+    body_cortado INTEGER NOT NULL DEFAULT 0, -- texto completo cortado/indisponível
+    message_id   TEXT                 -- cabeçalho Message-ID (abre o e-mail certo no Gmail)
 );
 
 -- ---------------- CONTAS SILENCIADAS (notificações v2.1) ----------------

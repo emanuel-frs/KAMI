@@ -41,6 +41,8 @@ import { refreshNotificationBell } from "../components/notification-bell.js";
 import { showToast } from "../components/toast.js";
 import { subscribeSyncState, isSyncRunning } from "../components/email-sync-scheduler.js";
 import { emailAccountColor } from "../components/email-account-color.js";
+import { grupoDoDia, horaCurta } from "../components/email-texto.js";
+import { openEmailLeitor, closeEmailLeitor } from "../modals/email-leitor-modal.js";
 
 const state = {
   tab: "github",
@@ -241,6 +243,7 @@ function applyEmailsMarkedRead(ids) {
 
 export function unmount() {
   cancelActiveTipSequence();
+  closeEmailLeitor();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   unsubscribeEmailsRead?.();
@@ -306,7 +309,7 @@ function template() {
         </div>
         <div class="card-body">
           <div class="email-search-row">
-            <input type="text" id="org-email-search" placeholder="buscar por assunto ou remetente..." aria-label="buscar e-mails por assunto ou remetente">
+            <input type="text" id="org-email-search" placeholder="buscar por assunto, remetente ou texto..." aria-label="buscar e-mails por assunto, remetente ou texto">
           </div>
           <div class="email-account-chips" id="org-account-chips"></div>
           <div class="email-filter-row" id="org-email-filter">
@@ -387,13 +390,7 @@ function template() {
       </div>
     </div>
 
-    <!-- MODAL: detalhe de e-mail -->
-    <div class="modal-backdrop" id="email-modal">
-      <div class="modal">
-        <div class="modal-head">e-mail <button type="button" class="close" data-action="close-email-modal" aria-label="fechar">${icon("x")}</button></div>
-        <div class="modal-body" id="email-modal-body"></div>
-      </div>
-    </div>
+    <!-- leitor de e-mail: modals/email-leitor-modal.js (ORG-06) -->
 
     <!-- MODAL: chave de busca (tavily) -->
       <div class="modal-backdrop" id="search-key-modal">
@@ -474,7 +471,6 @@ function bindEvents(container) {
     if (action === "open-account-modal") openAccountModal();
     if (action === "close-account-modal") closeAccountModal();
     if (action === "save-account") handleSaveAccount();
-    if (action === "close-email-modal") closeEmailModal();
     if (action === "open-manage-accounts-modal") openManageAccountsModal();
     if (action === "close-manage-accounts-modal") closeManageAccountsModal();
     if (action === "sync-selected-accounts") handleSyncSelectedAccounts();
@@ -1370,67 +1366,78 @@ function renderEmails() {
     );
   }
 
+  // ordem que o leitor percorre com ← → (mesmo filtro/busca da tela)
+  state.visibleEmailIds = visible.map((e) => e.id);
+
   if (!visible.length) {
     wrap.innerHTML = '<div class="empty-state">nenhum e-mail corresponde à busca/filtro atual.</div>';
     return;
   }
 
+  // ORG-06 (P-29): agrupado por dia — hoje, ontem, esta semana, este mês
+  // e depois por mês. A lista já vem em ordem decrescente de data, então
+  // cada grupo novo só aparece quando a chave muda.
+  const agora = new Date();
+  let grupoAtual = null;
   wrap.innerHTML = visible
     .map((e) => {
-      const color = emailAccountColor(e.account_id);
-      return `
-      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}">
-        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(accountLabel(e.account_id))}">${emailInitial(e.sender)}</div>
-        <div class="email-main">
-          <div class="email-top">
-            <span class="email-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
-            <span class="email-tag">${e.is_muted ? "silenciado" : e.is_read ? "" : "novo"}</span>
-          </div>
-          <div class="email-sender">de: ${escapeHtml(e.sender)}</div>
-          <div class="email-preview" data-tooltip="${escapeHtml(e.body_preview || "")}">${escapeHtml(e.body_preview || "")}</div>
-        </div>
-        <div class="email-meta">${fmtDateTimeBR(e.received_at)}</div>
-      </div>`;
+      const grupo = grupoDoDia(e.received_at, agora);
+      const cabecalho = grupo.chave !== grupoAtual ? `<div class="email-grupo">${escapeHtml(grupo.rotulo)}</div>` : "";
+      grupoAtual = grupo.chave;
+      return cabecalho + emailItemHtml(e, agora);
     })
     .join("");
+}
+
+/** Linha da lista: remetente (nome em destaque, endereço menor) e hora
+ * em cima, assunto, prévia limpa (sem URL — ver app/email_texto.py).
+ * Não lido = ponto na cor de destaque + texto mais claro. Sem tooltip na
+ * prévia: o texto inteiro está a um clique, no leitor. */
+function emailItemHtml(e, agora) {
+  const color = emailAccountColor(e.account_id);
+  const nome = e.sender_name || e.sender || "?";
+  const endereco = e.sender_email && e.sender_email !== nome ? e.sender_email : "";
+  const estado = e.is_muted ? "silenciado" : e.is_read ? "lido" : "não lido";
+  return `
+      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(`${estado}: ${e.subject || "(sem assunto)"}, de ${nome}`)}">
+        <span class="email-dot" aria-hidden="true"></span>
+        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="conta: ${escapeAttr(accountLabel(e.account_id))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
+        <div class="email-main">
+          <div class="email-top">
+            <span class="email-from"><span class="email-from-name">${escapeHtml(nome)}</span>${endereco ? ` <span class="email-from-addr">${escapeHtml(endereco)}</span>` : ""}</span>
+            ${e.is_muted ? '<span class="email-tag">silenciado</span>' : ""}
+            <span class="email-meta">${escapeHtml(horaCurta(e.received_at, agora))}</span>
+          </div>
+          <div class="email-subject">${escapeHtml(e.subject || "(sem assunto)")}</div>
+          ${e.body_preview ? `<div class="email-preview">${escapeHtml(e.body_preview)}</div>` : ""}
+        </div>
+      </div>`;
 }
 
 function accountLabel(accountId) {
   return state.accounts.find((a) => a.id === accountId)?.label || "?";
 }
 
-function emailInitial(sender) {
-  const name = (sender || "?").split("@")[0].replace(/[._-]/g, " ").trim();
-  return (name.charAt(0) || "?").toUpperCase();
-}
-
+/** Abre o leitor (modals/email-leitor-modal.js). Percorre a lista na
+ * ordem visível; se o e-mail pedido não está nela (veio do sino com um
+ * filtro que o esconde), abre só ele. */
 function openEmailModal(cacheId) {
-  const email = state.emails.find((e) => e.id === cacheId);
-  if (!email) return;
-  const body = rootEl.querySelector("#email-modal-body");
-  body.innerHTML = `
-    <div class="email-detail-field"><label>assunto</label><div class="val subject">${escapeHtml(email.subject || "(sem assunto)")}</div></div>
-    <div class="vm-row"><span class="k">de</span><span class="v" data-tooltip="${escapeHtml(email.sender)}">${escapeHtml(email.sender)}</span></div>
-    <div class="vm-row"><span class="k">recebido em</span><span class="v">${fmtDateTimeBR(email.received_at)}</span></div>
-    <div class="email-detail-field" style="margin-top:10px;"><label>prévia (texto puro — sem resumo por ia no v1)</label>
-      <div class="val preview">${escapeHtml(email.body_preview || "sem prévia disponível.")}</div>
-    </div>
-  `;
-  rootEl.querySelector("#email-modal").classList.add("open");
-
-  if (!email.is_read) {
-    api.markEmailRead(cacheId).then(() => {
-      email.is_read = true;
-      renderEmails();
-      // some do modal de notificações/badge do sino na hora — sem isso
-      // ele continuaria contando um e-mail que já foi lido aqui.
+  if (!state.emails.some((e) => e.id === cacheId)) return;
+  const ids = state.visibleEmailIds?.includes(cacheId) ? state.visibleEmailIds : [cacheId];
+  openEmailLeitor({
+    ids: [...ids],
+    index: ids.indexOf(cacheId),
+    resumo: (id) => state.emails.find((e) => e.id === id),
+    conta: (accountId) => ({ label: accountLabel(accountId), color: emailAccountColor(accountId) }),
+    onLido: (id, lido) => {
+      const email = state.emails.find((e) => e.id === id);
+      if (email) email.is_read = lido;
+      if (rootEl) renderEmails();
+      // some/volta no sino na hora — sem isso ele continuaria contando
+      // um e-mail que já foi lido aqui (ou não contaria o desmarcado)
       refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
-    });
-  }
-}
-
-function closeEmailModal() {
-  rootEl.querySelector("#email-modal").classList.remove("open");
+    },
+  });
 }
 
 /**

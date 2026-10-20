@@ -77,6 +77,10 @@ const ICON_PATHS = {
   link: '<path d="M9 17H7A5 5 0 0 1 7 7h2" /> <path d="M15 7h2a5 5 0 1 1 0 10h-2" /> <line x1="8" x2="16" y1="12" y2="12" />',
   "chevron-down": '<path d="m6 9 6 6 6-6" />',
   "chevron-right": '<path d="m9 18 6-6-6-6" />',
+  "chevron-left": '<path d="m15 18-6-6 6-6" />',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />',
+  "mail-open":
+    '<path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z" /> <path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10" />',
   minus: '<path d="M5 12h14" />',
   square: '<rect width="18" height="18" x="3" y="3" rx="2" />',
   // silenciar remetente (notificações v2, ver notification-bell.js e
