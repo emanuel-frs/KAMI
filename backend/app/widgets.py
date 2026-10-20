@@ -227,54 +227,54 @@ def screens_for(widget_type: str):
 
 # ── layout padrão por tela (LAY-02) ─────────────────────────────────────
 #
-# Montado pra cada widget ficar no tamanho em que ele fica bonito, com
-# vizinhos de altura parecida lado a lado — o empacotamento
-# (frontend/js/widgets/grid.js, packLayout) só sobe os cards pros vãos,
-# nunca estica nenhum. Vale pras duas grades mais comuns: 6 colunas
-# (≥1400px de área útil, ex.: 1920) e 4 colunas (ex.: 1366), onde 2/6 vira
-# 1 coluna, 3/6 vira 2 e 4/6 vira 3. Cada item é (widget, largura em
-# sextos, altura em px ou None = pela altura do conteúdo). A ordem importa:
-# é a ordem em que os cards são encaixados.
+# Montado pelo Emanuel na tela dele (1366, 4 colunas: 2/6 → 1 coluna,
+# 3/6 → 2), sem dados — por isso as alturas são as MÍNIMAS de cada widget.
+# Com dados o conteúdo cresce, e quem segura o desenho é o empacotamento
+# em faixas (frontend/js/widgets/grid.js, packLayout): vizinhos de lado
+# terminam juntos e a faixa seguinte começa reta. Telas maiores também
+# usam 4 colunas, então o desenho é o mesmo em 1920 (só mais largo).
+# Cada item é (widget, largura em sextos, altura mínima em px ou None =
+# pela altura do conteúdo). A ordem importa: é a ordem do encaixe.
 #
 # Mudou o padrão? Suba LAYOUT_PADRAO_VERSAO: quem já usa o app vê o aviso
-# "o layout padrão melhorou — aplicar?" (P-23, routers/dashboard.py).
-# v3: sem widgets esticados pra tapar buraco (a v2 esticava).
-LAYOUT_PADRAO_VERSAO = 3
+# "o layout padrão melhorou — aplicar?" (P-23, routers/dashboard.py) — só
+# nas telas em que o layout salvo for diferente do padrão novo.
+LAYOUT_PADRAO_VERSAO = 4
 LAYOUT_PADRAO = {
     "nucleo": [
-        ("missoes", 3, None),       # missões | registrar
-        ("registrar", 3, None),
-        ("achievements", 4, None),  # galeria | prioridades + radar empilhados
-        ("priorities", 2, None),
+        ("missoes", 3, 228),        # missões | registrar
+        ("registrar", 3, 228),
+        ("achievements", 3, 456),   # galeria | log, e embaixo do log radar + prioridades
+        ("log", 3, 204),
         ("attributes", 2, None),
-        ("log", 6, None),
+        ("priorities", 2, 124),
     ],
     "perfil": [
         ("profile", 3, None),       # fixo em 1/1; embaixo dele radar + atividade
-        ("achievements", 3, 548),   # galeria alta, até perto da base da coluna da esquerda
-        ("attributes", 1, None),
+        ("achievements", 3, 564),   # galeria alta, ao lado
+        ("attributes", 2, 248),
         ("perfil_atividade", 2, None),
     ],
     "financas": [
-        ("financas_resumo", 2, None),           # visão geral (+ uso de limite na 4ª coluna em 1366)
+        ("financas_resumo", 3, 148),            # resumo + carteira | fluxo | evolução
         ("financas_grafico_fluxo", 2, None),
-        ("financas_grafico_evolucao", 2, None),
-        ("financas_grafico_limites", 2, None),
-        ("financas_registros", 4, None),        # lançamentos | contas fixas + dívidas
-        ("contas_fixas", 2, None),
+        ("carteira", 3, 184),
+        ("financas_grafico_evolucao", 2, 244),
+        ("compras_parceladas", 3, 284),         # parceladas + categorias | lançamentos
+        ("financas_registros", 3, 168),
+        ("financas_grafico_categorias", 3, 164),
+        ("financas_grafico_limites", 2, 152),   # o resto em colunas de 2/6
+        ("financas_renda", 2, 236),
         ("dividas", 2, None),
-        ("carteira", 2, None),                  # o resto em colunas de 2/6
-        ("financas_renda", 2, None),
-        ("financas_assinaturas", 2, None),
-        ("compras_parceladas", 2, None),
-        ("financas_grafico_categorias", 2, None),
+        ("financas_assinaturas", 2, 168),
+        ("contas_fixas", 2, 168),
     ],
     "carreira": [
-        ("carreira_perfil", 3, None),           # área | interesses (os dois baixos)
-        ("carreira_interesses", 3, None),
-        ("carreira_posicoes", 3, None),         # linha do tempo | salário (os dois altos)
-        ("carreira_salario", 3, None),
-        ("carreira_formacoes", 6, None),
+        ("carreira_posicoes", 3, 168),          # posições | formação
+        ("carreira_formacoes", 3, 168),
+        ("carreira_interesses", 2, 196),        # interesses | salário | área
+        ("carreira_salario", 2, 196),
+        ("carreira_perfil", 3, 140),
     ],
 }
 

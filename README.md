@@ -85,9 +85,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
   configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
-- **Telas que se organizam:** os widgets se encaixam sozinhos em qualquer tamanho de janela, cada um
-  no tamanho dele (nada esticado para tapar espaço), e cada tela tem um layout padrão montado para
-  combinar (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.
+- **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
+  de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar
+  (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.
   Opcional: o ícone do app na cor de destaque.
 - **Segurança:** PIN opcional para abrir o app (com código de recuperação e bloqueio por
   inatividade), backup exportado com senha, e as senhas salvas protegidas por uma chave no cofre do

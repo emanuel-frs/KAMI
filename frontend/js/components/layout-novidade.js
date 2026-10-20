@@ -30,7 +30,7 @@ export async function oferecerLayoutNovo({ recarregarTela }) {
 
   showToast({
     title: "layout novo das telas",
-    message: `o layout padrão de ${listar(novidade.telas)} melhorou: cada widget no tamanho dele, sem esticar pra tapar buraco. aplicar? dá pra desfazer logo depois.`,
+    message: `o layout padrão de ${listar(novidade.telas)} melhorou: widgets em faixas alinhadas. aplicar? dá pra desfazer logo depois.`,
     iconName: "grip",
     duration: 0,
     actions: [

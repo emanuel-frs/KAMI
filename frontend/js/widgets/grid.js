@@ -65,62 +65,109 @@ const snapAutoHeight = snapHeight;
 
 // largura real do container → número de colunas reais da grade.
 //
-// LAY-03: só 1, 2, 4 ou 6 colunas. Antes, a partir de 1400px a grade
-// crescia proporcional à largura (7, 8… colunas), mas a largura de cada
-// widget é guardada em SEXTOS: metade de 7 colunas = 3,5, que arredonda
-// pra 3 ou 4 — era daí que vinham os buracos e a faixa vazia à direita
-// em 1920×1080 (auditoria LAY-01). Com 6 colunas todo sexto vira coluna
-// inteira; 4 e 2 mantêm as metades/terços razoáveis em telas menores.
+// LAY-03: só 1, 2 ou 4 colunas. Antes, a partir de 1400px a grade crescia
+// (7, 8… colunas, depois 6), mas o layout montado numa tela 1366 (4
+// colunas: 2/6 → 1, 3/6 → 2, 4/6 → 3) não fechava em 6 colunas (2/6 + 2/6
+// + 3/6 = 7/6) e o desenho se desfazia em telas maiores. Com 4 colunas em
+// qualquer tela grande, as faixas são as mesmas em 1366 e em 1920 — os
+// widgets só ficam mais largos.
 export function colsForWidth(w) {
   if (w < 680) return 1;
   if (w < 1000) return 2;
-  if (w < 1400) return 4;
-  return WG_UNITS;
+  return 4;
 }
 
 /**
- * Empacotamento dos cards (LAY-03/04): decide a coluna e a linha de cada
- * card, em ordem. Antes a posição ficava com o `grid-auto-flow: dense` do
- * navegador, que com cards de alturas diferentes deixava buracos e jogava
- * um widget readicionado em qualquer fresta (P-23).
+ * Empacotamento dos cards (LAY-03/04): decide a coluna, a linha e a altura
+ * DESENHADA de cada card, em ordem. Antes a posição ficava com o
+ * `grid-auto-flow: dense` do navegador, que com cards de alturas diferentes
+ * deixava buracos e jogava um widget readicionado em qualquer fresta (P-23).
  *
- * Cada card vai pro lugar MAIS ALTO em que cabe na largura dele (estilo
- * "masonry"); empate → o mais à esquerda. (Desempatar pelo "que desperdiça
- * menos espaço embaixo" foi testado e piorou: em Finanças puxava os
- * lançamentos pro meio e empilhava o resto numa coluna estreita.) O card
- * fixo (perfil) fica sempre em 1/1.
+ * Em FAIXAS — o que importa pro olho é o alinhamento, não o espaço vazio:
+ * - os primeiros cards da faixa vão lado a lado, da esquerda pra direita,
+ *   no topo dela;
+ * - o seguinte empilha embaixo do mais baixo da faixa (pilha: radar +
+ *   atividade embaixo do perfil, ao lado da galeria) se pelo menos metade
+ *   dele couber até a base da faixa — ou se a faixa ainda tem coluna livre
+ *   no topo; senão, começa uma faixa nova;
+ * - quando a faixa fecha, o último card de cada coluna cresce até a base
+ *   dela: todos terminam na mesma linha e a faixa seguinte começa reta.
+ * Nunca alarga pros lados, e quem cresce só ganha espaço vazio embaixo —
+ * o conteúdo (gráficos inclusive) mantém o tamanho dele. É isso que segura
+ * o desenho quando os dados fazem um widget crescer além da altura do
+ * layout padrão. O card fixo (perfil) fica sempre em 1/1.
  *
- * O tamanho é sempre o do card — o empacotamento nunca estica um widget
- * pra tapar vão. Já esticou (nivelar a base com o vizinho, alargar até a
- * coluna livre): os widgets ficavam inchados só pra fechar buraco, e o
- * gráfico salarial virava a tela inteira. Quem fecha a faixa é o layout
- * padrão (widgets.py, LAYOUT_PADRAO), montado com larguras e alturas que
- * combinam; um vão no fim de uma coluna é melhor que um widget esticado.
+ * Sem `alinhar` (durante o resize manual, pra pessoa ver a altura que
+ * está escolhendo): só o encaixe no ponto mais alto, sem crescer ninguém.
  *
  * Função pura (tests/frontend/grid-pack.test.js):
  *   itens = [{ span, rows, pinned? }]   span em colunas reais, rows em linhas de 4px
- *   → [{ col, row, span, rows }]        1-based
+ *   → [{ col, row, span, rows }]        1-based; rows já com o crescimento
  */
-export function packLayout(items, cols) {
+export function packLayout(items, cols, { alinhar = true } = {}) {
   const sky = new Array(cols).fill(0); // próxima linha livre de cada coluna
-  const out = [];
+  const dono = new Array(cols).fill(null); // card cuja base define sky[c]
+  const cards = [];
+  const base = (k) => k.row + k.rows;
+  let topoFaixa = 0;
+  let baseFaixa = 0;
+
+  // só cresce quem ainda é a superfície inteira das colunas dele
+  const cresce = (k, ate) => {
+    if (!k || base(k) >= ate) return;
+    if ([...Array(k.span).keys()].some((i) => dono[k.col + i] !== k)) return;
+    k.rows = ate - k.row;
+    for (let c = k.col; c < k.col + k.span; c++) sky[c] = ate;
+  };
+
+  const fecharFaixa = () => {
+    // só quem é desta faixa (coluna vazia nela fica vazia — não puxa o de cima)
+    for (let c = 0; c < cols; c++) if (dono[c]?.row >= topoFaixa) cresce(dono[c], baseFaixa);
+    sky.fill(Math.max(baseFaixa, ...sky));
+    topoFaixa = baseFaixa = sky[0];
+  };
+
+  const melhorLugar = (s, pinned) => {
+    let col = 0;
+    let top = Infinity;
+    const last = pinned ? 0 : cols - s;
+    for (let c = 0; c <= last; c++) {
+      const t = Math.max(...sky.slice(c, c + s));
+      if (t < top) {
+        col = c;
+        top = t;
+      }
+    }
+    return { col, top };
+  };
+
   for (const { span, rows, pinned } of items) {
     const s = Math.max(1, Math.min(cols, span));
     const r = Math.max(1, rows);
-    let best = 0;
-    let bestTop = Infinity;
-    const last = pinned ? 0 : cols - s;
-    for (let c = 0; c <= last; c++) {
-      const top = Math.max(...sky.slice(c, c + s));
-      if (top < bestTop) {
-        best = c;
-        bestTop = top;
-      }
+    let { col, top } = melhorLugar(s, pinned);
+    // na faixa: no topo dela (lado a lado), empilhado com metade cabendo,
+    // ou enquanto ela ainda tiver coluna livre no topo (os próximos cards
+    // ainda vão completar a largura dela)
+    const cabe = top === topoFaixa || baseFaixa - top >= r / 2 || sky.some((v) => v === topoFaixa);
+    if (alinhar && cards.length && !cabe) {
+      fecharFaixa();
+      ({ col, top } = melhorLugar(s, pinned));
     }
-    for (let c = best; c < best + s; c++) sky[c] = bestTop + r;
-    out.push({ col: best + 1, row: bestTop + 1, span: s, rows: r });
+    // vão embaixo de quem ficou por cima (o vizinho dele era mais alto):
+    // ele desce até este card
+    if (alinhar) for (let c = col; c < col + s; c++) if (sky[c] < top) cresce(dono[c], top);
+
+    const k = { col, row: top, span: s, rows: r };
+    cards.push(k);
+    for (let c = col; c < col + s; c++) {
+      sky[c] = top + r;
+      dono[c] = k;
+    }
+    baseFaixa = Math.max(baseFaixa, top + r);
   }
-  return out;
+  if (alinhar) fecharFaixa();
+
+  return cards.map((k) => ({ col: k.col + 1, row: k.row + 1, span: k.span, rows: k.rows }));
 }
 
 function spanFromStyle(value, fallback) {
@@ -131,9 +178,11 @@ function spanFromStyle(value, fallback) {
 /**
  * Aplica packLayout nos cards (e no placeholder do arrasto) na ordem do DOM.
  * A largura de cada card fica em data-scaled (applyScaled/setScaled) e a
- * altura em data-rows (placeCard).
+ * altura natural em data-rows (placeCard); o crescimento das faixas vem por
+ * min-height — o `height` do card continua sendo o do conteúdo (ou o
+ * manual), e é ele que é salvo.
  */
-function packCards(container, cols) {
+function packCards(container, cols, { alinhar = true } = {}) {
   const els = [...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder")];
   const pos = packLayout(
     els.map((el) => ({
@@ -141,12 +190,15 @@ function packCards(container, cols) {
       rows: parseInt(el.dataset.rows, 10) || spanFromStyle(el.style.gridRowEnd, gridRowsForHeight(WG_MIN_H)),
       pinned: el.hasAttribute("data-pinned"),
     })),
-    cols
+    cols,
+    { alinhar }
   );
   els.forEach((el, i) => {
     const p = pos[i];
     el.style.gridColumn = `${p.col} / span ${p.span}`;
     el.style.gridRow = `${p.row} / span ${p.rows}`;
+    const natural = parseInt(el.dataset.rows, 10);
+    el.style.minHeight = natural && p.rows > natural ? `${p.rows * WG_ROW - WG_ROW_MARGIN}px` : "";
   });
 }
 
@@ -204,9 +256,11 @@ function setScaled(card, scaled, cols) {
  */
 function contentMinHeight(card) {
   const prevHeight = card.style.height;
+  const prevMinHeight = card.style.minHeight; // crescimento das faixas — não é conteúdo
   const prevAlignSelf = card.style.alignSelf;
   const prevManual = card.dataset.manual;
   card.style.height = "";
+  card.style.minHeight = "";
   // Com align-self:stretch, medir sem quebrar o stretch ainda devolveria
   // a altura da área de linhas antiga, e não a altura intrínseca do conteúdo.
   card.style.alignSelf = "start";
@@ -219,6 +273,7 @@ function contentMinHeight(card) {
   delete card.dataset.manual;
   const h = Math.ceil(card.getBoundingClientRect().height);
   card.style.height = prevHeight;
+  card.style.minHeight = prevMinHeight;
   card.style.alignSelf = prevAlignSelf;
   if (prevManual !== undefined) card.dataset.manual = prevManual;
   return h;
@@ -877,7 +932,9 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
       container.querySelectorAll(":scope > .card").forEach((c) => {
         if (c !== card) placeCard(c, cols);
       });
-      packCards(container, cols);
+      // sem faixas durante o resize manual: o card mostra a altura que a
+      // pessoa está escolhendo, não a alinhada
+      packCards(container, cols, { alinhar: false });
     } catch (err) {
       console.error("erro no resize:", err);
     }

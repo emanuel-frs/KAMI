@@ -23,10 +23,10 @@ function ocupacao(items, pos, cols) {
 }
 
 test(
-  "grade só com 1, 2, 4 ou 6 colunas — 7 colunas com larguras em sextos deixava buraco",
+  "grade só com 1, 2 ou 4 colunas — o layout montado em 1366 é o mesmo em 1920",
   withDom("<body></body>", async () => {
     const { colsForWidth } = await grid();
-    assert.deepEqual([500, 800, 1200, 1640, 2300, 3400].map(colsForWidth), [1, 2, 4, 6, 6, 6]);
+    assert.deepEqual([500, 800, 1200, 1640, 2300, 3400].map(colsForWidth), [1, 2, 4, 4, 4, 4]);
   })
 );
 
@@ -89,16 +89,66 @@ test(
 );
 
 test(
-  "o empacotamento nunca estica um card: a largura e a altura são as dele",
+  "nunca alarga um card pros lados, e sem alinhar (resize manual) não cresce ninguém",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
-    // 3/6 + 2/6 deixa uma coluna livre, e o 1º é mais baixo que o vizinho:
-    // antes o 2º alargava até a borda e o 1º descia até o de baixo
     const items = [{ span: 3, rows: 40 }, { span: 2, rows: 50 }, { span: 6, rows: 20 }];
     const pos = packLayout(items, 6);
     ocupacao(items, pos, 6);
-    assert.deepEqual(pos.map((p) => [p.span, p.rows]), [[3, 40], [2, 50], [6, 20]]);
+    assert.deepEqual(pos.map((p) => p.span), [3, 2, 6]);
+    // o de baixo começa depois do mais alto; o vão embaixo do 1º fecha
     assert.equal(pos[2].row, 51);
-    assert.deepEqual(packLayout([{ span: 2, rows: 10 }], 6), [{ col: 1, row: 1, span: 2, rows: 10 }]);
+    assert.equal(pos[0].rows, 50);
+    assert.deepEqual(packLayout(items, 6, { alinhar: false }).map((p) => p.rows), [40, 50, 20]);
+  })
+);
+
+test(
+  "faixas: vizinhos de lado terminam juntos e a faixa seguinte começa reta (núcleo)",
+  withDom("<body></body>", async () => {
+    const { packLayout } = await grid();
+    // missões 64 | registrar 57; galeria 114 | log 77, e embaixo do log radar + prioridades
+    const items = [
+      { span: 2, rows: 64 },
+      { span: 2, rows: 57 },
+      { span: 2, rows: 114 },
+      { span: 2, rows: 77 },
+      { span: 1, rows: 59 },
+      { span: 1, rows: 48 },
+    ];
+    const pos = packLayout(items, 4);
+    const fim = (p) => p.row + p.rows;
+    assert.equal(fim(pos[0]), fim(pos[1])); // registrar cresceu até a base de missões
+    assert.equal(pos[2].row, pos[3].row); // galeria e log começam na mesma linha
+    // radar e prioridades empilham embaixo do log, lado a lado
+    assert.deepEqual([pos[4].col, pos[4].row, pos[5].col, pos[5].row], [3, fim(pos[3]), 4, fim(pos[3])]);
+    // e tudo termina junto: a galeria cresce até a pilha
+    assert.equal(fim(pos[2]), fim(pos[4]));
+    assert.equal(fim(pos[4]), fim(pos[5]));
+    assert.deepEqual(pos.map((p) => p.span), [2, 2, 2, 2, 1, 1]);
+  })
+);
+
+test(
+  "pilha ao lado de um card alto não estica o de cima (perfil: radar + atividade embaixo do perfil)",
+  withDom("<body></body>", async () => {
+    const { packLayout } = await grid();
+    const items = [{ span: 2, rows: 75, pinned: true }, { span: 2, rows: 141 }, { span: 1, rows: 62 }, { span: 1, rows: 64 }];
+    const pos = packLayout(items, 4);
+    assert.equal(pos[0].rows, 75); // o perfil fica do tamanho dele
+    assert.deepEqual([pos[2].row, pos[3].row], [76, 76]);
+    assert.equal(pos[2].row + pos[2].rows, pos[1].row + pos[1].rows);
+    assert.equal(pos[3].row + pos[3].rows, pos[1].row + pos[1].rows);
+  })
+);
+
+test(
+  "card que não cabe nem pela metade na faixa abre uma faixa nova",
+  withDom("<body></body>", async () => {
+    const { packLayout } = await grid();
+    // 60 | 20; o seguinte (100) caberia embaixo do de 20, mas só 40 dele ficariam na faixa
+    const pos = packLayout([{ span: 2, rows: 60 }, { span: 2, rows: 20 }, { span: 2, rows: 100 }], 4);
+    assert.equal(pos[1].rows, 60); // a faixa fechou: o baixo cresceu
+    assert.equal(pos[2].row, 61);
   })
 );
