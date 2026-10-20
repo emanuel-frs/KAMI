@@ -434,6 +434,8 @@ fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
     result.map_err(|e| format!("não foi possível abrir a pasta do log ({}): {}", kami_data_dir().display(), e))
 }
 
+mod icone_tema; // ICO-01: ícone do app na cor de destaque
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -445,7 +447,8 @@ fn main() {
             get_backend_port,
             get_backend_token,
             restart_backend,
-            open_log_folder
+            open_log_folder,
+            icone_tema::aplicar_icone_tema
         ])
         .setup(|app| {
             if std::env::var("KAMI_DEV_NO_SIDECAR").is_ok() {

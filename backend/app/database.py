@@ -540,6 +540,14 @@ def _migrate_user_profile_efeitos_visuais(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_icone_tema(conn: sqlite3.Connection) -> None:
+    """ICO-01: ícone do app acompanha a cor de destaque — opcional, desligado (P-08)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "icone_tema" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN icone_tema INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+
 def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
     """
     GAM-06: dia a partir do qual a proteção de sequência vale. Nasce NULL
@@ -833,6 +841,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_achievements_chave(conn)
     _migrate_achievements_meta(conn)
     _migrate_user_profile_efeitos_visuais(conn)
+    _migrate_user_profile_icone_tema(conn)
     _migrate_user_profile_sequencia_protecao(conn)
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)

@@ -28,6 +28,7 @@ import { wireVisualEffects } from "./components/visual-effects.js";
 import { pageEnter, wireEffectSkip } from "./components/fx.js";
 import { wirePixelCursor } from "./components/pixel-cursor.js";
 import { restaurarAparencia, wireTheme } from "./components/tema.js";
+import { wireIconeTema } from "./components/icone-tema.js";
 import { playFollowUp, wireSounds } from "./components/sound.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
@@ -287,6 +288,7 @@ async function boot() {
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
   wireTheme(); // GAM-10: tema de terminal liberado por nível
+  wireIconeTema(); // ICO-01: ícone do app na cor de destaque (opcional)
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
