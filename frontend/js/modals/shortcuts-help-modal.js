@@ -65,7 +65,8 @@ function renderBody() {
   // compacta abaixo cabe em metade do espaço vertical de 8 linhas
   // `.wg-shortcuts-row` e o "ir para" comum já está no título da seção,
   // então cada item mostra só o nome da tela.
-  const actions = global.filter((a) => a.group !== "nav");
+  // "apelido": mesma ação de outro atalho já listado (ex.: Alt+Espaço = Alt+Q)
+  const actions = global.filter((a) => a.group !== "nav" && a.group !== "apelido");
   const navShortcuts = global.filter((a) => a.group === "nav");
 
   let right = `<h3 class="ks-section">em qualquer tela</h3><dl class="wg-shortcuts-list">`;

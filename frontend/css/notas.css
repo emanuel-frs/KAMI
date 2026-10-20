@@ -444,3 +444,16 @@
 .notas-vinc:hover, .notas-vinc:focus-visible { color: var(--text-bright); text-decoration: underline dotted; text-underline-offset: 3px; }
 .track-notas { margin-top: 3px; }
 .cem-notas-vinc { margin: -4px 0 10px; }
+
+/* ---------- caixa de entrada (ORG-02) — pages/organizacao-entrada.js ---------- */
+.tab-contagem { color: var(--amber); font-size: 0.9em; }
+.entrada-dica { font-size: 10px; color: var(--text-faint); }
+.entrada-item { padding: 10px 2px; border-bottom: 1px dashed var(--border-soft); }
+.entrada-item:last-child { border-bottom: none; }
+.entrada-texto { font-size: 12px; color: var(--text-bright); white-space: pre-wrap; overflow-wrap: anywhere; }
+.entrada-rodape { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.entrada-quando { font-size: 9.5px; color: var(--text-faint); flex: 1 1 auto; }
+.entrada-acoes { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entrada-vira { font-size: 10px; color: var(--text-faint); margin-right: 2px; }
+.entrada-btn { display: inline-flex; align-items: center; gap: 4px; }
+.notif-entrada-ir { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); margin-left: auto; }

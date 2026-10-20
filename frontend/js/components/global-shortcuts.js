@@ -36,6 +36,11 @@
  *   Shift de propósito: Alt+N sozinho já é atalho de tela (aprendizado,
  *   dashboard) e, no Windows, vai ser a captura rápida (ORG-02).
  *
+ * Alt+Q — captura rápida (ORG-02, P-55) em qualquer sistema; Alt+Espaço
+ *   também (P-36), mas como apelido escondido da lista: no GNOME (e em
+ *   outros) ele é o menu da janela e nem chega ao app. Alt+N ficou de
+ *   fora porque já é "adicionar widget" nas telas de dashboard.
+ *
  * Letras livres: nenhuma tela registra atalho próprio em "C" ou "B"
  * hoje (aprendizado.js usa N/E/M/T/R; dashboard.js usa N) — evitado de
  * propósito, pra essas duas letras terem sempre o mesmo efeito em
@@ -46,6 +51,7 @@ import { registerGlobalShortcuts } from "./shortcuts.js";
 import { navigateTo } from "./navigate.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openNotaRapida } from "../modals/nota-rapida-modal.js";
+import { abrirCaptura } from "./captura.js";
 
 // mesma ordem visual de index.html (#nav-tree).
 const PAGE_ORDER = [
@@ -74,6 +80,8 @@ export function wireGlobalShortcuts() {
     ...pageShortcuts,
     { code: "KeyC", label: "abrir configurações", run: () => openConfiguracoesModal() },
     { code: "KeyN", shift: true, label: "nova nota rápida", run: () => openNotaRapida() },
+    { code: "KeyQ", label: "captura rápida ($ gasto, # nota, ! evento)", run: () => abrirCaptura() },
+    { code: "Space", label: "captura rápida", group: "apelido", run: () => abrirCaptura() },
     {
       code: "KeyB",
       label: "focar a busca (tela organização)",

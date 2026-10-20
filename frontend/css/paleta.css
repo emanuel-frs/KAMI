@@ -96,3 +96,18 @@
   font-size: 9.5px;
   color: var(--text-faint);
 }
+
+/* ---------- captura rápida (Alt+Q) — components/captura.js ---------- */
+.captura .paleta-prompt { font-size: 16px; }
+.captura-previa {
+  min-height: 1.6em;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.captura-previa:empty::before { content: "o que você digitar aparece aqui interpretado"; color: var(--text-faint); }
+.captura-previa svg { color: var(--accent); flex: 0 0 auto; }
+.captura .paleta-rodape kbd { font-size: 9.5px; }

@@ -390,6 +390,15 @@ CREATE TABLE IF NOT EXISTS notas_tags (
 CREATE INDEX IF NOT EXISTS idx_notas_vinculo ON notas(vinculo_tipo, vinculo_id);
 CREATE INDEX IF NOT EXISTS idx_notas_tags_tag ON notas_tags(tag);
 
+-- ---------------- CAIXA DE ENTRADA (ORG-02) ----------------
+-- captura rápida (Alt+Q): texto solto que depois vira gasto, tarefa,
+-- nota, meta ou evento (ou é descartado). Rotas em app/routers/entrada.py.
+CREATE TABLE IF NOT EXISTS caixa_entrada (
+    id         TEXT PRIMARY KEY,
+    texto      TEXT NOT NULL,
+    criado_em  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS links (
     id       TEXT PRIMARY KEY,
     title    TEXT NOT NULL,

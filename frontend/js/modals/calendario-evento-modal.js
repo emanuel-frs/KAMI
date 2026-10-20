@@ -163,7 +163,7 @@ function wireModal(wrap) {
  *   `event` — registro cru de calendar_events; se informado, abre em modo edição.
  *   `date` — pré-preenche a data em modo criação (ex: dia selecionado no calendário).
  */
-export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted } = {}) {
+export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted, inicial = null } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   onDeletedCb = onDeleted;
@@ -176,9 +176,10 @@ export function openCalendarioEventoModal({ event = null, date = null, onSaved, 
   saveBtn.textContent = editingEvent ? "salvar alterações" : "+ adicionar";
   deleteBtn.hidden = !editingEvent;
 
-  modalEl.querySelector("#cem-title").value = editingEvent?.title || "";
+  // ORG-02: `inicial` = {title, time} vindo da captura rápida ("! amanhã 9h dentista")
+  modalEl.querySelector("#cem-title").value = editingEvent?.title || inicial?.title || "";
   modalEl.querySelector("#cem-date").value = editingEvent?.date || date || "";
-  modalEl.querySelector("#cem-time").value = editingEvent?.time || "";
+  modalEl.querySelector("#cem-time").value = editingEvent?.time || inicial?.time || "";
   modalEl.querySelector("#cem-notes").value = editingEvent?.notes || "";
   // ORG-01: evento já salvo pode ter notas vinculadas (Organização › notas)
   const vinc = modalEl.querySelector("#cem-notas-vinc");

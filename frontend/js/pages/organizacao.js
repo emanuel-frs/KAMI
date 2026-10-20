@@ -44,6 +44,7 @@ import { emailAccountColor } from "../components/email-account-color.js";
 import { grupoDoDia, horaCurta } from "../components/email-texto.js";
 import { openEmailLeitor, closeEmailLeitor } from "../modals/email-leitor-modal.js";
 import { montarNotas, desmontarNotas, focarNotas } from "./organizacao-notas.js";
+import { montarEntrada, desmontarEntrada } from "./organizacao-entrada.js";
 
 const state = {
   tab: "notas", // ORG-01 (P-30): notas é a primeira aba
@@ -112,13 +113,17 @@ export async function mount(container, opts) {
   // notas: monta já (é a primeira aba); o resto carrega em paralelo
   // (nota pedida por outra tela — opts.notaId/novaNota — abre no applyFocus)
   const notasProntas = montarNotas(container.querySelector("#org-panel-notas"));
+  const entradaPronta = montarEntrada(container.querySelector("#org-panel-entrada"), (n) => {
+    const c = rootEl?.querySelector("#org-entrada-contagem");
+    if (c) c.textContent = n ? `(${n})` : "";
+  });
 
   // saiu da tela no meio do carregamento (unmount zera rootEl): para aqui.
   // Sem isso o resto do mount rodava com rootEl null e o erro aparecia na
   // tela seguinte ("algo deu errado nesta tela" no calendário).
   const saiu = () => rootEl !== container;
 
-  await Promise.all([notasProntas, loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
+  await Promise.all([notasProntas, entradaPronta, loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
   if (saiu()) return;
   renderLinks();
   renderRepos();
@@ -255,6 +260,7 @@ export function unmount() {
   cancelActiveTipSequence();
   closeEmailLeitor();
   desmontarNotas();
+  desmontarEntrada();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   unsubscribeEmailsRead?.();
@@ -293,6 +299,7 @@ function template() {
 
     <div class="tabs" style="margin-top:16px;">
       <div class="tab on" data-tab="notas">notas</div>
+      <div class="tab" data-tab="entrada">entrada <span class="tab-contagem" id="org-entrada-contagem"></span></div>
       <div class="tab" data-tab="github">github</div>
       <div class="tab" data-tab="email">e-mail</div>
       <div class="tab" data-tab="links">links</div>
@@ -300,6 +307,9 @@ function template() {
 
     <!-- ORG-01: aba de notas — pages/organizacao-notas.js -->
     <div id="org-panel-notas"></div>
+
+    <!-- ORG-02: caixa de entrada da captura rápida — pages/organizacao-entrada.js -->
+    <div id="org-panel-entrada" style="display:none;"></div>
 
     <div id="org-panel-github" style="display:none;">
       <div class="card">
@@ -543,6 +553,7 @@ export function switchTab(tab) {
   state.tab = tab;
   rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
   rootEl.querySelector("#org-panel-notas").style.display = tab === "notas" ? "block" : "none";
+  rootEl.querySelector("#org-panel-entrada").style.display = tab === "entrada" ? "block" : "none";
   rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
   rootEl.querySelector("#org-panel-github").style.display = tab === "github" ? "block" : "none";
   rootEl.querySelector("#org-panel-email").style.display = tab === "email" ? "block" : "none";

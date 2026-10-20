@@ -25,6 +25,7 @@ let salvo = { titulo: "", conteudo: "" };
 let timer = null;
 let fila = Promise.resolve();
 let removerAntesDeFechar = null;
+let aoCriar = null;
 
 function buildModal() {
   const wrap = document.createElement("div");
@@ -88,7 +89,11 @@ function salvar() {
     if (!notaId && !dados.titulo && !dados.conteudo) return;
     status("salvando…");
     try {
-      if (!notaId) notaId = (await createNota(dados)).id;
+      if (!notaId) {
+        notaId = (await createNota(dados)).id;
+        aoCriar?.(notaId);
+        aoCriar = null;
+      }
       else await updateNota(notaId, dados);
       salvo = dados;
       status("salvo ✓", "ok");
@@ -120,21 +125,26 @@ async function abrirEmNotas() {
   else navigateTo("organizacao", { tab: "notas" });
 }
 
-export function openNotaRapida() {
+/** @param {{ titulo?: string, conteudo?: string, onCriada?: (id: string) => void }} [opts]
+ *  ORG-02: a captura rápida ("# ideia…") abre já preenchida; `onCriada`
+ *  avisa quando a nota passou a existir (a captura tira o item da entrada). */
+export function openNotaRapida({ titulo = "", conteudo = "", onCriada = null } = {}) {
   modalEl = modalEl && modalEl.isConnected ? modalEl : buildModal();
   if (modalEl.classList.contains("open")) {
     modalEl.querySelector("#nrm-titulo").focus();
     return;
   }
   notaId = null;
+  aoCriar = onCriada;
   salvo = { titulo: "", conteudo: "" };
-  modalEl.querySelector("#nrm-titulo").value = "";
+  modalEl.querySelector("#nrm-titulo").value = titulo;
   status("");
   editor = criarEditorNota(modalEl.querySelector("#nrm-editor"), {
-    markdown: "",
+    markdown: conteudo,
     onChange: agendar,
     placeholder: "escreva… (- lista, [] tarefa, # título)",
   });
   removerAntesDeFechar = registrarAntesDeFechar(salvar);
   modalEl.classList.add("open");
+  if (titulo || conteudo) salvar(); // veio da captura: já vira nota
 }

@@ -166,7 +166,7 @@ function wireModal(wrap) {
  *   `editing`: um lançamento avulso a corrigir (CONF-07) — o modal abre
  *   preenchido e salvar chama PUT /transactions/{id}.
  */
-export function openTransacaoModal({ accounts, onSaved, editing = null } = {}) {
+export function openTransacaoModal({ accounts, onSaved, editing = null, inicial = null } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   accountsFlat = accounts || [];
@@ -185,6 +185,17 @@ export function openTransacaoModal({ accounts, onSaved, editing = null } = {}) {
   modalEl.querySelector("#tm-destino-externo").value = "";
   populateContaSelects(modalEl);
   if (editing) fillFrom(modalEl, editing);
+  // ORG-02: captura rápida ("$ 25 almoço") abre já preenchido — só o que
+  // veio; o resto fica no padrão do modal
+  else if (inicial) {
+    const campos = { "#tm-type": inicial.type || "saida", "#tm-desc": inicial.description, "#tm-amount": inicial.amount, "#tm-date": inicial.date };
+    for (const [sel, v] of Object.entries(campos)) {
+      if (v === undefined || v === null || v === "") continue;
+      const el = modalEl.querySelector(sel);
+      el.value = v;
+      if (el.tagName === "SELECT") refreshCustomSelect(el);
+    }
+  }
   updateVisibility(modalEl);
   modalEl.classList.add("open");
 }

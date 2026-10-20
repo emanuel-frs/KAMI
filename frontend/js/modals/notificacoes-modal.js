@@ -9,6 +9,7 @@ import { refreshNotificationBell } from "../components/notification-bell.js";
 import { navigateTo } from "../components/navigate.js";
 import { emailAccountColor } from "../components/email-account-color.js";
 import { store } from "../state/store.js";
+import { listEntrada } from "../api/entrada.js";
 
 /**
  * Modal unificado de notificações (notificações v2.1) — substitui DOIS
@@ -70,6 +71,7 @@ function buildModal() {
           </div>
           <div class="cal-alerts-list" id="notif-alerts-list"></div>
         </div>
+        <div class="notif-section" id="notif-entrada-section" hidden></div>
         <div class="notif-section" id="notif-email-section"></div>
         <div class="empty-state" id="notif-all-disabled" hidden>nenhum tipo de notificação está ativo — ajuste em configurações &gt; notificações.</div>
       </div>
@@ -300,6 +302,26 @@ export async function openNotificacoesModal() {
 
   if (showAlerts) alertsSectionEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">carregando…</div>`;
   if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">carregando…</div>`;
+
+  // ORG-02: caixa de entrada (sempre — não é um tipo de aviso que se desliga)
+  const entradaEl = modalEl.querySelector("#notif-entrada-section");
+  listEntrada()
+    .then((itens) => {
+      entradaEl.hidden = !itens.length;
+      if (!itens.length) return;
+      entradaEl.innerHTML = `
+        <div class="notif-email-summary" data-action="abrir-entrada">
+          <span class="notif-email-summary-label">${icon("download", { size: 13 })} ${itens.length} ${itens.length === 1 ? "item" : "itens"} na caixa de entrada</span>
+          <span class="notif-entrada-ir">abrir ${icon("arrow-right", { size: 11 })}</span>
+        </div>`;
+      entradaEl.querySelector("[data-action=abrir-entrada]").addEventListener("click", () => {
+        closeNotificacoesModal();
+        navigateTo("organizacao", { tab: "entrada" });
+      });
+      // o "nenhum tipo ativo" não vale se tem coisa na entrada
+      if (itens.length) allDisabledEl.hidden = true;
+    })
+    .catch(() => (entradaEl.hidden = true));
 
   await Promise.all([
     showAlerts ? loadCalendarData() : Promise.resolve((alerts = [])),

@@ -26,6 +26,7 @@ from app.routers import aprendizado
 from app.routers import metas
 from app.routers import organizacao
 from app.routers import notas
+from app.routers import entrada
 from app.routers import busca as busca_router
 from app.routers import dashboard
 from app.routers import sistema
@@ -162,6 +163,7 @@ app.include_router(carteira.router, prefix="/api/carteira", tags=["carteira"])
 app.include_router(aprendizado.router, prefix="/api/aprendizado", tags=["aprendizado"])
 app.include_router(metas.router, prefix="/api/metas", tags=["metas"])
 app.include_router(notas.router, prefix="/api/organizacao/notas", tags=["organizacao"])
+app.include_router(entrada.router, prefix="/api/organizacao/entrada", tags=["organizacao"])
 app.include_router(busca_router.router, prefix="/api/busca", tags=["busca"])
 app.include_router(organizacao.router, prefix="/api/organizacao", tags=["organizacao"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])

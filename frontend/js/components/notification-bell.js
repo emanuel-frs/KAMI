@@ -2,6 +2,7 @@ import { listEmailCache } from "../api/organizacao.js";
 import { icon } from "./icons.js";
 import { openNotificacoesModal } from "../modals/notificacoes-modal.js";
 import { store } from "../state/store.js";
+import { listEntrada } from "../api/entrada.js";
 
 /**
  * Sino de notificações geral (rodapé da sidebar, ao lado do ícone de
@@ -34,7 +35,20 @@ function emailNotificationsEnabled() {
   return store.get("profile")?.notif_email_enabled !== false;
 }
 
+// ORG-02 (P-39): itens esperando na caixa de entrada também contam
+async function entradaCount() {
+  try {
+    return (await listEntrada()).length;
+  } catch {
+    return 0;
+  }
+}
+
 async function unreadCount() {
+  return (await emailCount()) + (await entradaCount());
+}
+
+async function emailCount() {
   if (!emailNotificationsEnabled()) return 0;
   try {
     const cache = await listEmailCache({ exclude_muted: true, is_read: false });
@@ -78,6 +92,7 @@ export function wireNotificationBell() {
   // notificações de configurações, sem precisar de um caminho dedicado
   // pra cada caso.
   store.subscribe("profile", renderBadge);
+  window.addEventListener("kami:entrada-mudou", renderBadge);
 
   // primeira contagem pro badge já no boot, sem precisar abrir o modal
   renderBadge();

@@ -158,6 +158,7 @@ verdade é o código e o teste.
 | ORG-10 | Nota trancada só abre, muda ou é apagada com o PIN (mesma espera crescente do app) | `test_notas.py::test_locked_note_edit_and_delete_need_the_access_key`, `test_notas.py::test_wrong_pin_on_notes_counts_toward_the_wait` |
 | ORG-12 | Busca global ignora acento e maiúscula; cada palavra precisa aparecer em algum campo | `test_busca.py::test_accent_and_case_insensitive_both_ways`, `test_busca.py::test_every_word_must_match_somewhere` |
 | ORG-13 | Busca não revela texto de nota trancada nem conquista secreta ainda bloqueada | `test_busca.py::test_locked_note_is_found_by_title_only`, `test_busca.py::test_locked_secret_achievement_is_not_a_spoiler` |
+| ORG-14 | Captura rápida não rende xp (rende o que ela virar); tarefa entra como "- [ ] texto" na nota "tarefas" (criada e fixada uma vez) | `test_entrada.py::test_capturing_gives_no_xp`, `test_entrada.py::test_task_goes_to_the_tasks_note_creating_it_once` |
 | ORG-11 | Texto de nota trancada vai no backup com senha e se perde se a chave dos segredos for redefinida | `test_notas.py::test_protected_backup_carries_locked_text_and_plain_backup_does_not`, `test_notas.py::test_key_reset_loses_locked_text_but_keeps_the_note` |
 
 ## Sistema (backup e reset)

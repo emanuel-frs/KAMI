@@ -86,6 +86,7 @@ _TABLES_DELETE_ORDER = [
     "fixed_bill_periods",
     "fixed_bills",
     "debts",
+    "caixa_entrada",
     "notas_tags",
     "notas",
     "links",
