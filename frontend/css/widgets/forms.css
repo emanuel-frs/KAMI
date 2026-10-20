@@ -101,6 +101,7 @@
 }
 
 input[type="text"],
+input[type="search"],
 input[type="number"],
 input[type="password"],
 select,
@@ -157,6 +158,11 @@ select {
    as setas do teclado continuam funcionando normalmente, só a UI
    desenhada pelo navegador some). -moz-appearance cobre o Firefox,
    que não tem pseudo-elemento de spin-button pra estilizar. */
+/* busca (ORG-01, notas): mesmo visual dos outros campos — sem a borda
+   arredondada/fundo branco do WebKit nem o "x" nativo */
+input[type="search"] { -webkit-appearance: none; appearance: none; border-radius: 0; }
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+
 input[type="number"] {
   -moz-appearance: textfield;
 }

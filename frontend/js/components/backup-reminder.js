@@ -66,10 +66,18 @@ function buildToast() {
   return el;
 }
 
+// O lembrete e a pilha de toasts (toast.js) moram no mesmo canto: com o
+// lembrete aberto, a pilha sobe a altura dele (toast.css usa a variável)
+// — antes um aviso novo aparecia por cima do lembrete.
+function ocuparCanto(px) {
+  document.documentElement.style.setProperty("--canto-ocupado", `${px}px`);
+}
+
 export function hideBackupReminder() {
   if (!toastEl) return;
   clearTimeout(hideTimer);
   toastEl.classList.remove("open");
+  ocuparCanto(0);
 }
 
 export function maybeShowBackupReminder(profile) {
@@ -79,5 +87,8 @@ export function maybeShowBackupReminder(profile) {
   // requestAnimationFrame pra garantir que o navegador já processou o
   // elemento sem a classe "open" antes de adicioná-la — senão a
   // transição de entrada (opacity/transform em base.css) não roda.
-  requestAnimationFrame(() => toastEl.classList.add("open"));
+  requestAnimationFrame(() => {
+    toastEl.classList.add("open");
+    ocuparCanto(toastEl.offsetHeight + 10);
+  });
 }
