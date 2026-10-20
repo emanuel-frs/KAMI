@@ -199,8 +199,15 @@ fn push_tail(app: &tauri::AppHandle, generation: u64, line: &[u8]) {
     }
 }
 
-/// Encerra o sidecar. No Windows mata a árvore inteira (bootloader do
-/// PyInstaller onefile + Python filho) antes do kill normal.
+/// Encerra o sidecar — o bootloader do PyInstaller onefile E o Python
+/// filho, que é o backend de verdade. Matar só o bootloader (o que o
+/// `child.kill()` faz) deixava o backend órfão no Linux a cada fechada do
+/// app e a cada "reiniciar".
+/// - Windows: `taskkill /T /F` mata a árvore inteira.
+/// - Linux: o mesmo, à mão — os descendentes vêm de
+///   `/proc/<pid>/task/<pid>/children`.
+/// Se mesmo assim o app sumir sem passar por aqui (travou, foi morto), o
+/// backend percebe pelo KAMI_APP_PID e sai sozinho (backend/app/processo.py).
 fn kill_backend(child: CommandChild) {
     #[cfg(target_os = "windows")]
     {
@@ -211,7 +218,29 @@ fn kill_backend(child: CommandChild) {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
     }
+    #[cfg(target_os = "linux")]
+    {
+        for pid in descendants(child.pid()) {
+            let _ = std::process::Command::new("kill")
+                .args(["-KILL", &pid.to_string()])
+                .status();
+        }
+    }
     let _ = child.kill();
+}
+
+/// Todos os descendentes de `pid`, dos netos pros filhos (Linux).
+#[cfg(target_os = "linux")]
+fn descendants(pid: u32) -> Vec<u32> {
+    let mut out = Vec::new();
+    let path = format!("/proc/{pid}/task/{pid}/children");
+    if let Ok(text) = std::fs::read_to_string(path) {
+        for child in text.split_whitespace().filter_map(|p| p.parse::<u32>().ok()) {
+            out.extend(descendants(child));
+            out.push(child);
+        }
+    }
+    out
 }
 
 #[tauri::command]
@@ -307,9 +336,12 @@ fn spawn_backend(app: &tauri::AppHandle) {
     let _ = std::fs::remove_file(port_file_path());
     let _ = std::fs::remove_file(token_file_path());
 
+    // KAMI_APP_PID: o backend encerra sozinho quando este processo some
+    // (app travou ou foi morto) — ver backend/app/processo.py
     let spawn_result = app
         .shell()
         .sidecar("kami-backend")
+        .map(|command| command.env("KAMI_APP_PID", std::process::id().to_string()))
         .and_then(|command| command.spawn());
 
     match spawn_result {

@@ -45,7 +45,7 @@ Endpoints:
 import calendar
 import datetime
 import re
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -60,6 +60,7 @@ from app.finance_utils import (
     create_entrada_transaction,
     revert_entrada_transaction,
 )
+from app.limites import Entrada, SAIDA_CONFIG
 
 router = APIRouter()
 
@@ -88,7 +89,7 @@ def _prev_month(year: int, month: int) -> tuple:
 
 # ==================== schemas ====================
 
-class IncomeSourceIn(BaseModel):
+class IncomeSourceIn(Entrada):
     nome: str
     valor: float
     conta_id: Optional[str] = None    # vínculo opcional — habilita gerar transação real ao pagar
@@ -106,6 +107,8 @@ class IncomeSourceIn(BaseModel):
 
 
 class IncomeSourceOut(IncomeSourceIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     unica: bool = False  # True quando frequencia='avulsa' — não gera novas ocorrências
 
@@ -121,13 +124,13 @@ class IncomeEntryOut(BaseModel):
     gerou_transacao: bool = False  # True quando 'pago' veio de uma transação real (não só lembrete)
 
 
-class PayIncomePayload(BaseModel):
+class PayIncomePayload(Entrada):
     valor_recebido: Optional[float] = None   # se omitido, usa o valor esperado da entrada
     paid_date: Optional[str] = None          # se omitido, usa a data de hoje
     atualizar_valor_fonte: bool = False      # se True, propaga valor_recebido pra income_sources.valor
 
 
-class FixedBillIn(BaseModel):
+class FixedBillIn(Entrada):
     name: str
     amount: float
     due_day: int = Field(..., ge=1, le=31)
@@ -137,6 +140,8 @@ class FixedBillIn(BaseModel):
 
 
 class FixedBillOut(FixedBillIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
 
 
@@ -149,13 +154,13 @@ class FixedBillPeriodOut(BaseModel):
     gerou_transacao: bool = False  # True quando 'paga' veio de uma transação real (não só lembrete)
 
 
-class PayFixedBillPeriodPayload(BaseModel):
+class PayFixedBillPeriodPayload(Entrada):
     valor_pago: Optional[float] = None
     forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # obrigatório só se a conta tiver os dois
     gerar_transacao: bool = True  # se False, comporta-se como antes: só marca como lembrete
 
 
-class DebtIn(BaseModel):
+class DebtIn(Entrada):
     description: str
     counterparty: Optional[str] = None
     amount: float
@@ -164,17 +169,19 @@ class DebtIn(BaseModel):
 
 
 class DebtOut(DebtIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     transacao_id: Optional[str] = None
 
 
-class PayDebtPayload(BaseModel):
+class PayDebtPayload(Entrada):
     # sem conta_id: só marca como quitada (sem mexer em saldo nenhum)
     conta_id: Optional[str] = None
     forma_pagamento: Optional[str] = Field(None, pattern="^(saldo|credito)$")  # só se a conta tiver os dois
 
 
-class TransactionIn(BaseModel):
+class TransactionIn(Entrada):
     description: str
     amount: float = Field(..., gt=0)
     type: str = Field(..., pattern="^(entrada|saida|transferencia)$")

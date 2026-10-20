@@ -287,3 +287,32 @@
   overflow-wrap: anywhere;
 }
 .cfg-diag-preview:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* SEG-01: onde está a chave das senhas salvas */
+.cfg-seg-chave {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cfg-seg-chave svg { vertical-align: -2px; color: var(--accent); }
+.cfg-seg-chave[data-local="arquivo"] { border-color: var(--amber); }
+.cfg-seg-chave[data-local="indisponivel"] { border-color: var(--red); }
+.cfg-seg-warn { font-weight: 700; color: var(--amber); }
+.cfg-seg-chave[data-local="indisponivel"] .cfg-seg-warn { color: var(--red); }
+
+/* SEG-03: exportar sem senha */
+.cfg-export-aviso { color: var(--amber); }
+
+/* SEG-02: PIN */
+.cfg-pin-label { display: block; margin-bottom: 6px; color: var(--text-dim); font-size: 10.5px; }
+.cfg-pin-inat { display: flex; gap: 6px; flex-wrap: wrap; }
+.cfg-pin-inat .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.cfg-pin-mais { margin-top: 10px; }
+.cfg-pin-mais summary { cursor: pointer; color: var(--text-dim); font-size: 11px; }
+.cfg-pin-mais summary:hover { color: var(--accent); }
+.cfg-pin-mais[open] summary { margin-bottom: 8px; }
+.settings-status--erro { color: var(--red); }

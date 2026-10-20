@@ -230,6 +230,12 @@ def _run() -> None:
     os.environ[TOKEN_ENV_VAR] = session_token
     write_token_file(_token_file_path(), session_token)
 
+    # o backend encerra junto com o app, mesmo se o app sumir sem avisar
+    # (ver app/processo.py — no Linux sobrava um backend órfão a cada fechada)
+    from app.processo import vigiar_o_app
+
+    vigiar_o_app()
+
     sock = _bind_socket(requested_port)
     actual_port = sock.getsockname()[1]
 

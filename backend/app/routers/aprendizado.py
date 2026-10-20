@@ -52,6 +52,7 @@ from app.database import get_db, local_now, new_id, now_iso
 from app.actions import debit_xp, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.routers.metas import sync_learning_goals
+from app.limites import Entrada
 
 router = APIRouter()
 
@@ -65,13 +66,13 @@ STALE_DAYS        = 30          # dias sem atividade para marcar como 'esquecido
 
 # ── schemas ──────────────────────────────────────────────────────────────────
 
-class MilestoneIn(BaseModel):
+class MilestoneIn(Entrada):
     title: str
     description: Optional[str] = None
     started_at: Optional[str] = None   # YYYY-MM-DD, opcional
 
 
-class MilestoneUpdate(BaseModel):
+class MilestoneUpdate(Entrada):
     title: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None
@@ -93,17 +94,17 @@ class MilestoneOut(BaseModel):
     xp_awarded: Optional[int] = None
 
 
-class MilestoneReorderIn(BaseModel):
+class MilestoneReorderIn(Entrada):
     milestone_ids: List[str]  # ordem completa e final dos marcos da trilha
 
 
-class TrackIn(BaseModel):
+class TrackIn(Entrada):
     name: str
     general_goal: Optional[str] = None
     status: str = "ativa"
 
 
-class TrackUpdate(BaseModel):
+class TrackUpdate(Entrada):
     name: Optional[str] = None
     general_goal: Optional[str] = None
     status: Optional[str] = None
@@ -121,7 +122,7 @@ class TrackOut(BaseModel):
     progress_pct: int               # 0-100
 
 
-class TrackReorderIn(BaseModel):
+class TrackReorderIn(Entrada):
     track_ids: List[str]  # ordem completa e final das trilhas na sidebar
 
 

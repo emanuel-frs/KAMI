@@ -66,6 +66,7 @@ from pydantic import BaseModel
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.finance_utils import create_saida_transaction
+from app.limites import Entrada
 
 router = APIRouter()
 
@@ -102,7 +103,7 @@ def _xp_for(base: int, weight: str) -> int:
 
 # ── schemas ──────────────────────────────────────────────────────────────────
 
-class GoalIn(BaseModel):
+class GoalIn(Entrada):
     title: str
     type: str = "livre"
     target_value: float
@@ -114,7 +115,7 @@ class GoalIn(BaseModel):
     linked_education_id: Optional[str] = None  # obrigatório em 'academica'
 
 
-class GoalUpdate(BaseModel):
+class GoalUpdate(Entrada):
     title: Optional[str] = None
     type: Optional[str] = None
     target_value: Optional[float] = None
@@ -151,7 +152,7 @@ class GoalOut(BaseModel):
     linked_education_name: Optional[str] = None   # computado (join), só exibição
 
 
-class ContributeIn(BaseModel):
+class ContributeIn(Entrada):
     amount: float
     note: Optional[str] = None
     origem: Optional[str] = None    # 'conta' | 'externo' — obrigatório só quando type == 'financeira'

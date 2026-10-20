@@ -37,6 +37,7 @@ from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
 from app.business_days import months_between
+from app.limites import Entrada
 
 router = APIRouter()
 
@@ -71,7 +72,7 @@ class CalendarEvent(BaseModel):
     color: Optional[str] = None
 
 
-class EventoIn(BaseModel):
+class EventoIn(Entrada):
     title: str
     date: str
     time: Optional[str] = None
@@ -435,7 +436,7 @@ def update_evento(event_id: str, payload: EventoIn, db=Depends(get_db)):
     return {"id": event_id}
 
 
-class EventoDateIn(BaseModel):
+class EventoDateIn(Entrada):
     date: str
 
 

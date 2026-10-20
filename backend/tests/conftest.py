@@ -10,8 +10,10 @@ só que apontando pro DB temporário.
 import uuid
 from unittest.mock import MagicMock
 
+import keyring
 import pytest
 from cryptography.fernet import Fernet
+from keyring.backend import KeyringBackend
 from fastapi.testclient import TestClient
 
 from app import bonus, database, crypto, missoes
@@ -81,14 +83,64 @@ def client(initialized_db):
     app.dependency_overrides.clear()
 
 
+class MemoryKeyring(KeyringBackend):
+    """Cofre de mentira, em memória — os testes nunca tocam o cofre real do sistema."""
+
+    priority = 1
+
+    def __init__(self):
+        super().__init__()
+        self.store = {}
+
+    def get_password(self, service, username):
+        return self.store.get((service, username))
+
+    def set_password(self, service, username, password):
+        self.store[(service, username)] = password
+
+    def delete_password(self, service, username):
+        self.store.pop((service, username), None)
+
+
+@pytest.fixture(autouse=True)
+def cofre_de_teste(tmp_path, monkeypatch):
+    """
+    SEG-01: todo teste roda com um cofre em memória e a chave/marcador
+    numa pasta temporária — nunca o .secret_key nem o cofre de verdade.
+    Devolve o cofre (o `.store` dá pra inspecionar).
+    """
+    fake = MemoryKeyring()
+    previous = keyring.get_keyring()
+    keyring.set_keyring(fake)
+    pasta = tmp_path / "chave"
+    pasta.mkdir()
+    monkeypatch.setattr(crypto, "KEY_PATH", pasta / ".secret_key")
+    monkeypatch.setattr(crypto, "MARKER_PATH", pasta / ".secret_key_no_cofre")
+    monkeypatch.delenv(crypto.COFRE_ENV_VAR, raising=False)
+    crypto._resetar_para_testes()
+    yield fake
+    crypto._resetar_para_testes()
+    keyring.set_keyring(previous)
+
+
+@pytest.fixture(autouse=True)
+def pin_de_teste(tmp_path, monkeypatch):
+    """SEG-02: pin.json numa pasta temporária, app destravado no começo de cada teste."""
+    from app import pin
+
+    monkeypatch.setattr(pin, "PIN_PATH", tmp_path / "pin.json")
+    # scrypt leve só nos testes (o de verdade leva ~0,3 s por conferência)
+    monkeypatch.setattr(pin, "SCRYPT", {"n": 2**4, "r": 8, "p": 1})
+    pin._resetar_para_testes()
+    yield pin
+    pin._resetar_para_testes()
+
+
 @pytest.fixture()
-def isolated_fernet_key(tmp_path, monkeypatch):
-    """Isola crypto.py com uma chave Fernet temporária — nunca toca o .secret_key real."""
-    key_path = tmp_path / ".secret_key_test"
+def isolated_fernet_key(cofre_de_teste):
+    """Chave Fernet conhecida já carregada (no cofre de teste)."""
     key = Fernet.generate_key()
-    key_path.write_bytes(key)
-    monkeypatch.setattr(crypto, "KEY_PATH", key_path)
-    monkeypatch.setattr(crypto, "_fernet", Fernet(key))
+    crypto._resetar_para_testes(Fernet(key), {"local": crypto.LOCAL_COFRE, "cofre": "teste", "motivo": None})
     return key
 
 

@@ -33,7 +33,7 @@ salto) vs. retroativo (fixo, simbólico) — mesmo critério data=hoje que
 career_positions já usa.
 """
 from datetime import date
-from typing import Optional
+from typing import ClassVar, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -42,6 +42,7 @@ from app.actions import debit_xp, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.database import get_db, new_id, now_iso
 from app.routers.metas import sync_academic_goals
+from app.limites import Entrada, SAIDA_CONFIG
 
 router = APIRouter()
 
@@ -55,7 +56,7 @@ class CareerProfileOut(BaseModel):
     updated_at: str
 
 
-class CareerProfileUpdate(BaseModel):
+class CareerProfileUpdate(Entrada):
     area_atual: Optional[str] = None
     area_meta: Optional[str] = None
 
@@ -96,11 +97,13 @@ def update_career_profile(payload: CareerProfileUpdate, db=Depends(get_db)):
 
 # ---------------- interesses profissionais ----------------
 
-class InterestIn(BaseModel):
+class InterestIn(Entrada):
     tag: str
 
 
 class InterestOut(InterestIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     created_at: str
 
@@ -158,7 +161,7 @@ XP_CAREER_POSITION_REALTIME = 80
 XP_CAREER_POSITION_RETROACTIVE = 20
 
 
-class PositionIn(BaseModel):
+class PositionIn(Entrada):
     company: str
     role: str
     area: Optional[str] = None
@@ -170,6 +173,8 @@ class PositionIn(BaseModel):
 
 
 class PositionOut(PositionIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     created_at: str
     updated_at: str
@@ -283,7 +288,7 @@ NIVEL_XP = {
 EDUCATION_STATUSES = {"em_andamento", "concluido", "trancado"}
 
 
-class EducationIn(BaseModel):
+class EducationIn(Entrada):
     curso: str
     instituicao: str
     nivel: str
@@ -291,7 +296,7 @@ class EducationIn(BaseModel):
     previsao_conclusao: Optional[str] = None
 
 
-class EducationUpdate(BaseModel):
+class EducationUpdate(Entrada):
     curso: Optional[str] = None
     instituicao: Optional[str] = None
     nivel: Optional[str] = None
@@ -537,7 +542,7 @@ def _salary_xp(previous, amount: float, is_realtime: bool) -> tuple[int, str]:
     return SALARY_XP_BASELINE_OR_RETROACTIVE, "registrou salário retroativo (histórico)"
 
 
-class SalaryRecordIn(BaseModel):
+class SalaryRecordIn(Entrada):
     amount: float
     currency: str = "BRL"
     employment_type: Optional[str] = None
@@ -547,6 +552,8 @@ class SalaryRecordIn(BaseModel):
 
 
 class SalaryRecordOut(SalaryRecordIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     created_at: str
     updated_at: str

@@ -319,7 +319,7 @@ def test_sync_email_with_corrupted_password_returns_422(client, isolated_fernet_
 
     resp = client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
     assert resp.status_code == 422
-    assert "decriptar" in resp.json()["detail"]
+    assert "ler a senha salva" in resp.json()["detail"]
 
 
 def test_delete_email_account_cascades_cache(client, isolated_fernet_key, mock_imap):

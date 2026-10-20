@@ -75,7 +75,17 @@
  * atrás de um botão "+ nova conta" (mesmo padrão de toggle
  * mostrar/esconder, não um modal separado).
  */
-import { exportData, getDiagnostico, importData, resetData } from "../api/sistema.js";
+import { exportData, exportProtegido, getDiagnostico, importData, importProtegido, resetData } from "../api/sistema.js";
+import {
+  ativarPin,
+  definirInatividade,
+  desativarPin,
+  getChave,
+  getPin,
+  redefinirChave,
+  trocarPin,
+} from "../api/seguranca.js";
+import { bloquearAgora, codigoRecuperacaoHtml, wireCodigoRecuperacao } from "../components/lock-screen.js";
 import { copyText } from "../components/clipboard.js";
 import { applyXpReview, getRecompensas, previewXpReview } from "../api/nucleo.js";
 import { getProfile, updateProfile, updateAvatar } from "../api/perfil.js";
@@ -109,6 +119,8 @@ import { prefersReducedMotion } from "../components/a11y.js";
 import { playSound } from "../components/sound.js";
 
 const RESET_WORD = "excluir";
+const REDEFINIR_WORD = "redefinir";
+const SENHA_BACKUP_MIN = 8; // = SENHA_MIN em app/backup_cifrado.py
 const IMPORT_WORD = "importar";
 
 const TABS = [
@@ -116,6 +128,7 @@ const TABS = [
   { id: "perfil", label: "perfil", iconName: "user" },
   { id: "notificacoes", label: "notificações", iconName: "bell" },
   { id: "chaves", label: "chaves", iconName: "key" },
+  { id: "seguranca", label: "segurança", iconName: "shield" },
   { id: "backup", label: "backup e dados", iconName: "download" },
   { id: "sobre", label: "sobre", iconName: "circle-help" },
 ];
@@ -131,6 +144,8 @@ const PLACEHOLDER_COPY = {};
 
 let modalEl = null;
 let busy = false;
+// SEG-03: backup escolhido no import, já lido (pra saber se pede senha)
+let importParsed = null;
 
 // aba chaves — estado da lista de contas de e-mail (ver wireChavesTab()
 // mais abaixo). Módulo-level porque a lista é recarregada e
@@ -337,6 +352,16 @@ function buildBackupPanel() {
       <div class="settings-section" style="padding-top:0;">
         <h4>exportar dados</h4>
         <p class="settings-desc">baixa um arquivo .json com todos os seus dados (perfil, núcleo, finanças, aprendizado, organização, metas) — útil como backup antes de trocar de máquina ou reinstalar.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="sm-export-protect" checked>
+          <span>proteger com senha<small>o arquivo só abre com a senha, e leva junto as senhas salvas (e-mail, github, busca) — funciona em outro computador</small></span>
+        </label>
+        <div id="sm-export-protect-fields">
+          <div class="field"><label for="sm-export-senha">senha (mínimo ${SENHA_BACKUP_MIN} caracteres)</label><input type="password" id="sm-export-senha" autocomplete="new-password" maxlength="200"></div>
+          <div class="field"><label for="sm-export-senha2">repita a senha</label><input type="password" id="sm-export-senha2" autocomplete="new-password" maxlength="200"></div>
+          <p class="settings-note">sem a senha o arquivo não abre — nem o kami consegue recuperar. guarde a senha num lugar seguro.</p>
+        </div>
+        <p class="settings-note cfg-export-aviso" id="sm-export-unprotected-note" hidden>sem senha, qualquer pessoa com o arquivo lê todos os seus dados (finanças, e-mails, anotações) — e as senhas salvas não funcionam em outro computador.</p>
         <div class="form-actions">
           <button class="btn sm" id="sm-export-btn" data-action="export">baixar backup (.json)</button>
         </div>
@@ -354,10 +379,14 @@ function buildBackupPanel() {
       <div class="settings-section settings-warning">
         <h4>importar dados</h4>
         <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
-        <p class="settings-note">nota: senha de e-mail, token do github e chave de busca são salvos criptografados com uma chave que fica só nesta instalação. se este backup for de <strong>outra máquina</strong>, esses três campos não vêm junto — o resto dos dados restaura normalmente, mas você vai precisar reconfigurar essas credenciais em organização.</p>
+        <p class="settings-note">backup <strong>com senha</strong> traz também as senhas salvas (e-mail, github, busca), em qualquer computador. backup <strong>sem senha</strong> de outra máquina restaura o resto, mas essas senhas precisam ser cadastradas de novo em configurações › chaves.</p>
         <div class="field">
           <label for="sm-import-file">arquivo de backup (.json)</label>
           <input type="file" id="sm-import-file" accept="application/json,.json">
+        </div>
+        <div class="field" id="sm-import-senha-field" hidden>
+          <label for="sm-import-senha">${icon("shield", { size: 12 })} backup protegido — senha</label>
+          <input type="password" id="sm-import-senha" autocomplete="current-password" maxlength="200">
         </div>
         <div class="field">
           <label for="sm-import-confirm">digite <strong>${IMPORT_WORD}</strong> pra habilitar o botão abaixo</label>
@@ -380,6 +409,228 @@ function buildBackupPanel() {
         </div>
       </div>
     </div>`;
+}
+
+// ── aba segurança (SEG-01) ─────────────────────────────────────────────
+// Onde está a chave que abre as senhas salvas (senha de app do e-mail,
+// token do github, chave da busca): no cofre do sistema (o normal), num
+// arquivo (sistema sem cofre) ou indisponível (o cofre perdeu a chave —
+// aí a única saída é redefinir, apagando esses segredos). Ver app/crypto.py.
+function buildSegurancaPanel() {
+  return `
+    <div class="cfg-panel" data-panel="seguranca">
+      <div class="settings-section" style="padding-top:0;">
+        <h4>PIN pra abrir o app</h4>
+        <p class="settings-desc">com o PIN ligado, o kami pede um código de 4 a 8 dígitos sempre que abre — e nenhum dado sai do app antes disso.</p>
+        <p class="settings-note">o PIN protege a <strong>abertura do app</strong>: não cifra o arquivo do banco e não protege contra um programa rodando no seu usuário.</p>
+        <div id="cfg-pin">verificando…</div>
+      </div>
+      <div class="settings-section">
+        <h4>senhas salvas</h4>
+        <p class="settings-desc">a senha de app do e-mail, o token do github e a chave da busca ficam cifrados no banco. a chave que abre esses dados fica:</p>
+        <p class="cfg-seg-chave" id="cfg-seg-chave">verificando…</p>
+        <p class="settings-status" id="cfg-seg-status"></p>
+        <p class="settings-note">a chave não vai junto quando a pasta de dados é copiada pra outro computador — lá, essas senhas precisam ser informadas de novo. pra levar tudo, use o backup <strong>com senha</strong> (backup e dados).</p>
+      </div>
+      <div class="settings-section settings-danger" id="cfg-seg-redefinir" hidden>
+        <h4>redefinir a chave</h4>
+        <p class="settings-desc" id="cfg-seg-redefinir-desc"></p>
+        <div class="field">
+          <label for="cfg-seg-confirm">digite <strong>${REDEFINIR_WORD}</strong> pra habilitar o botão abaixo</label>
+          <input type="text" id="cfg-seg-confirm" placeholder="${REDEFINIR_WORD}" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn sm danger" id="cfg-seg-redefinir-btn" disabled>redefinir chave</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── PIN (SEG-02) ───────────────────────────────────────────────────────
+const PIN_INPUT = (id, label) =>
+  `<div class="field"><label for="${id}">${label}</label><input type="password" id="${id}" inputmode="numeric" autocomplete="off" maxlength="8"></div>`;
+
+function pinDesligadoHtml() {
+  return `
+    ${PIN_INPUT("cfg-pin-novo", "PIN (4 a 8 dígitos)")}
+    ${PIN_INPUT("cfg-pin-novo2", "repita o PIN")}
+    <div class="form-actions"><button class="btn sm" data-pin-acao="ligar">ligar PIN</button></div>
+    <p class="settings-status" id="cfg-pin-status"></p>`;
+}
+
+function pinLigadoHtml(estado) {
+  const opcoes = [[null, "desligado"], [5, "5 min"], [15, "15 min"], [30, "30 min"]];
+  return `
+    <p class="cfg-seg-chave" data-local="cofre">${icon("check", { size: 12 })} ligado — o kami pede o PIN ao abrir.</p>
+    <div class="field">
+      <span class="cfg-pin-label" id="cfg-pin-inat-label">bloquear de novo depois de um tempo sem uso</span>
+      <div class="cfg-pin-inat" role="group" aria-labelledby="cfg-pin-inat-label">
+        ${opcoes.map(([v, t]) => `<button type="button" class="btn sm" data-inat="${v ?? ""}" aria-pressed="${(estado.inatividade_min ?? null) === v}">${t}</button>`).join("")}
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn sm" data-pin-acao="bloquear">bloquear agora</button></div>
+    <details class="cfg-pin-mais">
+      <summary>trocar o PIN</summary>
+      ${PIN_INPUT("cfg-pin-atual", "PIN atual")}
+      ${PIN_INPUT("cfg-pin-troca", "PIN novo")}
+      ${PIN_INPUT("cfg-pin-troca2", "repita o PIN novo")}
+      <div class="form-actions"><button class="btn sm" data-pin-acao="trocar">trocar PIN</button></div>
+    </details>
+    <details class="cfg-pin-mais">
+      <summary>desligar o PIN</summary>
+      ${PIN_INPUT("cfg-pin-atual-off", "PIN atual")}
+      <div class="form-actions"><button class="btn sm danger" data-pin-acao="desligar">desligar PIN</button></div>
+    </details>
+    <p class="settings-status" id="cfg-pin-status"></p>`;
+}
+
+function avisarPinConfig(estado) {
+  window.dispatchEvent(new CustomEvent("kami:pin-config", { detail: estado }));
+}
+
+function pinStatus(box, html, erro = false) {
+  const el = box.querySelector("#cfg-pin-status");
+  if (!el) return;
+  el.innerHTML = html;
+  el.classList.add("settings-status--visible");
+  el.classList.toggle("settings-status--erro", erro);
+}
+
+function validarPinNovo(a, b) {
+  if (!/^[0-9]{4,8}$/.test(a)) return "o PIN tem de 4 a 8 dígitos (só números)";
+  if (a !== b) return "os dois PINs não são iguais";
+  return "";
+}
+
+function renderPin(wrap, estado) {
+  const box = wrap.querySelector("#cfg-pin");
+  box.innerHTML = estado.ativo ? pinLigadoHtml(estado) : pinDesligadoHtml();
+  const val = (id) => box.querySelector(`#${id}`)?.value ?? "";
+  const falhou = (err) => pinStatus(box, escapeHtml(err.message), true);
+
+  box.querySelector('[data-pin-acao="ligar"]')?.addEventListener("click", async () => {
+    const erro = validarPinNovo(val("cfg-pin-novo"), val("cfg-pin-novo2"));
+    if (erro) return pinStatus(box, erro, true);
+    try {
+      const res = await ativarPin(val("cfg-pin-novo"));
+      avisarPinConfig(res);
+      // o código aparece UMA vez — só sai daqui com o "guardei"
+      box.innerHTML = `${codigoRecuperacaoHtml(res.codigo_recuperacao)}
+        <div class="form-actions"><button class="btn sm" data-pin-acao="guardei">guardei o código</button></div>`;
+      wireCodigoRecuperacao(box);
+      box.querySelector('[data-pin-acao="guardei"]').addEventListener("click", () => renderPin(wrap, res));
+    } catch (err) {
+      falhou(err);
+    }
+  });
+
+  box.querySelectorAll("[data-inat]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      try {
+        const res = await definirInatividade(btn.dataset.inat ? Number(btn.dataset.inat) : null);
+        avisarPinConfig(res);
+        renderPin(wrap, res);
+        pinStatus(box, `${icon("check", { size: 12 })} ${res.inatividade_min ? `bloqueia depois de ${res.inatividade_min} min sem uso` : "sem bloqueio por inatividade"}`);
+      } catch (err) {
+        falhou(err);
+      }
+    })
+  );
+
+  box.querySelector('[data-pin-acao="bloquear"]')?.addEventListener("click", async () => {
+    try {
+      await bloquearAgora();
+    } catch (err) {
+      falhou(err);
+    }
+  });
+
+  box.querySelector('[data-pin-acao="trocar"]')?.addEventListener("click", async () => {
+    const erro = validarPinNovo(val("cfg-pin-troca"), val("cfg-pin-troca2"));
+    if (erro) return pinStatus(box, erro, true);
+    try {
+      const res = await trocarPin(val("cfg-pin-atual"), val("cfg-pin-troca"));
+      renderPin(wrap, res);
+      pinStatus(box, `${icon("check", { size: 12 })} PIN trocado — o código de recuperação continua o mesmo`);
+    } catch (err) {
+      falhou(err);
+    }
+  });
+
+  box.querySelector('[data-pin-acao="desligar"]')?.addEventListener("click", async () => {
+    try {
+      const res = await desativarPin(val("cfg-pin-atual-off"));
+      avisarPinConfig(res);
+      renderPin(wrap, res);
+      pinStatus(box, `${icon("check", { size: 12 })} PIN desligado — o kami abre direto`);
+    } catch (err) {
+      falhou(err);
+    }
+  });
+}
+
+async function loadPin(wrap) {
+  try {
+    renderPin(wrap, await getPin());
+  } catch (err) {
+    wrap.querySelector("#cfg-pin").textContent = `não deu pra verificar: ${err.message}`;
+  }
+}
+
+function describeChave(estado) {
+  if (estado.local === "cofre") {
+    return `${icon("check", { size: 12 })} no cofre do sistema (${escapeHtml(estado.cofre)}) — quem copiar a pasta de dados não leva a chave junto.`;
+  }
+  if (estado.local === "arquivo") {
+    return `<span class="cfg-seg-warn">[!]</span> num arquivo na pasta de dados — ${escapeHtml(estado.motivo || "o sistema não tem cofre")}. funciona, mas quem copiar a pasta leva a chave junto.`;
+  }
+  return `<span class="cfg-seg-warn">[!]</span> indisponível — ${escapeHtml(estado.motivo || "o cofre não entregou a chave")}. as senhas salvas não podem ser lidas até a chave voltar.`;
+}
+
+async function loadSeguranca(wrap) {
+  const el = wrap.querySelector("#cfg-seg-chave");
+  const redefinir = wrap.querySelector("#cfg-seg-redefinir");
+  try {
+    const estado = await getChave();
+    el.innerHTML = describeChave(estado);
+    el.dataset.local = estado.local;
+    redefinir.hidden = estado.local !== "indisponivel";
+    const n = estado.segredos_salvos;
+    const perda =
+      n === 0
+        ? "não há senha salva agora, então nada é apagado."
+        : `${n === 1 ? "a senha salva é apagada" : `as ${n} senhas salvas são apagadas`} e precisa${n === 1 ? "" : "m"} ser informada${n === 1 ? "" : "s"} de novo em configurações › chaves.`;
+    wrap.querySelector("#cfg-seg-redefinir-desc").textContent =
+      `se o cofre não vai mais devolver a chave (outro computador, outro ambiente gráfico, cofre apagado), dá pra criar uma chave nova. ${perda} o resto dos dados não muda.`;
+  } catch (err) {
+    el.textContent = `não deu pra verificar: ${err.message}`;
+  }
+}
+
+function wireSegurancaTab(wrap) {
+  wrap.querySelector('.cfg-tab[data-tab="seguranca"]').addEventListener("click", () => {
+    loadPin(wrap);
+    loadSeguranca(wrap);
+  });
+  const input = wrap.querySelector("#cfg-seg-confirm");
+  const btn = wrap.querySelector("#cfg-seg-redefinir-btn");
+  input.addEventListener("input", () => {
+    btn.disabled = input.value.trim().toLowerCase() !== REDEFINIR_WORD;
+  });
+  btn.addEventListener("click", async () => {
+    const status = wrap.querySelector("#cfg-seg-status");
+    btn.disabled = true;
+    try {
+      const res = await redefinirChave(input.value.trim().toLowerCase());
+      input.value = "";
+      status.innerHTML = `${icon("check", { size: 12 })} chave nova criada${res.segredos_apagados ? ` — informe de novo em configurações › chaves ${res.segredos_apagados === 1 ? "a senha apagada" : `as ${res.segredos_apagados} senhas apagadas`}` : ""}.`;
+      status.classList.add("settings-status--visible");
+      await loadSeguranca(wrap);
+    } catch (err) {
+      showErrorModal(err.message, "não deu pra redefinir a chave");
+      btn.disabled = false;
+    }
+  });
 }
 
 // ── aba sobre (CONF-06) ────────────────────────────────────────────────
@@ -480,6 +731,7 @@ function buildModal() {
           ${buildPerfilPanel()}
           ${buildNotificacoesPanel()}
           ${buildChavesPanel()}
+          ${buildSegurancaPanel()}
           ${buildBackupPanel()}
           ${buildSobrePanel()}
         </div>
@@ -528,6 +780,7 @@ function wireModal(wrap) {
   wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
   wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
   wireBackupTab(wrap);
+  wireSegurancaTab(wrap);
   wireSobreTab(wrap);
 
   wrap.addEventListener("click", (e) => {
@@ -1169,13 +1422,38 @@ function wireBackupTab(wrap) {
   const importFile = wrap.querySelector("#sm-import-file");
   const importConfirmInput = wrap.querySelector("#sm-import-confirm");
   const importBtn = wrap.querySelector("#sm-import-btn");
+  const importSenhaField = wrap.querySelector("#sm-import-senha-field");
+  const importSenha = wrap.querySelector("#sm-import-senha");
   const updateImportBtn = () => {
     const wordOk = importConfirmInput.value.trim().toLowerCase() === IMPORT_WORD;
     const fileOk = importFile.files.length > 0;
-    importBtn.disabled = !(wordOk && fileOk);
+    const senhaOk = importSenhaField.hidden || importSenha.value.length > 0;
+    importBtn.disabled = !(wordOk && fileOk && senhaOk);
   };
-  importFile.addEventListener("change", updateImportBtn);
+  // SEG-03: lê o arquivo ao escolher, pra saber já se ele pede senha
+  importFile.addEventListener("change", async () => {
+    importParsed = null;
+    importSenhaField.hidden = true;
+    importSenha.value = "";
+    const file = importFile.files[0];
+    if (file) {
+      try {
+        importParsed = await readFileAsJson(file);
+        importSenhaField.hidden = !importParsed?.kami_backup_cifrado;
+      } catch {
+        importParsed = null; // o handleImport mostra o erro de leitura
+      }
+    }
+    updateImportBtn();
+  });
   importConfirmInput.addEventListener("input", updateImportBtn);
+  importSenha.addEventListener("input", updateImportBtn);
+
+  const protect = wrap.querySelector("#sm-export-protect");
+  protect.addEventListener("change", () => {
+    wrap.querySelector("#sm-export-protect-fields").hidden = !protect.checked;
+    wrap.querySelector("#sm-export-unprotected-note").hidden = protect.checked;
+  });
 
   const confirmInput = wrap.querySelector("#sm-reset-confirm");
   const resetBtn = wrap.querySelector("#sm-reset-btn");
@@ -1200,13 +1478,41 @@ async function handleExport(wrap) {
   statusEl.textContent = "";
   statusEl.classList.remove("settings-status--visible");
 
+  const protegido = wrap.querySelector("#sm-export-protect").checked;
+  const senhaInput = wrap.querySelector("#sm-export-senha");
+  const senha2Input = wrap.querySelector("#sm-export-senha2");
+  const senhaErro = protegido && (
+    senhaInput.value.length < SENHA_BACKUP_MIN ? `a senha precisa de pelo menos ${SENHA_BACKUP_MIN} caracteres`
+      : senhaInput.value !== senha2Input.value ? "as duas senhas não são iguais"
+        : ""
+  );
+  if (senhaErro) {
+    statusEl.textContent = senhaErro;
+    statusEl.classList.add("settings-status--visible");
+    busy = false;
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    (senhaInput.value.length < SENHA_BACKUP_MIN ? senhaInput : senha2Input).focus();
+    return;
+  }
+
   try {
-    const data = await exportData();
+    let data;
+    let fora = 0;
+    if (protegido) {
+      const res = await exportProtegido(senhaInput.value);
+      data = res.arquivo;
+      fora = res.segredos_fora;
+      senhaInput.value = "";
+      senha2Input.value = "";
+    } else {
+      data = await exportData();
+    }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const today = localDateKey();
-    const filename = `kami-backup-${today}.json`;
+    const filename = protegido ? `kami-backup-${today}-protegido.json` : `kami-backup-${today}.json`;
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -1214,7 +1520,8 @@ async function handleExport(wrap) {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)`;
+    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)` +
+      (fora ? ` — ${fora === 1 ? "1 senha salva não pôde ser lida e ficou" : `${fora} senhas salvas não puderam ser lidas e ficaram`} de fora (veja configurações › segurança)` : "");
     statusEl.classList.add("settings-status--visible");
 
     // confirmação visível mesmo se o usuário já tiver trocado de aba/fechado
@@ -1363,12 +1670,14 @@ async function handleImport(wrap) {
 
   let parsed;
   try {
-    parsed = await readFileAsJson(file);
+    parsed = importParsed ?? (await readFileAsJson(file));
   } catch (err) {
     showErrorModal(err.message, "erro ao importar dados");
     return;
   }
-  if (!parsed || typeof parsed !== "object" || !parsed.tables || typeof parsed.tables !== "object") {
+  const protegido = Boolean(parsed?.kami_backup_cifrado);
+  const senhaInput = wrap.querySelector("#sm-import-senha");
+  if (!protegido && (!parsed || typeof parsed !== "object" || !parsed.tables || typeof parsed.tables !== "object")) {
     showErrorModal("o arquivo selecionado não parece ser um backup válido do Kami (formato inesperado).", "erro ao importar dados");
     return;
   }
@@ -1382,11 +1691,13 @@ async function handleImport(wrap) {
   busy = true;
   fileInput.disabled = true;
   confirmInput.disabled = true;
+  senhaInput.disabled = true;
   importBtn.disabled = true;
   importBtn.textContent = "importando...";
 
   try {
-    await importData(confirmation, parsed.tables);
+    if (protegido) await importProtegido(confirmation, parsed, senhaInput.value);
+    else await importData(confirmation, parsed.tables);
     // recarrega o app inteiro em vez de tentar resetar o estado em
     // memória de cada tela na mão (store.js, widgets já montados
     // etc.) — garante que tudo volte a buscar do backend já com os
@@ -1397,6 +1708,7 @@ async function handleImport(wrap) {
     busy = false;
     fileInput.disabled = false;
     confirmInput.disabled = false;
+    senhaInput.disabled = false;
     importBtn.disabled = false;
     importBtn.textContent = "importar e sobrescrever";
   }

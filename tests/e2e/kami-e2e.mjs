@@ -72,9 +72,23 @@ async function waitFor(what, fn, { timeout = 30000, every = 500 } = {}) {
 }
 
 function killBackend() {
-  // no CI só existe o nosso sidecar; nome do processo igual nos dois sistemas
-  if (IS_WINDOWS) execSync("taskkill /F /T /IM kami-backend.exe", { stdio: "ignore" });
-  else execSync("pkill -9 -x kami-backend", { stdio: "ignore" });
+  // no CI só existe o nosso sidecar
+  if (IS_WINDOWS) {
+    execSync("taskkill /F /T /IM kami-backend.exe", { stdio: "ignore" });
+    return;
+  }
+  // Linux: só o backend DESTE teste (pela pasta de dados) — rodando na
+  // máquina de alguém, um Kami de verdade aberto não pode cair junto
+  const pids = execSync("pgrep -x kami-backend || true", { encoding: "utf8" }).split(/\s+/).filter(Boolean);
+  for (const pid of pids) {
+    let env = "";
+    try {
+      env = readFileSync(`/proc/${pid}/environ`, "utf8");
+    } catch {
+      continue;
+    }
+    if (env.split("\0").includes(`KAMI_DATA_DIR=${DATA_DIR}`)) execSync(`kill -9 ${pid}`, { stdio: "ignore" });
+  }
 }
 
 async function main() {
@@ -114,6 +128,29 @@ async function main() {
     // avisos que não são erro (ex.: lembrete de backup) atrapalham o print
     await wd.execute("document.querySelectorAll('.toast-item').forEach((t) => t.remove())");
     log("dados fictícios carregados");
+
+    // 1b. SEG-01: a chave das senhas salvas — no Windows tem que ir pro
+    // Gerenciador de Credenciais; no Linux do CI (sem Secret Service) fica
+    // no arquivo. E uma senha salva tem que voltar decifrada: o sync de um
+    // IMAP inexistente falha na CONEXÃO, não na leitura da senha.
+    const api = async (path, init = {}) => {
+      const r = await fetch(`http://127.0.0.1:${port}${path}`, {
+        ...init,
+        headers: { "X-Kami-Token": token, "Content-Type": "application/json" },
+      });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    };
+    const chave = (await api("/api/seguranca/chave")).body;
+    log(`chave das senhas: ${chave.local}${chave.cofre ? ` (${chave.cofre})` : ""}${chave.motivo ? ` — ${chave.motivo}` : ""}`);
+    if (IS_WINDOWS && chave.local !== "cofre") fail(`no Windows a chave deveria estar no cofre: ${JSON.stringify(chave)}`);
+    const conta = await api("/api/organizacao/email-accounts", {
+      method: "POST",
+      body: JSON.stringify({ label: "e2e", imap_host: "127.0.0.1", imap_port: 1, username: "e2e@exemplo.invalid", app_password: "senha-e2e" }),
+    });
+    const sync = await api(`/api/organizacao/email-accounts/${conta.body?.id}/sync`, { method: "POST" });
+    if (!/conectar/.test(sync.body?.detail || "")) fail(`senha salva não voltou decifrada: ${sync.status} ${JSON.stringify(sync.body)}`);
+    else log("senha salva e lida de volta pela chave");
+    await api(`/api/organizacao/email-accounts/${conta.body?.id}`, { method: "DELETE" });
 
     // 2. telas × tamanhos
     for (const [w, h] of SIZES) {
