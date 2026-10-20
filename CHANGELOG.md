@@ -4,6 +4,27 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.11.0] - 2026-10-19
+
+_Sprint de segurança: PIN opcional para abrir o app, backup com senha, as senhas salvas protegidas por uma chave no cofre do sistema, limites em toda entrada da API e auditoria contínua das dependências._
+
+### Adicionado
+- PIN opcional para abrir o app, em configurações › segurança: com ele ligado, nada do Kami carrega — nem pela API — antes do PIN certo. PIN de 4 a 8 dígitos, guardado só como hash; depois de 5 erros seguidos é preciso esperar (30 s, dobrando até 15 min), mesmo fechando e abrindo o app
+- código de recuperação mostrado uma vez ao ligar o PIN (copiar e baixar `.txt`); "esqueci o PIN" na tela de bloqueio cria um PIN e um código novos. Sem o código, apagar `pin.json` da pasta de dados abre o app com todos os dados
+- bloqueio por inatividade (5, 15 ou 30 min) e "bloquear agora", opcionais
+- exportar backup com senha, marcado por padrão: o arquivo fica cifrado (AES-256-GCM, chave derivada da senha com scrypt), leva junto as senhas salvas (e-mail, GitHub, busca) e funciona em outro computador. A importação percebe sozinha que o arquivo pede senha
+- configurações › segurança mostra onde está a chave das senhas salvas e, se o cofre perder a chave, oferece redefinir
+- o diagnóstico de configurações › sobre diz onde está a chave das senhas salvas
+
+### Modificado
+- a chave que protege a senha de app do e-mail, o token do GitHub e a chave da busca saiu da pasta de dados e foi para o cofre do sistema (Gerenciador de Credenciais no Windows, Secret Service no Linux). A troca é automática na primeira abertura; sem cofre disponível, ela continua num arquivo só do dono, com aviso
+- toda entrada da API tem limite: corpo de até 1 MB (50 MB na importação de backup), textos de até 200 caracteres (5.000 em descrições e notas) e números limitados; acima disso o app responde com uma mensagem clara em vez de erro interno
+- dependências auditadas em todo PR e toda semana (pip, npm e cargo), com atualizações propostas toda semana
+
+### Corrigido
+- no Linux, fechar o app (ou reiniciar o backend) deixava o backend rodando escondido, ocupando memória e segurando o banco; agora ele encerra junto, e também sai sozinho se o app travar ou for fechado à força
+- números absurdos no histórico de ações e na sincronização de e-mail davam erro interno
+
 ## [1.10.0] - 2026-10-19
 
 _Sprint de confiabilidade: quando algo dá errado o Kami avisa, se recupera sozinho e guarda o que é preciso para investigar — e as regras de saldo e xp ganharam uma rede de testes que achou e corrigiu cinco bugs._

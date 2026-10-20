@@ -12,8 +12,16 @@ test("fmtMoney usa a formatação monetária brasileira", () => {
   assert.equal(fmtMoney(12), "R$ 12");
 });
 
+// "X minutos atrás", mas sem passar da meia-noite: rodando logo depois
+// das 00:00 o "30 min atrás" virava ontem e o teste falhava (visto no CI)
+function hojeHaMinutos(min) {
+  const agora = new Date();
+  const inicioDoDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  return new Date(Math.max(agora.getTime() - min * 60 * 1000, inicioDoDia.getTime()));
+}
+
 test("fmtRelDate mostra horário para datas de hoje", () => {
-  const date = new Date(Date.now() - 30 * 60 * 1000);
+  const date = hojeHaMinutos(30);
   const expected = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   assert.equal(fmtRelDate(date.toISOString()), expected);
 });
@@ -36,7 +44,7 @@ test("fmtRelDate conta dias de calendário, não blocos de 24h", () => {
 });
 
 test("fmtRelDate interpreta o offset gravado pelo backend", () => {
-  const date = new Date(Date.now() - 10 * 60 * 1000);
+  const date = hojeHaMinutos(10);
   const offsetMin = -date.getTimezoneOffset();
   const sign = offsetMin >= 0 ? "+" : "-";
   const pad = (n) => String(Math.abs(n)).padStart(2, "0");

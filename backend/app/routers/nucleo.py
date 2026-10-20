@@ -22,7 +22,7 @@ import datetime
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.database import backup_database, get_db, local_now, new_id, now_iso
@@ -35,6 +35,7 @@ from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 from app.bonus import atributo_atrasado
 from app.retrospectiva import garantir_retrospectiva
 from app.recompensas import catalogo as recompensas_catalogo, titulo_atual
+from app.limites import Entrada
 
 router = APIRouter()
 
@@ -67,7 +68,7 @@ class AttributeOut(BaseModel):
     forgotten: bool = False
 
 
-class ActionCreate(BaseModel):
+class ActionCreate(Entrada):
     description: str
     categories: List[str] = Field(..., min_length=1, description="nomes dos atributos afetados, ex: ['aprendizado']")
     xp: int = Field(..., gt=0, le=MAX_MANUAL_XP)
@@ -101,7 +102,7 @@ class LogEntryOut(BaseModel):
     created_at: str
 
 
-class CustomAchievementIn(BaseModel):
+class CustomAchievementIn(Entrada):
     """GAM-14 — conquista criada pelo usuário (critério custom_count, achievements.py)."""
     title: str = Field(..., min_length=1, max_length=60)
     attribute: Optional[str] = Field(None, description="atributo da contagem; vazio = qualquer área")
@@ -238,8 +239,9 @@ def delete_action(action_id: str, db=Depends(get_db)):
 @router.get("/log", response_model=List[LogEntryOut])
 def get_log(
     attribute: Optional[str] = None,
-    period_days: Optional[int] = None,
-    limit: int = 100,
+    # SEG-05: limites pra um número absurdo não virar 500 (timedelta/SQLite)
+    period_days: Optional[int] = Query(None, ge=1, le=36500),
+    limit: int = Query(100, ge=1, le=10000),
     db=Depends(get_db),
 ):
     query = "SELECT DISTINCT al.* FROM action_logs al"
@@ -485,7 +487,7 @@ def mark_retrospectiva_vista(mes: str, db=Depends(get_db)):
     db.commit()
 
 
-class StreakSavedSeen(BaseModel):
+class StreakSavedSeen(Entrada):
     days: List[str] = Field(..., description="dias (YYYY-MM-DD) de /player.streak_saved_days já avisados")
 
 

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.database import SOM_COLUNAS, get_db, now_iso
 from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
+from app.limites import Entrada
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ class ProfileOut(BaseModel):
     updated_at: str
 
 
-class ProfileUpdate(BaseModel):
+class ProfileUpdate(Entrada):
     display_name: Optional[str] = None
     accent_color: Optional[str] = None
     notif_alerts_enabled: Optional[bool] = None
@@ -59,11 +60,11 @@ class ProfileUpdate(BaseModel):
 EFEITOS_VISUAIS = {"completo", "sutil", "desligado"}
 
 
-class AvatarUpdate(BaseModel):
+class AvatarUpdate(Entrada):
     avatar_ascii: str
 
 
-class OnboardingUpdate(BaseModel):
+class OnboardingUpdate(Entrada):
     completed: bool
 
 

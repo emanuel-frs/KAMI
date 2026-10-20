@@ -136,8 +136,9 @@ de dados do usuário: `%APPDATA%\kami`. O log do backend fica em
 | Windows | `%APPDATA%\kami`; log em `%APPDATA%\kami\kami-backend.log` |
 | Linux | `$XDG_DATA_HOME/kami` ou `~/.local/share/kami`; log em `kami-backend.log` dentro dessa pasta |
 
-Se o app abrir, mas os widgets não carregarem, o Kami mostra um modal
-com o motivo informado pelo backend e o caminho do log. Anexe
+Se o backend não subir ou cair, o Kami mostra uma faixa no topo com o
+motivo, tenta reiniciar sozinho e oferece **reiniciar** e **abrir pasta
+do log**. Anexe
 `kami-backend.log` ao report do problema no repositório. Antes de
 compartilhar, revise o arquivo e remova qualquer informação pessoal que
 não queira publicar.
@@ -154,3 +155,21 @@ achar o trecho do momento em que o problema aconteceu. Quando passa de
 1 MB, o log atual vira `kami-backend.log.old` e um novo começa. Endereços
 de requisição aparecem sem os parâmetros (`?busca=...`), para não gravar
 buscas e filtros no disco.
+
+### O que fica na pasta de dados
+
+| Arquivo | O que é |
+|---|---|
+| `kami.db` (e `kami.db-wal`, `kami.db-shm`) | todos os seus dados |
+| `backups/` | cópias automáticas do banco antes de atualizar para uma versão nova (as 3 últimas) |
+| `kami-backend.log` (e `.old`) | o log do backend |
+| `backend_port.txt`, `backend_token.txt` | porta e token da execução atual; recriados a cada abertura |
+| `pin.json` | só com o PIN ligado: o hash do PIN e do código de recuperação |
+| `.secret_key_no_cofre` | marcador de que a chave das senhas salvas está no cofre do sistema (sem segredo nenhum) |
+| `.secret_key` | só em sistemas sem cofre: a chave das senhas salvas |
+
+**Esqueci o PIN.** Na tela de bloqueio, use "esqueci o PIN" com o código
+de recuperação mostrado quando o PIN foi ligado. Sem o código: feche o
+Kami e apague `pin.json` dessa pasta. Na próxima abertura ele abre sem
+PIN, com todos os dados — o PIN protege a abertura do app, não cifra o
+banco.

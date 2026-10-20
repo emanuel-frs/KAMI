@@ -1,0 +1,46 @@
+# SEG-04 (decisão P-21): atualizações de dependências toda semana, em PRs
+# agrupados pro develop — um PR por ecossistema com as atualizações
+# menores/patch juntas; versão maior vem em PR separado, pra revisar com
+# calma. As actions do GitHub estão fixadas por SHA nos workflows, e o
+# Dependabot atualiza o SHA e o comentário da versão.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "chore(deps)" }
+    groups:
+      backend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "chore(deps)" }
+    groups:
+      tauri:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "chore(deps)" }
+    groups:
+      frontend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "chore(ci)" }
+    groups:
+      actions:
+        update-types: [minor, patch]

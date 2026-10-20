@@ -14,8 +14,11 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import init_db
-from app.erros import ErrosInesperadosMiddleware, http_exception_handler
+from app.crypto import ChaveIndisponivel
+from app.erros import ErrosInesperadosMiddleware, corpo_erro, http_exception_handler
+from app.limites import LimiteDeCorpoMiddleware
 from app.logs import configure_logging
+from app.pin import BloqueioMiddleware
 from app.security import SessionTokenMiddleware
 from app.version import KAMI_VERSION
 from app.routers import perfil, nucleo, financas, carteira
@@ -27,6 +30,7 @@ from app.routers import sistema
 from app.routers import widgets
 from app.routers import calendario
 from app.routers import carreira
+from app.routers import seguranca
 
 # data/hora em toda linha do log (AJU-05, ver app/logs.py) — aqui no
 # import pra valer também no modo dev (`uvicorn app.main:app`), em que o
@@ -66,6 +70,12 @@ app = FastAPI(title="Kami API", version=KAMI_VERSION)
 # pelo ServerErrorMiddleware do Starlette, por fora do CORS — sem headers
 # CORS, e o webview mostrava "sem conexão" com o backend vivo.
 app.add_middleware(ErrosInesperadosMiddleware)
+# SEG-05: corpo de no máximo 1 MB (50 MB no import) — por dentro do token,
+# então requisição sem token nem chega a ser lida (app/limites.py)
+app.add_middleware(LimiteDeCorpoMiddleware)
+# SEG-02: PIN ligado e app bloqueado → 423 em tudo menos o desbloqueio;
+# por dentro do token (sem token nem dá pra saber se há PIN)
+app.add_middleware(BloqueioMiddleware)
 app.add_middleware(SessionTokenMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -98,6 +108,19 @@ _PT_MESSAGES = {
     "less_than": "deve ser menor que {lt}",
     "string_pattern_mismatch": "formato inválido",
     "missing": "campo obrigatório",
+    # SEG-05 (app/limites.py)
+    "string_too_long": "no máximo {max_length} caracteres",
+    "numero_grande_demais": "número grande demais (limite ±{limite})",
+    "finite_number": "deve ser um número finito",
+    "int_parsing": "deve ser um número inteiro",
+    "int_from_float": "deve ser um número inteiro",
+    "float_parsing": "deve ser um número",
+    "bool_parsing": "deve ser verdadeiro ou falso",
+    "string_type": "deve ser texto",
+    "list_type": "deve ser uma lista",
+    "model_attributes_type": "formato inválido",
+    "dict_type": "formato inválido",
+    "json_invalid": "JSON inválido",
 }
 
 
@@ -122,6 +145,14 @@ def validation_exception_handler(request, exc):
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 
+# SEG-01: a chave das senhas salvas está no cofre, mas o cofre não a
+# entregou — 409 com código próprio, apontando pra configurações ›
+# segurança (em vez de virar "erro interno" ou "recadastre a senha")
+@app.exception_handler(ChaveIndisponivel)
+def chave_indisponivel_handler(request, exc):
+    return JSONResponse(status_code=409, content=corpo_erro(str(exc), "chave_indisponivel"))
+
+
 app.include_router(perfil.router, prefix="/api/perfil", tags=["perfil"])
 app.include_router(nucleo.router, prefix="/api/nucleo", tags=["nucleo"])
 app.include_router(financas.router, prefix="/api/financas", tags=["financas"])
@@ -134,3 +165,4 @@ app.include_router(sistema.router, prefix="/api/sistema", tags=["sistema"])
 app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
 app.include_router(calendario.router, prefix="/api/calendario", tags=["calendario"])
 app.include_router(carreira.router, prefix="/api/carreira", tags=["carreira"])
+app.include_router(seguranca.router, prefix="/api/seguranca", tags=["seguranca"])

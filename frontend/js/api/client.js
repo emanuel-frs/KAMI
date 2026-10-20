@@ -214,12 +214,28 @@ function announceUnexpected(err, method, path) {
   }
 }
 
+/**
+ * SEG-02: 423 = o PIN está ligado e o backend bloqueado (ex.: o vigia
+ * reiniciou o backend, que nasce bloqueado). components/lock-screen.js
+ * escuta e mostra a tela do PIN.
+ */
+function announceLocked(err) {
+  if (!(err instanceof ApiError) || err.status !== 423) return;
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  try {
+    window.dispatchEvent(new CustomEvent("kami:bloqueado"));
+  } catch {
+    // idem announceUnexpected: nunca troca o erro original
+  }
+}
+
 async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   try {
     return await requestInner(path, options, method);
   } catch (err) {
     announceUnexpected(err, method, path);
+    announceLocked(err);
     throw err;
   }
 }

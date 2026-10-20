@@ -18,13 +18,14 @@ Endpoints:
   GET /api/dashboard/{screen}   devolve o layout salvo (lista ordenada)
   PUT /api/dashboard/{screen}   substitui o layout inteiro daquela tela
 """
-from typing import List, Optional
+from typing import ClassVar, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
 from app.widgets import WIDGET_CATALOG, is_valid_widget_type, screens_for
+from app.limites import Entrada, SAIDA_CONFIG
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ router = APIRouter()
 KNOWN_SCREENS = {"perfil", "nucleo", "financas", "carreira"}
 
 
-class DashboardWidgetIn(BaseModel):
+class DashboardWidgetIn(Entrada):
     widget_type: str
     width: int = Field(..., ge=1, le=6)
     height: Optional[int] = None
@@ -44,12 +45,14 @@ class DashboardWidgetIn(BaseModel):
 
 
 class DashboardWidgetOut(DashboardWidgetIn):
+    model_config = SAIDA_CONFIG  # resposta: sem os limites de entrada (app/limites.py)
+    sem_limites_de_entrada: ClassVar[bool] = True
     id: str
     screen: str
     position: int
 
 
-class DashboardLayoutIn(BaseModel):
+class DashboardLayoutIn(Entrada):
     widgets: List[DashboardWidgetIn]
 
 

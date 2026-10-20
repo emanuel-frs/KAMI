@@ -7,6 +7,7 @@ import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
 import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
+import { garantirDesbloqueio, startInactivityLock, wireLockScreen } from "./components/lock-screen.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
 import { wireHelpButton } from "./modals/help-menu.js";
@@ -25,7 +26,7 @@ import { startProgressWatcher } from "./components/progress-watcher.js";
 import { wireVisualEffects } from "./components/visual-effects.js";
 import { pageEnter, wireEffectSkip } from "./components/fx.js";
 import { wirePixelCursor } from "./components/pixel-cursor.js";
-import { wireTheme } from "./components/tema.js";
+import { restaurarAparencia, wireTheme } from "./components/tema.js";
 import { playFollowUp, wireSounds } from "./components/sound.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
@@ -264,6 +265,10 @@ async function loadProfile() {
 }
 
 async function boot() {
+  // cor e tema da última vez, antes de qualquer coisa aparecer (o perfil
+  // só chega depois — e com o PIN ligado, só depois do desbloqueio)
+  restaurarAparencia();
+
   // splash roda em todo boot (assinatura visual, não é gate de primeira
   // vez) — dispara em paralelo com o carregamento real, pra tela já
   // estar pronta por baixo quando ela terminar/for pulada. Essa folga
@@ -301,6 +306,12 @@ async function boot() {
       await reloadCurrentPage();
     },
   });
+  // SEG-02: com o PIN ligado, nada de dado carrega antes do desbloqueio
+  // (o backend também recusa: 423). Um 423 no meio do uso — o vigia
+  // reiniciou o backend, que nasce bloqueado — reabre a tela.
+  wireLockScreen();
+  await garantirDesbloqueio();
+  startInactivityLock();
   wireNav();
   wireSettingsButton();
   wireSidebarAvatar();
