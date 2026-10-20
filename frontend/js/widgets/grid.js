@@ -64,22 +64,165 @@ const snapResizeHeight = snapHeight;
 const snapAutoHeight = snapHeight;
 
 // largura real do container → número de colunas reais da grade.
-// Abaixo de 1400px mantém os mesmos degraus fixos de sempre (telas
-// pequenas/médias não se beneficiam de mais granularidade). A partir
-// daí, cresce proporcional à largura real em vez de travar num teto
-// fixo — senão monitores ultrawide/4K ficam com widgets enormes e
-// espaço desperdiçado. WG_UNITS (sextos) continua sendo só a precisão
-// de armazenamento do span de cada widget, independe de quantas
-// colunas reais existem — a conversão em unitToScaled já é proporcional.
-const WG_COL_TARGET = 220; // largura "confortável" de coluna, em px, a partir da qual abre mais uma
-const WG_MAX_COLS = 12;    // teto de sanidade — evita colunas ínfimas em telas absurdamente largas
-
-function colsForWidth(w) {
+//
+// LAY-03: só 1, 2, 4 ou 6 colunas. Antes, a partir de 1400px a grade
+// crescia proporcional à largura (7, 8… colunas), mas a largura de cada
+// widget é guardada em SEXTOS: metade de 7 colunas = 3,5, que arredonda
+// pra 3 ou 4 — era daí que vinham os buracos e a faixa vazia à direita
+// em 1920×1080 (auditoria LAY-01). Com 6 colunas todo sexto vira coluna
+// inteira; 4 e 2 mantêm as metades/terços razoáveis em telas menores.
+export function colsForWidth(w) {
   if (w < 680) return 1;
   if (w < 1000) return 2;
   if (w < 1400) return 4;
-  const cols = Math.floor((w + WG_GAP) / (WG_COL_TARGET + WG_GAP));
-  return Math.max(6, Math.min(WG_MAX_COLS, cols));
+  return WG_UNITS;
+}
+
+/**
+ * Empacotamento dos cards (LAY-03/04): decide a coluna, a linha e o tamanho
+ * VISUAL de cada card, em ordem. Antes a posição ficava com o
+ * `grid-auto-flow: dense` do navegador, que com cards de alturas diferentes
+ * deixava buracos e jogava um widget readicionado em qualquer fresta (P-23).
+ *
+ * 1. Encaixe: cada card vai pro lugar MAIS ALTO em que cabe na largura dele
+ *    (estilo "masonry"); empate → o mais à esquerda. (Desempatar pelo
+ *    "que desperdiça menos espaço embaixo" foi testado e piorou: em
+ *    Finanças puxava os lançamentos pro meio e empilhava o resto numa
+ *    coluna estreita.) O card fixo (perfil) fica sempre em 1/1.
+ * 2. Preenchimento (`fill`, ligado fora do resize manual):
+ *    - nivelamento, já no encaixe: card que termina até FILL_DOWN_MAX
+ *      acima/abaixo do vizinho de lado estica pra base ficar reta — a
+ *      faixa seguinte começa alinhada (ver nivelar);
+ *    - pros lados: card ao lado de coluna livre em toda a altura dele estica
+ *      até ela — some a faixa vazia à direita e o vão entre larguras que não
+ *      fecham (ex.: 3/6 + 2/6 numa linha);
+ *    - pra baixo: card com um vão pequeno embaixo (até FILL_DOWN_MAX linhas
+ *      ou metade da própria altura) cresce até encostar no de baixo — é o
+ *      que alinha a base de widgets lado a lado.
+ *    O tamanho salvo do widget não muda: só o desenho.
+ *
+ * Função pura (tests/frontend/grid-pack.test.js):
+ *   itens = [{ span, rows, pinned? }]   span em colunas reais, rows em linhas de 4px
+ *   → [{ col, row, span, rows }]        1-based; span/rows já com o preenchimento
+ */
+const FILL_DOWN_MAX = 40; // linhas de 4px = 160px
+
+export function packLayout(items, cols, { fill = true } = {}) {
+  const sky = new Array(cols).fill(0); // próxima linha livre de cada coluna
+  const dono = new Array(cols).fill(null); // card cuja base define sky[c]
+  const out = [];
+  for (const { span, rows, pinned } of items) {
+    const s = Math.max(1, Math.min(cols, span));
+    const r = Math.max(1, rows);
+    let best = 0;
+    let bestTop = Infinity;
+    const last = pinned ? 0 : cols - s;
+    for (let c = 0; c <= last; c++) {
+      const top = Math.max(...sky.slice(c, c + s));
+      // empate: o mais à esquerda — os vãos pequenos que isso deixa embaixo
+      // de um vizinho mais baixo o preenchimento pra baixo fecha
+      if (top < bestTop) {
+        best = c;
+        bestTop = top;
+      }
+    }
+    const k = { col: best, row: bestTop, span: s, rows: r };
+    out.push(k);
+    for (let c = best; c < best + s; c++) {
+      sky[c] = bestTop + r;
+      dono[c] = k;
+    }
+    if (fill) nivelar(k, sky, dono, cols);
+  }
+  if (fill) preencher(out, cols);
+  return out.map((p) => ({ col: p.col + 1, row: p.row + 1, span: p.span, rows: p.rows }));
+}
+
+/**
+ * Nivela a base do card recém-encaixado com a do vizinho de lado quando a
+ * diferença é pequena (até FILL_DOWN_MAX): o mais baixo dos dois estica.
+ * Sem isso, "lançamentos" 40px mais alto que "contas fixas + dívidas" fazia
+ * a faixa de baixo começar em degrau e sobrar um vão (Finanças, 1920).
+ */
+function nivelar(k, sky, dono, cols) {
+  const base = () => k.row + k.rows;
+  for (const n of [k.col - 1, k.col + k.span]) {
+    if (n < 0 || n >= cols) continue;
+    const diff = sky[n] - base();
+    if (diff > 0 && diff <= FILL_DOWN_MAX) {
+      k.rows += diff; // o vizinho é mais alto: este desce até ele
+      for (let c = k.col; c < k.col + k.span; c++) sky[c] = base();
+    } else if (diff < 0 && -diff <= FILL_DOWN_MAX) {
+      const o = dono[n]; // o vizinho é mais baixo: ele desce até este, se for a superfície inteira dele
+      if (o && o !== k && [...Array(o.span).keys()].every((i) => dono[o.col + i] === o)) {
+        o.rows += -diff;
+        for (let c = o.col; c < o.col + o.span; c++) sky[c] = o.row + o.rows;
+      }
+    }
+  }
+}
+
+function preencher(cards, cols) {
+  const ocupado = (c, r0, r1, ignorar) =>
+    cards.some(
+      (o) => o !== ignorar && c >= o.col && c < o.col + o.span && r0 < o.row + o.rows && r1 > o.row
+    );
+  // pros lados (direita, depois esquerda)
+  for (const k of cards) {
+    while (k.col + k.span < cols && !ocupado(k.col + k.span, k.row, k.row + k.rows, k)) k.span++;
+    while (k.col > 0 && !ocupado(k.col - 1, k.row, k.row + k.rows, k)) {
+      k.col--;
+      k.span++;
+    }
+  }
+  // pra baixo: só vão "fechado" (tem card embaixo em todas as colunas dele)
+  for (const k of cards) {
+    const base = k.row + k.rows;
+    let ate = Infinity;
+    for (let c = k.col; c < k.col + k.span; c++) {
+      const abaixo = cards
+        .filter((o) => o !== k && c >= o.col && c < o.col + o.span && o.row >= base)
+        .map((o) => o.row);
+      ate = Math.min(ate, abaixo.length ? Math.min(...abaixo) : Infinity);
+    }
+    const vao = ate - base;
+    if (Number.isFinite(vao) && vao > 0 && vao <= Math.max(FILL_DOWN_MAX, Math.floor(k.rows / 2))) {
+      k.rows += vao;
+    }
+  }
+}
+
+function spanFromStyle(value, fallback) {
+  const m = /span\s+(\d+)/.exec(value || "");
+  return m ? parseInt(m[1], 10) : fallback;
+}
+
+/**
+ * Aplica packLayout nos cards (e no placeholder do arrasto) na ordem do DOM.
+ * A largura de verdade de cada card fica em data-scaled (setScaled) e a
+ * altura em data-rows (placeCard); o que vai pro grid-column/grid-row é o
+ * tamanho já preenchido. A altura visual a mais vem de min-height — o
+ * `height` do card continua sendo o do conteúdo (ou o manual).
+ */
+function packCards(container, cols, { fill = true } = {}) {
+  const els = [...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder")];
+  const pos = packLayout(
+    els.map((el) => ({
+      span: parseInt(el.dataset.scaled, 10) || spanFromStyle(el.style.gridColumnEnd, 1),
+      rows: parseInt(el.dataset.rows, 10) || spanFromStyle(el.style.gridRowEnd, gridRowsForHeight(WG_MIN_H)),
+      pinned: el.hasAttribute("data-pinned"),
+    })),
+    cols,
+    { fill }
+  );
+  els.forEach((el, i) => {
+    const p = pos[i];
+    el.style.gridColumn = `${p.col} / span ${p.span}`;
+    el.style.gridRow = `${p.row} / span ${p.rows}`;
+    // card esticado pra baixo: ocupa a área toda (a margem de baixo é o vão)
+    const natural = parseInt(el.dataset.rows, 10);
+    el.style.minHeight = natural && p.rows > natural ? `${p.rows * WG_ROW - WG_ROW_MARGIN}px` : "";
+  });
 }
 
 function currentCols(container) {
@@ -109,6 +252,7 @@ function getScaled(card, cols) {
 function setScaled(card, scaled, cols) {
   scaled = Math.max(1, Math.min(cols, scaled));
   card.dataset.span = scaledToUnit(scaled, cols);
+  card.dataset.scaled = String(scaled); // a largura de verdade — packCards pode esticar só o desenho
   card.style.gridColumnStart = "auto"; // era "" — isso deixava a regra CSS "span 2" do fallback vencer
   card.style.gridColumnEnd = `span ${scaled}`;
 }
@@ -123,9 +267,11 @@ function setScaled(card, scaled, cols) {
  */
 function contentMinHeight(card) {
   const prevHeight = card.style.height;
+  const prevMinHeight = card.style.minHeight; // esticado pelo packCards — não conta como conteúdo
   const prevAlignSelf = card.style.alignSelf;
   const prevManual = card.dataset.manual;
   card.style.height = "";
+  card.style.minHeight = "";
   // Com align-self:stretch, medir sem quebrar o stretch ainda devolveria
   // a altura da área de linhas antiga, e não a altura intrínseca do conteúdo.
   card.style.alignSelf = "start";
@@ -138,6 +284,7 @@ function contentMinHeight(card) {
   delete card.dataset.manual;
   const h = Math.ceil(card.getBoundingClientRect().height);
   card.style.height = prevHeight;
+  card.style.minHeight = prevMinHeight;
   card.style.alignSelf = prevAlignSelf;
   if (prevManual !== undefined) card.dataset.manual = prevManual;
   return h;
@@ -239,7 +386,8 @@ function placeCard(card, cols) {
   // na mão, e o padrão em si fica o mais justo possível ao conteúdo.
   let h;
   if (card.dataset.manual === "1" && card.style.height) {
-    h = card.getBoundingClientRect().height;
+    // a altura escolhida, não a desenhada (que pode estar esticada pelo packCards)
+    h = parseInt(card.style.height, 10) || card.getBoundingClientRect().height;
   } else {
     const raw = contentMinHeight(card);
     h = raw > 0 ? snapAutoHeight(raw) : 0;
@@ -248,6 +396,7 @@ function placeCard(card, cols) {
   if (h > 0) {
     const rowSpan = gridRowsForHeight(h);
     card.style.gridRowEnd = `span ${rowSpan}`;
+    card.dataset.rows = String(rowSpan); // altura natural — packCards pode esticar só o desenho
   }
   // se h === 0 mantém o span inicial definido em render() — o ResizeObserver
   // vai corrigir assim que o conteúdo tiver dimensões reais
@@ -269,6 +418,7 @@ function syncGrid(container) {
   container.querySelectorAll(":scope > .card").forEach((card) =>
     placeCard(card, cols)
   );
+  packCards(container, cols);
 }
 
 /** Agrupa os cards de um grid por linha visual, comparando offsetTop. */
@@ -776,6 +926,9 @@ function attachResizeHandle(card, container, getCommit, pauseObservers, resumeOb
       container.querySelectorAll(":scope > .card").forEach((c) => {
         if (c !== card) placeCard(c, cols);
       });
+      // sem preencher durante o resize manual: o card mostra a largura que a
+      // pessoa está escolhendo, não a esticada
+      packCards(container, cols, { fill: false });
     } catch (err) {
       console.error("erro no resize:", err);
     }
@@ -854,8 +1007,8 @@ function attachDragHandle(card, container, getCommit, pauseObservers, resumeObse
     const rect = card.getBoundingClientRect();
     const placeholder = document.createElement("div");
     placeholder.className = "wg-placeholder";
-    placeholder.style.gridColumn = card.style.gridColumn;
-    placeholder.style.gridRowEnd = card.style.gridRowEnd;
+    placeholder.dataset.scaled = card.dataset.scaled || "";
+    placeholder.dataset.rows = card.dataset.rows || "";
     card.after(placeholder);
 
     const offX = e.clientX - rect.left;
@@ -893,7 +1046,13 @@ function attachDragHandle(card, container, getCommit, pauseObservers, resumeObse
         }
         const r = target.getBoundingClientRect();
         const before = ev.clientX < r.left + r.width / 2;
-        target[before ? "before" : "after"](placeholder);
+        const ref = before ? target.previousElementSibling : target.nextElementSibling;
+        if (ref !== placeholder) {
+          target[before ? "before" : "after"](placeholder);
+          // a posição é calculada pelo Kami (packLayout), não pelo navegador:
+          // reempacota pra prévia mostrar onde o card vai cair
+          packCards(container, currentCols(container));
+        }
       }
     }
 
@@ -941,9 +1100,14 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
   let widgets = [...initialWidgets];
   const observedCards = new WeakSet();
 
+  let packFrame = 0;
   const cardRO = new ResizeObserver((entries) => {
     const cols = currentCols(container);
     entries.forEach((e) => placeCard(e.target, cols));
+    // a altura de um card mudou (conteúdo carregou, lista cresceu): os de
+    // baixo precisam subir/descer — um empacotamento por frame
+    cancelAnimationFrame(packFrame);
+    packFrame = requestAnimationFrame(() => packCards(container, currentCols(container)));
   });
 
   const containerRO = new ResizeObserver(() => syncGrid(container));
