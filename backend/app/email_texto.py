@@ -45,7 +45,13 @@ _INVISIVEIS = re.compile(
 )
 _ESPACOS = re.compile(r"[ \t\f\v  -   　]+")
 _URL = r"https?://[^\s<>\[\]()\"']+"
-_MARKDOWN_LINK = re.compile(r"\[([^\]\n]{1,300})\]\(\s*(" + _URL + r")\s*\)")
+# [texto](url) — e as variações vistas de verdade (ORG-06, e-mail da
+# Slottica): URL de ~1.500 caracteres, às vezes DUAS URLs seguidas com
+# quebra de linha dentro do parêntese, às vezes sem o ")" final. Fica a
+# primeira URL; as outras (mesmo destino, rastreio diferente) somem.
+_MARKDOWN_LINK = re.compile(
+    r"\[([^\]\n]{1,300})\]\(\s*(" + _URL + r")(?:\s+" + _URL + r")*\s*\)?"
+)
 _URL_ENVOLTA = re.compile(r"\s?(?:<\s*(" + _URL + r")\s*>|\[\s*(" + _URL + r")\s*\]|\(\s*(" + _URL + r")\s*\))")
 _URL_SOLTA = re.compile(_URL)
 _LINK_MARCADO = re.compile(MARCA_INI + "([^" + MARCA_MEIO + "]*)" + MARCA_MEIO + "([^" + MARCA_FIM + "]*)" + MARCA_FIM)
@@ -370,7 +376,13 @@ _WEBMAIL = {
 }
 
 
-def url_webmail(imap_host: str, usuario: str, message_id: Optional[str]) -> Optional[str]:
+def eh_gmail(imap_host: str) -> bool:
+    return _WEBMAIL.get((imap_host or "").strip().lower()) == "gmail"
+
+
+def url_webmail(
+    imap_host: str, usuario: str, message_id: Optional[str], gmail_id: Optional[str] = None
+) -> Optional[str]:
     """Link pro webmail da conta. No Gmail abre o próprio e-mail (busca
     pelo Message-ID, `rfc822msgid:`); nos outros, a caixa de entrada.
 
@@ -378,7 +390,12 @@ def url_webmail(imap_host: str, usuario: str, message_id: Optional[str]) -> Opti
     `/mail/u/<e-mail>/` dava "Temporary Error (404)" no navegador do
     Emanuel (visto no teste do ORG-06); `authuser` é o parâmetro que o
     próprio Google usa pra escolher entre contas logadas e aceita o
-    endereço (não só o índice 0, 1, 2...)."""
+    endereço (não só o índice 0, 1, 2...).
+
+    Abrir o e-mail em si: `#all/<X-GM-MSGID em hexadecimal>` (o id
+    interno do Gmail, que a sincronização pede ao IMAP do Gmail — ver
+    routers/organizacao.py). Sem ele (e-mail antigo), a busca por
+    `rfc822msgid:` mostra uma lista com só esse e-mail — um clique a mais."""
     from urllib.parse import quote
 
     destino = _WEBMAIL.get((imap_host or "").strip().lower())
@@ -387,6 +404,8 @@ def url_webmail(imap_host: str, usuario: str, message_id: Optional[str]) -> Opti
     base = "https://mail.google.com/mail/"
     if usuario and "@" in usuario:
         base += "?authuser=" + quote(usuario, safe="@")
+    if gmail_id and gmail_id.isdigit():
+        return base + "#all/" + format(int(gmail_id), "x")
     mid = (message_id or "").strip().strip("<>")
     if not mid:
         return base

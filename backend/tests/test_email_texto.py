@@ -29,6 +29,16 @@ def test_markdown_link_becomes_label_only():
     assert et.previa(t) == "Conheça a Statica hoje"
 
 
+def test_markdown_link_with_two_urls_and_no_closing_paren():
+    # formato real (Slottica): duas URLs enormes com quebra de linha e, às
+    # vezes, sem o ")" final
+    a, b = TOKEN + "a" * 1400, TOKEN + "b" * 1600
+    t = et.limpar_texto_plano(f"[Slottica]({a}\n{b})\n\nTexto\n\nclique no [link]({a}")
+    assert _links(t) == [("Slottica", a), ("link", a)]
+    assert "[" not in t and "](" not in t
+    assert et.previa(t) == "Slottica Texto clique no link"
+
+
 def test_bare_url_becomes_domain():
     t = et.limpar_texto_plano(f"acesse {TOKEN} agora")
     assert _links(t) == [("collect.statica.com.br", TOKEN)]
@@ -210,6 +220,13 @@ def test_sender_split():
 def test_webmail_gmail_opens_message_by_id():
     url = et.url_webmail("imap.gmail.com", "eu@gmail.com", "<abc.123@mail.gmail.com>")
     assert url == "https://mail.google.com/mail/?authuser=eu@gmail.com#search/rfc822msgid%3Aabc.123%40mail.gmail.com"
+
+
+def test_webmail_gmail_opens_message_directly_with_gmail_id():
+    # X-GM-MSGID em decimal -> hexadecimal na URL do Gmail
+    url = et.url_webmail("imap.gmail.com", "eu@gmail.com", "<x@y>", "1278455344230334865")
+    assert url == "https://mail.google.com/mail/?authuser=eu@gmail.com#all/" + format(1278455344230334865, "x")
+    assert et.url_webmail("imap.gmail.com", "eu@gmail.com", None, "nao-numero").endswith("?authuser=eu@gmail.com")
 
 
 def test_webmail_known_and_unknown_hosts():

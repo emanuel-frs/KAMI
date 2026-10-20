@@ -74,6 +74,7 @@ from datetime import datetime as dt, timedelta
 import email as email_lib
 import imaplib
 import json
+import re
 import sqlite3
 import urllib.error
 import urllib.request
@@ -697,12 +698,24 @@ def sync_email_account(
         status, msg_ids = imap.search(None, "ALL")
         ids = msg_ids[0].split()[-limit:] if msg_ids and msg_ids[0] else []
 
+        # Gmail tem um id interno por mensagem (X-GM-MSGID, extensão IMAP
+        # do Google) — é o que abre o e-mail certo no webmail (ORG-06,
+        # email_texto.url_webmail). Outros servidores não conhecem o item,
+        # então só é pedido pro Gmail.
+        is_gmail = email_texto.eh_gmail(account["imap_host"])
+        fetch_spec = "(X-GM-MSGID RFC822)" if is_gmail else "(RFC822)"
+
         parsed_messages = []
         for mid in reversed(ids):
-            status, msg_data = imap.fetch(mid, "(RFC822)")
+            status, msg_data = imap.fetch(mid, fetch_spec)
             if status != "OK" or not msg_data or not msg_data[0]:
                 continue
             msg = email_lib.message_from_bytes(msg_data[0][1])
+            gmail_id = None
+            if is_gmail and isinstance(msg_data[0][0], (bytes, str)):
+                cabecalho = msg_data[0][0].decode("ascii", "replace") if isinstance(msg_data[0][0], bytes) else msg_data[0][0]
+                achado = re.search(r"X-GM-MSGID (\d+)", cabecalho)
+                gmail_id = achado.group(1) if achado else None
 
             subject = _decode_mime_words(msg.get("Subject", ""))
             sender = _decode_mime_words(msg.get("From", ""))
@@ -715,7 +728,7 @@ def sync_email_account(
             message_id = (msg.get("Message-ID") or "").strip()[:500] or None
             body_text, body_cortado, body_preview = _extract_body(msg)
             parsed_messages.append(
-                (subject, sender, received_at, message_id, body_text or None, body_cortado, body_preview)
+                (subject, sender, received_at, message_id, gmail_id, body_text or None, body_cortado, body_preview)
             )
     finally:
         try:
@@ -727,7 +740,7 @@ def sync_email_account(
     # veio do IMAP, sem nenhuma chamada de rede no meio.
     new_count = 0
     try:
-        for subject, sender, received_at, message_id, body_text, body_cortado, body_preview in parsed_messages:
+        for subject, sender, received_at, message_id, gmail_id, body_text, body_cortado, body_preview in parsed_messages:
             # dedupe simples (o message_id só existe a partir do ORG-06, os
             # e-mails antigos não têm): mesmo assunto + remetente + data já
             # em cache pra essa conta = já sincronizado
@@ -737,23 +750,26 @@ def sync_email_account(
                 (account_id, subject, sender, received_at),
             ).fetchone()
             if dup:
-                # e-mail de antes do ORG-06 (só a prévia crua): completa com o
-                # texto limpo agora que ele veio de novo do servidor
-                if dup["body_text"] is None and body_text:
+                # já em cache: reprocessa o texto com a limpeza atual (e-mail de
+                # antes do ORG-06 só tinha a prévia crua; e uma melhoria em
+                # email_texto.py vale pros que voltam do servidor) e completa
+                # os ids que faltarem. Só os ~20 mais recentes voltam por
+                # sincronização, então é barato.
+                if body_text:
                     db.execute(
                         "UPDATE email_cache SET body_text = ?, body_cortado = ?, body_preview = ?, "
-                        "message_id = COALESCE(message_id, ?) WHERE id = ?",
-                        (body_text, int(body_cortado), body_preview, message_id, dup["id"]),
+                        "message_id = COALESCE(message_id, ?), gmail_id = COALESCE(gmail_id, ?) WHERE id = ?",
+                        (body_text, int(body_cortado), body_preview, message_id, gmail_id, dup["id"]),
                     )
                 continue
 
             db.execute(
                 "INSERT INTO email_cache "
                 "(id, account_id, subject, sender, received_at, is_read, summary_text, body_preview, "
-                "body_text, body_cortado, message_id) "
-                "VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)",
+                "body_text, body_cortado, message_id, gmail_id) "
+                "VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)",
                 (new_id(), account_id, subject, sender, received_at, body_preview,
-                 body_text, int(body_cortado), message_id),
+                 body_text, int(body_cortado), message_id, gmail_id),
             )
             new_count += 1
         _podar_textos_antigos(db, account_id)
@@ -817,7 +833,7 @@ _EMAIL_LIST_COLS = (
 
 
 def _email_out(row, muted: set) -> dict:
-    out = {k: row[k] for k in row.keys() if k not in ("sem_texto", "body_text", "body_cortado", "message_id")}
+    out = {k: row[k] for k in row.keys() if k not in ("sem_texto", "body_text", "body_cortado", "message_id", "gmail_id")}
     nome, endereco = email_texto.separar_remetente(row["sender"])
     out |= {
         "is_read": bool(row["is_read"]),
@@ -882,7 +898,7 @@ def get_email(cache_id: str, db=Depends(get_db)):
             "body_text": email_texto.limpar_texto_plano(row["body_preview"] or ""),
             "body_cortado": True,
         }
-    out["webmail_url"] = email_texto.url_webmail(row["imap_host"], row["username"], row["message_id"])
+    out["webmail_url"] = email_texto.url_webmail(row["imap_host"], row["username"], row["message_id"], row["gmail_id"])
     for k in ("imap_host", "username"):
         out.pop(k, None)
     return out

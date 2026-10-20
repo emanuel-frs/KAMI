@@ -407,7 +407,8 @@ CREATE TABLE IF NOT EXISTS email_cache (
                                        -- links marcados, formato em app/email_texto.py).
                                        -- NULL = e-mail antigo ou com mais de 90 dias (podado)
     body_cortado INTEGER NOT NULL DEFAULT 0, -- texto completo cortado/indisponível
-    message_id   TEXT                 -- cabeçalho Message-ID (abre o e-mail certo no Gmail)
+    message_id   TEXT,                -- cabeçalho Message-ID (busca o e-mail no Gmail)
+    gmail_id     TEXT                 -- X-GM-MSGID (só Gmail): abre o próprio e-mail no webmail
 );
 
 -- ---------------- CONTAS SILENCIADAS (notificações v2.1) ----------------

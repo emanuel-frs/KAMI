@@ -448,6 +448,47 @@ def test_sync_html_only_email_has_clean_preview_and_full_text(client, isolated_f
     assert "<p>" not in detail["body_text"]
 
 
+def test_gmail_sync_asks_for_gmail_id_and_links_to_the_message(client, isolated_fernet_key, mock_imap):
+    account = _conta_gmail(client)
+    conn = mock_imap(messages=[_raw_html_email("Oferta", "<p>oi</p>")])
+    # o Gmail devolve o id no cabeçalho da resposta do FETCH
+    raw = _raw_html_email("Oferta", "<p>oi</p>")
+    conn.fetch.side_effect = lambda mid, spec: ("OK", [(b"1 (X-GM-MSGID 1278455344230334865 RFC822 {123}", raw)])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+
+    assert "X-GM-MSGID" in conn.fetch.call_args[0][1]
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["webmail_url"].endswith("#all/" + format(1278455344230334865, "x"))
+
+
+def test_resync_reprocesses_text_and_fills_gmail_id(client, isolated_fernet_key, mock_imap, db_conn):
+    account = _conta_gmail(client)
+    raw = _raw_html_email("Oferta", "<p>texto novo</p>")
+    mock_imap(messages=[raw])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    db_conn.execute("UPDATE email_cache SET body_text = 'limpeza antiga', gmail_id = NULL")
+    db_conn.commit()
+
+    conn = mock_imap(messages=[raw])
+    conn.fetch.side_effect = lambda mid, spec: ("OK", [(b"1 (X-GM-MSGID 42 RFC822 {1}", raw)])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["body_text"] == "texto novo"
+    assert detail["webmail_url"].endswith("#all/2a")
+
+
+def test_non_gmail_sync_does_not_ask_for_gmail_id(client, isolated_fernet_key, mock_imap):
+    account = client.post(
+        "/api/organizacao/email-accounts",
+        json={"label": "t", "imap_host": "mail.empresa.com", "imap_port": 993, "username": "eu", "app_password": "x"},
+    ).json()
+    conn = mock_imap(messages=[_raw_email("a", "b@c.com")])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    assert conn.fetch.call_args[0][1] == "(RFC822)"
+
+
 def test_get_email_not_found_returns_404(client):
     assert client.get("/api/organizacao/email-cache/inexistente").status_code == 404
 
