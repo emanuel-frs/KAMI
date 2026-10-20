@@ -204,7 +204,7 @@ jobs:
           KAMI_E2E_OUT: ${{ runner.temp }}/e2e-linux
         run: xvfb-run -a --server-args="-screen 0 2000x1200x24" node tests/e2e/kami-e2e.mjs
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && env.RUN_E2E == 'true'
         with:
           name: e2e-linux-prints-e-log
@@ -212,7 +212,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: linux-distribution
@@ -349,7 +349,7 @@ jobs:
           fi
           test -f "$data_home/kami/keep.txt"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: sidecar-log-${{ matrix.distro }}
@@ -509,7 +509,7 @@ jobs:
       # (windows-2022) com este mesmo executável — ver o comentário lá
       - name: Keep the compiled app for the Windows end-to-end test
         if: env.RUN_E2E == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-app-for-e2e
           path: |
@@ -527,7 +527,7 @@ jobs:
             Copy-Item $log (Join-Path $env:RUNNER_TEMP "kami-backend.log") -Force
           }
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: windows-smoke-logs-and-installer
@@ -595,7 +595,7 @@ jobs:
           Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
           node tests/e2e/kami-e2e.mjs
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: e2e-windows-prints-e-log
