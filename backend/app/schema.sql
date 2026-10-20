@@ -386,10 +386,13 @@ CREATE TABLE IF NOT EXISTS email_accounts (
     imap_port         INTEGER NOT NULL,
     username          TEXT NOT NULL,
     app_password_enc  TEXT NOT NULL,   -- senha de app, criptografada localmente
-    sync_by_default   INTEGER NOT NULL DEFAULT 1  -- redesign da aba e-mail: contas "padrão"
+    sync_by_default   INTEGER NOT NULL DEFAULT 1, -- redesign da aba e-mail: contas "padrão"
                                                     -- já vêm selecionadas na visualização
                                                     -- combinada ao entrar na tela (ver
                                                     -- plano-email-organizacao.md secao 3.1)
+    sync_erro         TEXT,            -- ORG-06: "senha" | "login" — falha que só a pessoa resolve
+    sync_erro_desde   TEXT,            -- quando essa falha começou (o aviso mostra)
+    ultimo_sync_ok    TEXT             -- última sincronização que deu certo
 );
 
 CREATE TABLE IF NOT EXISTS email_cache (

@@ -251,6 +251,15 @@ class EmailAccountOut(BaseModel):
     username: str
     sync_by_default: bool = True
     # app_password_enc propositalmente omitido — nunca sai da API
+    # ORG-06: a sincronização automática (a cada 5 min) falhava em
+    # silêncio — com as senhas apagadas (chave redefinida) o Emanuel
+    # ficou horas sem e-mail novo sem saber. Agora a falha que só ELE
+    # resolve fica gravada na conta e a tela avisa:
+    #   "senha" = senha salva vazia/ilegível; "login" = servidor recusou.
+    # Queda de rede não entra (passa sozinha, avisar só incomodaria).
+    sync_erro: Optional[str] = None
+    sync_erro_desde: Optional[str] = None
+    ultimo_sync_ok: Optional[str] = None
 
 
 class EmailSyncResult(BaseModel):
@@ -587,13 +596,30 @@ def _extract_body(msg) -> tuple[str, bool, Optional[str]]:
 def list_email_accounts(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM email_accounts ORDER BY label").fetchall()
     return [
-        {
-            "id": r["id"], "label": r["label"], "imap_host": r["imap_host"],
-            "imap_port": r["imap_port"], "username": r["username"],
-            "sync_by_default": bool(r["sync_by_default"]),
-        }
-        for r in rows
+        _account_out(r) for r in rows
     ]
+
+
+def _account_out(r) -> dict:
+    return {
+        "id": r["id"], "label": r["label"], "imap_host": r["imap_host"],
+        "imap_port": r["imap_port"], "username": r["username"],
+        "sync_by_default": bool(r["sync_by_default"]),
+        "sync_erro": r["sync_erro"], "sync_erro_desde": r["sync_erro_desde"],
+        "ultimo_sync_ok": r["ultimo_sync_ok"],
+    }
+
+
+def _marcar_erro_de_sync(db, account_id: str, erro: str) -> None:
+    """Grava a falha (mantendo o "desde" da primeira vez) e confirma já —
+    quem chama levanta HTTPException em seguida, e get_db() fecha a
+    conexão sem commit."""
+    db.execute(
+        "UPDATE email_accounts SET sync_erro = ?, "
+        "sync_erro_desde = CASE WHEN sync_erro = ? THEN sync_erro_desde ELSE ? END WHERE id = ?",
+        (erro, erro, now_iso(), account_id),
+    )
+    db.commit()
 
 
 @router.post("/email-accounts", response_model=EmailAccountOut, status_code=201)
@@ -606,11 +632,7 @@ def create_email_account(payload: EmailAccountIn, db=Depends(get_db)):
         (account_id, payload.label, payload.imap_host, payload.imap_port, payload.username, enc_password, int(payload.sync_by_default)),
     )
     db.commit()
-    return {
-        "id": account_id, "label": payload.label, "imap_host": payload.imap_host,
-        "imap_port": payload.imap_port, "username": payload.username,
-        "sync_by_default": payload.sync_by_default,
-    }
+    return _account_out(db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone())
 
 
 @router.put("/email-accounts/{account_id}", response_model=EmailAccountOut)
@@ -630,18 +652,21 @@ def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depend
         payload.sync_by_default if payload.sync_by_default is not None else bool(row["sync_by_default"])
     )
 
+    # mudou o que entra no login (senha, usuário, servidor): o aviso de
+    # erro sai na hora — a próxima sincronização diz se resolveu
+    mexeu_no_login = bool(payload.app_password) or (username, imap_host, imap_port) != (
+        row["username"], row["imap_host"], row["imap_port"]
+    )
     db.execute(
         "UPDATE email_accounts SET label = ?, imap_host = ?, imap_port = ?, username = ?, "
         "app_password_enc = ?, sync_by_default = ? WHERE id = ?",
         (label, imap_host, imap_port, username, app_password_enc, int(sync_by_default), account_id),
     )
+    if mexeu_no_login:
+        db.execute("UPDATE email_accounts SET sync_erro = NULL, sync_erro_desde = NULL WHERE id = ?", (account_id,))
     db.commit()
 
-    return {
-        "id": account_id, "label": label, "imap_host": imap_host,
-        "imap_port": imap_port, "username": username,
-        "sync_by_default": sync_by_default,
-    }
+    return _account_out(db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone())
 
 
 @router.delete("/email-accounts/{account_id}", status_code=204)
@@ -663,7 +688,13 @@ def sync_email_account(
 
     try:
         plain_password = decrypt_password(account["app_password_enc"])
+    except ChaveIndisponivel:
+        # chave das senhas fora do cofre (SEG-01): o 409 global explica;
+        # pra conta, é o mesmo "a senha não dá pra usar"
+        _marcar_erro_de_sync(db, account_id, "senha")
+        raise
     except ValueError:
+        _marcar_erro_de_sync(db, account_id, "senha")
         raise HTTPException(
             status_code=422,
             detail="não foi possível ler a senha salva; edite a conta e informe a senha de app de novo",
@@ -674,6 +705,7 @@ def sync_email_account(
         imap.login(account["username"], plain_password)
         imap.select("INBOX")
     except imaplib.IMAP4.error:
+        _marcar_erro_de_sync(db, account_id, "login")
         raise HTTPException(
             status_code=422,
             detail="falha ao autenticar no imap; verifique host/porta/usuário/senha de app",
@@ -773,6 +805,10 @@ def sync_email_account(
             )
             new_count += 1
         _podar_textos_antigos(db, account_id)
+        db.execute(
+            "UPDATE email_accounts SET sync_erro = NULL, sync_erro_desde = NULL, ultimo_sync_ok = ? WHERE id = ?",
+            (now_iso(), account_id),
+        )
         db.commit()
     except sqlite3.OperationalError as exc:
         db.rollback()

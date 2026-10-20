@@ -55,6 +55,35 @@
 .org-account.is-muted:hover { opacity: 0.9; }
 .org-account.is-muted .org-account-actions [data-mute-account] { color: var(--accent); }
 
+/* ── aviso de conta que não sincroniza (ORG-06): senha/login que só a
+   pessoa resolve. Âmbar (atenção), não vermelho: nada se perdeu, só
+   parou de chegar e-mail novo. ── */
+.email-alerta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, var(--bg));
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.email-alerta-icone { color: var(--amber); display: inline-flex; flex: 0 0 auto; }
+.email-alerta-texto { flex: 1 1 auto; min-width: 0; }
+.email-alerta-texto b { color: var(--text-bright); }
+.email-alerta .btn { flex: 0 0 auto; }
+#acc-password-hint.is-erro { color: var(--amber) !important; }
+.org-account-erro {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  font-size: 9.5px;
+  color: var(--amber);
+}
+
 /* ── lista de e-mails (mais rica que .log-item — tem avatar, remetente e
    prévia do corpo). ORG-06: agrupada por dia (.email-grupo), remetente
    em cima (nome em destaque, endereço menor), assunto, prévia limpa;

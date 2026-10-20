@@ -126,6 +126,11 @@ def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE email_cache ADD COLUMN message_id TEXT")
     if "gmail_id" not in cols:
         conn.execute("ALTER TABLE email_cache ADD COLUMN gmail_id TEXT")
+    # ORG-06: falha de sincronização gravada na conta (ver EmailAccountOut)
+    contas = [r["name"] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()]
+    for col in ("sync_erro", "sync_erro_desde", "ultimo_sync_ok"):
+        if col not in contas:
+            conn.execute(f"ALTER TABLE email_accounts ADD COLUMN {col} TEXT")
     conn.commit()
 
 

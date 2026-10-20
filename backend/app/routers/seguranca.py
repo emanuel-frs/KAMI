@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app import crypto, pin
-from app.database import get_db
+from app.database import get_db, now_iso
 from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,14 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     estado = crypto.redefinir_chave()
     # cifrados com a chave antiga = lixo ilegível; a conta de e-mail fica
     # (com a senha vazia) pra pessoa só informar a senha de app de novo
-    db.execute("UPDATE email_accounts SET app_password_enc = ''")
+    # ORG-06: a conta já fica marcada — a aba de e-mail avisa na hora que a
+    # senha precisa ser informada de novo (antes a sincronização automática
+    # só falhava em silêncio)
+    db.execute(
+        "UPDATE email_accounts SET app_password_enc = '', sync_erro = 'senha', "
+        "sync_erro_desde = COALESCE(sync_erro_desde, ?)",
+        (now_iso(),),
+    )
     db.execute("UPDATE github_settings SET token_enc = NULL")
     db.execute("UPDATE search_settings SET api_key_enc = NULL")
     db.commit()

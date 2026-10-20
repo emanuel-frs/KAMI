@@ -159,6 +159,19 @@ def test_seg_05_redefining_the_key_erases_old_secrets_and_works_again(client, co
     assert client.put("/api/organizacao/search-key", json={"api_key": "tvly-novo"}).status_code in (200, 201)
 
 
+def test_seg_05_redefining_the_key_flags_email_accounts_for_a_new_password(client, cofre_de_teste):
+    """ORG-06: depois de redefinir, a conta de e-mail já sai marcada — a
+    aba avisa na hora, sem esperar a sincronização falhar em silêncio."""
+    _recarregar()
+    client.post(
+        "/api/organizacao/email-accounts",
+        json={"label": "gmail", "imap_host": "imap.gmail.com", "imap_port": 993, "username": "eu", "app_password": "x"},
+    )
+    client.post("/api/seguranca/chave/redefinir", json={"confirmation": "redefinir"})
+    conta = client.get("/api/organizacao/email-accounts").json()[0]
+    assert conta["sync_erro"] == "senha" and conta["sync_erro_desde"]
+
+
 def test_seg_01_each_data_folder_has_its_own_vault_entry(cofre_de_teste, tmp_path, monkeypatch):
     _recarregar()
     outra = tmp_path / "demo"

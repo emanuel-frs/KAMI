@@ -489,6 +489,40 @@ def test_non_gmail_sync_does_not_ask_for_gmail_id(client, isolated_fernet_key, m
     assert conn.fetch.call_args[0][1] == "(RFC822)"
 
 
+def test_sync_errors_are_recorded_on_the_account_and_cleared(client, isolated_fernet_key, mock_imap, db_conn):
+    """ORG-06: a falha que só a pessoa resolve fica na conta (a tela
+    avisa); queda de rede não; sucesso ou trocar a senha limpa."""
+    account = _conta_gmail(client)
+    conta = lambda: client.get("/api/organizacao/email-accounts").json()[0]
+
+    mock_imap(connect_error=True)
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true")
+    assert conta()["sync_erro"] is None
+
+    mock_imap(login_error=True)
+    assert client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true").status_code == 422
+    primeira = conta()
+    assert primeira["sync_erro"] == "login" and primeira["sync_erro_desde"]
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true")
+    assert conta()["sync_erro_desde"] == primeira["sync_erro_desde"]  # mantém o começo
+
+    # trocar a senha tira o aviso na hora
+    client.put(f"/api/organizacao/email-accounts/{account['id']}", json={"app_password": "nova"})
+    assert conta()["sync_erro"] is None
+
+    # senha apagada (chave redefinida) -> "senha"; sincronizar com sucesso limpa
+    db_conn.execute("UPDATE email_accounts SET app_password_enc = ''")
+    db_conn.commit()
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    assert conta()["sync_erro"] == "senha"
+    db_conn.execute("UPDATE email_accounts SET app_password_enc = ?", (__import__("app.crypto", fromlist=["x"]).encrypt_password("x"),))
+    db_conn.commit()
+    mock_imap(messages=[])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    depois = conta()
+    assert depois["sync_erro"] is None and depois["ultimo_sync_ok"]
+
+
 def test_get_email_not_found_returns_404(client):
     assert client.get("/api/organizacao/email-cache/inexistente").status_code == 404
 

@@ -141,7 +141,12 @@ export async function mount(container, opts) {
     state.schedulerSyncing = running;
     renderSyncButton();
     if (wasRunning && !running) {
-      await loadEmailsForSelectedAccounts();
+      // recarrega as contas também: é aqui que a falha da sincronização
+      // automática (senha/login) aparece na faixa de aviso (ORG-06)
+      await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
+      if (!rootEl) return;
+      renderAccountChips();
+      renderAccounts();
       renderEmails();
     }
   });
@@ -308,6 +313,7 @@ function template() {
           <button type="button" class="btn sm" data-action="open-manage-accounts-modal">${icon("settings", { size: 12 })} gerenciar contas</button>
         </div>
         <div class="card-body">
+          <div id="org-email-alertas"></div>
           <div class="email-search-row">
             <input type="text" id="org-email-search" placeholder="buscar por assunto, remetente ou texto..." aria-label="buscar e-mails por assunto, remetente ou texto">
           </div>
@@ -1047,6 +1053,7 @@ function renderAccounts() {
         <div class="org-account-info">
           <b>${escapeHtml(a.label)}${a.sync_by_default ? ` ${icon("star", { size: 10, fill: "currentColor" })}` : ""}</b>
           <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}${muted ? ` · <span class="email-muted-tag">${icon("bell-off", { size: 9 })} silenciada</span>` : ""}</span>
+          ${SYNC_ERRO_TEXTO[a.sync_erro] ? `<span class="org-account-erro">${icon("triangle-alert", { size: 10 })} ${SYNC_ERRO_TEXTO[a.sync_erro].motivo}</span>` : ""}
         </div>
         <div class="org-account-actions">
           <span class="icon-btn" data-tooltip="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" aria-label="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
@@ -1070,6 +1077,7 @@ function closeManageAccountsModal() {
 /* ==================== chips de conta (visualização combinada) ==================== */
 
 function renderAccountChips() {
+  renderSyncAlerts();
   const wrap = rootEl.querySelector("#org-account-chips");
   if (!wrap) return;
   if (!state.accounts.length) {
@@ -1086,6 +1094,39 @@ function renderAccountChips() {
         ${escapeHtml(a.label)}
         <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}" aria-label="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
       </span>`;
+    })
+    .join("");
+}
+
+// ORG-06: o que dizer pra cada falha gravada na conta (sync_erro, ver
+// EmailAccountOut no backend). Só falhas que a pessoa resolve — queda de
+// rede não chega aqui.
+const SYNC_ERRO_TEXTO = {
+  senha: { motivo: "a senha de app salva não pode ser usada (a chave das senhas foi redefinida?)", acao: "informar a senha" },
+  login: { motivo: "o servidor recusou o login — confira o usuário e a senha de app", acao: "editar conta" },
+};
+
+/**
+ * Faixa de aviso no topo da aba de e-mail, uma linha por conta com
+ * problema. Antes a sincronização automática (a cada 5 min) falhava só
+ * no console: com as senhas apagadas, o Emanuel ficou uma tarde inteira
+ * sem e-mail novo sem saber. O botão abre a edição da conta; salvar uma
+ * senha nova tira o aviso na hora (o backend limpa sync_erro).
+ */
+function renderSyncAlerts() {
+  const wrap = rootEl?.querySelector("#org-email-alertas");
+  if (!wrap) return;
+  const comErro = state.accounts.filter((a) => SYNC_ERRO_TEXTO[a.sync_erro]);
+  wrap.innerHTML = comErro
+    .map((a) => {
+      const t = SYNC_ERRO_TEXTO[a.sync_erro];
+      const desde = a.sync_erro_desde ? ` desde ${escapeHtml(fmtDateTimeBR(a.sync_erro_desde))}` : "";
+      return `
+      <div class="email-alerta" role="alert">
+        <span class="email-alerta-icone" aria-hidden="true">${icon("triangle-alert", { size: 13 })}</span>
+        <span class="email-alerta-texto">a conta <b>${escapeHtml(a.label)}</b> não sincroniza${desde} — ${t.motivo}.</span>
+        <button type="button" class="btn sm warn" data-edit-account="${a.id}">${t.acao}</button>
+      </div>`;
     })
     .join("");
 }
@@ -1165,14 +1206,21 @@ async function handleSyncSelectedAccounts() {
     renderSyncButton();
   }
 
-  await loadEmailsForSelectedAccounts();
+  await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
+  renderAccountChips();
   renderEmails();
 
+  // antes dizia "concluída — nenhum e-mail novo" mesmo com todas as
+  // contas falhando; agora a falha aparece (e a faixa diz o porquê)
   const n = results.reduce((sum, r) => sum + (r?.new_messages ?? 0), 0);
+  const falhas = results.filter((r) => r === null).length;
   showToast({
-    title: "sincronização concluída",
-    message: n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
-    iconName: "refresh-cw",
+    title: falhas ? `${falhas} conta${falhas === 1 ? "" : "s"} não sincronizou` : "sincronização concluída",
+    message: falhas
+      ? "veja o aviso no topo da aba de e-mail"
+      : n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
+    iconName: falhas ? "triangle-alert" : "refresh-cw",
+    variant: falhas ? "erro" : undefined,
   });
   refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
 }
@@ -1190,13 +1238,23 @@ function openAccountModal(accountId) {
     rootEl.querySelector("#acc-username").value = acc.username;
     rootEl.querySelector("#acc-password").value = "";
     syncByDefaultInput.checked = !!acc.sync_by_default;
-    hint.textContent = "(deixe em branco pra manter a senha atual)";
+    // ORG-06: veio do aviso "a senha não pode ser usada" — manter a atual
+    // não resolve nada, então o campo já diz isso e recebe o foco
+    const senhaRuim = acc.sync_erro === "senha";
+    hint.textContent = senhaRuim
+      ? "(a senha salva não funciona — informe a senha de app de novo)"
+      : "(deixe em branco pra manter a senha atual)";
+    hint.classList.toggle("is-erro", senhaRuim);
+    // modal-accessibility.js põe o foco em [data-autofocus] ao abrir
+    rootEl.querySelector("#acc-password").toggleAttribute("data-autofocus", senhaRuim);
   } else {
     rootEl.querySelector("#acc-edit-id").value = "";
     ["acc-label", "acc-host", "acc-username", "acc-password"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
     rootEl.querySelector("#acc-port").value = 993;
     syncByDefaultInput.checked = true;
     hint.textContent = "";
+    hint.classList.remove("is-erro");
+    rootEl.querySelector("#acc-password").removeAttribute("data-autofocus");
   }
   modal.classList.add("open");
 }
@@ -1262,6 +1320,7 @@ async function handleSyncAccount(accountId) {
     result = await api.syncEmailAccount(accountId);
   } catch (err) {
     showErrorModal(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.", "falha ao sincronizar");
+    loadAccounts().then(() => rootEl && (renderAccountChips(), renderAccounts())).catch(() => {});
     return;
   } finally {
     state.syncingAccounts.delete(accountId);
@@ -1273,8 +1332,9 @@ async function handleSyncAccount(accountId) {
   // mesmo que não estivesse ativa antes — sem isso o resultado do sync
   // some (não aparece em lugar nenhum até a pessoa ligar o chip manualmente).
   state.selectedAccountIds.add(accountId);
+  await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
   renderAccountChips();
-  await loadEmailsForSelectedAccounts();
+  renderAccounts();
   renderEmails();
 
   // feedback visível de que o sync rodou de verdade (antes não tinha
