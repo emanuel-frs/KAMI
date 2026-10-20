@@ -90,9 +90,10 @@ export function colsForWidth(w) {
  *    Finanças puxava os lançamentos pro meio e empilhava o resto numa
  *    coluna estreita.) O card fixo (perfil) fica sempre em 1/1.
  * 2. Preenchimento (`fill`, ligado fora do resize manual):
- *    - nivelamento, já no encaixe: card que termina até FILL_DOWN_MAX
- *      acima/abaixo do vizinho de lado estica pra base ficar reta — a
- *      faixa seguinte começa alinhada (ver nivelar);
+ *    - nivelamento, já no encaixe: card que termina pouco acima/abaixo do
+ *      vizinho de lado estica pra base ficar reta — a faixa seguinte
+ *      começa alinhada (até FILL_DOWN_MAX e metade da própria altura, no
+ *      total; ver nivelar);
  *    - pros lados: card ao lado de coluna livre em toda a altura dele estica
  *      até ela — some a faixa vazia à direita e o vão entre larguras que não
  *      fecham (ex.: 3/6 + 2/6 numa linha);
@@ -126,7 +127,7 @@ export function packLayout(items, cols, { fill = true } = {}) {
         bestTop = top;
       }
     }
-    const k = { col: best, row: bestTop, span: s, rows: r };
+    const k = { col: best, row: bestTop, span: s, rows: r, natural: r };
     out.push(k);
     for (let c = best; c < best + s; c++) {
       sky[c] = bestTop + r;
@@ -146,15 +147,20 @@ export function packLayout(items, cols, { fill = true } = {}) {
  */
 function nivelar(k, sky, dono, cols) {
   const base = () => k.row + k.rows;
+  // quanto um card pode esticar no total: até FILL_DOWN_MAX e até metade da
+  // própria altura — somando todos os nivelamentos (sem o teto acumulado,
+  // "formação" em Carreira esticou duas vezes seguidas e ficou 325px vazia)
+  const cabe = (card, mais) =>
+    card.rows + mais - card.natural <= Math.min(FILL_DOWN_MAX, Math.ceil(card.natural / 2));
   for (const n of [k.col - 1, k.col + k.span]) {
     if (n < 0 || n >= cols) continue;
     const diff = sky[n] - base();
-    if (diff > 0 && diff <= FILL_DOWN_MAX) {
+    if (diff > 0 && cabe(k, diff)) {
       k.rows += diff; // o vizinho é mais alto: este desce até ele
       for (let c = k.col; c < k.col + k.span; c++) sky[c] = base();
-    } else if (diff < 0 && -diff <= FILL_DOWN_MAX) {
+    } else if (diff < 0) {
       const o = dono[n]; // o vizinho é mais baixo: ele desce até este, se for a superfície inteira dele
-      if (o && o !== k && [...Array(o.span).keys()].every((i) => dono[o.col + i] === o)) {
+      if (o && o !== k && cabe(o, -diff) && [...Array(o.span).keys()].every((i) => dono[o.col + i] === o)) {
         o.rows += -diff;
         for (let c = o.col; c < o.col + o.span; c++) sky[c] = o.row + o.rows;
       }

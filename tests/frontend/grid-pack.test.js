@@ -145,3 +145,17 @@ test(
     assert.deepEqual(pos.slice(3).map((p) => [p.col, p.row]), [[1, 131], [3, 131], [5, 131]]);
   })
 );
+
+test(
+  "nivelamento tem teto acumulado: um card não estica duas vezes até virar um bloco vazio",
+  withDom("<body></body>", async () => {
+    const { packLayout } = await grid();
+    // Carreira: posições (60) | formação (45); área (40) embaixo das posições; interesses (35)
+    const items = [{ span: 3, rows: 60 }, { span: 3, rows: 45 }, { span: 3, rows: 40 }, { span: 3, rows: 35 }];
+    const pos = packLayout(items, 6);
+    ocupacao(items.map((it, i) => ({ ...it, span: pos[i].span, rows: pos[i].rows })), pos, 6);
+    assert.ok(pos[1].rows - 45 <= Math.min(40, 23), `formação esticou ${pos[1].rows - 45} linhas`);
+    // interesses vai pra baixo da formação (lado direito), não pra esquerda
+    assert.equal(pos[3].col, 4);
+  })
+);

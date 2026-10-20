@@ -267,7 +267,7 @@ LAYOUT_PADRAO = {
         ("compras_parceladas", 2, None),
     ],
     "carreira": [
-        ("carreira_posicoes", 3, 420),          # linha do tempo | formação + área
+        ("carreira_posicoes", 3, None),         # linha do tempo | formação + área (o nivelamento alinha)
         ("carreira_formacoes", 3, None),
         ("carreira_perfil", 3, None),
         ("carreira_interesses", 3, None),

@@ -288,6 +288,14 @@ a { color: var(--text-bright); }
   flex: 1 1 auto; min-width: 0;
   cursor: pointer;
 }
+/* sem avatar: o aviso quebra linha (o desenho ASCII não pode quebrar) */
+.mini-avatar.mini-avatar--vazio {
+  white-space: normal;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--text-faint);
+}
+.mini-avatar.mini-avatar--vazio:hover { color: var(--accent); }
 #btn-open-settings { flex: 0 0 auto; }
 /* GAM-05: nível geral + barra de xp em texto, acima do rodapé (avatar e
    botões) — components/sidebar-level.js */

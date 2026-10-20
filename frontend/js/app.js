@@ -199,6 +199,9 @@ function applyProfileToSidebar(profile) {
   }
 
   const sidebarAvatarEl = document.getElementById("sidebar-avatar");
+  // sem avatar: o aviso quebra linha como texto normal (o <pre> do desenho
+  // ASCII cortava em "sem avatar ainda — con", LAY-01)
+  sidebarAvatarEl?.classList.toggle("mini-avatar--vazio", !profile.avatar_ascii);
   if (sidebarAvatarEl && profile.avatar_ascii) {
     sidebarAvatarEl.textContent = profile.avatar_ascii;
     try {

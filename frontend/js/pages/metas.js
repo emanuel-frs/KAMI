@@ -535,8 +535,6 @@ function goalCardHtml(goal) {
     <div class="card goal-card${isDone ? " done" : ""}" data-goal-id="${goal.id}">
       <div class="card-head">
         <span class="goal-title" data-tooltip="${escapeHtml(goal.title)}">${escapeHtml(goal.title)}</span>
-        <span class="goal-type-tag">${GOAL_TYPE_LABELS[goal.type] || goal.type}</span>
-        <span class="goal-weight-tag goal-weight-${goal.weight}">${goal.weight}</span>
         <span class="push goal-card-icons">
           ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
           <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
@@ -544,6 +542,10 @@ function goalCardHtml(goal) {
         </span>
       </div>
       <div class="card-body">
+        <div class="goal-tags">
+          <span class="goal-type-tag">${GOAL_TYPE_LABELS[goal.type] || goal.type}</span>
+          <span class="goal-weight-tag goal-weight-${goal.weight}">${goal.weight}</span>
+        </div>
         <div class="bar-track"><div class="bar-fill${isDone ? " alt" : ""}" style="width:${pct}%;"></div></div>
         <div class="goal-values">
           <span>${goalValuesText(goal)}</span>
