@@ -249,12 +249,24 @@ function getScaled(card, cols) {
   return unitToScaled(parseInt(card.dataset.span, 10) || 2, cols);
 }
 
+/**
+ * Largura em colunas reais que o card ocupa AGORA. Não mexe no
+ * data-span (a largura salva, em sextos): o mínimo de conteúdo numa grade
+ * estreita alarga só o desenho. Antes o data-span era reescrito aqui e, no
+ * próximo arrasto numa janela de 4 colunas, a largura distorcida era salva.
+ */
+function applyScaled(card, scaled, cols) {
+  scaled = Math.max(1, Math.min(cols, scaled));
+  card.dataset.scaled = String(scaled); // packCards ainda pode esticar o desenho
+  card.style.gridColumnEnd = `span ${scaled}`; // a coluna de início é do packCards
+}
+
+/** Resize manual: a pessoa escolheu a largura — essa vira a salva. */
 function setScaled(card, scaled, cols) {
   scaled = Math.max(1, Math.min(cols, scaled));
   card.dataset.span = scaledToUnit(scaled, cols);
   card.dataset.scaled = String(scaled); // a largura de verdade — packCards pode esticar só o desenho
-  card.style.gridColumnStart = "auto"; // era "" — isso deixava a regra CSS "span 2" do fallback vencer
-  card.style.gridColumnEnd = `span ${scaled}`;
+  card.style.gridColumnEnd = `span ${scaled}`; // a coluna de início é do packCards
 }
 
 /**
@@ -351,7 +363,7 @@ function placeCard(card, cols) {
   const max = maxScaled(card, cols);
   if (scaled < min) scaled = min;
   if (scaled > max) scaled = max;
-  setScaled(card, scaled, cols);
+  applyScaled(card, scaled, cols);
 
   // Cards com .editing (ex: profile.js em modo de edição) controlam a
   // própria altura via grid-row-end manualmente (scrollHeight + folga
@@ -403,6 +415,24 @@ function placeCard(card, cols) {
 
   const badge = card.querySelector(":scope > .wg-size-badge");
   if (badge) badge.textContent = `${scaled}/${cols}`;
+
+  // toda mudança de tamanho reempacota a grade (uma vez por frame): sem
+  // isso, um card que terminou de carregar ficava com a posição velha até
+  // o próximo resize da janela
+  schedulePack(card.parentElement);
+}
+
+const pendingPack = new WeakMap();
+function schedulePack(container) {
+  if (!container?.classList?.contains("widget-grid") || pendingPack.has(container)) return;
+  const raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+  pendingPack.set(container, true);
+  raf(() => {
+    pendingPack.delete(container);
+    if (container.isConnected && !document.body.classList.contains("kami-resizing")) {
+      packCards(container, currentCols(container));
+    }
+  });
 }
 
 /**
@@ -1100,14 +1130,11 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
   let widgets = [...initialWidgets];
   const observedCards = new WeakSet();
 
-  let packFrame = 0;
+  // a altura de um card mudou (conteúdo carregou, lista cresceu): placeCard
+  // mede e agenda o reempacotamento (schedulePack, uma vez por frame)
   const cardRO = new ResizeObserver((entries) => {
     const cols = currentCols(container);
     entries.forEach((e) => placeCard(e.target, cols));
-    // a altura de um card mudou (conteúdo carregou, lista cresceu): os de
-    // baixo precisam subir/descer — um empacotamento por frame
-    cancelAnimationFrame(packFrame);
-    packFrame = requestAnimationFrame(() => packCards(container, currentCols(container)));
   });
 
   const containerRO = new ResizeObserver(() => syncGrid(container));
@@ -1344,13 +1371,30 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     if (added.length > 0) {
       added.forEach(widget => {
         const card = createCard(widget);
-        if (card) container.appendChild(card);
+        if (!card) return;
+        // entra na posição que tem na lista (ex.: widget readicionado volta
+        // pro lugar dele no layout padrão), não sempre no fim
+        const after = newWidgets.slice(newWidgets.indexOf(widget) + 1)
+          .map((w) => container.querySelector(`:scope > .card[data-widget="${w.widget_type}"]`))
+          .find(Boolean);
+        if (after) after.before(card);
+        else container.appendChild(card);
       });
       kw.refreshAllLabels();
       requestAnimationFrame(() => syncGrid(container));
     } else {
       render(widgets);
     }
+  }
+
+  /**
+   * Troca o layout inteiro, removendo/reordenando o que for preciso —
+   * "restaurar padrão" e o desfazer (LAY-05). setWidgets só sabe ACRESCENTAR.
+   */
+  function resetWidgets(newWidgets) {
+    kw.cancelIfActive({ silent: true });
+    widgets = [...newWidgets];
+    render(widgets);
   }
 
   /**
@@ -1369,7 +1413,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     container.classList.remove("wg-tips-locked");
   }
 
-  return { destroy, setWidgets, lockForTips, unlockForTips };
+  return { destroy, setWidgets, resetWidgets, lockForTips, unlockForTips };
 }
 
 /**

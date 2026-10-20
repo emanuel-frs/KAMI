@@ -7,6 +7,7 @@ import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
 import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
+import { oferecerLayoutNovo } from "./components/layout-novidade.js";
 import { garantirDesbloqueio, startInactivityLock, wireLockScreen } from "./components/lock-screen.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
@@ -353,6 +354,8 @@ async function boot() {
     // components/backup-reminder.js pro critério (nunca fez export,
     // ou já faz tempo desde o último).
     maybeShowBackupReminder(profile);
+    // P-23: o layout padrão melhorou desde a versão que a pessoa usava?
+    oferecerLayoutNovo({ recarregarTela: reloadCurrentPage });
     // GAM-12: no 1º acesso do mês novo, a retrospectiva do mês que acabou
     // abre sozinha (uma vez) — fora do onboarding, pra não empilhar telas
     startRetrospective();

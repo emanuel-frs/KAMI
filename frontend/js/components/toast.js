@@ -22,7 +22,7 @@ import { estaNoDocumento } from "./no-documento.js";
  *   - `actions: [{ label, onClick(botão) }]` → botões pequenos embaixo da
  *     mensagem (ex.: "copiar detalhes"). O onClick recebe o próprio botão
  *     (pra trocar o rótulo, ex. "copiado ✓"). O clique numa ação não fecha
- *     o toast, a menos que o onClick devolva true.
+ *     o toast, a menos que o onClick devolva true (ou uma Promise que resolve true).
  */
 
 let stackEl = null;
@@ -108,7 +108,10 @@ export function showToast({
   el.querySelectorAll("[data-toast-action]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (actions[Number(btn.dataset.toastAction)].onClick(btn) === true) dismiss();
+      const r = actions[Number(btn.dataset.toastAction)].onClick(btn);
+      // ação assíncrona (ex.: aplicar o layout novo): fecha quando resolver com true
+      if (r === true) dismiss();
+      else if (typeof r?.then === "function") r.then((v) => v === true && dismiss(), () => {});
     });
   });
 
