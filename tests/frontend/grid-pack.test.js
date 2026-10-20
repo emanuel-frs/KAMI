@@ -1,10 +1,10 @@
-// LAY-03/04 — empacotamento dos widgets (widgets/grid.js: packLayout, colsForWidth).
+// LAY-03/04 — empacotamento dos widgets (widgets/grid-pack.js: packLayout, colsForWidth).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { withDom } from "./helpers/dom.js";
 
 async function grid() {
-  return import("../../frontend/js/widgets/grid.js");
+  return import("../../frontend/js/widgets/grid-pack.js");
 }
 
 /** Monta a ocupação (matriz linha × coluna) e confere que ninguém se sobrepõe. */
