@@ -601,7 +601,7 @@ def _migrate_missoes_widget(conn: sqlite3.Connection, had_missoes: bool) -> None
     layout — só uma vez, na primeira inicialização com a tabela missoes
     (`had_missoes` = a tabela já existia ANTES do schema.sql rodar). Quem
     remover o widget depois não o vê voltar. Instalação nova (layout ainda
-    vazio) recebe o widget pelo DEFAULT_LAYOUTS de _seed_defaults.
+    vazio) recebe o widget pelo LAYOUT_PADRAO (app/widgets.py) em _seed_defaults.
     """
     if had_missoes:
         return
@@ -912,53 +912,21 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
             (new_id(), "parte 2", 1300, parte1_id, 15),
         )
 
-    # dashboard: layout default por tela (decisão 17) — espelha o layout
-    # pessoal do usuário (kami-backup-2026-09-18.json / dashboard_widgets),
-    # já com a largura (sextos da linha) e a altura (px, congelada no
-    # momento do backup) que ele mesmo ajustou na UI. Substitui o antigo
-    # layout genérico baseado só em default_span do WIDGET_CATALOG — aqui
-    # cada entrada é (widget_type, width, height); height=None cai de volta
-    # pra altura automática por conteúdo (ver grid.js), igual antes.
-    DEFAULT_LAYOUTS = {
-        "nucleo": [
-            ("missoes", 6, None),  # GAM-07 — topo do Núcleo, altura por conteúdo
-            ("achievements", 3, 396),
-            ("registrar", 3, 228),
-            ("attributes", 2, 308),
-            ("log", 2, 308),
-            ("priorities", 3, 140),
-        ],
-        "carreira": [
-            ("carreira_posicoes", 3, 420),
-            ("carreira_formacoes", 3, 256),
-            ("carreira_interesses", 2, 304),
-            ("carreira_salario", 2, 304),
-            ("carreira_perfil", 3, 140),
-        ],
-        "perfil": [
-            ("profile", 3, 196),
-            ("achievements", 3, 492),
-            ("attributes", 2, 280),
-            ("perfil_atividade", 2, 280),
-        ],
-        "financas": [
-            ("financas_resumo", 3, 156),
-            ("financas_grafico_fluxo", 2, 192),
-            ("financas_grafico_evolucao", 2, 192),
-            ("carteira", 3, 204),
-            ("financas_assinaturas", 2, 168),
-            ("dividas", 2, 168),
-            ("financas_registros", 2, 200),
-            ("financas_grafico_categorias", 2, 200),
-            ("financas_renda", 2, 236),
-            ("compras_parceladas", 2, 320),
-            ("financas_grafico_limites", 2, 152),
-            ("contas_fixas", 2, 168),
-        ],
-    }
+    # dashboard: layout padrão por tela (LAY-02) — definido em
+    # app/widgets.py (LAYOUT_PADRAO), junto do catálogo; o mesmo dado serve
+    # o "restaurar padrão" e o aviso de layout novo (routers/dashboard.py).
+    from app.widgets import LAYOUT_PADRAO, LAYOUT_PADRAO_VERSAO
+
     cur.execute("SELECT COUNT(*) AS c FROM dashboard_widgets")
     if cur.fetchone()["c"] == 0:
-        for screen, widgets in DEFAULT_LAYOUTS.items():
+        # instalação nova (ou reset): já nasce com o padrão atual — o aviso
+        # "o layout padrão melhorou" (P-23) é só pra quem tinha o antigo
+        cur.execute(
+            "INSERT INTO sistema_info (chave, valor) VALUES ('layout_padrao_versao', ?) "
+            "ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
+            (str(LAYOUT_PADRAO_VERSAO),),
+        )
+        for screen, widgets in LAYOUT_PADRAO.items():
             for position, (widget_type, width, height) in enumerate(widgets):
                 cur.execute(
                     "INSERT INTO dashboard_widgets "

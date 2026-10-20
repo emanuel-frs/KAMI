@@ -224,3 +224,60 @@ def is_valid_widget_type(widget_type: str) -> bool:
 
 def screens_for(widget_type: str):
     return WIDGET_CATALOG.get(widget_type, {}).get("screens", [])
+
+# ── layout padrão por tela (LAY-02) ─────────────────────────────────────
+#
+# Montado como composição numa grade de 6 colunas: em cada faixa as
+# larguras fecham 6 (4+2, 3+3, 2+2+2), e o que fica lado a lado tem altura
+# parecida — o empacotamento (frontend/js/widgets/grid.js, packLayout)
+# alinha o resto esticando o desenho. Cada item é (widget, largura em
+# sextos, altura em px ou None = pela altura do conteúdo). A ordem importa:
+# é a ordem em que os cards são encaixados.
+#
+# Mudou o padrão? Suba LAYOUT_PADRAO_VERSAO: quem já usa o app vê o aviso
+# "o layout padrão melhorou — aplicar?" (P-23, routers/dashboard.py).
+LAYOUT_PADRAO_VERSAO = 2
+LAYOUT_PADRAO = {
+    "nucleo": [
+        ("missoes", 6, None),
+        ("achievements", 4, 396),   # galeria larga | registrar + prioridades empilhados
+        ("registrar", 2, None),
+        ("priorities", 2, None),
+        ("log", 3, 308),            # log | radar, lado a lado
+        ("attributes", 3, 308),
+    ],
+    "perfil": [
+        ("profile", 4, None),       # fixo em 1/1
+        ("attributes", 2, None),
+        ("achievements", 4, 492),
+        ("perfil_atividade", 2, None),
+    ],
+    "financas": [
+        ("financas_resumo", 2, None),           # visão geral: 3 cards de 2/6
+        ("financas_grafico_fluxo", 2, None),
+        ("financas_grafico_evolucao", 2, None),
+        ("financas_registros", 3, 420),         # lançamentos | contas fixas + dívidas
+        ("contas_fixas", 3, None),
+        ("dividas", 3, None),
+        ("carteira", 2, None),                  # contas, renda, assinaturas
+        ("financas_renda", 2, None),
+        ("financas_assinaturas", 2, None),
+        ("financas_grafico_categorias", 2, None),
+        ("financas_grafico_limites", 2, None),
+        ("compras_parceladas", 2, None),
+    ],
+    "carreira": [
+        ("carreira_posicoes", 3, 420),          # linha do tempo | formação + área
+        ("carreira_formacoes", 3, None),
+        ("carreira_perfil", 3, None),
+        ("carreira_interesses", 3, None),
+        ("carreira_salario", 3, None),
+    ],
+}
+
+
+def layout_padrao(screen: str) -> list[dict]:
+    return [
+        {"widget_type": w, "width": width, "height": height, "config_json": None}
+        for w, width, height in LAYOUT_PADRAO.get(screen, [])
+    ]
