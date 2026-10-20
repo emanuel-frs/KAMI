@@ -2,6 +2,7 @@ import { icon } from "./icons.js";
 import { escapeHtml } from "./format.js";
 import { fxAllows, typeText } from "./fx.js";
 import { playSound } from "./sound.js";
+import { estaNoDocumento } from "./no-documento.js";
 
 /**
  * Toast empilhável (diferente do singleton de backup-reminder.js — aqui
@@ -52,7 +53,7 @@ export function toastStack() {
 function ensureStack() {
   // isConnected: se o documento foi trocado (testes com jsdom novo), a
   // pilha antiga ficou solta — cria outra no documento atual
-  if (stackEl?.isConnected) return stackEl;
+  if (estaNoDocumento(stackEl)) return stackEl;
   stackEl = document.createElement("div");
   stackEl.className = "toast-stack";
   stackEl.id = "toast-stack";

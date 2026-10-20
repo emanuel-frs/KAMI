@@ -1,6 +1,7 @@
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
+import { estaNoDocumento } from "../components/no-documento.js";
 
 /**
  * Modal "quitar dívida" (P-13, CONF-04) — aberto por widgets/dividas.js
@@ -80,7 +81,7 @@ function close(result) {
  *   `accounts` já achatadas com bankNome (mesmo formato do transacao-modal.js).
  */
 export function openQuitarDividaModal({ debt, accounts = [] }) {
-  if (!modalEl?.isConnected) modalEl = buildModal();
+  if (!estaNoDocumento(modalEl)) modalEl = buildModal();
   accountsFlat = accounts.filter((a) => a.possui_saldo || a.possui_credito);
   modalEl.querySelector("#qdm-info").textContent = `${debt.description} — ${brl(debt.amount)}`;
   const select = modalEl.querySelector("#qdm-conta");
