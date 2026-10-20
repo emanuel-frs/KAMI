@@ -27,7 +27,7 @@
  * Uso local (Linux):
  *   KAMI_E2E_APP=src-tauri/target/debug/kami node tests/e2e/kami-e2e.mjs
  */
-import { spawn, execSync } from "node:child_process";
+import { spawn, execSync, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -151,6 +151,31 @@ async function main() {
     if (!/conectar/.test(sync.body?.detail || "")) fail(`senha salva não voltou decifrada: ${sync.status} ${JSON.stringify(sync.body)}`);
     else log("senha salva e lida de volta pela chave");
     await api(`/api/organizacao/email-accounts/${conta.body?.id}`, { method: "DELETE" });
+
+    // 1c. ICO-01: ícone na cor de destaque. No Windows confere de verdade o
+    // atalho do Menu Iniciar (cria um Kami.lnk de teste, que o comando tem
+    // que apontar pro .ico da cor e depois de volta pro executável).
+    const LNK = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Kami.lnk";
+    // sem passar pelo cmd (execFileSync com argumentos): nada de aspas escapadas
+    const ps = (script) => execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8" }).trim();
+    if (IS_WINDOWS) {
+      ps(`$s=(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}"); $s.TargetPath="${APP}"; $s.Save()`);
+    }
+    const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: 'coral' })");
+    log(`ícone coral aplicado em: ${JSON.stringify(onde)}`);
+    if (!Array.isArray(onde) || !onde.includes("janela")) fail(`ícone na cor de destaque: ${JSON.stringify(onde)}`);
+    if (IS_WINDOWS) {
+      const icone = ps(`(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}").IconLocation`);
+      if (!/kami-coral\.ico,0$/i.test(icone)) fail(`atalho do Menu Iniciar não apontou pro ícone coral: ${icone}`);
+      else log("atalho do Menu Iniciar na cor coral");
+    }
+    await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: null })");
+    if (IS_WINDOWS) {
+      const icone = ps(`(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}").IconLocation`);
+      if (!/kami\.exe,0$/i.test(icone)) fail(`desligar não devolveu o ícone do executável ao atalho: ${icone}`);
+      else log("desligar devolveu o ícone padrão ao atalho");
+      ps(`Remove-Item "${LNK}" -ErrorAction SilentlyContinue`);
+    }
 
     // 2. telas × tamanhos
     for (const [w, h] of SIZES) {

@@ -36,6 +36,7 @@ class ProfileOut(BaseModel):
     som_progresso: bool = True
     som_interface: bool = True
     som_avisos: bool = True
+    icone_tema: bool = False  # ICO-01
     updated_at: str
 
 
@@ -54,6 +55,8 @@ class ProfileUpdate(Entrada):
     som_progresso: Optional[bool] = None
     som_interface: Optional[bool] = None
     som_avisos: Optional[bool] = None
+    # ICO-01: o ícone do app acompanha a cor de destaque (o Rust aplica)
+    icone_tema: Optional[bool] = None
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -139,6 +142,8 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         value = getattr(payload, col)
         if value is not None:
             db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
+    if payload.icone_tema is not None:
+        db.execute("UPDATE user_profile SET icone_tema = ? WHERE id = ?", (int(payload.icone_tema), row["id"]))
     db.commit()
     return dict(_get_profile_row(db))
 

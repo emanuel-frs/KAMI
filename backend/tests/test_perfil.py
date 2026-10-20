@@ -172,3 +172,10 @@ def test_salva_preferencias_de_som_sem_mexer_no_resto(client):
 def test_volume_fora_de_0_a_100_e_recusado(client):
     assert client.put("/api/perfil", json={"som_volume": 101}).status_code == 422
     assert client.put("/api/perfil", json={"som_volume": -1}).status_code == 422
+
+
+def test_ico_01_theme_icon_is_off_by_default_and_can_be_turned_on(client):
+    assert client.get("/api/perfil").json()["icone_tema"] is False  # P-08
+    assert client.put("/api/perfil", json={"icone_tema": True}).json()["icone_tema"] is True
+    # mexer em outra coisa não desliga
+    assert client.put("/api/perfil", json={"accent_color": "#e08fa0"}).json()["icone_tema"] is True

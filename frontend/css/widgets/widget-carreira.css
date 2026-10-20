@@ -256,19 +256,10 @@
 .cs-chart-wrap {
   flex: 0 0 auto;
   width: 100%;
-  aspect-ratio: 380 / 90; /* mesma proporção do viewBox (CHART_W/CHART_H) —
-                              garante que o svg escale uniformemente em vez
-                              de esticar/distorcer o traçado quando a
-                              largura do card muda (preserveAspectRatio=
-                              "xMidYMid meet" no svg fecha o encaixe: o box
-                              já casa com o viewBox, então nunca sobra
-                              letterbox nem precisa cortar nada). Bem mais
-                              baixo (380x90, ~4.2:1) do que quando ainda
-                              existiam rótulo de valor e eixo de datas
-                              desenhados dentro do svg — sem esses textos
-                              reservando altura, a faixa do gráfico fica
-                              tão enxuta quanto o resto do widget (mesma
-                              altura mínima de carreira-posicoes.js). */
+  height: 96px; /* CHART_H de carreira-salario.js: o svg é desenhado na
+                   largura real em pixels, então a altura não cresce com
+                   a largura do card (antes um aspect-ratio fixo deixava o
+                   gráfico enorme num widget largo) */
   margin-bottom: 12px;
   display: flex;
   flex-direction: column;

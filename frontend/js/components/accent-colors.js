@@ -11,15 +11,15 @@
  */
 
 export const ACCENT_OPTIONS = [
-  { value: "#8fbf8f", label: "verde fósforo (padrão)", avatar: "assets/logos/logo-kami.gif" },
-  { value: "#b3a06a", label: "âmbar", avatar: "assets/logos/logo-kami-ambar.gif" },
-  { value: "#8fa8bf", label: "azul acinzentado", avatar: "assets/logos/logo-kami-azul.gif" },
-  { value: "#b06060", label: "vermelho fosco", avatar: "assets/logos/logo-kami-vermelho.gif" },
-  { value: "#c9c9c9", label: "cinza claro (mono puro)", avatar: "assets/logos/logo-kami-cinza.gif" },
-  { value: "#c9a0dc", label: "lilás", avatar: "assets/logos/logo-kami-lilas.gif" },
-  { value: "#e0c15a", label: "dourado", avatar: "assets/logos/logo-kami-dourado.gif" },
-  { value: "#5ac8c8", label: "turquesa", avatar: "assets/logos/logo-kami-turquesa.gif" },
-  { value: "#e08fa0", label: "coral", avatar: "assets/logos/logo-kami-coral.gif" },
+  { value: "#8fbf8f", label: "verde fósforo (padrão)", avatar: "assets/logos/logo-kami.gif", icone: "verde" },
+  { value: "#b3a06a", label: "âmbar", avatar: "assets/logos/logo-kami-ambar.gif", icone: "ambar" },
+  { value: "#8fa8bf", label: "azul acinzentado", avatar: "assets/logos/logo-kami-azul.gif", icone: "azul" },
+  { value: "#b06060", label: "vermelho fosco", avatar: "assets/logos/logo-kami-vermelho.gif", icone: "vermelho" },
+  { value: "#c9c9c9", label: "cinza claro (mono puro)", avatar: "assets/logos/logo-kami-cinza.gif", icone: "cinza" },
+  { value: "#c9a0dc", label: "lilás", avatar: "assets/logos/logo-kami-lilas.gif", icone: "lilas" },
+  { value: "#e0c15a", label: "dourado", avatar: "assets/logos/logo-kami-dourado.gif", icone: "dourado" },
+  { value: "#5ac8c8", label: "turquesa", avatar: "assets/logos/logo-kami-turquesa.gif", icone: "turquesa" },
+  { value: "#e08fa0", label: "coral", avatar: "assets/logos/logo-kami-coral.gif", icone: "coral" },
 ];
 
 export function accentLabel(hex) {
@@ -28,4 +28,8 @@ export function accentLabel(hex) {
 
 export function accentAvatar(hex) {
   return ACCENT_OPTIONS.find((o) => o.value === hex)?.avatar ?? ACCENT_OPTIONS[0].avatar;
+}
+// ICO-01: nome do ícone do app nessa cor (src-tauri/icons/themes/<nome>/)
+export function accentIcone(hex) {
+  return ACCENT_OPTIONS.find((o) => o.value === hex)?.icone ?? "verde";
 }

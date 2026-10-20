@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.12.0] - em desenvolvimento
+
+_Sprint 4 da evolução — layout dos widgets e ícone (LAY-01 a LAY-06, ICO-01, DEP-01: grade sem buracos, layout padrão bem montado por tela, organizar automaticamente, ícone na cor do tema, dependências em dia). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.11.0] - 2026-10-19
 
 _Sprint de segurança: PIN opcional para abrir o app, backup com senha, as senhas salvas protegidas por uma chave no cofre do sistema, limites em toda entrada da API e auditoria contínua das dependências._

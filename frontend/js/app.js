@@ -7,6 +7,7 @@ import { icon } from "./components/icons.js";
 import { openOnboardingModal } from "./modals/onboarding-modal.js";
 import { openKamiIntro } from "./modals/kami-intro.js";
 import { openConfiguracoesModal } from "./modals/configuracoes-modal.js";
+import { oferecerLayoutNovo } from "./components/layout-novidade.js";
 import { garantirDesbloqueio, startInactivityLock, wireLockScreen } from "./components/lock-screen.js";
 import { openAvatarModal } from "./modals/avatar-modal.js";
 import { showErrorModal } from "./modals/err-modal.js";
@@ -27,6 +28,7 @@ import { wireVisualEffects } from "./components/visual-effects.js";
 import { pageEnter, wireEffectSkip } from "./components/fx.js";
 import { wirePixelCursor } from "./components/pixel-cursor.js";
 import { restaurarAparencia, wireTheme } from "./components/tema.js";
+import { wireIconeTema } from "./components/icone-tema.js";
 import { playFollowUp, wireSounds } from "./components/sound.js";
 import { startSidebarLevel } from "./components/sidebar-level.js";
 import { startStreakNotice } from "./components/streak-notice.js";
@@ -198,6 +200,9 @@ function applyProfileToSidebar(profile) {
   }
 
   const sidebarAvatarEl = document.getElementById("sidebar-avatar");
+  // sem avatar: o aviso quebra linha como texto normal (o <pre> do desenho
+  // ASCII cortava em "sem avatar ainda — con", LAY-01)
+  sidebarAvatarEl?.classList.toggle("mini-avatar--vazio", !profile.avatar_ascii);
   if (sidebarAvatarEl && profile.avatar_ascii) {
     sidebarAvatarEl.textContent = profile.avatar_ascii;
     try {
@@ -283,6 +288,7 @@ async function boot() {
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
   wireTheme(); // GAM-10: tema de terminal liberado por nível
+  wireIconeTema(); // ICO-01: ícone do app na cor de destaque (opcional)
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
@@ -353,6 +359,8 @@ async function boot() {
     // components/backup-reminder.js pro critério (nunca fez export,
     // ou já faz tempo desde o último).
     maybeShowBackupReminder(profile);
+    // P-23: o layout padrão melhorou desde a versão que a pessoa usava?
+    oferecerLayoutNovo({ recarregarTela: reloadCurrentPage });
     // GAM-12: no 1º acesso do mês novo, a retrospectiva do mês que acabou
     // abre sozinha (uma vez) — fora do onboarding, pra não empilhar telas
     startRetrospective();
