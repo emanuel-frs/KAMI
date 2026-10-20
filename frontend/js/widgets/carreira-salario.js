@@ -4,6 +4,7 @@ import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { attachChartTooltip } from "../charts/chart-tooltip.js";
+import { desenharNaLargura } from "../charts/na-largura.js";
 
 /**
  * Widget "evolução salarial" (seção 5 do documento de regras de
@@ -36,41 +37,35 @@ function escapeAttr(str) {
   return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-// Sem rótulo de valor nem datas cravadas no eixo (removidos a pedido —
-// ficavam pequenos demais pra ler e não são necessários, já que cada
-// ponto expõe data/valor/motivo completos no tooltip do hover), então
-// o viewBox não precisa mais de padding reservado pra texto acima do
-// último ponto nem abaixo do eixo — só uma margem mínima pra a linha e
-// os pontos não colarem na borda. Isso também é o que permite o widget
-// ficar tão baixo quanto carreira-posicoes.js (ver CHART_H reduzido e
-// .cs-chart-wrap em widget-carreira.css): antes a altura mínima do
-// gráfico precisava sobrar espaço pro texto, agora só precisa caber o
-// traço.
-const CHART_W = 380;
-const CHART_H = 90;
-const CHART_PAD = 8; // margem mínima topo/base pra linha e pontos não colarem na borda do viewBox
+// Sem rótulo de valor nem datas cravadas no eixo (ficavam pequenos demais
+// pra ler; cada ponto expõe data/valor/motivo no tooltip do hover), então o
+// svg só precisa de uma margem mínima pra linha e os pontos não colarem na
+// borda.
+//
+// O svg é desenhado na largura real do widget, em pixels (ver
+// charts/na-largura.js): a altura é sempre CHART_H, mesmo num card largo.
+const CHART_H = 96;
+const CHART_PAD = 8; // margem topo/base/lados pra linha e pontos não colarem na borda
 
 // Mesma base do gráfico de evolução patrimonial de finanças (ver
 // financas-grafico-evolucao.js: area + linha + pontos com hit-area de
 // hover, .chart-svg/.chart-area/.chart-line/.chart-dot/.chart-dot-hit/
 // .chart-tooltip de widget-financas-extra-graficos.css), só que o eixo
 // X segue os próprios registros (datas reais) em vez de uma janela fixa
-// de N meses — aqui não existe "mês sem registro". Sem rótulos
-// desenhados no próprio svg (removidos — ver comentário de CHART_PAD
-// acima): a única forma de ver data/valor de um ponto é passar o mouse.
-function buildSalaryChart(records) {
-  if (!records.length) return "";
+// de N meses — aqui não existe "mês sem registro".
+function buildSalarySvg(records, width) {
   const hist = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
   const values = hist.map((r) => Number(r.amount) || 0);
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
   const range = Math.max(1, maxV - minV);
   const plotH = CHART_H - CHART_PAD * 2;
-  const stepX = CHART_W / (hist.length - 1 || 1);
+  const plotW = Math.max(1, width - CHART_PAD * 2);
+  const stepX = plotW / (hist.length - 1 || 1);
   const y = (v) => CHART_PAD + plotH - ((v - minV) / range) * plotH;
-  const baseY = CHART_PAD + plotH;
+  const baseY = CHART_H;
 
-  const coords = values.map((v, i) => [hist.length === 1 ? CHART_W / 2 : i * stepX, y(v)]);
+  const coords = values.map((v, i) => [CHART_PAD + (hist.length === 1 ? plotW / 2 : i * stepX), y(v)]);
   const linePath = coords.map(([x, py], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${py.toFixed(1)}`).join(" ");
   const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${baseY} L${coords[0][0].toFixed(1)},${baseY} Z`;
 
@@ -81,18 +76,13 @@ function buildSalaryChart(records) {
       `<circle cx="${x.toFixed(1)}" cy="${py.toFixed(1)}" r="12" class="chart-dot-hit" data-tip="${tip}"></circle>`;
   }).join("");
 
+  // aria-hidden: redundante com .cs-list logo abaixo (mesmos dados)
   return `
-    <div class="cs-chart-wrap">
-      <!-- puramente redundante com .cs-list logo abaixo (mesmos dados:
-           data, valor, motivo) — item 5 das pendências, mas aqui não
-           precisa de tabela sr-only própria, só tirar o SVG decorativo
-           da árvore de acessibilidade. -->
-      <svg viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="xMidYMid meet" class="chart-svg" aria-hidden="true">
-        <path d="${areaPath}" class="chart-area"></path>
-        <path d="${linePath}" class="chart-line"></path>
-        ${dots}
-      </svg>
-    </div>
+    <svg viewBox="0 0 ${width} ${CHART_H}" width="${width}" height="${CHART_H}" class="chart-svg" aria-hidden="true">
+      <path d="${areaPath}" class="chart-area"></path>
+      <path d="${linePath}" class="chart-line"></path>
+      ${dots}
+    </svg>
   `;
 }
 
@@ -113,7 +103,7 @@ export async function render(el, widget) {
   function draw() {
     el.innerHTML = `
       <div class="cs-widget">
-        ${buildSalaryChart(records)}
+        ${records.length ? '<div class="cs-chart-wrap"></div>' : ""}
         <div class="widget-inline-toolbar">
           <button type="button" class="btn sm" data-action="add-salary">+ registro</button>
         </div>
@@ -131,7 +121,10 @@ export async function render(el, widget) {
     `;
 
     const chartWrap = el.querySelector(".cs-chart-wrap");
-    if (chartWrap) attachChartTooltip(chartWrap);
+    if (chartWrap) {
+      desenharNaLargura(chartWrap, (largura) => buildSalarySvg(records, largura));
+      attachChartTooltip(chartWrap);
+    }
 
     el.querySelectorAll("[data-edit-salary]").forEach((el2) => {
       el2.addEventListener("click", () => {

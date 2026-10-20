@@ -57,9 +57,25 @@ const CSS = `
   background: var(--panel);
   color: var(--text-bright);
   font-size: 9.5px;
-  padding: 4px 7px;
+  /* sem padding embaixo: com o corte em 6 linhas, o topo da 7ª aparecia no
+     padding; a borda grossa da cor do fundo faz o mesmo espaço */
+  padding: 4px 7px 0;
   border: 1px solid var(--border);
-  white-space: nowrap;
+  border-bottom: 4px solid var(--panel);
+  box-shadow: 0 1px 0 var(--border);
+  /* LAY-06: curta fica numa linha só (max-content); longa (ex.: prévia de
+     e-mail, 280 caracteres) quebra em até 360px e no máximo 6 linhas —
+     antes era nowrap sem largura máxima e atravessava a tela inteira */
+  width: max-content;
+  max-width: min(360px, calc(100vw - 8px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
   transform: translateY(4px);

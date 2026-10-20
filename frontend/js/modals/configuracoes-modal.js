@@ -187,6 +187,10 @@ function buildAparenciaPanel() {
         <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app.</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
         <p class="settings-status" id="cfg-accent-status"></p>
+        <label class="cfg-toggle" id="cfg-icone-tema-wrap" hidden>
+          <input type="checkbox" id="cfg-icone-tema">
+          <span>ícone do app na cor de destaque<small>a janela e a barra de tarefas mudam na hora; o atalho do menu iniciar (windows) e o lançador (linux) na próxima vez que o kami abrir.</small></span>
+        </label>
       </div>
       <div class="settings-section">
         <h4>efeitos visuais</h4>
@@ -805,6 +809,30 @@ function renderAccentSwatches(wrap, currentColor) {
 
   container.querySelectorAll(".ki-swatch").forEach((btn) => {
     btn.addEventListener("click", () => selectAccentColor(wrap, btn));
+  });
+}
+
+// ICO-01: só no app instalado (quem troca o ícone é o Rust); o perfil
+// guarda a escolha e components/icone-tema.js aplica ao mudar o store
+function renderIconeTema(wrap, profile) {
+  const label = wrap.querySelector("#cfg-icone-tema-wrap");
+  label.hidden = !window.__TAURI__?.core?.invoke;
+  const input = wrap.querySelector("#cfg-icone-tema");
+  input.checked = Boolean(profile.icone_tema);
+  if (input.dataset.wired) return;
+  input.dataset.wired = "1";
+  input.addEventListener("change", async () => {
+    const statusEl = wrap.querySelector("#cfg-accent-status");
+    try {
+      await updateProfile({ icone_tema: input.checked });
+    } catch (err) {
+      input.checked = !input.checked;
+      showErrorModal(err.message, "erro ao salvar o ícone do app");
+      return;
+    }
+    store.set("profile", { ...store.get("profile"), icone_tema: input.checked });
+    statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? "ícone na cor de destaque" : "ícone padrão de volta"}`;
+    statusEl.classList.add("settings-status--visible");
   });
 }
 
@@ -1809,6 +1837,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
     renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderIconeTema(modalEl, profile);
     renderSoundOptions(modalEl, profile);
     renderRewards(modalEl, profile);
     renderPerfilTab(modalEl, profile);

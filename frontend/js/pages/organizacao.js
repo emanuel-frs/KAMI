@@ -107,11 +107,18 @@ export async function mount(container, opts) {
   container.innerHTML = template();
   bindEvents(container);
 
+  // saiu da tela no meio do carregamento (unmount zera rootEl): para aqui.
+  // Sem isso o resto do mount rodava com rootEl null e o erro aparecia na
+  // tela seguinte ("algo deu errado nesta tela" no calendário).
+  const saiu = () => rootEl !== container;
+
   await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
+  if (saiu()) return;
   renderLinks();
   renderRepos();
   renderAccountChips();
   await loadEmailsForSelectedAccounts();
+  if (saiu()) return;
   renderEmails();
   renderGithubTokenBadge();
   renderSearchKeyBadge();

@@ -2,6 +2,7 @@ import { ApiError, get, post } from "../api/client.js";
 import { showToast } from "./toast.js";
 import { copyText } from "./clipboard.js";
 import { watchdogHandlesConnection } from "./backend-watchdog.js";
+import { estaNoDocumento } from "./no-documento.js";
 
 /**
  * Aviso de erro global (CONF-01) — nenhum erro sem aviso.
@@ -59,7 +60,7 @@ export function recentlyNotified(message) {
 }
 
 function isRepeat(key) {
-  if (openToasts.get(key)?.isConnected) return true;
+  if (estaNoDocumento(openToasts.get(key))) return true;
   const now = Date.now();
   const at = recent.get(key);
   recent.set(key, now);

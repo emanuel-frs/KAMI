@@ -53,7 +53,11 @@ test(
     // concluir um marco: +20 xp, sobe o atributo e o nível geral, libera conquista
     state = snapshot({ xp: 110, level: 2, playerLevel: 2, unlocked: true });
     await put("/api/aprendizado/milestones/m1", { status: "concluido" });
-    await wait(700); // GAM-15: títulos dos toasts aparecem digitados
+    // GAM-15: os títulos dos toasts aparecem digitados — espera o título
+    // inteiro (até 3 s) em vez de um tempo fixo, que não bastava com a
+    // suíte toda rodando (jsdom 30)
+    const titulosAgora = () => [...document.querySelectorAll(".toast-title")].map((el) => el.textContent);
+    for (let i = 0; i < 60 && !titulosAgora().includes("aprendizado subiu pro nível 2"); i++) await wait(50);
 
     const line = document.querySelector(".xp-feed-item");
     assert.ok(line, "linha de xp deveria aparecer");
@@ -96,7 +100,7 @@ test(
     await wait(250);
     state = snapshot({ xp: 110, level: 2, playerLevel: 2, unlocked: true });
     await put("/api/aprendizado/milestones/m1", { status: "concluido" });
-    await wait(700); // GAM-15: títulos dos toasts aparecem digitados
+    for (let i = 0; i < 60 && !titulosAgora().includes("nível 2 alcançado"); i++) await wait(50);
     assert.equal(document.querySelectorAll(".level-up").length, 0);
     const toastsSutil = [...document.querySelectorAll(".toast-title")].map((el) => el.textContent);
     assert.ok(toastsSutil.includes("nível 2 alcançado"));

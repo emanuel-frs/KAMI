@@ -1,4 +1,5 @@
 """Testes do router app/routers/sistema.py."""
+from app.widgets import LAYOUT_PADRAO
 
 
 def test_export_sets_last_backup_at_on_profile(client):
@@ -148,9 +149,7 @@ def test_reset_reseeds_fresh_install_defaults(client):
     assert len(income) == 2
 
     dashboard_nucleo = client.get("/api/dashboard/nucleo").json()
-    assert [w["widget_type"] for w in dashboard_nucleo] == [
-        "missoes", "achievements", "registrar", "attributes", "log", "priorities",
-    ]
+    assert [w["widget_type"] for w in dashboard_nucleo] == [w for w, _l, _a in LAYOUT_PADRAO["nucleo"]]
 
     achievements = client.get("/api/nucleo/achievements").json()
     assert len(achievements) > 0

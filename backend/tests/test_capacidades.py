@@ -45,4 +45,4 @@ def test_seg_23_rust_commands_exposed_to_the_window_are_known():
     main_rs = (TAURI / "src" / "main.rs").read_text(encoding="utf-8")
     bloco = re.search(r"generate_handler!\[(.*?)\]", main_rs, re.S).group(1)
     comandos = sorted(c.strip() for c in bloco.split(",") if c.strip())
-    assert comandos == ["get_backend_port", "get_backend_token", "open_log_folder", "restart_backend"]
+    assert comandos == ["get_backend_port", "get_backend_token", "icone_tema::aplicar_icone_tema", "open_log_folder", "restart_backend"]

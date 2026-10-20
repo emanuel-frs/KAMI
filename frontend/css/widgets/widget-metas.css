@@ -30,7 +30,11 @@
 
 .goals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  /* LAY-03: colunas de no mínimo 300px dividindo a largura toda (1920 →
+     5, 1280 → 3, 960 → 2). Testado e descartado: auto-fit com teto de
+     420px — o navegador conta as colunas pelo teto e cabiam só 3 em 1920
+     e 1 em 960, com metade da tela vazia */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 14px;
 }
 
@@ -43,6 +47,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+/* LAY-03: as etiquetas de tipo e peso ficam numa linha própria, no topo
+   do corpo — no cabeçalho elas (mais os 3 ícones) deixavam ~60px pro
+   título, que aparecia cortado em todos os cards ("Res…", "Co…") */
+.goal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 .goal-type-tag {
   font-size: 8.5px;

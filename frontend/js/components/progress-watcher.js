@@ -7,6 +7,7 @@ import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
 import { effectsMode } from "./visual-effects.js";
 import { showLevelUp } from "./level-up.js";
+import { estaNoDocumento } from "./no-documento.js";
 
 /**
  * Feedback de progresso — iniciado uma vez em app.js (boot()), igual
@@ -87,7 +88,7 @@ async function takeSnapshot() {
 }
 
 function ensureFeed() {
-  if (feedEl) return feedEl;
+  if (estaNoDocumento(feedEl)) return feedEl;
   feedEl = document.createElement("div");
   feedEl.className = "xp-feed";
   feedEl.setAttribute("role", "status");

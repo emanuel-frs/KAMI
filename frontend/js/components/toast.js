@@ -2,6 +2,7 @@ import { icon } from "./icons.js";
 import { escapeHtml } from "./format.js";
 import { fxAllows, typeText } from "./fx.js";
 import { playSound } from "./sound.js";
+import { estaNoDocumento } from "./no-documento.js";
 
 /**
  * Toast empilhável (diferente do singleton de backup-reminder.js — aqui
@@ -21,7 +22,7 @@ import { playSound } from "./sound.js";
  *   - `actions: [{ label, onClick(botão) }]` → botões pequenos embaixo da
  *     mensagem (ex.: "copiar detalhes"). O onClick recebe o próprio botão
  *     (pra trocar o rótulo, ex. "copiado ✓"). O clique numa ação não fecha
- *     o toast, a menos que o onClick devolva true.
+ *     o toast, a menos que o onClick devolva true (ou uma Promise que resolve true).
  */
 
 let stackEl = null;
@@ -52,7 +53,7 @@ export function toastStack() {
 function ensureStack() {
   // isConnected: se o documento foi trocado (testes com jsdom novo), a
   // pilha antiga ficou solta — cria outra no documento atual
-  if (stackEl?.isConnected) return stackEl;
+  if (estaNoDocumento(stackEl)) return stackEl;
   stackEl = document.createElement("div");
   stackEl.className = "toast-stack";
   stackEl.id = "toast-stack";
@@ -107,7 +108,10 @@ export function showToast({
   el.querySelectorAll("[data-toast-action]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (actions[Number(btn.dataset.toastAction)].onClick(btn) === true) dismiss();
+      const r = actions[Number(btn.dataset.toastAction)].onClick(btn);
+      // ação assíncrona (ex.: aplicar o layout novo): fecha quando resolver com true
+      if (r === true) dismiss();
+      else if (typeof r?.then === "function") r.then((v) => v === true && dismiss(), () => {});
     });
   });
 

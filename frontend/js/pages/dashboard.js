@@ -1,8 +1,10 @@
-import { getLayout, saveLayout } from "../api/dashboard.js";
+import { getLayout, getLayoutPadrao, saveLayout } from "../api/dashboard.js";
 import { initGrid, availableToAdd } from "../widgets/grid.js";
 import { WIDGET_CATALOG, loadWidgetCatalog } from "../widgets/registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { announce } from "../components/a11y.js";
+import { showToast } from "../components/toast.js";
+import { showConfirmModal } from "../modals/confirm-modal.js";
 
 /**
  * Nome da tela como aparece em "nesta tela — …" no Alt+H (o `screen` é a
@@ -147,6 +149,8 @@ export function createDashboardPage(screen, options = {}) {
     container.innerHTML = `
       ${headHtml}
       <div class="wg-toolbar">
+        <button type="button" class="btn sm wg-restore-btn" id="${screen}-restore-layout"
+          data-tooltip="voltar esta tela ao layout padrão (dá pra desfazer)">restaurar padrão</button>
         <button type="button" class="btn sm" id="${screen}-add-widget"
           aria-expanded="false" aria-controls="${screen}-catalog-pop" aria-keyshortcuts="Alt+N"
           data-tooltip="adicionar widget (Alt+N)">+ adicionar widget</button>
@@ -159,7 +163,12 @@ export function createDashboardPage(screen, options = {}) {
     const addButton = container.querySelector(`#${screen}-add-widget`);
     const pop = container.querySelector(`#${screen}-catalog-pop`);
 
-    const loaded = await getLayout(screen);
+    const [loaded, padrao] = await Promise.all([
+      getLayout(screen),
+      // LAY-05: tamanho de widget readicionado e "restaurar padrão" (falhar
+      // aqui não impede a tela de abrir — cai no tamanho do catálogo)
+      getLayoutPadrao(screen).catch(() => []),
+    ]);
     const { widgets: withRequired, changed } = withRequiredWidgets(loaded);
     currentWidgets = withRequired;
     if (changed) saveLayout(screen, currentWidgets);
@@ -261,16 +270,64 @@ export function createDashboardPage(screen, options = {}) {
       const item = e.target.closest("[data-add]");
       if (!item) return;
       const catalogEntry = WIDGET_CATALOG[item.dataset.add];
-      currentWidgets = [
-        ...currentWidgets,
-        { widget_type: item.dataset.add, width: catalogEntry.default_span, height: null, config_json: null },
-      ];
+      // P-23: volta no tamanho que ele tem no layout padrão da tela (montado
+      // pra encaixar), não no tamanho genérico do catálogo
+      const noPadrao = padrao.find((w) => w.widget_type === item.dataset.add);
+      const novo = {
+        widget_type: item.dataset.add,
+        width: noPadrao?.width ?? catalogEntry.default_span,
+        height: noPadrao?.height ?? null,
+        config_json: null,
+      };
+      // ...e no lugar dele no padrão: antes do primeiro widget que vem
+      // depois dele no padrão e está na tela (senão, no fim)
+      const ordemPadrao = padrao.map((w) => w.widget_type);
+      const depois = ordemPadrao.slice(ordemPadrao.indexOf(novo.widget_type) + 1);
+      const i = noPadrao ? currentWidgets.findIndex((w) => depois.includes(w.widget_type)) : -1;
+      currentWidgets = i === -1
+        ? [...currentWidgets, novo]
+        : [...currentWidgets.slice(0, i), novo, ...currentWidgets.slice(i)];
       grid.setWidgets(currentWidgets);
       saveLayout(screen, currentWidgets);
       // o item clicado some junto com a lista — devolve o foco pro botão
       // (senão cai no <body>) e conta pro leitor de tela o que aconteceu.
       closePop({ returnFocus: true });
       announce(`${catalogEntry.label} adicionado à tela.`);
+    });
+
+    // LAY-05: restaurar o layout padrão desta tela, com desfazer
+    const restoreButton = container.querySelector(`#${screen}-restore-layout`);
+    restoreButton.hidden = padrao.length === 0;
+    restoreButton.addEventListener("click", async () => {
+      const ok = await showConfirmModal(
+        "o layout desta tela volta ao padrão: os widgets, a ordem e os tamanhos. dá pra desfazer logo depois.",
+        { title: "restaurar layout padrão", confirmText: "restaurar" }
+      );
+      if (!ok || !grid) return;
+      const anterior = currentWidgets.map((w) => ({ ...w }));
+      currentWidgets = withRequiredWidgets(padrao.map((w) => ({ ...w }))).widgets;
+      grid.resetWidgets(currentWidgets);
+      saveLayout(screen, currentWidgets);
+      announce("layout padrão restaurado.");
+      showToast({
+        title: "layout padrão restaurado",
+        message: "não era isso? dá pra voltar como estava.",
+        iconName: "undo",
+        duration: 15000,
+        actions: [
+          {
+            label: "desfazer",
+            onClick: () => {
+              if (!grid) return true;
+              currentWidgets = anterior;
+              grid.resetWidgets(currentWidgets);
+              saveLayout(screen, currentWidgets);
+              announce("layout anterior de volta.");
+              return true;
+            },
+          },
+        ],
+      });
     });
 
     onDocClick = (e) => {
