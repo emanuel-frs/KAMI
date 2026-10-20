@@ -4,9 +4,31 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [1.12.0] - em desenvolvimento
+## [1.12.0] - 2026-10-20
 
-_Sprint 4 da evolução — layout dos widgets e ícone (LAY-01 a LAY-06, ICO-01, DEP-01: grade sem buracos, layout padrão bem montado por tela, organizar automaticamente, ícone na cor do tema, dependências em dia). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+_Sprint de layout: as telas se organizam sozinhas em faixas alinhadas, cada uma com um layout padrão bem montado, e o ícone do app pode seguir a cor de destaque._
+
+### Adicionado
+- "restaurar padrão" em cada tela de widgets (perfil, núcleo, finanças, carreira), com desfazer
+- na primeira abertura depois da atualização, o Kami avisa quando o layout padrão de uma tela melhorou e oferece aplicar — com desfazer
+- ícone do app na cor de destaque, em configurações › aparência (desligado por padrão): muda a janela e a barra de tarefas na hora e, ao reabrir, o atalho do menu Iniciar/área de trabalho no Windows e o lançador no Linux
+
+### Modificado
+- os widgets se encaixam sozinhos em faixas: os que ficam lado a lado começam e terminam juntos, e a faixa seguinte começa reta — também quando os dados fazem um widget crescer, ao mudar o tamanho da janela, ao adicionar, remover ou arrastar. Nenhum widget é alargado para tapar espaço
+- a grade usa 4 colunas também em telas grandes: o layout montado numa tela 1366 é o mesmo em 1920, só mais largo
+- layout padrão novo em perfil, núcleo, finanças e carreira
+- um widget removido e adicionado de novo volta para o lugar e o tamanho dele no layout padrão, em vez de cair no fim da tela
+- os gráficos de evolução salarial, evolução do saldo e entradas vs saídas têm altura fixa: num widget largo não ficam mais enormes, com a linha grossa e as bolinhas grandes; os quadradinhos do mapa de atividade do perfil também têm tamanho máximo
+- tooltip longa (ex.: o endereço de um e-mail) quebra linha em até 360px em vez de atravessar a tela
+- dependências atualizadas (backend, Tauri, frontend e ações do CI)
+
+### Corrigido
+- em 1920×1080 sobrava uma faixa vazia à direita e buracos entre os widgets
+- widgets ficavam 10 a 20px mais baixos que o conteúdo na abertura da tela, cortando o fim; e um widget readicionado aparecia com a lista cortada
+- metas pessoais mostrava o título das metas cortado ("Res…")
+- o aviso "sem avatar ainda" da barra lateral aparecia cortado
+- os botões de configurações › sobre ficavam colados quando quebravam de linha
+- sair de organização antes de terminar de carregar mostrava "algo deu errado nesta tela" na tela seguinte
 
 ## [1.11.0] - 2026-10-19
 
