@@ -13,6 +13,17 @@
   line-height: 1.4;
 }
 .btn:hover  { border-color: var(--btn-tone, var(--accent)); color: var(--btn-tone, var(--accent)); }
+
+/* LAY-06: fileira de botões de formulário/modal/configurações. Não tinha
+   regra nenhuma — os botões ficavam lado a lado pelo espaço em branco do
+   HTML e, quando quebravam de linha (ex.: configurações › sobre), a 2ª
+   linha encostava na 1ª. Agora o espaço é o mesmo nos dois sentidos. */
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .btn:active { transform: translateY(1px); }
 
 .btn.sm { padding: 4px 9px; font-size: 10.5px; }
