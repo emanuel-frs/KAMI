@@ -20,7 +20,8 @@
  *   # / ## / ###          títulos
  *   **negrito**  _itálico_ (*itálico* também é lido)  ++sublinhado++
  *   ~~tachado~~  `código`  [texto](url)
- *   - item / 1. item / - [ ] tarefa / - [x] feita   (2 espaços = nível)
+ *   - item / 1. item / - [ ] tarefa / - [x] feita   (2 espaços = nível;
+ *     tarefa é por item — li[data-checked] —, a lista pode misturar)
  *   > citação     ``` bloco de código ```     ---  divisória
  *   | a | b |  tabela simples (a 1ª linha é o cabeçalho)
  *   linha em branco separa blocos; quebra simples dentro do parágrafo vira <br>
@@ -106,11 +107,11 @@ function montarLista(doc, itens) {
     while (pilha.length && pilha[pilha.length - 1].nivel > it.nivel) pilha.pop();
     let topo = pilha[pilha.length - 1];
     const tipo = it.ordenada ? "ol" : "ul";
-    const precisaNova =
-      !topo || topo.nivel < it.nivel || topo.el.tagName.toLowerCase() !== tipo || topo.tarefa !== it.tarefa;
+    // tarefa é por item (li[data-checked]): uma lista pode misturar
+    // itens comuns e tarefas, como no markdown
+    const precisaNova = !topo || topo.nivel < it.nivel || topo.el.tagName.toLowerCase() !== tipo;
     if (precisaNova) {
       const lista = doc.createElement(tipo);
-      if (it.tarefa) lista.className = "checklist";
       if (topo && topo.nivel < it.nivel) {
         const ultimoLi = topo.el.lastElementChild || topo.el.appendChild(doc.createElement("li"));
         ultimoLi.append(lista);
@@ -118,7 +119,7 @@ function montarLista(doc, itens) {
         if (topo && topo.nivel === it.nivel) pilha.pop();
         (pilha.length ? pilha[pilha.length - 1].el.lastElementChild : raiz).append(lista);
       }
-      topo = { nivel: it.nivel, el: lista, tarefa: it.tarefa };
+      topo = { nivel: it.nivel, el: lista };
       pilha.push(topo);
     }
     const li = doc.createElement("li");
@@ -286,7 +287,9 @@ function estiloDoSpan(el) {
 }
 
 function inlineMd(no) {
-  if (no.nodeType === 3) return escapar(no.nodeValue.replace(/ /g, " ").replace(/\n/g, " "));
+  // \u200b: espaço invisível que o editor põe depois de <code>/<a> pra
+  // o cursor sair deles — não é texto da nota
+  if (no.nodeType === 3) return escapar(no.nodeValue.replace(/\u00a0/g, " ").replace(/\u200b/g, "").replace(/\n/g, " "));
   if (no.nodeType !== 1) return "";
   const tag = no.tagName.toLowerCase();
   if (tag === "br") return "\n";
@@ -330,7 +333,6 @@ function linhasDeTexto(no) {
 
 function listaMd(lista, nivel, saida) {
   const ordenada = lista.tagName.toLowerCase() === "ol";
-  const tarefa = lista.classList.contains("checklist");
   let n = 1;
   for (const li of lista.children) {
     if (li.tagName.toLowerCase() !== "li") continue;
@@ -339,7 +341,7 @@ function listaMd(lista, nivel, saida) {
     copia.querySelectorAll(":scope > ul, :scope > ol").forEach((c) => c.remove());
     const texto = linhasDeTexto(copia).join(" ").trim();
     const marca = ordenada ? `${n++}.` : "-";
-    const caixa = tarefa ? (li.dataset.checked === "true" ? "[x] " : "[ ] ") : "";
+    const caixa = li.dataset.checked === undefined ? "" : li.dataset.checked === "true" ? "[x] " : "[ ] ";
     saida.push(`${"  ".repeat(nivel)}${marca} ${caixa}${texto}`);
     sub.forEach((s) => listaMd(s, nivel + 1, saida));
   }
@@ -375,7 +377,17 @@ function blocosMd(raiz, saida) {
     } else if (tag === "blockquote") {
       const dentro = [];
       blocosMd(no, dentro);
-      if (dentro.length) saida.push(dentro.join("\n\n").split("\n").map((l) => (l ? `> ${l}` : ">")).join("\n"));
+      if (!dentro.length) continue;
+      const linhas = dentro.join("\n\n").split("\n").map((l) => (l ? `> ${l}` : ">")).join("\n");
+      // o contenteditable abre uma citação nova a cada Enter: citações
+      // vizinhas viram uma só (linhas seguidas de "> ")
+      let ant = no.previousSibling;
+      while (ant && ant.nodeType === 3 && !ant.data.trim()) ant = ant.previousSibling;
+      if (ant?.nodeType === 1 && ant.tagName.toLowerCase() === "blockquote" && saida.length && saida[saida.length - 1].startsWith(">")) {
+        saida[saida.length - 1] += "\n" + linhas;
+      } else {
+        saida.push(linhas);
+      }
     } else if (tag === "pre") {
       saida.push("```\n" + no.textContent.replace(/\n$/, "") + "\n```");
     } else if (tag === "table") {

@@ -51,7 +51,7 @@ test("texto com caracteres de markdown é escapado e volta igual", () => {
 test("monta o DOM com os elementos certos", () => {
   const el = html("# T\n\n- [x] ok\n- [ ] não\n\n1. a\n\n| a |\n| - |\n| 1 |");
   assert.ok(el.querySelector("h1"));
-  const tarefas = el.querySelectorAll("ul.checklist > li");
+  const tarefas = el.querySelectorAll("ul > li[data-checked]");
   assert.deepEqual([...tarefas].map((li) => li.dataset.checked), ["true", "false"]);
   assert.ok(el.querySelector("ol > li"));
   assert.equal(el.querySelector("table thead th").textContent, "a");
@@ -87,9 +87,19 @@ test("marcas não engolem espaços das pontas", () => {
 test("listas mistas e numeração recomeçam certo", () => {
   const md = "- a\n- b\n\n1. x\n2. y\n\n- [ ] t";
   assert.equal(idaEVolta(md), md);
+  // tarefa e item comum na mesma lista
+  assert.equal(idaEVolta("- comum\n- [ ] tarefa\n- [x] feita"), "- comum\n- [ ] tarefa\n- [x] feita");
+});
+
+test("espaço invisível depois de código não vai pro markdown", () => {
+  assert.equal(domParaMarkdown(domDe("<p>a <code>x</code>\u200b b</p>")), "a `x` b");
 });
 
 test("markdown vazio ou só espaços não gera nada", () => {
   assert.equal(html("").childNodes.length, 0);
   assert.equal(domParaMarkdown(domDe("<div><br></div><p> </p>")), "");
+});
+
+test("citações vizinhas (uma por Enter no editor) viram uma só", () => {
+  assert.equal(domParaMarkdown(domDe("<blockquote>a</blockquote><blockquote>b</blockquote><blockquote><br></blockquote><p>fim</p>")), "> a\n> b\n\nfim");
 });

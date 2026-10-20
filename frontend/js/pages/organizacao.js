@@ -43,9 +43,10 @@ import { subscribeSyncState, isSyncRunning } from "../components/email-sync-sche
 import { emailAccountColor } from "../components/email-account-color.js";
 import { grupoDoDia, horaCurta } from "../components/email-texto.js";
 import { openEmailLeitor, closeEmailLeitor } from "../modals/email-leitor-modal.js";
+import { montarNotas, desmontarNotas, focarNotas } from "./organizacao-notas.js";
 
 const state = {
-  tab: "github",
+  tab: "notas", // ORG-01 (P-30): notas é a primeira aba
   links: [],
   repos: [],
   accounts: [],
@@ -108,13 +109,16 @@ export async function mount(container, opts) {
 
   container.innerHTML = template();
   bindEvents(container);
+  // notas: monta já (é a primeira aba); o resto carrega em paralelo
+  // (nota pedida por outra tela — opts.notaId/novaNota — abre no applyFocus)
+  const notasProntas = montarNotas(container.querySelector("#org-panel-notas"));
 
   // saiu da tela no meio do carregamento (unmount zera rootEl): para aqui.
   // Sem isso o resto do mount rodava com rootEl null e o erro aparecia na
   // tela seguinte ("algo deu errado nesta tela" no calendário).
   const saiu = () => rootEl !== container;
 
-  await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
+  await Promise.all([notasProntas, loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
   if (saiu()) return;
   renderLinks();
   renderRepos();
@@ -171,6 +175,7 @@ export async function focus(opts) {
 async function applyFocus(opts) {
   if (!opts) return;
   if (opts.tab) switchTab(opts.tab);
+  if (opts.tab === "notas" && (opts.notaId || opts.novaNota)) await focarNotas(opts);
   if (opts.focusSearch) {
     // campo de busca fica acima das abas, sempre visível — não depende
     // de qual aba (github/e-mail/links) estava selecionada antes.
@@ -249,6 +254,7 @@ function applyEmailsMarkedRead(ids) {
 export function unmount() {
   cancelActiveTipSequence();
   closeEmailLeitor();
+  desmontarNotas();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   unsubscribeEmailsRead?.();
@@ -260,7 +266,7 @@ export function unmount() {
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
-  state.tab = "github";
+  state.tab = "notas";
   state.selectedAccountIds = new Set();
   state.emails = [];
   state.emailQuery = "";
@@ -286,12 +292,16 @@ function template() {
     <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="github">github</div>
+      <div class="tab on" data-tab="notas">notas</div>
+      <div class="tab" data-tab="github">github</div>
       <div class="tab" data-tab="email">e-mail</div>
       <div class="tab" data-tab="links">links</div>
     </div>
 
-    <div id="org-panel-github">
+    <!-- ORG-01: aba de notas — pages/organizacao-notas.js -->
+    <div id="org-panel-notas"></div>
+
+    <div id="org-panel-github" style="display:none;">
       <div class="card">
         <div class="card-head">
           repositórios
@@ -532,6 +542,7 @@ function bindEvents(container) {
 export function switchTab(tab) {
   state.tab = tab;
   rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
+  rootEl.querySelector("#org-panel-notas").style.display = tab === "notas" ? "block" : "none";
   rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
   rootEl.querySelector("#org-panel-github").style.display = tab === "github" ? "block" : "none";
   rootEl.querySelector("#org-panel-email").style.display = tab === "email" ? "block" : "none";

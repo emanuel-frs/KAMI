@@ -143,6 +143,19 @@ def test_link_to_goal_shows_name_count_and_disappears_when_goal_is_deleted(clien
     assert client.get(f"{BASE}/{n['id']}").json()["vinculo"] is None
 
 
+def test_link_targets_list_by_type(client, db_conn):
+    db_conn.execute("INSERT INTO tracks (id, name, status, created_at) VALUES ('t1', 'Parada', 'parada', '2026-01-01')")
+    db_conn.execute("INSERT INTO tracks (id, name, status, created_at) VALUES ('t2', 'Ativa', 'ativa', '2026-01-01')")
+    db_conn.commit()
+    assert client.get(f"{BASE}/alvos", params={"tipo": "trilha"}).json() == [
+        {"id": "t2", "nome": "Ativa"},
+        {"id": "t1", "nome": "Parada"},
+    ]
+    for tipo in ("meta", "evento", "posicao"):
+        assert client.get(f"{BASE}/alvos", params={"tipo": tipo}).status_code == 200
+    assert client.get(f"{BASE}/alvos", params={"tipo": "x"}).status_code == 422
+
+
 def test_invalid_link_is_rejected(client):
     assert client.post(BASE, json={"vinculo_tipo": "meta", "vinculo_id": "nao-existe"}).status_code == 404
     assert client.post(BASE, json={"vinculo_tipo": "qualquer", "vinculo_id": "x"}).status_code == 422

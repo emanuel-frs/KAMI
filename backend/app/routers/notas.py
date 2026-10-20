@@ -6,6 +6,8 @@ Rotas (prefixo /api/organizacao/notas):
                                  q (título/texto/tag), tag, arquivadas, fixadas,
                                  vinculo_tipo + vinculo_id
   GET    /tags                   tags em uso, com quantas notas cada
+  GET    /alvos?tipo=            itens que podem ser vinculados ({id, nome}) — o
+                                 seletor de vínculo do editor
   GET    /contagem?vinculo_tipo= quantas notas por item vinculado ({id: n}) —
                                  o "notas (N)" de metas, trilhas, eventos, posições
   GET    /{id}                   nota inteira (trancada: sem o texto)
@@ -333,6 +335,32 @@ def listar_tags(db=Depends(get_db)):
     rows = db.execute(
         "SELECT t.tag, COUNT(*) AS notas FROM notas_tags t JOIN notas n ON n.id = t.nota_id "
         "WHERE n.arquivada = 0 GROUP BY t.tag ORDER BY notas DESC, t.tag"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ordem do seletor: o que está em uso primeiro (meta ativa, trilha ativa,
+# evento mais recente, posição atual)
+_ALVOS_ORDEM = {
+    "meta": "CASE status WHEN 'ativa' THEN 0 ELSE 1 END, title",
+    "trilha": "CASE status WHEN 'ativa' THEN 0 ELSE 1 END, position, name",
+    "evento": "date DESC",
+    "posicao": "CASE WHEN end_date IS NULL THEN 0 ELSE 1 END, start_date DESC",
+}
+
+
+class AlvoOut(BaseModel):
+    id: str
+    nome: str
+
+
+@router.get("/alvos", response_model=List[AlvoOut])
+def listar_alvos(tipo: str = Query(..., max_length=20), db=Depends(get_db)):
+    if tipo not in VINCULOS:
+        raise HTTPException(status_code=422, detail="tipo de vínculo inválido")
+    tabela, nome = VINCULOS[tipo]
+    rows = db.execute(
+        f"SELECT id, {nome} AS nome FROM {tabela} ORDER BY {_ALVOS_ORDEM[tipo]} LIMIT 300"  # da lista fixa
     ).fetchall()
     return [dict(r) for r in rows]
 

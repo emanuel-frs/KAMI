@@ -17,6 +17,7 @@
  *     às vezes precisa disso além do data-tauri-drag-region no HTML)
  */
 import { icon } from "./components/icons.js";
+import { executarAntesDeFechar } from "./components/antes-de-fechar.js";
 
 const isTauri = Boolean(window.__TAURI__);
 
@@ -54,4 +55,9 @@ function wire(id, action) {
 
 wire("win-minimize", (w) => w.minimize());
 wire("win-maximize", (w) => w.toggleMaximize());
-wire("win-close", (w) => w.close());
+// ORG-01: fechar espera quem tem salvamento pendente (nota sendo editada),
+// com teto de tempo — ver components/antes-de-fechar.js
+wire("win-close", async (w) => {
+  await executarAntesDeFechar();
+  return w.close();
+});
