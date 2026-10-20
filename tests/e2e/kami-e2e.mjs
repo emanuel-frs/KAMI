@@ -122,7 +122,9 @@ async function main() {
     await waitFor("o backend publicar a porta", () => existsSync(portFile), { timeout: 120000 });
     const port = readFileSync(portFile, "utf8").trim();
     const token = readFileSync(join(DATA_DIR, "backend_token.txt"), "utf8").trim();
-    execSync(`${PYTHON} scripts/seed_demo.py --base-url http://127.0.0.1:${port} --token ${token}`, { stdio: "inherit" });
+    // --token=… junto: o token é base64 de URL e às vezes começa com "-",
+    // que o argparse leria como outra opção ("expected one argument")
+    execSync(`${PYTHON} scripts/seed_demo.py --base-url http://127.0.0.1:${port} --token=${token}`, { stdio: "inherit" });
     await wd.refresh();
     await waitFor("os widgets do núcleo", () => wd.execute("return document.querySelectorAll('.card').length > 0"), { timeout: 60000 });
     // avisos que não são erro (ex.: lembrete de backup) atrapalham o print
