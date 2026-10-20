@@ -7,6 +7,6 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=75 \"tests/frontend/**/*.test.js\""
   },
   "devDependencies": {
-    "jsdom": "^26.1.0"
+    "jsdom": "^30.1.3"
   }
 }
