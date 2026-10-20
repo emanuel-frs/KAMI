@@ -85,6 +85,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
   configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
+- **Telas que se organizam:** os widgets se encaixam sozinhos, sem buracos, em qualquer tamanho de
+  janela, e cada tela tem um layout padrão montado para caber bem (com "restaurar padrão"). Um widget
+  removido e adicionado de novo volta para o lugar dele. Opcional: o ícone do app na cor de destaque.
 - **Segurança:** PIN opcional para abrir o app (com código de recuperação e bloqueio por
   inatividade), backup exportado com senha, e as senhas salvas protegidas por uma chave no cofre do
   sistema. Detalhes e limites em [SECURITY.md](./SECURITY.md).
