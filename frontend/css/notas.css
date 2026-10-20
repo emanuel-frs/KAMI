@@ -386,3 +386,45 @@
   .notas[data-modo="nota"] .notas-lista { display: none; }
   .nota-voltar { display: inline-flex; }
 }
+
+/* ---------- widget "notas rápidas" (widgets/notas-rapidas.js) ---------- */
+.nr-form { margin-bottom: 8px; }
+.nr-input { width: 100%; }
+.nr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 4px 6px 8px;
+  border-bottom: 1px dashed var(--border-soft);
+  border-left: 2px solid var(--nota-cor, transparent);
+  cursor: pointer;
+  min-width: 0;
+}
+.nr-item:hover { background: rgba(255, 255, 255, 0.03); }
+.nr-titulo { font-size: 11px; color: var(--nota-cor, var(--text-bright)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nr-previa { font-size: 9.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nr-previa:empty { display: none; }
+.nr-todas { display: inline-block; margin-top: 8px; font-size: 10px; color: var(--text-dim); }
+.nr-todas:hover { color: var(--accent); }
+
+/* ---------- modal de nota rápida (Alt+Shift+N) ---------- */
+.modal.nota-rapida { width: min(680px, 94vw); display: flex; flex-direction: column; overflow: hidden; height: min(520px, calc(100vh - (var(--titlebar-h) + 12px) * 2)); }
+.nota-rapida .modal-head { gap: 10px; }
+.nota-rapida .modal-head .nota-status { margin-left: auto; }
+.nota-rapida .modal-head .close { margin-left: 8px; }
+.nrm-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px 0 0; }
+/* o .nota-titulo da aba é item de linha (flex: 1 1 auto); aqui, numa
+   coluna, isso o esticava na vertical — e width 100% + margem passava da
+   largura do modal (o foco rolava o modal 15px pro lado) */
+.nrm-corpo .nota-titulo { flex: 0 0 auto; width: calc(100% - 32px); margin: 0 16px 8px; font-size: 14px !important; }
+.nrm-editor { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.nrm-rodape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+}
+.nrm-dica { flex: 1 1 auto; font-size: 9.5px; color: var(--text-faint); }
+.nrm-rodape .btn { display: inline-flex; align-items: center; gap: 5px; }

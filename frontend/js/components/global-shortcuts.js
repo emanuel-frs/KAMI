@@ -31,6 +31,11 @@
  *   aba/conta/e-mail específico (ver navigate.js) — sem caminho novo,
  *   só mais um campo em `opts` (`focusSearch`).
  *
+ * Alt+Shift+N — nota rápida (ORG-01, P-51):
+ *   Modal pequeno de qualquer tela (modals/nota-rapida-modal.js). Com
+ *   Shift de propósito: Alt+N sozinho já é atalho de tela (aprendizado,
+ *   dashboard) e, no Windows, vai ser a captura rápida (ORG-02).
+ *
  * Letras livres: nenhuma tela registra atalho próprio em "C" ou "B"
  * hoje (aprendizado.js usa N/E/M/T/R; dashboard.js usa N) — evitado de
  * propósito, pra essas duas letras terem sempre o mesmo efeito em
@@ -40,6 +45,7 @@
 import { registerGlobalShortcuts } from "./shortcuts.js";
 import { navigateTo } from "./navigate.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
+import { openNotaRapida } from "../modals/nota-rapida-modal.js";
 
 // mesma ordem visual de index.html (#nav-tree).
 const PAGE_ORDER = [
@@ -67,6 +73,7 @@ export function wireGlobalShortcuts() {
   registerGlobalShortcuts([
     ...pageShortcuts,
     { code: "KeyC", label: "abrir configurações", run: () => openConfiguracoesModal() },
+    { code: "KeyN", shift: true, label: "nova nota rápida", run: () => openNotaRapida() },
     {
       code: "KeyB",
       label: "focar a busca (tela organização)",

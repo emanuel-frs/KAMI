@@ -25,7 +25,7 @@
 import * as api from "../api/notas.js";
 import { criarEditorNota } from "../components/nota-editor.js";
 import { icon } from "../components/icons.js";
-import { ACCENT_OPTIONS } from "../components/accent-colors.js";
+import { CORES_NOTA, corDaNota } from "../components/nota-cores.js";
 import { registrarAntesDeFechar } from "../components/antes-de-fechar.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showToast } from "../components/toast.js";
@@ -42,8 +42,6 @@ const VINCULO_TIPOS = [
   { tipo: "posicao", rotulo: "posição de carreira", pagina: "carreira" },
 ];
 
-export const CORES_NOTA = ACCENT_OPTIONS.map((o) => ({ nome: o.icone, hex: o.value, rotulo: o.label.replace(/ \(.*\)$/, "") }));
-export const corDaNota = (nome) => CORES_NOTA.find((c) => c.nome === nome)?.hex || null;
 
 const st = {
   raiz: null,
