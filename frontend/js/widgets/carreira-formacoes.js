@@ -3,6 +3,7 @@ import { escapeHtml } from "../components/format.js";
 import { openFormacaoModal } from "../modals/formacao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /**
  * Widget "formação acadêmica" (seção 4 do documento de regras de
@@ -94,4 +95,7 @@ export async function render(el, widget) {
   }
 
   await reload();
+  // ORG-03: item escolhido na busca (Ctrl+K)
+  const pedido = consumePendingFocus("formacao");
+  if (pedido) focusRow(el.querySelector(`[data-education-id="${CSS.escape(pedido)}"]`), "formacao");
 }

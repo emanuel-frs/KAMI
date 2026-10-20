@@ -1,7 +1,7 @@
 import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js";
 import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
-import { setPendingFocus } from "../components/pending-focus.js";
+import { setPendingFocus, consumePendingFocus } from "../components/pending-focus.js";
 import { TYPE_META } from "../components/event-types.js";
 import { openCalendarioEventoModal } from "../modals/calendario-evento-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -584,6 +584,14 @@ export async function mount(container) {
   viewYear = t.year;
   viewMonth = t.month;
   selectedDate = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+  // ORG-03: evento escolhido na busca (Ctrl+K) — abre no mês/dia dele
+  const dataPedida = consumePendingFocus("data");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataPedida || "")) {
+    const { y, m } = parseDateStr(dataPedida);
+    viewYear = y;
+    viewMonth = m;
+    selectedDate = dataPedida;
+  }
   focusedDate = selectedDate;
 
   container.innerHTML = `

@@ -4,6 +4,7 @@ import { openPosicaoModal } from "../modals/posicao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /**
  * Widget "linha do tempo de posições" (seção 3 do documento de regras
@@ -83,4 +84,7 @@ export async function render(el, widget) {
   }
 
   await reload();
+  // ORG-03: item escolhido na busca (Ctrl+K)
+  const pedido = consumePendingFocus("posicao");
+  if (pedido) focusRow(el.querySelector(`[data-position-id="${CSS.escape(pedido)}"]`), "posicao");
 }

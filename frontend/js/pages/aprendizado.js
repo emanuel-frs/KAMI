@@ -22,6 +22,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { makeFocusable, announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { consumePendingFocus } from "../components/pending-focus.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -1699,6 +1700,14 @@ export async function mount(container) {
 
   await refreshTracks();
   setupListEvents();
+
+  // ORG-03: trilha/marco escolhido na busca (Ctrl+K)
+  const trilhaPedida = consumePendingFocus("trilha");
+  if (trilhaPedida && tracks.some((t) => t.id === trilhaPedida)) {
+    selectedTrackId = trilhaPedida;
+    await refreshMilestones();
+    renderTracks();
+  }
 
   if (!selectedTrackId && tracks.length > 0) {
     const sorted = [...tracks].sort((a, b) => a.position - b.position);

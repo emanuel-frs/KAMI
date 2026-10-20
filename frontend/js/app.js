@@ -37,6 +37,7 @@ import { registerNavigator } from "./components/navigate.js";
 import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
 import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
+import { wirePaleta } from "./components/paleta.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -128,7 +129,10 @@ async function reloadCurrentPage() {
 async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
 
-  if (name === currentPageName) {
+  // `remontar` (ORG-03, paleta Ctrl+K): mesmo já estando na tela, monta de
+  // novo — o item escolhido é entregue por foco pendente
+  // (components/pending-focus.js), que só é lido ao montar
+  if (name === currentPageName && !opts?.remontar) {
     // já está na tela — não remonta (evitaria perder scroll/estado à
     // toa), só aplica os opts se a tela souber o que fazer com eles.
     await currentPageModule?.focus?.(opts);
@@ -327,6 +331,7 @@ async function boot() {
   wireShortcutsHelp();
   wireGlobalShortcuts();
   wireNotasVinculadas(); // ORG-01: "notas (N)" em metas/trilhas/eventos/posições
+  wirePaleta(); // ORG-03: Ctrl+K, busca global e comandos
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();

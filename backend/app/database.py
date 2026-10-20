@@ -92,6 +92,10 @@ def get_connection() -> sqlite3.Connection:
     # vez em vez de falhar na hora.
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA busy_timeout = 30000")
+    # ORG-03: busca que ignora acento ("acao" acha "Ação") — ver app/busca.py
+    from app.busca import sem_acento
+
+    conn.create_function("sem_acento", 1, sem_acento, deterministic=True)
     return conn
 
 

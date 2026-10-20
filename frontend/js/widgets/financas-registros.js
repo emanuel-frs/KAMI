@@ -8,6 +8,7 @@ import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { consumePendingFocus } from "../components/pending-focus.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -34,6 +35,11 @@ function formatDate(iso) {
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando registros…</div>';
   let month = currentMonthStr();
+  // ORG-03: lançamento escolhido na busca (Ctrl+K) — "id|AAAA-MM-DD": abre
+  // no mês dele e já com a edição aberta
+  const pedido = consumePendingFocus("lancamento");
+  const [lancPedido, dataPedida] = (pedido || "").split("|");
+  if (dataPedida) month = dataPedida.slice(0, 7);
   let banks = [];
   let transactions = [];
   let filter = { contaId: null, categoria: null, type: null };
@@ -172,5 +178,12 @@ export async function render(el, widget) {
   }
 
   await reload();
+  if (lancPedido === "novo") {
+    // "novo lançamento" da paleta
+    openTransacaoModal({ accounts: accountsFlat(), onSaved: reload });
+  } else if (lancPedido) {
+    const t = transactions.find((x) => x.id === lancPedido);
+    if (t) openTransacaoModal({ accounts: accountsFlat(), onSaved: reload, editing: t });
+  }
   listenWhileConnected(el, "kami:wallet-changed", reload);
 }
