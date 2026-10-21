@@ -26,6 +26,9 @@ export const listEmailCache = (params = {}) => {
   return get(`/api/organizacao/email-cache${qs ? `?${qs}` : ""}`);
 };
 export const markEmailRead = (cacheId) => put(`/api/organizacao/email-cache/${cacheId}/read`, {});
+// ORG-06: texto completo (a lista só traz a prévia) e "marcar como não lido"
+export const getEmail = (cacheId) => get(`/api/organizacao/email-cache/${cacheId}`);
+export const markEmailUnread = (cacheId) => put(`/api/organizacao/email-cache/${cacheId}/unread`, {});
 
 // contas silenciadas (notificações v2.1) — silencia a CONTA inteira
 // (não um remetente/e-mail individual); ver EmailCacheOut.is_muted/

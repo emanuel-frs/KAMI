@@ -396,6 +396,203 @@ def test_list_email_cache_filters_by_is_read(client, isolated_fernet_key, mock_i
     assert unread[0]["subject"] == "não lido"
 
 
+# ==================== leitura dos e-mails (ORG-06) ====================
+
+_STATICA = "https://collect.statica.com.br/jwt/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.abc"
+
+
+def _conta_gmail(client):
+    return client.post(
+        "/api/organizacao/email-accounts",
+        json={
+            "label": "gmail",
+            "imap_host": "imap.gmail.com",
+            "imap_port": 993,
+            "username": "voce@gmail.com",
+            "app_password": "secreta",
+        },
+    ).json()
+
+
+def _agora_rfc():
+    # data recente: o texto completo de e-mail com mais de 90 dias é podado
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+
+
+def _raw_html_email(subject, html, message_id="<m1@gmail.com>", date=None):
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = '"Gabriel Granjeiro - Gran" <gabriel@gran.com>'
+    msg["Date"] = date or _agora_rfc()
+    msg["Message-ID"] = message_id
+    msg.set_content(html, subtype="html")
+    return msg.as_bytes()
+
+
+def test_sync_html_only_email_has_clean_preview_and_full_text(client, isolated_fernet_key, mock_imap):
+    account = _conta_gmail(client)
+    mock_imap(messages=[_raw_html_email("Oferta", f"<p>Conheça a <a href='{_STATICA}'>Statica</a></p><p>Segundo parágrafo.</p>")])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    assert item["body_preview"] == "Conheça a Statica Segundo parágrafo."
+    assert item["sender_name"] == "Gabriel Granjeiro - Gran"
+    assert item["sender_email"] == "gabriel@gran.com"
+    assert "body_text" not in item  # a lista não carrega o texto completo
+
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert "Statica" in detail["body_text"] and _STATICA in detail["body_text"]
+    assert "\n\nSegundo parágrafo." in detail["body_text"]
+    assert detail["body_cortado"] is False
+    assert detail["webmail_url"] == "https://mail.google.com/mail/?authuser=voce@gmail.com#search/rfc822msgid%3Am1%40gmail.com"
+    assert "<p>" not in detail["body_text"]
+
+
+def test_gmail_sync_asks_for_gmail_id_and_links_to_the_message(client, isolated_fernet_key, mock_imap):
+    account = _conta_gmail(client)
+    conn = mock_imap(messages=[_raw_html_email("Oferta", "<p>oi</p>")])
+    # o Gmail devolve o id no cabeçalho da resposta do FETCH
+    raw = _raw_html_email("Oferta", "<p>oi</p>")
+    conn.fetch.side_effect = lambda mid, spec: ("OK", [(b"1 (X-GM-MSGID 1278455344230334865 RFC822 {123}", raw)])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+
+    assert "X-GM-MSGID" in conn.fetch.call_args[0][1]
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["webmail_url"].endswith("#all/" + format(1278455344230334865, "x"))
+
+
+def test_resync_reprocesses_text_and_fills_gmail_id(client, isolated_fernet_key, mock_imap, db_conn):
+    account = _conta_gmail(client)
+    raw = _raw_html_email("Oferta", "<p>texto novo</p>")
+    mock_imap(messages=[raw])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    db_conn.execute("UPDATE email_cache SET body_text = 'limpeza antiga', gmail_id = NULL")
+    db_conn.commit()
+
+    conn = mock_imap(messages=[raw])
+    conn.fetch.side_effect = lambda mid, spec: ("OK", [(b"1 (X-GM-MSGID 42 RFC822 {1}", raw)])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["body_text"] == "texto novo"
+    assert detail["webmail_url"].endswith("#all/2a")
+
+
+def test_non_gmail_sync_does_not_ask_for_gmail_id(client, isolated_fernet_key, mock_imap):
+    account = client.post(
+        "/api/organizacao/email-accounts",
+        json={"label": "t", "imap_host": "mail.empresa.com", "imap_port": 993, "username": "eu", "app_password": "x"},
+    ).json()
+    conn = mock_imap(messages=[_raw_email("a", "b@c.com")])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    assert conn.fetch.call_args[0][1] == "(RFC822)"
+
+
+def test_sync_errors_are_recorded_on_the_account_and_cleared(client, isolated_fernet_key, mock_imap, db_conn):
+    """ORG-06: a falha que só a pessoa resolve fica na conta (a tela
+    avisa); queda de rede não; sucesso ou trocar a senha limpa."""
+    account = _conta_gmail(client)
+    conta = lambda: client.get("/api/organizacao/email-accounts").json()[0]
+
+    mock_imap(connect_error=True)
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true")
+    assert conta()["sync_erro"] is None
+
+    mock_imap(login_error=True)
+    assert client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true").status_code == 422
+    primeira = conta()
+    assert primeira["sync_erro"] == "login" and primeira["sync_erro_desde"]
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync?automatic=true")
+    assert conta()["sync_erro_desde"] == primeira["sync_erro_desde"]  # mantém o começo
+
+    # trocar a senha tira o aviso na hora
+    client.put(f"/api/organizacao/email-accounts/{account['id']}", json={"app_password": "nova"})
+    assert conta()["sync_erro"] is None
+
+    # senha apagada (chave redefinida) -> "senha"; sincronizar com sucesso limpa
+    db_conn.execute("UPDATE email_accounts SET app_password_enc = ''")
+    db_conn.commit()
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    assert conta()["sync_erro"] == "senha"
+    db_conn.execute("UPDATE email_accounts SET app_password_enc = ?", (__import__("app.crypto", fromlist=["x"]).encrypt_password("x"),))
+    db_conn.commit()
+    mock_imap(messages=[])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    depois = conta()
+    assert depois["sync_erro"] is None and depois["ultimo_sync_ok"]
+
+
+def test_get_email_not_found_returns_404(client):
+    assert client.get("/api/organizacao/email-cache/inexistente").status_code == 404
+
+
+def test_legacy_email_preview_cleaned_on_read_and_backfilled_on_next_sync(
+    client, isolated_fernet_key, mock_imap, db_conn
+):
+    account = _conta_gmail(client)
+    raw = _raw_email("Antigo", "news@x.com", date=_agora_rfc())
+    mock_imap(messages=[raw])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    # simula um e-mail sincronizado antes do ORG-06: só a prévia crua
+    db_conn.execute(
+        "UPDATE email_cache SET body_text = NULL, message_id = NULL, body_preview = ?",
+        (f"Leia [Statica]({_STATICA}) agora",),
+    )
+    db_conn.commit()
+
+    item = client.get("/api/organizacao/email-cache").json()[0]
+    assert item["body_preview"] == "Leia Statica agora"
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["body_cortado"] is True  # só tinha a prévia
+
+    # a próxima sincronização traz o mesmo e-mail e completa o texto
+    mock_imap(messages=[raw])
+    assert client.post(f"/api/organizacao/email-accounts/{account['id']}/sync").json()["new_messages"] == 0
+    detail = client.get(f"/api/organizacao/email-cache/{item['id']}").json()
+    assert detail["body_text"] == "corpo do e-mail"
+    assert detail["body_cortado"] is False
+
+
+def test_old_full_text_is_pruned_on_sync(client, isolated_fernet_key, mock_imap):
+    account = _conta_gmail(client)
+    velho = _raw_html_email("Velho", "<p>texto antigo</p>", "<v@x>", date="Mon, 01 Jan 2024 10:00:00 +0000")
+    novo = _raw_html_email("Novo", "<p>texto novo</p>", "<n@x>")
+    mock_imap(messages=[velho, novo])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+
+    by_subject = {e["subject"]: e for e in client.get("/api/organizacao/email-cache").json()}
+    assert by_subject["Velho"]["body_preview"] == "texto antigo"  # a prévia fica
+    old = client.get(f"/api/organizacao/email-cache/{by_subject['Velho']['id']}").json()
+    assert old["body_cortado"] is True
+    new = client.get(f"/api/organizacao/email-cache/{by_subject['Novo']['id']}").json()
+    assert new["body_text"] == "texto novo" and new["body_cortado"] is False
+
+
+def test_mark_email_unread(client, isolated_fernet_key, mock_imap):
+    account = _conta_gmail(client)
+    mock_imap(messages=[_raw_email("assunto", "remetente@exemplo.com")])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    email_id = client.get("/api/organizacao/email-cache").json()[0]["id"]
+
+    client.put(f"/api/organizacao/email-cache/{email_id}/read")
+    resp = client.put(f"/api/organizacao/email-cache/{email_id}/unread")
+    assert resp.status_code == 200 and resp.json()["is_read"] is False
+    assert client.put("/api/organizacao/email-cache/inexistente/unread").status_code == 404
+
+
+def test_webmail_hidden_for_unknown_imap_host(client, isolated_fernet_key, mock_imap):
+    account = client.post(
+        "/api/organizacao/email-accounts",
+        json={"label": "trabalho", "imap_host": "mail.empresa.com", "imap_port": 993,
+              "username": "eu", "app_password": "x"},
+    ).json()
+    mock_imap(messages=[_raw_email("a", "b@c.com")])
+    client.post(f"/api/organizacao/email-accounts/{account['id']}/sync")
+    email_id = client.get("/api/organizacao/email-cache").json()[0]["id"]
+    assert client.get(f"/api/organizacao/email-cache/{email_id}").json()["webmail_url"] is None
+
+
 # ==================== busca (tavily) ====================
 # reaproveita mock_github_urlopen: ele mocka
 # app.routers.organizacao.urllib.request.urlopen, que é exatamente o

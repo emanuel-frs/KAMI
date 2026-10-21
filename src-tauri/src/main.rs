@@ -73,7 +73,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
@@ -435,22 +435,47 @@ fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 mod icone_tema; // ICO-01: ícone do app na cor de destaque
+mod janela; // ORG-05: bandeja e iniciar com o sistema
 
 fn main() {
     tauri::Builder::default()
+        // ORG-05 (P-67/P-68): abrir o kami de novo mostra a janela que já
+        // está aberta (ou escondida na bandeja) em vez de uma segunda — tem
+        // que ser o primeiro plugin registrado
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| janela::mostrar(app)))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![janela::ARG_OCULTO]),
+        ))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(BackendStatus::default())
+        .manage(janela::EstadoJanela(Mutex::new(janela::carregar(&kami_data_dir()))))
         .invoke_handler(tauri::generate_handler![
             get_backend_port,
             get_backend_token,
             restart_backend,
             open_log_folder,
-            icone_tema::aplicar_icone_tema
+            icone_tema::aplicar_icone_tema,
+            janela::janela_preferencias,
+            janela::janela_definir,
+            janela::janela_sair
         ])
         .setup(|app| {
+            // ORG-05: bandeja ligada → ícone já no começo; iniciado pelo
+            // sistema (--oculto) com bandeja → começa escondido nela
+            if janela::bandeja_ligada(app.handle()) {
+                if let Err(e) = janela::criar_bandeja(app.handle()) {
+                    eprintln!("[kami] bandeja indisponível: {}", e);
+                } else if std::env::args().any(|a| a == janela::ARG_OCULTO) {
+                    if let Some(w) = app.get_webview_window("main") {
+                        let _ = w.hide();
+                    }
+                }
+            }
+
             if std::env::var("KAMI_DEV_NO_SIDECAR").is_ok() {
                 println!(
                     "[kami] KAMI_DEV_NO_SIDECAR definido — não subindo o sidecar. \
@@ -466,6 +491,16 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // ORG-05: com a bandeja ligada o ✕ só esconde (o kami continua
+            // avisando os lembretes); sair de vez é pelo menu da bandeja
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if janela::bandeja_ligada(window.app_handle()) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    let _ = window.emit("kami://escondido", ());
+                    return;
+                }
+            }
             if let tauri::WindowEvent::Destroyed = event {
                 if let Some(child) = window
                     .state::<BackendProcess>()
@@ -478,6 +513,15 @@ fn main() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("erro ao rodar a aplicação Kami");
+        .build(tauri::generate_context!())
+        .expect("erro ao rodar a aplicação Kami")
+        .run(|app, event| {
+            // "sair" da bandeja (app.exit) não passa pelo Destroyed da janela
+            // em todo sistema — garante que o backend não fica órfão
+            if let tauri::RunEvent::Exit = event {
+                if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
+                    kill_backend(child);
+                }
+            }
+        });
 }

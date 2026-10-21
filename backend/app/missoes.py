@@ -35,6 +35,7 @@ import datetime
 import random
 
 from app.database import new_id, now_iso
+from app.habitos import carregar as carregar_habitos, dias_com_tudo_feito
 
 REF_MISSAO = "missao"
 BONUS_DIARIA = 10
@@ -55,6 +56,8 @@ SEMANAIS = {
     "lancamentos": {"titulo": "lance 10 gastos ou entradas na semana", "quantidade": 10, "atributo": "financas"},
     "marcos": {"titulo": "conclua 2 marcos na semana", "quantidade": 2, "atributo": "aprendizado"},
     "atributos": {"titulo": "aja em 4 atributos diferentes na semana", "quantidade": 4, "atributo": "metas"},
+    # ORG-04 (P-58): só sorteada com hábito de dia (diário/dias fixos) ativo
+    "habitos_dias": {"titulo": "cumpra todos os hábitos do dia em 4 dias da semana", "quantidade": 4, "atributo": "organizacao"},
 }
 
 
@@ -103,6 +106,11 @@ def _candidatos_diarios(db, hoje: datetime.date) -> list:
         out.append(("marco_esquecido", m["id"], f'resgate o marco esquecido "{m["title"]}"', "aprendizado"))
 
     out.append(("link", None, "salve um link", "organizacao"))
+
+    # ORG-04 (P-58): hábito que vale hoje e ainda não foi feito
+    for h in carregar_habitos(db, "status = 'ativo'"):
+        if h.vale(hoje) and hoje not in h.marcas:
+            out.append(("habito", h.row["id"], f'marque o hábito "{h.row["nome"]}"', h.row["atributo"]))
     return out
 
 
@@ -113,6 +121,8 @@ def _candidatos_semanais(db) -> list:
     ).fetchone()["c"]
     if abertos >= SEMANAIS["marcos"]["quantidade"]:
         tipos.append("marcos")
+    if db.execute("SELECT 1 FROM habitos WHERE status = 'ativo' AND frequencia != 'semana' LIMIT 1").fetchone():
+        tipos.append("habitos_dias")
     return tipos
 
 
@@ -216,6 +226,14 @@ def progresso(db, m) -> int:
             f"WHERE {_LOG_VALIDO} AND substr(l.created_at, 1, 10) BETWEEN ? AND ?",
             (inicio, fim),
         ).fetchone()["c"]
+    elif tipo == "habito":
+        feito = _conta(
+            db, "l.referencia_tipo = 'habito_marca' AND l.referencia_id IN "
+            "(SELECT id FROM habitos_marcas WHERE habito_id = ? AND dia = ?)",
+            (alvo, inicio), inicio, fim,
+        )
+    elif tipo == "habitos_dias":
+        feito = dias_com_tudo_feito(db, datetime.date.fromisoformat(inicio), datetime.date.fromisoformat(fim))
     else:
         feito = 0  # tipo desconhecido (banco mais novo que o código): nunca conclui
     return min(feito, m["quantidade"])

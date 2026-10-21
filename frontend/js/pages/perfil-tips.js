@@ -25,6 +25,8 @@ const WIDGET_TEXTS = {
   profile: "seu nome, cor e avatar ficam aqui — toque em editar pra mudar qualquer um dos três. ao lado, seu nível geral e a sequência de dias seguidos com pelo menos uma ação.",
   attributes: "o mesmo progresso por atributo do núcleo, só que centralizado aqui no seu perfil.",
   achievements: "todas as conquistas num só lugar — as destravadas e, nas bloqueadas, quanto falta. dá pra filtrar por uma ou mais áreas.",
+  notas_rapidas: "suas notas fixadas, e um campo pra anotar sem sair daqui. alt+shift+n abre uma nota rápida de qualquer tela.",
+  habitos_hoje: "os hábitos que valem hoje — um clique marca (+5 xp) ou desmarca. a grade e o histórico ficam na tela hábitos (alt+9).",
   perfil_atividade: "seu mapa de atividade — cada bloquinho é um dia, somando ações de todos os atributos. quanto mais escuro, mais coisa você registrou naquele dia.",
 };
 

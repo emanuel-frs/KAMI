@@ -4,6 +4,34 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.13.0] - 2026-10-21
+
+_Sprint de organização: notas, captura rápida, busca em tudo, hábitos, lembretes com notificação do sistema e datas no formato do seu país._
+
+### Adicionado
+- notas em organização, com editor visual (títulos, listas, tarefas, citação, código, links), tags, cores, fixar e arquivar; uma nota pode ser ligada a uma meta, trilha, evento ou posição ("notas (N)" aparece lá) e, com o PIN ligado, trancada — o texto fica cifrado e só abre com o PIN
+- nota rápida de qualquer tela com `Alt+Shift+N` e o widget "notas rápidas" (núcleo e perfil)
+- captura rápida com `Alt+Q`: `$ 32,90 farmácia ontem` abre o lançamento preenchido, `# ideia` uma nota, `! sexta 14h reunião` um evento, `@ amanhã 9h ligar pro banco` um lembrete; o resto vai para a nova caixa de entrada, de onde vira gasto, tarefa, nota, meta, evento ou lembrete com um clique
+- busca em tudo com `Ctrl+K` (notas, metas, hábitos, trilhas, lançamentos, contas, eventos, conquistas, carreira, links, e-mails…), sem ligar para acento, e comandos como "novo gasto" ou "ir para finanças"
+- tela de hábitos (`Alt+9`): todo dia, dias fixos ou "x vezes por semana", lista do dia com um clique para marcar, grade das últimas 12 semanas (dá para marcar até 2 dias atrás), sequência e recorde por hábito, pausar e arquivar. Marcar dá +5 xp no atributo escolhido, conta na sequência geral e nas novas missões de hábito; widget "hábitos de hoje"
+- lembretes com dia, hora e repetição, ligados opcionalmente a uma nota, conta fixa, meta ou hábito: avisam dentro do app (com "adiar 10 min / 1 h / amanhã") e pela notificação do sistema, ficam no sino até você dar "ok", e os que passaram com o app fechado aparecem ao abrir. Aparecem no calendário, que ganhou a aba "lembretes"
+- configurações › notificações: escolher o que vira notificação do sistema (lembretes, vencimentos, eventos), esconder o texto delas (liga sozinho com o PIN) e a hora dos avisos de vencimento
+- opcionais, desligados por padrão: manter o Kami na bandeja ao fechar (ele continua avisando) e iniciar com o sistema. Abrir o Kami de novo traz a janela que já está aberta
+- leitura dos e-mails dentro do app: texto limpo, sem links de rastreamento nem HTML de terceiros, navegação por teclado e um link que abre o próprio e-mail no webmail; aviso quando a conta para de sincronizar por senha ou login
+- formato das datas em configurações › aparência: seguir o sistema, dd/mm/aaaa, mm/dd/aaaa ou aaaa-mm-dd
+- dicas das telas para tudo isso (caixa de entrada, lembretes, botão "lembrar", hábitos) e para os widgets de missões, notas rápidas e hábitos de hoje — em "rever dicas desta tela"
+
+### Modificado
+- as datas seguem o idioma do sistema (dd/mm/aaaa no Brasil) em todas as telas
+- os campos de data dos formulários (lançamento, salário, posição, dívida, formação) são campos de data de verdade, no formato do sistema, em vez de texto "YYYY-MM-DD"
+- o aviso diário de vencimentos virou um aviso só, com o que vence hoje e amanhã, na hora escolhida
+- o sino também conta os itens da caixa de entrada e os lembretes pendentes
+- avisos na tela se empilham acima do lembrete de backup em vez de ficarem um sobre o outro
+
+### Corrigido
+- campos de data que pediam a data digitada como "YYYY-MM-DD" (ex.: registro salarial) e confundiam a ordem
+- num campo de data vazio, o Linux mostrava a data de hoje apagada, parecendo preenchido
+
 ## [1.12.0] - 2026-10-20
 
 _Sprint de layout: as telas se organizam sozinhas em faixas alinhadas, cada uma com um layout padrão bem montado, e o ícone do app pode seguir a cor de destaque._

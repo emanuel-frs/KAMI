@@ -7,7 +7,7 @@
  * aparece sozinho na lista de Alt+H — não existe texto de ajuda
  * separado pra ficar desatualizado, mesma ideia do resto do app.
  *
- * Alt+1 a Alt+8 — ir direto pra qualquer tela:
+ * Alt+1 a Alt+9 — ir direto pra qualquer tela:
  *   Mesma ordem do menu (#nav-tree em index.html), casada por posição
  *   com PAGE_ORDER abaixo. "assistente kami" fica de fora (link
  *   desabilitado, pós-mvp, sem tela pra abrir). Usa `navigateTo` de
@@ -31,6 +31,16 @@
  *   aba/conta/e-mail específico (ver navigate.js) — sem caminho novo,
  *   só mais um campo em `opts` (`focusSearch`).
  *
+ * Alt+Shift+N — nota rápida (ORG-01, P-51):
+ *   Modal pequeno de qualquer tela (modals/nota-rapida-modal.js). Com
+ *   Shift de propósito: Alt+N sozinho já é atalho de tela (aprendizado,
+ *   dashboard) e, no Windows, vai ser a captura rápida (ORG-02).
+ *
+ * Alt+Q — captura rápida (ORG-02, P-55) em qualquer sistema; Alt+Espaço
+ *   também (P-36), mas como apelido escondido da lista: no GNOME (e em
+ *   outros) ele é o menu da janela e nem chega ao app. Alt+N ficou de
+ *   fora porque já é "adicionar widget" nas telas de dashboard.
+ *
  * Letras livres: nenhuma tela registra atalho próprio em "C" ou "B"
  * hoje (aprendizado.js usa N/E/M/T/R; dashboard.js usa N) — evitado de
  * propósito, pra essas duas letras terem sempre o mesmo efeito em
@@ -40,6 +50,8 @@
 import { registerGlobalShortcuts } from "./shortcuts.js";
 import { navigateTo } from "./navigate.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
+import { openNotaRapida } from "../modals/nota-rapida-modal.js";
+import { abrirCaptura } from "./captura.js";
 
 // mesma ordem visual de index.html (#nav-tree).
 const PAGE_ORDER = [
@@ -51,6 +63,8 @@ const PAGE_ORDER = [
   { page: "organizacao", label: "ir para organização", shortLabel: "organização" },
   { page: "metas", label: "ir para metas pessoais", shortLabel: "metas pessoais" },
   { page: "calendario", label: "ir para calendário", shortLabel: "calendário" },
+  // ORG-04 (P-55): por último (Alt+9), pra Alt+1..8 não mudarem de tela
+  { page: "habitos", label: "ir para hábitos", shortLabel: "hábitos" },
 ];
 
 /** Registra os atalhos globais. Chamar uma vez no boot (app.js), junto
@@ -67,6 +81,9 @@ export function wireGlobalShortcuts() {
   registerGlobalShortcuts([
     ...pageShortcuts,
     { code: "KeyC", label: "abrir configurações", run: () => openConfiguracoesModal() },
+    { code: "KeyN", shift: true, label: "nova nota rápida", run: () => openNotaRapida() },
+    { code: "KeyQ", label: "captura rápida ($ gasto, # nota, ! evento, @ lembrete)", run: () => abrirCaptura() },
+    { code: "Space", label: "captura rápida", group: "apelido", run: () => abrirCaptura() },
     {
       code: "KeyB",
       label: "focar a busca (tela organização)",

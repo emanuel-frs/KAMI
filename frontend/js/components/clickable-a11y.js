@@ -142,6 +142,9 @@ const RULES = [
 
   // linhas inteiras clicáveis
   { sel: ".email-item" },
+  // ORG-01: notas (item da lista, filtros de tag)
+  { sel: ".nota-item[data-nt-abrir]" },
+  { sel: ".nota-tag-filtro", state: { attr: "aria-pressed", get: isOn } },
   { sel: ".pw-avatar-btn" },
   // qualquer outro trecho de texto que abre um endereço externo (ex.: o
   // link "tavily.com" dentro dos modais de chave de busca)

@@ -1,7 +1,7 @@
 import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js";
-import { escapeHtml, fmtMoney } from "../components/format.js";
+import { escapeHtml, fmtMoney, fmtDataCompacta } from "../components/format.js";
 import { icon } from "../components/icons.js";
-import { setPendingFocus } from "../components/pending-focus.js";
+import { setPendingFocus, consumePendingFocus } from "../components/pending-focus.js";
 import { TYPE_META } from "../components/event-types.js";
 import { openCalendarioEventoModal } from "../modals/calendario-evento-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -11,6 +11,9 @@ import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { listLembretes } from "../api/lembretes.js";
+import { openLembreteModal, REPETICOES, VINCULO_ROTULO } from "../modals/lembrete-modal.js";
+import { DIAS_CURTOS } from "../components/habito-linha.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -93,6 +96,8 @@ let resizeObserver = null;
 let unsubscribeProfile = null;
 let currentReplayFn = null;
 let focusedDate = null; // "cursor" da grade, independente do dia selecionado (setas movem isto)
+let painel = "dia"; // ORG-05: aba do painel da direita — "dia" | "lembretes"
+let ouvirLembretes = null;
 let wantsGridFocus = false; // true quando a navegação por teclado disparou o redesenho (setas/PageUp/PageDown)
 
 function pad2(n) {
@@ -163,6 +168,71 @@ function handleEditEventoClick(evtRow) {
       await loadMonth();
     },
   });
+}
+
+// ─── ORG-05: lembretes (aba do painel + criar/editar) ─────────────────────
+function rotuloRepeticao(l) {
+  if (l.repeticao === "dias") return l.dias_semana.map((d) => DIAS_CURTOS[d]).join(", ");
+  return REPETICOES.find(([v]) => v === l.repeticao)?.[1] ?? l.repeticao;
+}
+
+function quandoLegivel(iso) {
+  if (!iso) return "encerrado";
+  const [dia, hora] = iso.split("T");
+  return `${fmtDataCompacta(dia)} às ${hora}`;
+}
+
+async function renderLembretes() {
+  const el = containerEl?.querySelector("#cal-lembretes");
+  if (!el || painel !== "lembretes") return;
+  let lista;
+  try {
+    lista = await listLembretes();
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state">erro ao carregar lembretes: ${escapeHtml(err.message)}</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <button type="button" class="btn sm cal-lembrete-novo" data-novo-lembrete>${icon("plus", { size: 12 })}&nbsp;novo lembrete</button>
+    ${lista.length
+      ? lista
+          .map(
+            (l) => `
+      <button type="button" class="cal-lembrete${l.proxima || l.adiado_para ? "" : " encerrado"}" data-lembrete-id="${l.id}">
+        <span class="cal-lembrete-titulo">${escapeHtml(l.titulo)}</span>
+        <span class="cal-lembrete-meta">${icon("bell-ring", { size: 10 })} ${escapeHtml(quandoLegivel(l.adiado_para || l.proxima))}${l.adiado_para ? " (adiado)" : ""} · ${escapeHtml(rotuloRepeticao(l))}${
+              l.vinculo ? ` · ${escapeHtml(VINCULO_ROTULO[l.vinculo.tipo] || l.vinculo.tipo)} «${escapeHtml(l.vinculo.nome)}»` : ""
+            }</span>
+      </button>`,
+          )
+          .join("")
+      : `<div class="empty-state">nenhum lembrete — crie um aqui, pelo "lembrar" de uma nota, conta, meta, hábito ou evento, ou com <kbd>Alt</kbd>+<kbd>Q</kbd> e "@ amanhã 9h …".</div>`}`;
+}
+
+async function editarLembrete(id) {
+  try {
+    const l = (await listLembretes()).find((x) => x.id === id);
+    if (l) openLembreteModal({ lembrete: l });
+  } catch (err) {
+    showErrorModal(err.message, "lembretes");
+  }
+}
+
+function novoLembrete() {
+  openLembreteModal({ inicial: selectedDate && selectedDate > todayKey() ? { data: selectedDate } : {} });
+}
+
+function todayKey() {
+  const t = todayParts();
+  return `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+}
+
+function trocarPainel(qual) {
+  painel = qual;
+  containerEl.querySelectorAll(".cal-painel-abas .tab").forEach((t) => t.classList.toggle("on", t.dataset.painel === qual));
+  containerEl.querySelector("#cal-painel-dia").hidden = qual !== "dia";
+  containerEl.querySelector("#cal-lembretes").hidden = qual !== "lembretes";
+  renderLembretes();
 }
 
 // ─── eventos manuais: reagendar via drag-and-drop ─────────────────────────
@@ -489,6 +559,10 @@ function renderDayPanel() {
         if (evtRow) handleEditEventoClick(evtRow);
         return;
       }
+      if (type === "lembrete") {
+        editarLembrete(recordId);
+        return;
+      }
       const page = row.dataset.module;
       if (!page) return;
       if (type && recordId) setPendingFocus(type, recordId);
@@ -571,6 +645,8 @@ export async function mount(container) {
       { code: "KeyN", label: "novo evento", run: () => handleNewEventClick() },
       // "T" de "today/hoje" — pula pro mês/dia atual sem PageUp/PageDown repetido.
       { code: "KeyT", label: "ir para hoje", run: () => goToToday() },
+      // ORG-05: "L" de lembrete
+      { code: "KeyL", label: "novo lembrete", run: () => novoLembrete() },
     ],
     hints: [
       { combos: [["←"], ["→"], ["↑"], ["↓"]], label: "na grade: mover o cursor entre os dias" },
@@ -584,6 +660,14 @@ export async function mount(container) {
   viewYear = t.year;
   viewMonth = t.month;
   selectedDate = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+  // ORG-03: evento escolhido na busca (Ctrl+K) — abre no mês/dia dele
+  const dataPedida = consumePendingFocus("data");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataPedida || "")) {
+    const { y, m } = parseDateStr(dataPedida);
+    viewYear = y;
+    viewMonth = m;
+    selectedDate = dataPedida;
+  }
   focusedDate = selectedDate;
 
   container.innerHTML = `
@@ -595,6 +679,7 @@ export async function mount(container) {
       </div>
       <div class="cal-toolbar-actions">
         <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;novo evento</button>
+        <button type="button" class="btn sm" id="cal-new-lembrete-btn">${icon("bell-ring", { size: 12 })}&nbsp;novo lembrete</button>
         <button type="button" class="btn sm" id="cal-today-btn">hoje</button>
       </div>
     </div>
@@ -608,9 +693,16 @@ export async function mount(container) {
       </div>
 
       <div class="cal-day-panel">
-        <div class="card-head" id="cal-day-panel-head">selecione um dia</div>
-        <div class="cal-day-filters" id="cal-day-filters"></div>
-        <div class="cal-day-events" id="cal-day-events"></div>
+        <div class="tabs cal-painel-abas">
+          <div class="tab on" data-painel="dia">dia</div>
+          <div class="tab" data-painel="lembretes">lembretes</div>
+        </div>
+        <div id="cal-painel-dia">
+          <div class="card-head" id="cal-day-panel-head">selecione um dia</div>
+          <div class="cal-day-filters" id="cal-day-filters"></div>
+          <div class="cal-day-events" id="cal-day-events"></div>
+        </div>
+        <div class="cal-lembretes" id="cal-lembretes" hidden></div>
       </div>
     </div>
 
@@ -621,6 +713,19 @@ export async function mount(container) {
   container.querySelector("#cal-next").addEventListener("click", () => shiftMonth(1));
   container.querySelector("#cal-today-btn").addEventListener("click", goToToday);
   container.querySelector("#cal-new-event-btn").addEventListener("click", handleNewEventClick);
+  container.querySelector("#cal-new-lembrete-btn").addEventListener("click", novoLembrete);
+  container.querySelectorAll(".cal-painel-abas .tab").forEach((t) => t.addEventListener("click", () => trocarPainel(t.dataset.painel)));
+  container.querySelector("#cal-lembretes").addEventListener("click", (e) => {
+    if (e.target.closest("[data-novo-lembrete]")) novoLembrete();
+    const item = e.target.closest("[data-lembrete-id]");
+    if (item) editarLembrete(item.dataset.lembreteId);
+  });
+  painel = "dia";
+  ouvirLembretes = () => {
+    loadMonth();
+    renderLembretes();
+  };
+  window.addEventListener("kami:lembretes-mudaram", ouvirLembretes);
   container.querySelector("#cal-grid").addEventListener("keydown", onGridKeydown);
 
   await loadMonth();
@@ -643,6 +748,8 @@ export function unmount() {
   currentReplayFn = null;
   resizeObserver?.disconnect();
   resizeObserver = null;
+  if (ouvirLembretes) window.removeEventListener("kami:lembretes-mudaram", ouvirLembretes);
+  ouvirLembretes = null;
   containerEl = null;
   eventsByDate = new Map();
   selectedDate = null;

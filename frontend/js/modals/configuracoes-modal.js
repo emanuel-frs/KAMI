@@ -107,7 +107,7 @@ import {
 } from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { showToast } from "../components/toast.js";
-import { escapeHtml, localDateKey } from "../components/format.js";
+import { escapeHtml, fmtDataNoFormato, localDateKey } from "../components/format.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { openAvatarModal } from "./avatar-modal.js";
@@ -166,6 +166,15 @@ function buildTabsHtml() {
 }
 
 // GAM-04 — ver components/visual-effects.js
+// ORG-07 (P-53): formato das datas — o exemplo é preenchido ao abrir
+// (o de "sistema" depende do idioma da máquina)
+const FORMATO_DATA_OPCOES = [
+  { value: "sistema", label: "seguir o sistema", desc: "" },
+  { value: "dma", label: "dd/mm/aaaa", desc: "" },
+  { value: "mda", label: "mm/dd/aaaa", desc: "" },
+  { value: "iso", label: "aaaa-mm-dd", desc: "" },
+];
+
 const EFFECT_OPTIONS = [
   { value: "completo", label: "completo", desc: "tela de subida de nível, linhas de +xp e avisos" },
   { value: "sutil", label: "sutil", desc: "linhas de +xp e avisos, sem a tela cheia" },
@@ -203,6 +212,18 @@ function buildAparenciaPanel() {
           </label>`).join("")}
         </div>
         <p class="settings-status" id="cfg-effects-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>formato das datas</h4>
+        <p class="settings-desc">como as datas aparecem nas telas. os campos de data dos formulários seguem sempre o idioma do sistema.</p>
+        <div role="radiogroup" aria-label="formato das datas" id="cfg-formato-data">
+          ${FORMATO_DATA_OPCOES.map((o) => `
+          <label class="cfg-toggle">
+            <input type="radio" name="cfg-formato-data" value="${o.value}">
+            <span>${o.label}<small data-formato-exemplo="${o.value}">${o.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-formato-data-status"></p>
       </div>
       <div class="settings-section">
         <h4>sons</h4>
@@ -279,6 +300,50 @@ function buildNotificacoesPanel() {
           <span>e-mails <small>mensagens não lidas das contas conectadas em organização</small></span>
         </label>
         <p class="settings-status" id="cfg-notif-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>fora do kami</h4>
+        <p class="settings-desc">o que também vira notificação do sistema (aquela que aparece no canto da tela mesmo com o kami em segundo plano). dentro do kami — aviso e sino — tudo continua aparecendo.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-fora-lembretes" checked>
+          ${icon("bell-ring", { size: 12 })}
+          <span>lembretes <small>os que você criou (calendário, captura "@", botão "lembrar")</small></span>
+        </label>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-fora-vencimentos" checked>
+          ${icon("receipt", { size: 12 })}
+          <span>vencimentos <small>um aviso por dia com o que vence hoje e amanhã</small></span>
+        </label>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-fora-eventos" checked>
+          ${icon("calendar-days", { size: 12 })}
+          <span>eventos do calendário <small>o aviso "X min antes" de cada evento</small></span>
+        </label>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-ocultar-texto">
+          ${icon("lock", { size: 12 })}
+          <span>esconder o texto <small>a notificação diz só "abra o kami pra ver" — ela aparece até na tela de bloqueio. liga sozinho quando o PIN é ativado.</small></span>
+        </label>
+        <div class="cfg-linha-hora">
+          <label for="cfg-avisos-hora">hora dos avisos de vencimento</label>
+          <input type="time" id="cfg-avisos-hora" value="09:00">
+        </div>
+        <p class="settings-desc">lembretes e avisos só tocam com o kami aberto — ou na bandeja, se ligar abaixo.</p>
+      </div>
+      <div class="settings-section" id="cfg-janela-section" hidden>
+        <h4>bandeja e início</h4>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-bandeja">
+          ${icon("download", { size: 12 })}
+          <span>manter na bandeja ao fechar <small>o ✕ esconde o kami em vez de sair; ele continua avisando. pra sair de vez: menu da bandeja › sair.</small></span>
+        </label>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-iniciar">
+          ${icon("zap", { size: 12 })}
+          <span>iniciar com o sistema <small>com a bandeja ligada, começa escondido nela; sem ela, abre a janela.</small></span>
+        </label>
+        <p class="settings-desc" id="cfg-janela-gnome" hidden>no GNOME (Fedora, Ubuntu…) o ícone da bandeja só aparece com a extensão "AppIndicator and KStatusNotifierItem Support". sem ela o kami continua rodando escondido — abrir o kami de novo traz a janela de volta.</p>
+        <p class="settings-status" id="cfg-janela-status"></p>
       </div>
     </div>`;
 }
@@ -518,6 +583,10 @@ function renderPin(wrap, estado) {
     try {
       const res = await ativarPin(val("cfg-pin-novo"));
       avisarPinConfig(res);
+      // ORG-05 (P-70): o backend ligou "esconder o texto" das notificações
+      store.set("profile", { ...store.get("profile"), notif_ocultar_texto: true });
+      const ocultar = wrap.querySelector("#cfg-ocultar-texto");
+      if (ocultar) ocultar.checked = true;
       // o código aparece UMA vez — só sai daqui com o "guardei"
       box.innerHTML = `${codigoRecuperacaoHtml(res.codigo_recuperacao)}
         <div class="form-actions"><button class="btn sm" data-pin-acao="guardei">guardei o código</button></div>`;
@@ -770,6 +839,7 @@ function wireModal(wrap) {
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
+  wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
   wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
   wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
     saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
@@ -834,6 +904,34 @@ function renderIconeTema(wrap, profile) {
     statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? "ícone na cor de destaque" : "ícone padrão de volta"}`;
     statusEl.classList.add("settings-status--visible");
   });
+}
+
+function renderFormatoData(wrap, current) {
+  const atual = current || "sistema";
+  wrap.querySelectorAll("[data-formato-exemplo]").forEach((el) => {
+    const v = el.dataset.formatoExemplo;
+    const ex = fmtDataNoFormato("2026-10-21", v);
+    el.textContent = v === "sistema" ? `agora: ${ex} (idioma ${navigator.language || "?"})` : `ex: ${ex}`;
+  });
+  wrap.querySelectorAll('input[name="cfg-formato-data"]').forEach((input) => {
+    input.checked = input.value === atual;
+  });
+}
+
+async function selectFormatoData(wrap, value) {
+  const statusEl = wrap.querySelector("#cfg-formato-data-status");
+  statusEl.classList.remove("settings-status--visible");
+  try {
+    await updateProfile({ formato_data: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar o formato das datas");
+    renderFormatoData(wrap, store.get("profile")?.formato_data);
+    return;
+  }
+  // app.js ouve o perfil: aplica o formato e remonta a tela de trás
+  store.set("profile", { ...store.get("profile"), formato_data: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
 }
 
 function renderEffectsOptions(wrap, current) {
@@ -1107,6 +1205,39 @@ function wirePerfilTab(wrap) {
 function renderNotificacoesTab(wrap, profile) {
   wrap.querySelector("#cfg-notif-alerts").checked = profile.notif_alerts_enabled !== false;
   wrap.querySelector("#cfg-notif-email").checked = profile.notif_email_enabled !== false;
+  // ORG-05
+  wrap.querySelector("#cfg-fora-lembretes").checked = profile.notif_fora_lembretes !== false;
+  wrap.querySelector("#cfg-fora-vencimentos").checked = profile.notif_fora_vencimentos !== false;
+  wrap.querySelector("#cfg-fora-eventos").checked = profile.notif_fora_eventos !== false;
+  wrap.querySelector("#cfg-ocultar-texto").checked = !!profile.notif_ocultar_texto;
+  wrap.querySelector("#cfg-avisos-hora").value = profile.avisos_hora || "09:00";
+  renderJanela(wrap);
+}
+
+// ── ORG-05: bandeja e iniciar com o sistema (lado Rust: src-tauri/src/janela.rs).
+// Ficam num arquivo da máquina (não no banco/backup): levar o backup pra
+// outro computador não liga o início automático de lá.
+function invokeTauri() {
+  return window.__TAURI__?.core?.invoke ?? null;
+}
+
+async function renderJanela(wrap) {
+  const invoke = invokeTauri();
+  const section = wrap.querySelector("#cfg-janela-section");
+  if (!invoke) {
+    section.hidden = true; // navegador (dev): não tem bandeja
+    return;
+  }
+  try {
+    const prefs = await invoke("janela_preferencias");
+    wrap.querySelector("#cfg-bandeja").checked = !!prefs.bandeja;
+    wrap.querySelector("#cfg-iniciar").checked = !!prefs.iniciar_com_sistema;
+    wrap.querySelector("#cfg-janela-gnome").hidden = !/linux/i.test(navigator.userAgent);
+    section.hidden = false;
+  } catch (err) {
+    console.error("configurações: preferências da janela indisponíveis", err);
+    section.hidden = true;
+  }
 }
 
 function wireNotificacoesTab(wrap) {
@@ -1138,6 +1269,41 @@ function wireNotificacoesTab(wrap) {
 
   wrap.querySelector("#cfg-notif-alerts").addEventListener("change", (e) => onToggle("notif_alerts_enabled", e.target));
   wrap.querySelector("#cfg-notif-email").addEventListener("change", (e) => onToggle("notif_email_enabled", e.target));
+  // ORG-05
+  wrap.querySelector("#cfg-fora-lembretes").addEventListener("change", (e) => onToggle("notif_fora_lembretes", e.target));
+  wrap.querySelector("#cfg-fora-vencimentos").addEventListener("change", (e) => onToggle("notif_fora_vencimentos", e.target));
+  wrap.querySelector("#cfg-fora-eventos").addEventListener("change", (e) => onToggle("notif_fora_eventos", e.target));
+  wrap.querySelector("#cfg-ocultar-texto").addEventListener("change", (e) => onToggle("notif_ocultar_texto", e.target));
+  wrap.querySelector("#cfg-avisos-hora").addEventListener("change", async (e) => {
+    const valor = e.target.value;
+    if (!/^\d{2}:\d{2}$/.test(valor)) return;
+    try {
+      await updateProfile({ avisos_hora: valor });
+    } catch (err) {
+      showErrorModal(err.message, "erro ao salvar a hora dos avisos");
+      return;
+    }
+    store.set("profile", { ...store.get("profile"), avisos_hora: valor });
+    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+    statusEl.classList.add("settings-status--visible");
+  });
+
+  const janelaStatus = wrap.querySelector("#cfg-janela-status");
+  async function salvarJanela(campo, checkbox) {
+    const invoke = invokeTauri();
+    if (!invoke) return;
+    try {
+      await invoke("janela_definir", { campo, valor: checkbox.checked });
+    } catch (err) {
+      checkbox.checked = !checkbox.checked;
+      showErrorModal(String(err), "erro ao salvar");
+      return;
+    }
+    janelaStatus.innerHTML = `${icon("check", { size: 12 })} salvo`;
+    janelaStatus.classList.add("settings-status--visible");
+  }
+  wrap.querySelector("#cfg-bandeja").addEventListener("change", (e) => salvarJanela("bandeja", e.target));
+  wrap.querySelector("#cfg-iniciar").addEventListener("change", (e) => salvarJanela("iniciar_com_sistema", e.target));
 }
 
 // ── aba chaves ───────────────────────────────────────────────────────
@@ -1837,6 +2003,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
     renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderFormatoData(modalEl, profile.formato_data);
     renderIconeTema(modalEl, profile);
     renderSoundOptions(modalEl, profile);
     renderRewards(modalEl, profile);

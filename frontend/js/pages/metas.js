@@ -9,7 +9,7 @@ import {
 import { listBanks } from "../api/carteira.js";
 import { listTracks } from "../api/aprendizado.js";
 import { listCareerEducations } from "../api/carreira.js";
-import { escapeHtml, fmtDateBR, fmtMoney } from "../components/format.js";
+import { escapeHtml, fmtMoney, fmtData } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -21,6 +21,7 @@ import { maybeStartMetasTips, replayMetasTips } from "./metas-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
@@ -65,7 +66,7 @@ let currentReplayFn = null;
 
 // ─── helpers de formatação ─────────────────────────────────────────────────
 function fmtDeadline(iso) {
-  return iso ? fmtDateBR(iso.slice(0, 10)) : "";
+  return iso ? fmtData(iso.slice(0, 10)) : "";
 }
 
 function fmtCount(v) {
@@ -524,6 +525,9 @@ async function saveContribution() {
 
 // ─── renderização ───────────────────────────────────────────────────────────
 
+// ORG-01: {id da meta: notas vinculadas} — "notas (N)" no card
+let notasPorMeta = {};
+
 function goalCardHtml(goal) {
   const isDone = goal.status === "concluida";
   const isLearning = goal.type === "aprendizado";
@@ -537,6 +541,7 @@ function goalCardHtml(goal) {
         <span class="goal-title" data-tooltip="${escapeHtml(goal.title)}">${escapeHtml(goal.title)}</span>
         <span class="push goal-card-icons">
           ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
+          ${isDone ? "" : `<span class="icon-btn" data-action="lembrar-goal" data-tooltip="lembrar">${icon("bell-ring", { size: 13 })}</span>`}
           <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
           <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">${icon("trash-2", { size: 15 })}</span>
         </span>
@@ -552,6 +557,7 @@ function goalCardHtml(goal) {
           <span>${pct}%</span>
         </div>
         ${goal.deadline ? `<div class="goal-meta">prazo: ${fmtDeadline(goal.deadline)}</div>` : ""}
+        <div class="goal-meta">${linkNotasHtml("meta", goal.id, goal.title, notasPorMeta[goal.id] || 0)}</div>
         ${isLearning && goal.linked_track_name
           ? `<div class="goal-meta">sincronizado com a trilha «${escapeHtml(goal.linked_track_name)}»</div>`
           : ""
@@ -647,6 +653,12 @@ function wireCardActions(scopeEl) {
       toggleProgressPanel(goalId);
     });
 
+    // ORG-05: lembrete ligado a esta meta
+    card.querySelector('[data-action="lembrar-goal"]')?.addEventListener("click", async () => {
+      const { openLembreteModal } = await import("../modals/lembrete-modal.js");
+      openLembreteModal({ vinculo: { tipo: "meta", id: goalId, nome: goal.title } });
+    });
+
     card.querySelector('[data-action="edit-goal"]').addEventListener("click", () => {
       openEditGoalModal(goalId);
     });
@@ -686,7 +698,7 @@ async function refreshGoals() {
   const activeEl = containerEl.querySelector("#goals-grid-active");
   const doneEl = containerEl.querySelector("#goals-grid-done");
   try {
-    goals = await listGoals();
+    [goals, notasPorMeta] = await Promise.all([listGoals(), contarNotas("meta")]);
   } catch (err) {
     activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${escapeHtml(err.message)}</div>`;
     doneEl.innerHTML = "";

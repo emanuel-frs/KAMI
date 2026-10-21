@@ -1,0 +1,113 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Paleta Ctrl+K (ORG-03) — components/paleta.js
+
+   Uma linha de comando no topo, no visual do terminal: prompt ">",
+   resultados agrupados, o escolhido com a barra da cor de destaque.
+   Acima dos modais (200) e dos toasts (220), abaixo das dicas (260) e
+   da tela do PIN.
+   ───────────────────────────────────────────────────────────────────── */
+.paleta-fundo {
+  position: fixed;
+  inset: var(--titlebar-h, 0px) 0 0 0;
+  z-index: 240;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 11vh;
+}
+.paleta-fundo[hidden] { display: none; }
+.paleta {
+  width: min(660px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 #000;
+}
+.paleta-entrada {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+.paleta-prompt { color: var(--accent); font-size: 14px; font-weight: 700; }
+.paleta-entrada input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent !important;
+  border: none !important;
+  padding: 2px 0 !important;
+  font-size: 13.5px !important;
+  color: var(--text-bright) !important;
+}
+/* a linha inteira é o campo (prompt + cursor): sem a caixa/halo de foco
+   dos formulários (forms.css) */
+.paleta-entrada input:focus,
+.paleta-entrada input:focus-visible { outline: none; box-shadow: none; }
+.paleta-status { flex: 0 0 auto; font-size: 10px; color: var(--text-faint); }
+
+.paleta-lista { flex: 1 1 auto; overflow-y: auto; padding: 4px 0 6px; }
+.paleta-grupo {
+  padding: 9px 14px 3px;
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.paleta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+.paleta-item.on {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-left-color: var(--accent);
+}
+.paleta-icone { flex: 0 0 auto; display: inline-flex; color: var(--text-faint); }
+.paleta-item.on .paleta-icone { color: var(--accent); }
+.paleta-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.paleta-rotulo {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.paleta-item.on .paleta-rotulo { color: var(--text-bright); }
+.paleta-detalhe {
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.paleta-vazio { padding: 18px 14px; font-size: 11px; color: var(--text-faint); }
+.paleta-rodape {
+  padding: 6px 14px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+  font-size: 9.5px;
+  color: var(--text-faint);
+}
+
+/* ---------- captura rápida (Alt+Q) — components/captura.js ---------- */
+.captura .paleta-prompt { font-size: 16px; }
+.captura-previa {
+  min-height: 1.6em;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.captura-previa:empty::before { content: "o que você digitar aparece aqui interpretado"; color: var(--text-faint); }
+.captura-previa svg { color: var(--accent); flex: 0 0 auto; }
+.captura .paleta-rodape kbd { font-size: 9.5px; }

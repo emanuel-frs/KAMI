@@ -86,6 +86,13 @@ _TABLES_DELETE_ORDER = [
     "fixed_bill_periods",
     "fixed_bills",
     "debts",
+    "lembretes",
+    "habitos_marcas",
+    "habitos_pausas",
+    "habitos",
+    "caixa_entrada",
+    "notas_tags",
+    "notas",
     "links",
     "github_repos",
     "github_settings",
@@ -128,6 +135,7 @@ SEGREDOS = [
     ("email_accounts", "app_password_enc"),
     ("github_settings", "token_enc"),
     ("search_settings", "api_key_enc"),
+    ("notas", "conteudo_cifrado"),  # ORG-01: texto da nota trancada
 ]
 
 

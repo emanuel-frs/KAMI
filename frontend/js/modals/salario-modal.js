@@ -32,7 +32,7 @@ function buildModal() {
           <div class="field"><label for="sm-currency">moeda</label><input type="text" id="sm-currency" placeholder="BRL"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="sm-date">data</label><input type="text" id="sm-date" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="sm-date">data</label><input type="date" id="sm-date"></div>
           <div class="field">
             <label for="sm-employment-type">tipo de vínculo (opcional)</label>
             <select id="sm-employment-type">

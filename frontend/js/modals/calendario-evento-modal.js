@@ -3,6 +3,7 @@ import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 
 /**
  * Modal "novo evento" / "editar evento" — único tipo do calendário com
@@ -70,6 +71,7 @@ function buildModal() {
           </select>
         </div>
         <div class="field"><label for="cem-notes">notas (opcional)</label><textarea id="cem-notes" rows="2" placeholder="detalhes, endereço, link..."></textarea></div>
+        <div class="cem-notas-vinc" id="cem-notas-vinc" hidden></div>
         <div class="form-actions" id="cem-actions">
           <button class="btn sm danger cal-event-delete-btn" data-action="delete" id="cem-delete-btn" hidden>excluir</button>
           <button class="btn sm" data-action="close">cancelar</button>
@@ -161,7 +163,7 @@ function wireModal(wrap) {
  *   `event` — registro cru de calendar_events; se informado, abre em modo edição.
  *   `date` — pré-preenche a data em modo criação (ex: dia selecionado no calendário).
  */
-export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted } = {}) {
+export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted, inicial = null } = {}) {
   modalEl = modalEl || buildModal();
   onSavedCb = onSaved;
   onDeletedCb = onDeleted;
@@ -174,10 +176,22 @@ export function openCalendarioEventoModal({ event = null, date = null, onSaved, 
   saveBtn.textContent = editingEvent ? "salvar alterações" : "+ adicionar";
   deleteBtn.hidden = !editingEvent;
 
-  modalEl.querySelector("#cem-title").value = editingEvent?.title || "";
+  // ORG-02: `inicial` = {title, time} vindo da captura rápida ("! amanhã 9h dentista")
+  modalEl.querySelector("#cem-title").value = editingEvent?.title || inicial?.title || "";
   modalEl.querySelector("#cem-date").value = editingEvent?.date || date || "";
-  modalEl.querySelector("#cem-time").value = editingEvent?.time || "";
+  modalEl.querySelector("#cem-time").value = editingEvent?.time || inicial?.time || "";
   modalEl.querySelector("#cem-notes").value = editingEvent?.notes || "";
+  // ORG-01: evento já salvo pode ter notas vinculadas (Organização › notas)
+  const vinc = modalEl.querySelector("#cem-notas-vinc");
+  vinc.hidden = true;
+  if (editingEvent?.id && !String(editingEvent.id).includes(":")) {
+    const id = editingEvent.id;
+    contarNotas("evento").then((c) => {
+      if (editingEvent?.id !== id) return;
+      vinc.innerHTML = linkNotasHtml("evento", id, editingEvent.title, c[id] || 0);
+      vinc.hidden = false;
+    });
+  }
   modalEl.querySelector("#cem-recurrence").value = editingEvent?.recurrence || "none";
   modalEl.querySelector("#cem-until").value = editingEvent?.recurrence_end || "";
   const reminder = editingEvent?.reminder_minutes_before;

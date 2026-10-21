@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { openFonteRendaModal } from "../modals/fonte-renda-modal.js";
 import { openPayIncomeModal } from "../modals/pay-income-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -29,8 +29,7 @@ function brl(v) {
 }
 function formatDate(iso) {
   if (!iso) return "sem data";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return fmtData(iso); // ORG-07: formatador único
 }
 function currentMonthStr() {
   const d = new Date();

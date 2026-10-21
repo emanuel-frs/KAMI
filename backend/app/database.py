@@ -92,6 +92,10 @@ def get_connection() -> sqlite3.Connection:
     # vez em vez de falhar na hora.
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA busy_timeout = 30000")
+    # ORG-03: busca que ignora acento ("acao" acha "Ação") — ver app/busca.py
+    from app.busca import sem_acento
+
+    conn.create_function("sem_acento", 1, sem_acento, deterministic=True)
     return conn
 
 
@@ -115,7 +119,23 @@ def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(email_cache)").fetchall()]
     if "body_preview" not in cols:
         conn.execute("ALTER TABLE email_cache ADD COLUMN body_preview TEXT")
-        conn.commit()
+    # ORG-06: texto completo limpo + Message-ID (ver schema.sql). E-mails
+    # antigos ficam com NULL e são completados na próxima sincronização
+    # que os trouxer de novo (routers/organizacao.py).
+    if "body_text" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN body_text TEXT")
+    if "body_cortado" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN body_cortado INTEGER NOT NULL DEFAULT 0")
+    if "message_id" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN message_id TEXT")
+    if "gmail_id" not in cols:
+        conn.execute("ALTER TABLE email_cache ADD COLUMN gmail_id TEXT")
+    # ORG-06: falha de sincronização gravada na conta (ver EmailAccountOut)
+    contas = [r["name"] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()]
+    for col in ("sync_erro", "sync_erro_desde", "ultimo_sync_ok"):
+        if col not in contas:
+            conn.execute(f"ALTER TABLE email_accounts ADD COLUMN {col} TEXT")
+    conn.commit()
 
 
 def _migrate_milestones_fields(conn: sqlite3.Connection) -> None:
@@ -594,6 +614,27 @@ SOM_COLUNAS = {
 }
 
 
+# ORG-05: notificações fora do app (coluna → default SQL). Ver schema.sql.
+NOTIF_COLUNAS = {
+    "notif_fora_lembretes": "INTEGER NOT NULL DEFAULT 1",
+    "notif_fora_vencimentos": "INTEGER NOT NULL DEFAULT 1",
+    "notif_fora_eventos": "INTEGER NOT NULL DEFAULT 1",
+    "notif_ocultar_texto": "INTEGER NOT NULL DEFAULT 0",
+    "avisos_hora": "TEXT NOT NULL DEFAULT '09:00'",
+    # ORG-07 (P-53): como as datas aparecem — 'sistema' segue o idioma do sistema
+    "formato_data": "TEXT NOT NULL DEFAULT 'sistema'",
+}
+
+
+def _migrate_user_profile_notif_fora(conn: sqlite3.Connection) -> None:
+    """ORG-05: colunas de notificação fora do app (ver NOTIF_COLUNAS)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    for col, tipo in NOTIF_COLUNAS.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {tipo}")
+    conn.commit()
+
+
 def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
     """GAM-13: colunas de som em user_profile (ver SOM_COLUNAS)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
@@ -846,6 +887,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
+    _migrate_user_profile_notif_fora(conn)
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)

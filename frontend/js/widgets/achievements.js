@@ -6,6 +6,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 const BAR_CELLS = 10;
 
@@ -95,7 +96,7 @@ function card(a) {
        <button type="button" class="ach-remove" data-remove-custom="${escapeHtml(a.id)}" data-tooltip="remover conquista" aria-label="remover a conquista ${escapeHtml(a.title)}">${icon("x", { size: 10 })}</button>`
     : "";
   return `
-    <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}${custom ? " custom" : ""}">
+    <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}${custom ? " custom" : ""}" data-ach-id="${escapeHtml(a.id)}">
       <div class="ach-icon-wrap">
         <span class="ach-icon">${icon(ICON_BY_CATEGORY[a.category] ?? "star", { size: 24 })}</span>
         ${!a.unlocked ? '<span class="ach-lock">[x]</span>' : ""}
@@ -185,5 +186,8 @@ export async function render(el, widget) {
   });
 
   await load();
+  // ORG-03: conquista escolhida na busca (Ctrl+K)
+  const pedido = consumePendingFocus("conquista");
+  if (pedido) focusRow(el.querySelector(`[data-ach-id="${CSS.escape(pedido)}"]`), "conquista");
   listenWhileConnected(el, "kami:action-registered", load);
 }

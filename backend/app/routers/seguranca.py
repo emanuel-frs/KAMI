@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app import crypto, pin
-from app.database import get_db
+from app.database import get_db, now_iso
 from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ def _segredos_salvos(db) -> int:
         db.execute("SELECT COUNT(*) FROM email_accounts WHERE app_password_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM github_settings WHERE token_enc IS NOT NULL AND token_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM search_settings WHERE api_key_enc IS NOT NULL AND api_key_enc <> ''").fetchone()[0]
+        + db.execute("SELECT COUNT(*) FROM notas WHERE conteudo_cifrado IS NOT NULL").fetchone()[0]
     )
 
 
@@ -69,9 +70,19 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     estado = crypto.redefinir_chave()
     # cifrados com a chave antiga = lixo ilegível; a conta de e-mail fica
     # (com a senha vazia) pra pessoa só informar a senha de app de novo
-    db.execute("UPDATE email_accounts SET app_password_enc = ''")
+    # ORG-06: a conta já fica marcada — a aba de e-mail avisa na hora que a
+    # senha precisa ser informada de novo (antes a sincronização automática
+    # só falhava em silêncio)
+    db.execute(
+        "UPDATE email_accounts SET app_password_enc = '', sync_erro = 'senha', "
+        "sync_erro_desde = COALESCE(sync_erro_desde, ?)",
+        (now_iso(),),
+    )
     db.execute("UPDATE github_settings SET token_enc = NULL")
     db.execute("UPDATE search_settings SET api_key_enc = NULL")
+    # ORG-01: o texto das notas trancadas também era cifrado com a chave
+    # antiga — perdido (a tela de trancar avisa disso). Título e o resto ficam.
+    db.execute("UPDATE notas SET conteudo_cifrado = NULL WHERE trancada = 1")
     db.commit()
     return {**estado, "segredos_salvos": 0, "segredos_apagados": apagados}
 
@@ -112,12 +123,16 @@ def get_pin():
 
 
 @router.post("/pin", status_code=201)
-def ativar_pin(payload: PinIn):
+def ativar_pin(payload: PinIn, db=Depends(get_db)):
     try:
         codigo = pin.ativar(payload.pin)
     except ValueError as exc:
         raise _erro_de_pin(exc) from exc
     logger.info("PIN de abertura ligado")
+    # ORG-05 (P-70): com PIN, a notificação do sistema esconde o texto por
+    # padrão (aparece na tela de bloqueio) — dá pra desligar em notificações
+    db.execute("UPDATE user_profile SET notif_ocultar_texto = 1")
+    db.commit()
     return {**pin.estado(), "codigo_recuperacao": codigo}
 
 

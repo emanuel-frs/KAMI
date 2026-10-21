@@ -59,16 +59,19 @@ function renderBody() {
   }
 
   // Atalhos globais "de ação" (cada um faz uma coisa diferente) e os de
-  // navegação entre telas (Alt+1..8: mesmo padrão repetido 8 vezes)
+  // navegação entre telas (Alt+1..9: mesmo padrão repetido 9 vezes)
   // ficam em blocos separados — 8 linhas inteiras dizendo "ir para X"
   // eram a parte mais cansativa de escanear da lista inteira. A grade
   // compacta abaixo cabe em metade do espaço vertical de 8 linhas
   // `.wg-shortcuts-row` e o "ir para" comum já está no título da seção,
   // então cada item mostra só o nome da tela.
-  const actions = global.filter((a) => a.group !== "nav");
+  // "apelido": mesma ação de outro atalho já listado (ex.: Alt+Espaço = Alt+Q)
+  const actions = global.filter((a) => a.group !== "nav" && a.group !== "apelido");
   const navShortcuts = global.filter((a) => a.group === "nav");
 
   let right = `<h3 class="ks-section">em qualquer tela</h3><dl class="wg-shortcuts-list">`;
+  // ORG-03: a paleta não é Alt+tecla (fica fora do registro de shortcuts.js)
+  right += row(kbd(["Ctrl", "K"]), "buscar em tudo e rodar comandos");
   actions.forEach((a) => {
     right += row(kbd(comboParts(a)), a.label);
   });
@@ -85,7 +88,7 @@ function renderBody() {
   });
   right += `</dl>`;
 
-  const note = `<p class="em-message wg-shortcuts-note">os atalhos de ação usam Alt + uma tecla. no teclado ABNT2, use o Alt da esquerda — o AltGr (da direita) continua digitando os caracteres dele.</p>`;
+  const note = `<p class="em-message wg-shortcuts-note">os atalhos de ação usam Alt + uma tecla (só a busca é Ctrl+K). no teclado ABNT2, use o Alt da esquerda — o AltGr (da direita) continua digitando os caracteres dele.</p>`;
 
   const html = `<div class="ks-cols">${hasScreen ? `<div class="ks-col">${left}</div>` : ""}<div class="ks-col">${right}</div></div>${note}`;
   return { html, hasScreen };

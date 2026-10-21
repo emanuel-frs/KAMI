@@ -14,12 +14,13 @@
 // fica em cima (y=0) — a linha "cai" da base até o topo conforme a meta
 // avança, ilustrando literalmente a queda de "quanto falta".
 
+import { fmtDataCurta, localDateKey } from "../components/format.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 function fmtDateShort(iso) {
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return fmtDataCurta(localDateKey(d)); // ORG-07
 }
 
 function fmtRemaining(v, unit) {

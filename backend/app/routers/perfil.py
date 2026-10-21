@@ -37,6 +37,13 @@ class ProfileOut(BaseModel):
     som_interface: bool = True
     som_avisos: bool = True
     icone_tema: bool = False  # ICO-01
+    # ORG-05: notificações do sistema (fora do app)
+    notif_fora_lembretes: bool = True
+    notif_fora_vencimentos: bool = True
+    notif_fora_eventos: bool = True
+    notif_ocultar_texto: bool = False
+    avisos_hora: str = "09:00"
+    formato_data: str = "sistema"  # ORG-07
     updated_at: str
 
 
@@ -57,6 +64,13 @@ class ProfileUpdate(Entrada):
     som_avisos: Optional[bool] = None
     # ICO-01: o ícone do app acompanha a cor de destaque (o Rust aplica)
     icone_tema: Optional[bool] = None
+    # ORG-05
+    notif_fora_lembretes: Optional[bool] = None
+    notif_fora_vencimentos: Optional[bool] = None
+    notif_fora_eventos: Optional[bool] = None
+    notif_ocultar_texto: Optional[bool] = None
+    avisos_hora: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    formato_data: Optional[str] = Field(None, pattern=r"^(sistema|dma|mda|iso)$")  # ORG-07
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -144,6 +158,14 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
             db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
     if payload.icone_tema is not None:
         db.execute("UPDATE user_profile SET icone_tema = ? WHERE id = ?", (int(payload.icone_tema), row["id"]))
+    for col in ("notif_fora_lembretes", "notif_fora_vencimentos", "notif_fora_eventos", "notif_ocultar_texto"):
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
+    if payload.formato_data is not None:
+        db.execute("UPDATE user_profile SET formato_data = ? WHERE id = ?", (payload.formato_data, row["id"]))
+    if payload.avisos_hora is not None:
+        db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
     db.commit()
     return dict(_get_profile_row(db))
 

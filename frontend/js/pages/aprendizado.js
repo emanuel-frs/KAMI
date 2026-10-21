@@ -10,7 +10,7 @@ import {
   deleteMilestone,
   reorderMilestones,
 } from "../api/aprendizado.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { getLog } from "../api/nucleo.js";
@@ -21,6 +21,8 @@ import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/s
 import { showErrorModal } from "../modals/err-modal.js";
 import { makeFocusable, announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { consumePendingFocus } from "../components/pending-focus.js";
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -671,6 +673,7 @@ async function renderMilestones() {
       <div style="min-width:0;flex:1;">
         <div style="font-size:12px;font-weight:500;color:var(--text-dim);">${escapeHtml(track.name)}</div>
         ${track.general_goal ? `<div class="track-goal-subtitle" data-tooltip="${escapeHtml(track.general_goal)}">${escapeHtml(track.general_goal)}</div>` : ''}
+        <div class="track-notas" data-track-notas="${track.id}"></div>
       </div>
       <button type="button" class="btn sm" id="btn-edit-track">editar</button>
     </div>
@@ -682,6 +685,12 @@ async function renderMilestones() {
     if (left) left.style.display = 'none';
     const grid = containerEl.querySelector('.apr-grid');
     if (grid) grid.style.gridTemplateColumns = '1fr';
+  });
+
+  // ORG-01: "notas (N)" da trilha — contagem chega depois, sem segurar o desenho
+  contarNotas("trilha").then((c) => {
+    const alvo = headerEl.querySelector(`[data-track-notas="${track.id}"]`);
+    if (alvo) alvo.innerHTML = linkNotasHtml("trilha", track.id, track.name, c[track.id] || 0);
   });
 
   let html = renderRoadmapTimeline(milestones, { editable: false, listId: 'milestone-list' });
@@ -1258,8 +1267,7 @@ async function refreshTracks() {
 }
 
 function fmtDateShort(isoDate) {
-  const [y, m, d] = isoDate.split('-');
-  return `${d}/${m}/${y}`;
+  return fmtData(isoDate); // ORG-07
 }
 
 let heatmapEntries = null;
@@ -1367,8 +1375,7 @@ async function renderAprHeatmap() {
       const c = countsByDay[key] || 0;
       const lvl = c >= 3 ? 3 : c === 2 ? 2 : c === 1 ? 1 : 0;
       const isMilestone = !!milestoneByDay[key];
-      const [y, m, dd] = key.split('-');
-      const dataStr = `${dd}/${m}/${y}`;
+      const dataStr = fmtData(key);
       const registroStr = c ? `${c} registro${c > 1 ? 's' : ''} em aprendizado` : 'sem registro';
       const marcoStr = isMilestone ? `marco concluído: ${milestoneByDay[key].join('; ')}` : '';
       const tip = `${dataStr} · ${registroStr}` + (marcoStr ? ` · ${marcoStr}` : '');
@@ -1691,6 +1698,14 @@ export async function mount(container) {
 
   await refreshTracks();
   setupListEvents();
+
+  // ORG-03: trilha/marco escolhido na busca (Ctrl+K)
+  const trilhaPedida = consumePendingFocus("trilha");
+  if (trilhaPedida && tracks.some((t) => t.id === trilhaPedida)) {
+    selectedTrackId = trilhaPedida;
+    await refreshMilestones();
+    renderTracks();
+  }
 
   if (!selectedTrackId && tracks.length > 0) {
     const sorted = [...tracks].sort((a, b) => a.position - b.position);

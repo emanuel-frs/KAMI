@@ -76,10 +76,24 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   atividade.
 - **Metas pessoais:** tipos como financeira, saúde, leitura, hábito, aprendizado e acadêmica, com um peso
   que multiplica o XP. Uma meta financeira pode debitar de uma conta real do Wallet.
-- **Organização:** links categorizados, status dos seus repositórios do GitHub, e-mail por IMAP
-  (texto puro, sem HTML de terceiros) e busca na web opcional.
+- **Organização:** notas com editor visual (salvas em markdown, com tags, cores, vínculo a metas,
+  trilhas, eventos e posições, e notas trancadas pelo PIN), caixa de entrada da captura rápida, links
+  categorizados, status dos seus repositórios do GitHub, e-mail por IMAP lido como texto limpo (sem
+  HTML de terceiros, com link para abrir no webmail) e busca na web opcional.
+- **Captura e busca:** `Alt+Q` anota qualquer coisa de qualquer tela — `$ 32,90 farmácia ontem` vira
+  um gasto, `# ideia` uma nota, `! sexta 14h reunião` um evento, `@ amanhã 9h ligar pro banco` um
+  lembrete, e o resto vai para a caixa de entrada; `Ctrl+K` busca em tudo (sem ligar para acento) e
+  roda comandos.
+- **Hábitos:** tela própria (`Alt+9`) com hábitos diários, em dias fixos ou "x vezes por semana",
+  grade das últimas 12 semanas, sequência e recorde por hábito, pausa e arquivo; marcar dá XP e conta
+  para as missões e para a sequência geral.
+- **Lembretes:** com dia, hora e repetição, ligados a notas, contas, metas ou hábitos, avisam dentro do
+  app e pela notificação do sistema (com "adiar"); avisos de vencimento agrupados num horário escolhido.
+  Opcional: manter o Kami na bandeja ao fechar e iniciar com o sistema.
 - **Carreira e Calendário:** linha do tempo de posições, formação e histórico salarial; calendário
-  mensal que reúne contas, dívidas, parcelas, metas e eventos próprios.
+  mensal que reúne contas, dívidas, parcelas, metas, eventos próprios e lembretes.
+- **Datas no seu formato:** seguem o idioma do sistema (dd/mm/aaaa no Brasil), ou o formato escolhido
+  em configurações › aparência.
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para

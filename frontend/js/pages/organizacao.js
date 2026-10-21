@@ -28,6 +28,7 @@
  * configurar a chave (ou pra abrir a busca direto no DuckDuckGo, que
  * continua disponível como fallback sem precisar de nenhuma chave).
  */
+import { fmtDataHora } from "../components/format.js";
 import * as api from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { icon } from "../components/icons.js";
@@ -41,9 +42,13 @@ import { refreshNotificationBell } from "../components/notification-bell.js";
 import { showToast } from "../components/toast.js";
 import { subscribeSyncState, isSyncRunning } from "../components/email-sync-scheduler.js";
 import { emailAccountColor } from "../components/email-account-color.js";
+import { grupoDoDia, horaCurta } from "../components/email-texto.js";
+import { openEmailLeitor, closeEmailLeitor } from "../modals/email-leitor-modal.js";
+import { montarNotas, desmontarNotas, focarNotas } from "./organizacao-notas.js";
+import { montarEntrada, desmontarEntrada } from "./organizacao-entrada.js";
 
 const state = {
-  tab: "github",
+  tab: "notas", // ORG-01 (P-30): notas é a primeira aba
   links: [],
   repos: [],
   accounts: [],
@@ -106,13 +111,20 @@ export async function mount(container, opts) {
 
   container.innerHTML = template();
   bindEvents(container);
+  // notas: monta já (é a primeira aba); o resto carrega em paralelo
+  // (nota pedida por outra tela — opts.notaId/novaNota — abre no applyFocus)
+  const notasProntas = montarNotas(container.querySelector("#org-panel-notas"));
+  const entradaPronta = montarEntrada(container.querySelector("#org-panel-entrada"), (n) => {
+    const c = rootEl?.querySelector("#org-entrada-contagem");
+    if (c) c.textContent = n ? `(${n})` : "";
+  });
 
   // saiu da tela no meio do carregamento (unmount zera rootEl): para aqui.
   // Sem isso o resto do mount rodava com rootEl null e o erro aparecia na
   // tela seguinte ("algo deu errado nesta tela" no calendário).
   const saiu = () => rootEl !== container;
 
-  await Promise.all([loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
+  await Promise.all([notasProntas, entradaPronta, loadLinks(), loadRepos(), loadAccounts(), loadGithubTokenStatus(), loadSearchKeyStatus(), loadMutedAccounts()]);
   if (saiu()) return;
   renderLinks();
   renderRepos();
@@ -139,7 +151,12 @@ export async function mount(container, opts) {
     state.schedulerSyncing = running;
     renderSyncButton();
     if (wasRunning && !running) {
-      await loadEmailsForSelectedAccounts();
+      // recarrega as contas também: é aqui que a falha da sincronização
+      // automática (senha/login) aparece na faixa de aviso (ORG-06)
+      await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
+      if (!rootEl) return;
+      renderAccountChips();
+      renderAccounts();
       renderEmails();
     }
   });
@@ -164,6 +181,7 @@ export async function focus(opts) {
 async function applyFocus(opts) {
   if (!opts) return;
   if (opts.tab) switchTab(opts.tab);
+  if (opts.tab === "notas" && (opts.notaId || opts.novaNota || opts.vinculo)) await focarNotas(opts);
   if (opts.focusSearch) {
     // campo de busca fica acima das abas, sempre visível — não depende
     // de qual aba (github/e-mail/links) estava selecionada antes.
@@ -241,6 +259,9 @@ function applyEmailsMarkedRead(ids) {
 
 export function unmount() {
   cancelActiveTipSequence();
+  closeEmailLeitor();
+  desmontarNotas();
+  desmontarEntrada();
   unsubscribeProfile?.();
   unsubscribeProfile = null;
   unsubscribeEmailsRead?.();
@@ -252,7 +273,7 @@ export function unmount() {
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
-  state.tab = "github";
+  state.tab = "notas";
   state.selectedAccountIds = new Set();
   state.emails = [];
   state.emailQuery = "";
@@ -278,12 +299,20 @@ function template() {
     <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="github">github</div>
+      <div class="tab on" data-tab="notas">notas</div>
+      <div class="tab" data-tab="entrada">entrada <span class="tab-contagem" id="org-entrada-contagem"></span></div>
+      <div class="tab" data-tab="github">github</div>
       <div class="tab" data-tab="email">e-mail</div>
       <div class="tab" data-tab="links">links</div>
     </div>
 
-    <div id="org-panel-github">
+    <!-- ORG-01: aba de notas — pages/organizacao-notas.js -->
+    <div id="org-panel-notas"></div>
+
+    <!-- ORG-02: caixa de entrada da captura rápida — pages/organizacao-entrada.js -->
+    <div id="org-panel-entrada" style="display:none;"></div>
+
+    <div id="org-panel-github" style="display:none;">
       <div class="card">
         <div class="card-head">
           repositórios
@@ -305,8 +334,9 @@ function template() {
           <button type="button" class="btn sm" data-action="open-manage-accounts-modal">${icon("settings", { size: 12 })} gerenciar contas</button>
         </div>
         <div class="card-body">
+          <div id="org-email-alertas"></div>
           <div class="email-search-row">
-            <input type="text" id="org-email-search" placeholder="buscar por assunto ou remetente..." aria-label="buscar e-mails por assunto ou remetente">
+            <input type="text" id="org-email-search" placeholder="buscar por assunto, remetente ou texto..." aria-label="buscar e-mails por assunto, remetente ou texto">
           </div>
           <div class="email-account-chips" id="org-account-chips"></div>
           <div class="email-filter-row" id="org-email-filter">
@@ -387,13 +417,7 @@ function template() {
       </div>
     </div>
 
-    <!-- MODAL: detalhe de e-mail -->
-    <div class="modal-backdrop" id="email-modal">
-      <div class="modal">
-        <div class="modal-head">e-mail <button type="button" class="close" data-action="close-email-modal" aria-label="fechar">${icon("x")}</button></div>
-        <div class="modal-body" id="email-modal-body"></div>
-      </div>
-    </div>
+    <!-- leitor de e-mail: modals/email-leitor-modal.js (ORG-06) -->
 
     <!-- MODAL: chave de busca (tavily) -->
       <div class="modal-backdrop" id="search-key-modal">
@@ -474,7 +498,6 @@ function bindEvents(container) {
     if (action === "open-account-modal") openAccountModal();
     if (action === "close-account-modal") closeAccountModal();
     if (action === "save-account") handleSaveAccount();
-    if (action === "close-email-modal") closeEmailModal();
     if (action === "open-manage-accounts-modal") openManageAccountsModal();
     if (action === "close-manage-accounts-modal") closeManageAccountsModal();
     if (action === "sync-selected-accounts") handleSyncSelectedAccounts();
@@ -530,6 +553,8 @@ function bindEvents(container) {
 export function switchTab(tab) {
   state.tab = tab;
   rootEl.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === tab));
+  rootEl.querySelector("#org-panel-notas").style.display = tab === "notas" ? "block" : "none";
+  rootEl.querySelector("#org-panel-entrada").style.display = tab === "entrada" ? "block" : "none";
   rootEl.querySelector("#org-panel-links").style.display = tab === "links" ? "block" : "none";
   rootEl.querySelector("#org-panel-github").style.display = tab === "github" ? "block" : "none";
   rootEl.querySelector("#org-panel-email").style.display = tab === "email" ? "block" : "none";
@@ -1051,6 +1076,7 @@ function renderAccounts() {
         <div class="org-account-info">
           <b>${escapeHtml(a.label)}${a.sync_by_default ? ` ${icon("star", { size: 10, fill: "currentColor" })}` : ""}</b>
           <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}${muted ? ` · <span class="email-muted-tag">${icon("bell-off", { size: 9 })} silenciada</span>` : ""}</span>
+          ${SYNC_ERRO_TEXTO[a.sync_erro] ? `<span class="org-account-erro">${icon("triangle-alert", { size: 10 })} ${SYNC_ERRO_TEXTO[a.sync_erro].motivo}</span>` : ""}
         </div>
         <div class="org-account-actions">
           <span class="icon-btn" data-tooltip="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" aria-label="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
@@ -1074,6 +1100,7 @@ function closeManageAccountsModal() {
 /* ==================== chips de conta (visualização combinada) ==================== */
 
 function renderAccountChips() {
+  renderSyncAlerts();
   const wrap = rootEl.querySelector("#org-account-chips");
   if (!wrap) return;
   if (!state.accounts.length) {
@@ -1090,6 +1117,39 @@ function renderAccountChips() {
         ${escapeHtml(a.label)}
         <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}" aria-label="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
       </span>`;
+    })
+    .join("");
+}
+
+// ORG-06: o que dizer pra cada falha gravada na conta (sync_erro, ver
+// EmailAccountOut no backend). Só falhas que a pessoa resolve — queda de
+// rede não chega aqui.
+const SYNC_ERRO_TEXTO = {
+  senha: { motivo: "a senha de app salva não pode ser usada (a chave das senhas foi redefinida?)", acao: "informar a senha" },
+  login: { motivo: "o servidor recusou o login — confira o usuário e a senha de app", acao: "editar conta" },
+};
+
+/**
+ * Faixa de aviso no topo da aba de e-mail, uma linha por conta com
+ * problema. Antes a sincronização automática (a cada 5 min) falhava só
+ * no console: com as senhas apagadas, o Emanuel ficou uma tarde inteira
+ * sem e-mail novo sem saber. O botão abre a edição da conta; salvar uma
+ * senha nova tira o aviso na hora (o backend limpa sync_erro).
+ */
+function renderSyncAlerts() {
+  const wrap = rootEl?.querySelector("#org-email-alertas");
+  if (!wrap) return;
+  const comErro = state.accounts.filter((a) => SYNC_ERRO_TEXTO[a.sync_erro]);
+  wrap.innerHTML = comErro
+    .map((a) => {
+      const t = SYNC_ERRO_TEXTO[a.sync_erro];
+      const desde = a.sync_erro_desde ? ` desde ${escapeHtml(fmtDateTimeBR(a.sync_erro_desde))}` : "";
+      return `
+      <div class="email-alerta" role="alert">
+        <span class="email-alerta-icone" aria-hidden="true">${icon("triangle-alert", { size: 13 })}</span>
+        <span class="email-alerta-texto">a conta <b>${escapeHtml(a.label)}</b> não sincroniza${desde} — ${t.motivo}.</span>
+        <button type="button" class="btn sm warn" data-edit-account="${a.id}">${t.acao}</button>
+      </div>`;
     })
     .join("");
 }
@@ -1169,14 +1229,21 @@ async function handleSyncSelectedAccounts() {
     renderSyncButton();
   }
 
-  await loadEmailsForSelectedAccounts();
+  await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
+  renderAccountChips();
   renderEmails();
 
+  // antes dizia "concluída — nenhum e-mail novo" mesmo com todas as
+  // contas falhando; agora a falha aparece (e a faixa diz o porquê)
   const n = results.reduce((sum, r) => sum + (r?.new_messages ?? 0), 0);
+  const falhas = results.filter((r) => r === null).length;
   showToast({
-    title: "sincronização concluída",
-    message: n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
-    iconName: "refresh-cw",
+    title: falhas ? `${falhas} conta${falhas === 1 ? "" : "s"} não sincronizou` : "sincronização concluída",
+    message: falhas
+      ? "veja o aviso no topo da aba de e-mail"
+      : n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
+    iconName: falhas ? "triangle-alert" : "refresh-cw",
+    variant: falhas ? "erro" : undefined,
   });
   refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
 }
@@ -1194,13 +1261,23 @@ function openAccountModal(accountId) {
     rootEl.querySelector("#acc-username").value = acc.username;
     rootEl.querySelector("#acc-password").value = "";
     syncByDefaultInput.checked = !!acc.sync_by_default;
-    hint.textContent = "(deixe em branco pra manter a senha atual)";
+    // ORG-06: veio do aviso "a senha não pode ser usada" — manter a atual
+    // não resolve nada, então o campo já diz isso e recebe o foco
+    const senhaRuim = acc.sync_erro === "senha";
+    hint.textContent = senhaRuim
+      ? "(a senha salva não funciona — informe a senha de app de novo)"
+      : "(deixe em branco pra manter a senha atual)";
+    hint.classList.toggle("is-erro", senhaRuim);
+    // modal-accessibility.js põe o foco em [data-autofocus] ao abrir
+    rootEl.querySelector("#acc-password").toggleAttribute("data-autofocus", senhaRuim);
   } else {
     rootEl.querySelector("#acc-edit-id").value = "";
     ["acc-label", "acc-host", "acc-username", "acc-password"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
     rootEl.querySelector("#acc-port").value = 993;
     syncByDefaultInput.checked = true;
     hint.textContent = "";
+    hint.classList.remove("is-erro");
+    rootEl.querySelector("#acc-password").removeAttribute("data-autofocus");
   }
   modal.classList.add("open");
 }
@@ -1266,6 +1343,7 @@ async function handleSyncAccount(accountId) {
     result = await api.syncEmailAccount(accountId);
   } catch (err) {
     showErrorModal(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.", "falha ao sincronizar");
+    loadAccounts().then(() => rootEl && (renderAccountChips(), renderAccounts())).catch(() => {});
     return;
   } finally {
     state.syncingAccounts.delete(accountId);
@@ -1277,8 +1355,9 @@ async function handleSyncAccount(accountId) {
   // mesmo que não estivesse ativa antes — sem isso o resultado do sync
   // some (não aparece em lugar nenhum até a pessoa ligar o chip manualmente).
   state.selectedAccountIds.add(accountId);
+  await Promise.all([loadAccounts(), loadEmailsForSelectedAccounts()]);
   renderAccountChips();
-  await loadEmailsForSelectedAccounts();
+  renderAccounts();
   renderEmails();
 
   // feedback visível de que o sync rodou de verdade (antes não tinha
@@ -1370,67 +1449,78 @@ function renderEmails() {
     );
   }
 
+  // ordem que o leitor percorre com ← → (mesmo filtro/busca da tela)
+  state.visibleEmailIds = visible.map((e) => e.id);
+
   if (!visible.length) {
     wrap.innerHTML = '<div class="empty-state">nenhum e-mail corresponde à busca/filtro atual.</div>';
     return;
   }
 
+  // ORG-06 (P-29): agrupado por dia — hoje, ontem, esta semana, este mês
+  // e depois por mês. A lista já vem em ordem decrescente de data, então
+  // cada grupo novo só aparece quando a chave muda.
+  const agora = new Date();
+  let grupoAtual = null;
   wrap.innerHTML = visible
     .map((e) => {
-      const color = emailAccountColor(e.account_id);
-      return `
-      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}">
-        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(accountLabel(e.account_id))}">${emailInitial(e.sender)}</div>
-        <div class="email-main">
-          <div class="email-top">
-            <span class="email-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
-            <span class="email-tag">${e.is_muted ? "silenciado" : e.is_read ? "" : "novo"}</span>
-          </div>
-          <div class="email-sender">de: ${escapeHtml(e.sender)}</div>
-          <div class="email-preview" data-tooltip="${escapeHtml(e.body_preview || "")}">${escapeHtml(e.body_preview || "")}</div>
-        </div>
-        <div class="email-meta">${fmtDateTimeBR(e.received_at)}</div>
-      </div>`;
+      const grupo = grupoDoDia(e.received_at, agora);
+      const cabecalho = grupo.chave !== grupoAtual ? `<div class="email-grupo">${escapeHtml(grupo.rotulo)}</div>` : "";
+      grupoAtual = grupo.chave;
+      return cabecalho + emailItemHtml(e, agora);
     })
     .join("");
+}
+
+/** Linha da lista: remetente (nome em destaque, endereço menor) e hora
+ * em cima, assunto, prévia limpa (sem URL — ver app/email_texto.py).
+ * Não lido = ponto na cor de destaque + texto mais claro. Sem tooltip na
+ * prévia: o texto inteiro está a um clique, no leitor. */
+function emailItemHtml(e, agora) {
+  const color = emailAccountColor(e.account_id);
+  const nome = e.sender_name || e.sender || "?";
+  const endereco = e.sender_email && e.sender_email !== nome ? e.sender_email : "";
+  const estado = e.is_muted ? "silenciado" : e.is_read ? "lido" : "não lido";
+  return `
+      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(`${estado}: ${e.subject || "(sem assunto)"}, de ${nome}`)}">
+        <span class="email-dot" aria-hidden="true"></span>
+        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="conta: ${escapeAttr(accountLabel(e.account_id))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
+        <div class="email-main">
+          <div class="email-top">
+            <span class="email-from"><span class="email-from-name">${escapeHtml(nome)}</span>${endereco ? ` <span class="email-from-addr">${escapeHtml(endereco)}</span>` : ""}</span>
+            ${e.is_muted ? '<span class="email-tag">silenciado</span>' : ""}
+            <span class="email-meta">${escapeHtml(horaCurta(e.received_at, agora))}</span>
+          </div>
+          <div class="email-subject">${escapeHtml(e.subject || "(sem assunto)")}</div>
+          ${e.body_preview ? `<div class="email-preview">${escapeHtml(e.body_preview)}</div>` : ""}
+        </div>
+      </div>`;
 }
 
 function accountLabel(accountId) {
   return state.accounts.find((a) => a.id === accountId)?.label || "?";
 }
 
-function emailInitial(sender) {
-  const name = (sender || "?").split("@")[0].replace(/[._-]/g, " ").trim();
-  return (name.charAt(0) || "?").toUpperCase();
-}
-
+/** Abre o leitor (modals/email-leitor-modal.js). Percorre a lista na
+ * ordem visível; se o e-mail pedido não está nela (veio do sino com um
+ * filtro que o esconde), abre só ele. */
 function openEmailModal(cacheId) {
-  const email = state.emails.find((e) => e.id === cacheId);
-  if (!email) return;
-  const body = rootEl.querySelector("#email-modal-body");
-  body.innerHTML = `
-    <div class="email-detail-field"><label>assunto</label><div class="val subject">${escapeHtml(email.subject || "(sem assunto)")}</div></div>
-    <div class="vm-row"><span class="k">de</span><span class="v" data-tooltip="${escapeHtml(email.sender)}">${escapeHtml(email.sender)}</span></div>
-    <div class="vm-row"><span class="k">recebido em</span><span class="v">${fmtDateTimeBR(email.received_at)}</span></div>
-    <div class="email-detail-field" style="margin-top:10px;"><label>prévia (texto puro — sem resumo por ia no v1)</label>
-      <div class="val preview">${escapeHtml(email.body_preview || "sem prévia disponível.")}</div>
-    </div>
-  `;
-  rootEl.querySelector("#email-modal").classList.add("open");
-
-  if (!email.is_read) {
-    api.markEmailRead(cacheId).then(() => {
-      email.is_read = true;
-      renderEmails();
-      // some do modal de notificações/badge do sino na hora — sem isso
-      // ele continuaria contando um e-mail que já foi lido aqui.
+  if (!state.emails.some((e) => e.id === cacheId)) return;
+  const ids = state.visibleEmailIds?.includes(cacheId) ? state.visibleEmailIds : [cacheId];
+  openEmailLeitor({
+    ids: [...ids],
+    index: ids.indexOf(cacheId),
+    resumo: (id) => state.emails.find((e) => e.id === id),
+    conta: (accountId) => ({ label: accountLabel(accountId), color: emailAccountColor(accountId) }),
+    onLido: (id, lido) => {
+      const email = state.emails.find((e) => e.id === id);
+      if (email) email.is_read = lido;
+      if (rootEl) renderEmails();
+      // some/volta no sino na hora — sem isso ele continuaria contando
+      // um e-mail que já foi lido aqui (ou não contaria o desmarcado)
       refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
-    });
-  }
-}
-
-function closeEmailModal() {
-  rootEl.querySelector("#email-modal").classList.remove("open");
+    },
+  });
 }
 
 /**
@@ -1474,11 +1564,5 @@ function escapeAttr(str) {
 }
 
 function fmtDateTimeBR(iso) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  } catch (e) {
-    return iso;
-  }
+  return fmtDataHora(iso); // ORG-07
 }

@@ -1,10 +1,54 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { escapeHtml, fmtDateBR, fmtMoney, fmtRelDate, localDateKey } from "../../frontend/js/components/format.js";
+import {
+  definirFormatoData, escapeHtml, fmtData, fmtDataCompacta, fmtDataCurta, fmtDataHora, fmtDataNoFormato,
+  fmtMesAno, fmtMoney, fmtRelDate, lerMesAno, localDateKey,
+} from "../../frontend/js/components/format.js";
 
-test("fmtDateBR formata datas ISO e trata valor vazio", () => {
-  assert.equal(fmtDateBR("2026-09-12"), "12/09/2026");
-  assert.equal(fmtDateBR(""), "—");
+// ORG-07 (P-53): um formatador só, no formato escolhido em configurações
+test("fmtData segue o formato escolhido e trata valor vazio", (t) => {
+  t.after(() => definirFormatoData("sistema"));
+  definirFormatoData("dma");
+  assert.equal(fmtData("2026-09-12"), "12/09/2026");
+  assert.equal(fmtData("2026-09-12T08:30:00-03:00"), "12/09/2026");
+  assert.equal(fmtData(""), "—");
+  assert.equal(fmtDataCurta("2026-09-12"), "12/09");
+  definirFormatoData("mda");
+  assert.equal(fmtData("2026-09-12"), "09/12/2026");
+  assert.equal(fmtDataCurta("2026-09-12"), "09/12");
+  assert.equal(fmtMesAno("2026-09"), "09/2026");
+  definirFormatoData("iso");
+  assert.equal(fmtData("2026-09-12"), "2026-09-12");
+  assert.equal(fmtDataCurta("2026-09-12"), "09-12");
+  assert.equal(fmtMesAno("2026-09"), "2026-09");
+  definirFormatoData("qualquer"); // valor desconhecido volta pro do sistema
+  assert.equal(fmtData("2026-10-21"), fmtDataNoFormato("2026-10-21", "sistema"));
+});
+
+test("o formato do sistema vem da ordem das partes do idioma", () => {
+  // o Node daqui tem algum idioma; o que importa é a ordem bater com o Intl
+  const esperado = new Intl.DateTimeFormat(navigator.language, { day: "2-digit", month: "2-digit", year: "numeric" })
+    .formatToParts(new Date(2026, 9, 21)).filter((p) => p.type !== "literal").map((p) => p.type[0]).join("");
+  const mapa = { dmy: "21/10/2026", mdy: "10/21/2026", ymd: "2026-10-21" };
+  assert.equal(fmtDataNoFormato("2026-10-21", "sistema"), mapa[esperado]);
+});
+
+test("fmtDataCompacta tira o ano do ano corrente; fmtDataHora junta a hora", (t) => {
+  t.after(() => definirFormatoData("sistema"));
+  definirFormatoData("dma");
+  const hoje = new Date(2026, 9, 21);
+  assert.equal(fmtDataCompacta("2026-03-05", hoje), "05/03");
+  assert.equal(fmtDataCompacta("2025-03-05", hoje), "05/03/2025");
+  assert.equal(fmtDataHora("2026-10-21T14:05:00"), "21/10/2026 14:05");
+  assert.equal(fmtDataHora("lixo"), "—");
+});
+
+test("lerMesAno aceita mm/aaaa e aaaa-mm", () => {
+  assert.equal(lerMesAno("10/2026"), "2026-10");
+  assert.equal(lerMesAno("3-2026"), "2026-03");
+  assert.equal(lerMesAno("2026-10"), "2026-10");
+  assert.equal(lerMesAno("13/2026"), null);
+  assert.equal(lerMesAno("outubro"), null);
 });
 
 test("fmtMoney usa a formatação monetária brasileira", () => {

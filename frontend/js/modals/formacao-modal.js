@@ -61,7 +61,7 @@ function buildModal() {
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="em-previsao">previsão de conclusão (opcional)</label><input type="text" id="em-previsao" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="em-previsao">previsão de conclusão (opcional)</label><input type="date" id="em-previsao"></div>
         </div>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>

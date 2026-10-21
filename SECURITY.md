@@ -41,6 +41,13 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   dobrando até 15 min, mesmo fechando e abrindo o app. Ao ligar, aparece
   **uma vez** um código de recuperação. Bloqueio por inatividade é
   opcional (5, 15 ou 30 min).
+- **Notas trancadas.** Com o PIN ligado, uma nota pode ser trancada: o
+  texto vai cifrado com a mesma chave das senhas salvas, fica fora da
+  busca e só abre com o PIN (o título continua visível).
+- **Notificações discretas.** Ao ligar o PIN, as notificações do sistema
+  (lembretes, vencimentos, eventos) passam a dizer só "abra o kami pra
+  ver" — elas aparecem até na tela de bloqueio. Dá pra desligar em
+  configurações › notificações.
 - **Backup com senha.** Exportar com senha (o padrão) gera um arquivo
   cifrado com AES-256-GCM, chave derivada da senha por scrypt
   (N=2¹⁷, r=8, p=1); alterar qualquer byte do arquivo faz a abertura
@@ -58,7 +65,10 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
 - **Superfície mínima do app.** A janela não tem permissão de shell,
   arquivos nem processos; só abre links `http`/`https`. A CSP só roda o
   código do próprio app e só fala com o backend local. Um teste fixa essa
-  lista — liberar algo novo é uma mudança consciente.
+  lista — liberar algo novo é uma mudança consciente. Os únicos comandos
+  novos (1.13) ligam e desligam a bandeja e o "iniciar com o sistema",
+  que ficam desligados até você ligar; essa escolha mora num arquivo da
+  máquina, não no backup.
 - **Dependências auditadas.** Em todo PR e toda semana, `pip-audit`,
   `npm audit` e `cargo audit` rodam no CI e falham com vulnerabilidade
   alta ou crítica; o Dependabot propõe atualizações toda semana; as

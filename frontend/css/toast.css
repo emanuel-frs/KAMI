@@ -9,7 +9,10 @@
 .toast-stack {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  /* --canto-ocupado: altura do lembrete de backup quando aberto (mesmo
+     canto) — a pilha empilha acima dele em vez de cobri-lo */
+  bottom: calc(20px + var(--canto-ocupado, 0px));
+  transition: bottom 0.15s ease;
   z-index: 220; /* acima de .modal-backdrop (200) e do dropdown custom-select
                    dentro de modal (210, ver widgets/custom-select.css) —
                    precisa aparecer por cima mesmo quando disparado por uma

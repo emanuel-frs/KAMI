@@ -40,12 +40,12 @@ function buildModal() {
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="pm-start">início</label><input type="text" id="pm-start" placeholder="YYYY-MM-DD"></div>
-          <div class="field"><label for="pm-end">fim (opcional — em branco = atual)</label><input type="text" id="pm-end" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-start">início</label><input type="date" id="pm-start"></div>
+          <div class="field"><label for="pm-end">fim (opcional — em branco = atual)</label><input type="date" id="pm-end"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="pm-contract-end">fim de contrato previsto (opcional)</label><input type="text" id="pm-contract-end" placeholder="YYYY-MM-DD"></div>
-          <div class="field"><label for="pm-salary-review">próxima revisão salarial prevista (opcional)</label><input type="text" id="pm-salary-review" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="pm-contract-end">fim de contrato previsto (opcional)</label><input type="date" id="pm-contract-end"></div>
+          <div class="field"><label for="pm-salary-review">próxima revisão salarial prevista (opcional)</label><input type="date" id="pm-salary-review"></div>
         </div>
         <div class="form-actions">
           <button class="btn sm" data-action="close">cancelar</button>

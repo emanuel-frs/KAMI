@@ -20,6 +20,7 @@ export const TYPE_META = {
   evento: { label: "evento", color: "#7fa8d9", icon: "calendar-days" },
   contrato_fim: { label: "fim de contrato", color: "var(--red)", icon: "clock" },
   revisao_salarial: { label: "revisão salarial", color: "var(--amber)", icon: "trending-up" },
+  lembrete: { label: "lembrete", color: "#c9a0dc", icon: "bell-ring" }, // ORG-05
 };
 
 export function typeColor(type) {

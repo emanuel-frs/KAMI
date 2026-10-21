@@ -1,6 +1,6 @@
 // js/widgets/missoes.js
 import { getMissoes } from "../api/nucleo.js";
-import { escapeHtml, fmtDateBR } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { navigateTo } from "../components/navigate.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { xpBar } from "../components/xp-bar.js";
@@ -30,6 +30,8 @@ const SCREEN_BY_TYPE = {
   marco_esquecido: "aprendizado",
   marcos: "aprendizado",
   link: "organizacao",
+  habito: "habitos",
+  habitos_dias: "habitos",
 };
 
 // nome do atributo como aparece na tela (a chave técnica vem sem acento)
@@ -88,7 +90,7 @@ export async function render(el, widget) {
           data.semanal
             ? `<div class="ms-head ms-head--week">
                  <span>semana</span>
-                 <span class="ms-when">até ${fmtDateBR(data.semana_fim)}</span>
+                 <span class="ms-when">até ${fmtData(data.semana_fim)}</span>
                </div>
                ${missionRow(data.semanal, { weekly: true })}`
             : ""

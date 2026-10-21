@@ -35,6 +35,14 @@ CREATE TABLE IF NOT EXISTS user_profile (
     som_interface         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo cliques, modal, troca de tela, voz da kami
     som_avisos            INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo toast/notificação e erro
     icone_tema            INTEGER NOT NULL DEFAULT 0,   -- ICO-01: ícone do app na cor de destaque (desligado — P-08)
+    -- ORG-05 (P-61/P-70): o que pode virar notificação do SISTEMA (fora do
+    -- app); dentro do app (aviso + sino) tudo continua aparecendo
+    notif_fora_lembretes   INTEGER NOT NULL DEFAULT 1,
+    notif_fora_vencimentos INTEGER NOT NULL DEFAULT 1,
+    notif_fora_eventos     INTEGER NOT NULL DEFAULT 1,
+    notif_ocultar_texto    INTEGER NOT NULL DEFAULT 0,  -- liga sozinho ao ativar o PIN; desligável
+    avisos_hora            TEXT NOT NULL DEFAULT '09:00', -- P-47: hora dos avisos de vencimento (1 dia antes e no dia)
+    formato_data           TEXT NOT NULL DEFAULT 'sistema', -- ORG-07: sistema | dma | mda | iso
     updated_at            TEXT NOT NULL
 );
 
@@ -363,6 +371,102 @@ CREATE TABLE IF NOT EXISTS milestones (
 );
 
 -- ---------------- ORGANIZAÇÃO ----------------
+-- ---------------- NOTAS (ORG-01) ----------------
+-- texto em markdown (nunca HTML — o editor é WYSIWYG só na tela, ver
+-- frontend/js/components/nota-markdown.js). Trancada: o texto vai em
+-- conteudo_cifrado (chave do cofre, app/crypto.py) e conteudo fica ''.
+-- Regras e rotas em app/routers/notas.py.
+CREATE TABLE IF NOT EXISTS notas (
+    id                TEXT PRIMARY KEY,
+    titulo            TEXT NOT NULL DEFAULT '',
+    conteudo          TEXT NOT NULL DEFAULT '',
+    conteudo_cifrado  TEXT,
+    cor               TEXT,              -- cor de destaque opcional (nome da paleta do app)
+    fixada            INTEGER NOT NULL DEFAULT 0,
+    arquivada         INTEGER NOT NULL DEFAULT 0,
+    trancada          INTEGER NOT NULL DEFAULT 0,
+    vinculo_tipo      TEXT,              -- 'meta' | 'trilha' | 'evento' | 'posicao' (opcional)
+    vinculo_id        TEXT,              -- id na tabela do tipo; item apagado = vínculo some na leitura
+    criada_em         TEXT NOT NULL,
+    atualizada_em     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS notas_tags (
+    nota_id  TEXT NOT NULL REFERENCES notas(id) ON DELETE CASCADE,
+    tag      TEXT NOT NULL,
+    PRIMARY KEY (nota_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_notas_vinculo ON notas(vinculo_tipo, vinculo_id);
+CREATE INDEX IF NOT EXISTS idx_notas_tags_tag ON notas_tags(tag);
+
+-- ---------------- CAIXA DE ENTRADA (ORG-02) ----------------
+-- captura rápida (Alt+Q): texto solto que depois vira gasto, tarefa,
+-- nota, meta ou evento (ou é descartado). Rotas em app/routers/entrada.py.
+CREATE TABLE IF NOT EXISTS caixa_entrada (
+    id         TEXT PRIMARY KEY,
+    texto      TEXT NOT NULL,
+    criado_em  TEXT NOT NULL
+);
+
+-- ---------------- LEMBRETES (ORG-05) ----------------
+-- item próprio (P-46) com dia, hora e repetição (app/lembretes.py),
+-- opcionalmente ligado a nota/conta fixa/meta/hábito/evento. O agendador
+-- guarda só a próxima ocorrência; ao disparar, o lembrete fica "pendente"
+-- no sino até ser dispensado ou adiado. Rotas em app/routers/lembretes.py.
+CREATE TABLE IF NOT EXISTS lembretes (
+    id               TEXT PRIMARY KEY,
+    titulo           TEXT NOT NULL,
+    data             TEXT NOT NULL,              -- YYYY-MM-DD (primeira ocorrência)
+    hora             TEXT NOT NULL,              -- HH:MM
+    repeticao        TEXT NOT NULL DEFAULT 'nao', -- nao | diario | dias | mensal | anual
+    dias_semana      TEXT NOT NULL DEFAULT '',   -- "0,2,4" quando repeticao = 'dias'
+    vinculo_tipo     TEXT,
+    vinculo_id       TEXT,
+    proxima          TEXT,                       -- YYYY-MM-DDTHH:MM; NULL = acabou
+    adiado_para      TEXT,                       -- "adiar" (P-64); vale antes da próxima
+    pendente_desde   TEXT,                       -- disparou e ainda está no sino
+    pendente_quando  TEXT,                       -- a ocorrência que disparou
+    pendente_atrasado INTEGER NOT NULL DEFAULT 0, -- disparou com o app fechado (P-65)
+    criado_em        TEXT NOT NULL,
+    atualizado_em    TEXT NOT NULL
+);
+
+-- ---------------- HÁBITOS (ORG-04) ----------------
+-- frequencia: 'diario' | 'dias' (dias_semana = "0,2,4", 0 = segunda) |
+-- 'semana' (vezes_semana por semana, qualquer dia). status: 'ativo' |
+-- 'pausado' | 'arquivado'. Marcar dá xp (action_logs com referencia
+-- 'habito_marca' = id da marca). Rotas e regras em app/routers/habitos.py
+-- e app/habitos.py.
+CREATE TABLE IF NOT EXISTS habitos (
+    id            TEXT PRIMARY KEY,
+    nome          TEXT NOT NULL,
+    frequencia    TEXT NOT NULL DEFAULT 'diario',
+    dias_semana   TEXT NOT NULL DEFAULT '',
+    vezes_semana  INTEGER NOT NULL DEFAULT 3,
+    atributo      TEXT NOT NULL DEFAULT 'organizacao',
+    status        TEXT NOT NULL DEFAULT 'ativo',
+    posicao       INTEGER NOT NULL DEFAULT 0,
+    criado_em     TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+);
+
+-- um dia feito de um hábito (no máximo uma marca por dia)
+CREATE TABLE IF NOT EXISTS habitos_marcas (
+    id         TEXT PRIMARY KEY,
+    habito_id  TEXT NOT NULL REFERENCES habitos(id) ON DELETE CASCADE,
+    dia        TEXT NOT NULL,
+    criada_em  TEXT NOT NULL,
+    UNIQUE (habito_id, dia)
+);
+
+-- períodos pausados (P-59): dias pausados não contam nem quebram a
+-- sequência. fim NULL = pausa em andamento.
+CREATE TABLE IF NOT EXISTS habitos_pausas (
+    id         TEXT PRIMARY KEY,
+    habito_id  TEXT NOT NULL REFERENCES habitos(id) ON DELETE CASCADE,
+    inicio     TEXT NOT NULL,
+    fim        TEXT
+);
+
 CREATE TABLE IF NOT EXISTS links (
     id       TEXT PRIMARY KEY,
     title    TEXT NOT NULL,
@@ -386,10 +490,13 @@ CREATE TABLE IF NOT EXISTS email_accounts (
     imap_port         INTEGER NOT NULL,
     username          TEXT NOT NULL,
     app_password_enc  TEXT NOT NULL,   -- senha de app, criptografada localmente
-    sync_by_default   INTEGER NOT NULL DEFAULT 1  -- redesign da aba e-mail: contas "padrão"
+    sync_by_default   INTEGER NOT NULL DEFAULT 1, -- redesign da aba e-mail: contas "padrão"
                                                     -- já vêm selecionadas na visualização
                                                     -- combinada ao entrar na tela (ver
                                                     -- plano-email-organizacao.md secao 3.1)
+    sync_erro         TEXT,            -- ORG-06: "senha" | "login" — falha que só a pessoa resolve
+    sync_erro_desde   TEXT,            -- quando essa falha começou (o aviso mostra)
+    ultimo_sync_ok    TEXT             -- última sincronização que deu certo
 );
 
 CREATE TABLE IF NOT EXISTS email_cache (
@@ -400,9 +507,15 @@ CREATE TABLE IF NOT EXISTS email_cache (
     received_at  TEXT NOT NULL,
     is_read      INTEGER NOT NULL DEFAULT 0,
     summary_text TEXT,                -- NULL no v1 (sem IA); campo reservado pro pós-mvp
-    body_preview TEXT                 -- trecho em TEXTO PURO do corpo (sem HTML), truncado
-                                       -- na extração (ver app/routers/organizacao.py) — nunca
-                                       -- o corpo original/HTML bruto, por segurança (XSS/tracking)
+    body_preview TEXT,                -- prévia de uma linha em TEXTO PURO (sem HTML, sem URL
+                                       -- longa), ver app/email_texto.py — nunca o corpo
+                                       -- original/HTML bruto, por segurança (XSS/tracking)
+    body_text    TEXT,                -- ORG-06: texto completo LIMPO (até 20 mil caracteres;
+                                       -- links marcados, formato em app/email_texto.py).
+                                       -- NULL = e-mail antigo ou com mais de 90 dias (podado)
+    body_cortado INTEGER NOT NULL DEFAULT 0, -- texto completo cortado/indisponível
+    message_id   TEXT,                -- cabeçalho Message-ID (busca o e-mail no Gmail)
+    gmail_id     TEXT                 -- X-GM-MSGID (só Gmail): abre o próprio e-mail no webmail
 );
 
 -- ---------------- CONTAS SILENCIADAS (notificações v2.1) ----------------

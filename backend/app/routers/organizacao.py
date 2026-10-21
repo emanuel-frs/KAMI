@@ -70,10 +70,11 @@ comportamento esperado):
   - sincronizar repo do github:    +2xp
   - editar uma conta de e-mail:   sem XP (não é uma "ação" nova, é manutenção)
 """
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta
 import email as email_lib
 import imaplib
 import json
+import re
 import sqlite3
 import urllib.error
 import urllib.request
@@ -84,6 +85,7 @@ from typing import ClassVar, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app import email_texto
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
@@ -120,9 +122,14 @@ TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 # ficava repetitiva)
 SEARCH_RESULT_MAX = 3
 
-# tamanho máximo do trecho de corpo guardado por e-mail — texto puro,
-# já achatado (sem quebras de linha) e truncado; nunca o corpo original.
+# tamanho máximo da prévia de uma linha (a lista); o texto completo
+# limpo vai em body_text, até email_texto.TEXTO_MAX (ORG-06).
 BODY_PREVIEW_MAX_LEN = 280
+# P-27: o texto completo é o que mais pesa no cache (até 20 mil
+# caracteres por e-mail) e o cache nunca é podado — então, passado esse
+# prazo, só o texto completo sai (a prévia e o resto ficam). Quem
+# precisar do e-mail antigo inteiro abre no webmail.
+BODY_TEXT_DIAS = 90
 
 
 # ==================== schemas ====================
@@ -244,6 +251,15 @@ class EmailAccountOut(BaseModel):
     username: str
     sync_by_default: bool = True
     # app_password_enc propositalmente omitido — nunca sai da API
+    # ORG-06: a sincronização automática (a cada 5 min) falhava em
+    # silêncio — com as senhas apagadas (chave redefinida) o Emanuel
+    # ficou horas sem e-mail novo sem saber. Agora a falha que só ELE
+    # resolve fica gravada na conta e a tela avisa:
+    #   "senha" = senha salva vazia/ilegível; "login" = servidor recusou.
+    # Queda de rede não entra (passa sozinha, avisar só incomodaria).
+    sync_erro: Optional[str] = None
+    sync_erro_desde: Optional[str] = None
+    ultimo_sync_ok: Optional[str] = None
 
 
 class EmailSyncResult(BaseModel):
@@ -262,6 +278,21 @@ class EmailCacheOut(BaseModel):
     summary_text: Optional[str] = None
     body_preview: Optional[str] = None
     is_muted: bool = False  # calculado via lookup contra muted_accounts — não persistido no cache
+    # ORG-06: `sender` cru vem como '"Fulano - Loja" <fulano@x.com>'; a
+    # tela mostra o nome em destaque e o endereço menor. Calculado na
+    # leitura (email_texto.separar_remetente), não guardado.
+    sender_name: str = ""
+    sender_email: str = ""
+
+
+class EmailDetailOut(EmailCacheOut):
+    """Um e-mail com o texto completo (só no GET por id — a lista não
+    carrega até 20 mil caracteres por e-mail à toa)."""
+    body_text: str = ""
+    # cortado no limite de tamanho, ou e-mail antigo que só tem a prévia
+    # guardada — a tela avisa e oferece o webmail
+    body_cortado: bool = False
+    webmail_url: Optional[str] = None
 
 
 class MutedAccountIn(Entrada):
@@ -521,62 +552,74 @@ def _decode_mime_words(s: str) -> str:
     return decoded
 
 
-def _extract_body_preview(msg, max_len: int = BODY_PREVIEW_MAX_LEN) -> Optional[str]:
-    """
-    Extrai um trecho em TEXTO PURO do corpo do e-mail — nunca HTML.
-
-    Só lê a parte text/plain (ignora text/html de propósito, e não faz
-    nenhum parsing/strip de HTML aqui): não queremos guardar nem
-    renderizar HTML de e-mails de terceiros — a maioria dos e-mails de
-    marketing/spam abusa de HTML com tracking, e o frontend NUNCA deve
-    fazer innerHTML direto do corpo de um e-mail recebido. Se só existir
-    text/html (sem alternativa em texto puro), devolve None — sem prévia
-    é mais seguro do que arriscar mostrar/guardar HTML bruto.
-    """
-    body = None
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_disposition = str(part.get("Content-Disposition", ""))
-            if part.get_content_type() == "text/plain" and "attachment" not in content_disposition:
-                try:
-                    payload = part.get_payload(decode=True)
-                    if payload is None:
-                        continue
-                    charset = part.get_content_charset() or "utf-8"
-                    body = payload.decode(charset, errors="replace")
-                except Exception:
-                    continue
-                break
-    else:
-        if msg.get_content_type() == "text/plain":
-            try:
-                payload = msg.get_payload(decode=True)
-                if payload is not None:
-                    charset = msg.get_content_charset() or "utf-8"
-                    body = payload.decode(charset, errors="replace")
-            except Exception:
-                body = None
-
-    if not body:
+def _parte_texto(part) -> Optional[str]:
+    try:
+        payload = part.get_payload(decode=True)
+        if payload is None:
+            return None
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            return payload.decode(charset, errors="replace")
+        except LookupError:  # charset inventado/desconhecido (mesmo caso de _decode_mime_words)
+            return payload.decode("latin-1", errors="replace")
+    except Exception:
         return None
 
-    flat = " ".join(body.split())  # achata quebras de linha/espaços repetidos
-    if not flat:
-        return None
-    return flat[:max_len] + ("…" if len(flat) > max_len else "")
+
+def _extract_body(msg) -> tuple[str, bool, Optional[str]]:
+    """
+    Corpo do e-mail em TEXTO PURO (ORG-06): (texto completo limpo,
+    foi_cortado, prévia de uma linha). Formato e regras em
+    app/email_texto.py.
+
+    Lê o primeiro text/plain e o primeiro text/html que não sejam anexo.
+    O HTML só é convertido em texto ali (html.parser da biblioteca
+    padrão: não executa nada, não baixa imagem) — nunca é guardado nem
+    vai pro frontend. Antes, e-mail só em HTML ficava sem prévia.
+    """
+    plano = html = None
+    for part in msg.walk() if msg.is_multipart() else [msg]:
+        if "attachment" in str(part.get("Content-Disposition", "")).lower():
+            continue
+        tipo = part.get_content_type()
+        if tipo == "text/plain" and plano is None:
+            plano = _parte_texto(part)
+        elif tipo == "text/html" and html is None:
+            html = _parte_texto(part)
+
+    texto = email_texto.escolher_texto(plano, html)
+    texto, cortado = email_texto.cortar_texto(texto)
+    return texto, cortado, email_texto.previa(texto, BODY_PREVIEW_MAX_LEN)
 
 
 @router.get("/email-accounts", response_model=List[EmailAccountOut])
 def list_email_accounts(db=Depends(get_db)):
     rows = db.execute("SELECT * FROM email_accounts ORDER BY label").fetchall()
     return [
-        {
-            "id": r["id"], "label": r["label"], "imap_host": r["imap_host"],
-            "imap_port": r["imap_port"], "username": r["username"],
-            "sync_by_default": bool(r["sync_by_default"]),
-        }
-        for r in rows
+        _account_out(r) for r in rows
     ]
+
+
+def _account_out(r) -> dict:
+    return {
+        "id": r["id"], "label": r["label"], "imap_host": r["imap_host"],
+        "imap_port": r["imap_port"], "username": r["username"],
+        "sync_by_default": bool(r["sync_by_default"]),
+        "sync_erro": r["sync_erro"], "sync_erro_desde": r["sync_erro_desde"],
+        "ultimo_sync_ok": r["ultimo_sync_ok"],
+    }
+
+
+def _marcar_erro_de_sync(db, account_id: str, erro: str) -> None:
+    """Grava a falha (mantendo o "desde" da primeira vez) e confirma já —
+    quem chama levanta HTTPException em seguida, e get_db() fecha a
+    conexão sem commit."""
+    db.execute(
+        "UPDATE email_accounts SET sync_erro = ?, "
+        "sync_erro_desde = CASE WHEN sync_erro = ? THEN sync_erro_desde ELSE ? END WHERE id = ?",
+        (erro, erro, now_iso(), account_id),
+    )
+    db.commit()
 
 
 @router.post("/email-accounts", response_model=EmailAccountOut, status_code=201)
@@ -589,11 +632,7 @@ def create_email_account(payload: EmailAccountIn, db=Depends(get_db)):
         (account_id, payload.label, payload.imap_host, payload.imap_port, payload.username, enc_password, int(payload.sync_by_default)),
     )
     db.commit()
-    return {
-        "id": account_id, "label": payload.label, "imap_host": payload.imap_host,
-        "imap_port": payload.imap_port, "username": payload.username,
-        "sync_by_default": payload.sync_by_default,
-    }
+    return _account_out(db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone())
 
 
 @router.put("/email-accounts/{account_id}", response_model=EmailAccountOut)
@@ -613,18 +652,21 @@ def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depend
         payload.sync_by_default if payload.sync_by_default is not None else bool(row["sync_by_default"])
     )
 
+    # mudou o que entra no login (senha, usuário, servidor): o aviso de
+    # erro sai na hora — a próxima sincronização diz se resolveu
+    mexeu_no_login = bool(payload.app_password) or (username, imap_host, imap_port) != (
+        row["username"], row["imap_host"], row["imap_port"]
+    )
     db.execute(
         "UPDATE email_accounts SET label = ?, imap_host = ?, imap_port = ?, username = ?, "
         "app_password_enc = ?, sync_by_default = ? WHERE id = ?",
         (label, imap_host, imap_port, username, app_password_enc, int(sync_by_default), account_id),
     )
+    if mexeu_no_login:
+        db.execute("UPDATE email_accounts SET sync_erro = NULL, sync_erro_desde = NULL WHERE id = ?", (account_id,))
     db.commit()
 
-    return {
-        "id": account_id, "label": label, "imap_host": imap_host,
-        "imap_port": imap_port, "username": username,
-        "sync_by_default": sync_by_default,
-    }
+    return _account_out(db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone())
 
 
 @router.delete("/email-accounts/{account_id}", status_code=204)
@@ -646,7 +688,13 @@ def sync_email_account(
 
     try:
         plain_password = decrypt_password(account["app_password_enc"])
+    except ChaveIndisponivel:
+        # chave das senhas fora do cofre (SEG-01): o 409 global explica;
+        # pra conta, é o mesmo "a senha não dá pra usar"
+        _marcar_erro_de_sync(db, account_id, "senha")
+        raise
     except ValueError:
+        _marcar_erro_de_sync(db, account_id, "senha")
         raise HTTPException(
             status_code=422,
             detail="não foi possível ler a senha salva; edite a conta e informe a senha de app de novo",
@@ -657,6 +705,7 @@ def sync_email_account(
         imap.login(account["username"], plain_password)
         imap.select("INBOX")
     except imaplib.IMAP4.error:
+        _marcar_erro_de_sync(db, account_id, "login")
         raise HTTPException(
             status_code=422,
             detail="falha ao autenticar no imap; verifique host/porta/usuário/senha de app",
@@ -681,12 +730,24 @@ def sync_email_account(
         status, msg_ids = imap.search(None, "ALL")
         ids = msg_ids[0].split()[-limit:] if msg_ids and msg_ids[0] else []
 
+        # Gmail tem um id interno por mensagem (X-GM-MSGID, extensão IMAP
+        # do Google) — é o que abre o e-mail certo no webmail (ORG-06,
+        # email_texto.url_webmail). Outros servidores não conhecem o item,
+        # então só é pedido pro Gmail.
+        is_gmail = email_texto.eh_gmail(account["imap_host"])
+        fetch_spec = "(X-GM-MSGID RFC822)" if is_gmail else "(RFC822)"
+
         parsed_messages = []
         for mid in reversed(ids):
-            status, msg_data = imap.fetch(mid, "(RFC822)")
+            status, msg_data = imap.fetch(mid, fetch_spec)
             if status != "OK" or not msg_data or not msg_data[0]:
                 continue
             msg = email_lib.message_from_bytes(msg_data[0][1])
+            gmail_id = None
+            if is_gmail and isinstance(msg_data[0][0], (bytes, str)):
+                cabecalho = msg_data[0][0].decode("ascii", "replace") if isinstance(msg_data[0][0], bytes) else msg_data[0][0]
+                achado = re.search(r"X-GM-MSGID (\d+)", cabecalho)
+                gmail_id = achado.group(1) if achado else None
 
             subject = _decode_mime_words(msg.get("Subject", ""))
             sender = _decode_mime_words(msg.get("From", ""))
@@ -696,7 +757,11 @@ def sync_email_account(
             except (TypeError, ValueError):
                 received_at = now_iso()
 
-            parsed_messages.append((subject, sender, received_at, _extract_body_preview(msg)))
+            message_id = (msg.get("Message-ID") or "").strip()[:500] or None
+            body_text, body_cortado, body_preview = _extract_body(msg)
+            parsed_messages.append(
+                (subject, sender, received_at, message_id, gmail_id, body_text or None, body_cortado, body_preview)
+            )
     finally:
         try:
             imap.logout()
@@ -707,24 +772,43 @@ def sync_email_account(
     # veio do IMAP, sem nenhuma chamada de rede no meio.
     new_count = 0
     try:
-        for subject, sender, received_at, body_preview in parsed_messages:
-            # dedupe simples (sem message_id no schema v1): mesmo assunto +
-            # remetente + data já em cache pra essa conta = já sincronizado
+        for subject, sender, received_at, message_id, gmail_id, body_text, body_cortado, body_preview in parsed_messages:
+            # dedupe simples (o message_id só existe a partir do ORG-06, os
+            # e-mails antigos não têm): mesmo assunto + remetente + data já
+            # em cache pra essa conta = já sincronizado
             dup = db.execute(
-                "SELECT id FROM email_cache WHERE account_id = ? AND subject = ? "
+                "SELECT id, body_text FROM email_cache WHERE account_id = ? AND subject = ? "
                 "AND sender = ? AND received_at = ?",
                 (account_id, subject, sender, received_at),
             ).fetchone()
             if dup:
+                # já em cache: reprocessa o texto com a limpeza atual (e-mail de
+                # antes do ORG-06 só tinha a prévia crua; e uma melhoria em
+                # email_texto.py vale pros que voltam do servidor) e completa
+                # os ids que faltarem. Só os ~20 mais recentes voltam por
+                # sincronização, então é barato.
+                if body_text:
+                    db.execute(
+                        "UPDATE email_cache SET body_text = ?, body_cortado = ?, body_preview = ?, "
+                        "message_id = COALESCE(message_id, ?), gmail_id = COALESCE(gmail_id, ?) WHERE id = ?",
+                        (body_text, int(body_cortado), body_preview, message_id, gmail_id, dup["id"]),
+                    )
                 continue
 
             db.execute(
                 "INSERT INTO email_cache "
-                "(id, account_id, subject, sender, received_at, is_read, summary_text, body_preview) "
-                "VALUES (?, ?, ?, ?, ?, 0, NULL, ?)",
-                (new_id(), account_id, subject, sender, received_at, body_preview),
+                "(id, account_id, subject, sender, received_at, is_read, summary_text, body_preview, "
+                "body_text, body_cortado, message_id, gmail_id) "
+                "VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)",
+                (new_id(), account_id, subject, sender, received_at, body_preview,
+                 body_text, int(body_cortado), message_id, gmail_id),
             )
             new_count += 1
+        _podar_textos_antigos(db, account_id)
+        db.execute(
+            "UPDATE email_accounts SET sync_erro = NULL, sync_erro_desde = NULL, ultimo_sync_ok = ? WHERE id = ?",
+            (now_iso(), account_id),
+        )
         db.commit()
     except sqlite3.OperationalError as exc:
         db.rollback()
@@ -764,6 +848,44 @@ def _muted_account_set(db) -> set:
     return {r["account_id"] for r in rows}
 
 
+def _podar_textos_antigos(db, account_id: str) -> None:
+    """Tira só o texto completo dos e-mails com mais de BODY_TEXT_DIAS
+    (ver a constante). A data é comparada como texto ISO, igual ao resto
+    do app; received_at vem com fuso, e um dia de folga não importa aqui."""
+    limite = (dt.now() - timedelta(days=BODY_TEXT_DIAS)).isoformat()
+    db.execute(
+        "UPDATE email_cache SET body_text = NULL, body_cortado = 1 "
+        "WHERE account_id = ? AND body_text IS NOT NULL AND received_at < ?",
+        (account_id, limite),
+    )
+
+
+# colunas da lista — tudo menos o texto completo (até 20 mil caracteres
+# por e-mail, só o GET por id carrega)
+_EMAIL_LIST_COLS = (
+    "id, account_id, subject, sender, received_at, is_read, summary_text, body_preview, "
+    "body_text IS NULL AS sem_texto"
+)
+
+
+def _email_out(row, muted: set) -> dict:
+    out = {k: row[k] for k in row.keys() if k not in ("sem_texto", "body_text", "body_cortado", "message_id", "gmail_id")}
+    nome, endereco = email_texto.separar_remetente(row["sender"])
+    out |= {
+        "is_read": bool(row["is_read"]),
+        "is_muted": row["account_id"] in muted,
+        "sender_name": nome,
+        "sender_email": endereco,
+    }
+    # e-mail de antes do ORG-06: a prévia guardada é o text/plain cru
+    # (com URL longa e token). Limpa na leitura — barato (280 caracteres)
+    # e não depende de sincronizar de novo.
+    legado = row["sem_texto"] if "sem_texto" in row.keys() else row["body_text"] is None
+    if legado and row["body_preview"]:
+        out["body_preview"] = email_texto.previa(email_texto.limpar_texto_plano(row["body_preview"]))
+    return out
+
+
 @router.get("/email-cache", response_model=List[EmailCacheOut])
 def list_email_cache(
     account_id: Optional[str] = None,
@@ -771,7 +893,7 @@ def list_email_cache(
     exclude_muted: bool = False,
     db=Depends(get_db),
 ):
-    query = "SELECT * FROM email_cache"
+    query = f"SELECT {_EMAIL_LIST_COLS} FROM email_cache"
     conditions, args = [], []
     if account_id:
         conditions.append("account_id = ?")
@@ -785,22 +907,59 @@ def list_email_cache(
 
     rows = db.execute(query, args).fetchall()
     muted = _muted_account_set(db)
-    out = [dict(r) | {"is_read": bool(r["is_read"]), "is_muted": r["account_id"] in muted} for r in rows]
+    out = [_email_out(r, muted) for r in rows]
     if exclude_muted:
         out = [e for e in out if not e["is_muted"]]
     return out
 
 
-@router.put("/email-cache/{cache_id}/read", response_model=EmailCacheOut)
-def mark_email_read(cache_id: str, db=Depends(get_db)):
-    row = db.execute("SELECT * FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
+@router.get("/email-cache/{cache_id}", response_model=EmailDetailOut)
+def get_email(cache_id: str, db=Depends(get_db)):
+    """Texto completo pra leitura dentro do app (ORG-06). Não marca como
+    lido sozinho — quem abre chama PUT /read (igual antes)."""
+    row = db.execute(
+        "SELECT c.*, a.imap_host, a.username FROM email_cache c "
+        "JOIN email_accounts a ON a.id = c.account_id WHERE c.id = ?",
+        (cache_id,),
+    ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="e-mail não encontrado no cache")
-    db.execute("UPDATE email_cache SET is_read = 1 WHERE id = ?", (cache_id,))
+    out = _email_out(row, _muted_account_set(db))
+    if row["body_text"] is not None:
+        out |= {"body_text": row["body_text"], "body_cortado": bool(row["body_cortado"])}
+    else:
+        # só a prévia antiga (ou o texto já podado): mostra o que tem,
+        # limpo, e a tela avisa que está incompleto
+        out |= {
+            "body_text": email_texto.limpar_texto_plano(row["body_preview"] or ""),
+            "body_cortado": True,
+        }
+    out["webmail_url"] = email_texto.url_webmail(row["imap_host"], row["username"], row["message_id"], row["gmail_id"])
+    for k in ("imap_host", "username"):
+        out.pop(k, None)
+    return out
+
+
+def _set_email_read(cache_id: str, lido: bool, db) -> dict:
+    row = db.execute("SELECT id FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="e-mail não encontrado no cache")
+    db.execute("UPDATE email_cache SET is_read = ? WHERE id = ?", (int(lido), cache_id))
     db.commit()
-    updated = db.execute("SELECT * FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
-    muted = _muted_account_set(db)
-    return dict(updated) | {"is_read": bool(updated["is_read"]), "is_muted": updated["account_id"] in muted}
+    updated = db.execute(f"SELECT {_EMAIL_LIST_COLS} FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
+    return _email_out(updated, _muted_account_set(db))
+
+
+@router.put("/email-cache/{cache_id}/read", response_model=EmailCacheOut)
+def mark_email_read(cache_id: str, db=Depends(get_db)):
+    return _set_email_read(cache_id, True, db)
+
+
+@router.put("/email-cache/{cache_id}/unread", response_model=EmailCacheOut)
+def mark_email_unread(cache_id: str, db=Depends(get_db)):
+    """ORG-06: "marcar como não lido" no leitor — volta pro sino e pro
+    filtro "não lidos" (só no Kami; o servidor IMAP não é alterado)."""
+    return _set_email_read(cache_id, False, db)
 
 
 # ==================== contas silenciadas ====================
