@@ -39,9 +39,33 @@
 .notif-lembrete-passou { color: var(--amber); }
 .notif-lembrete-acoes { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* calendário: abas do painel da direita + lista */
-.cal-painel-abas { display: flex; margin-bottom: 10px; }
-.cal-lembretes { display: flex; flex-direction: column; gap: 6px; }
+/* calendário: abas do painel da direita + lista. Mesmo respiro de
+   12px das laterais do .card-head e da lista de eventos (calendario.css) */
+.cal-painel-abas {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.cal-painel-abas .tab { margin-right: 0; }
+#cal-painel-dia {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+#cal-painel-dia[hidden] { display: none; }
+.cal-lembretes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 14px;
+  overflow-y: auto;
+  flex: 1 1 0;
+}
+/* o display:flex acima venceria o [hidden] — a aba "dia" mostrava as duas listas */
+.cal-lembretes[hidden] { display: none; }
 .cal-lembrete-novo { align-self: flex-start; margin-bottom: 4px; }
 .cal-lembrete {
   display: flex;
