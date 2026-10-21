@@ -4,6 +4,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { withDom } from "./helpers/dom.js";
 import { grupoDoDia, horaCurta, dataLonga, textoParaCopiar } from "../../frontend/js/components/email-texto.js";
+import { definirFormatoData } from "../../frontend/js/components/format.js";
+
+// ORG-07: as datas seguem o idioma do sistema — o CI roda em inglês (EUA) e
+// daria "09/03". Estes testes conferem a tela em português, então fixam dd/mm.
+definirFormatoData("dma");
 
 const L = (rotulo, url) => `${rotulo}${url}`;
 
