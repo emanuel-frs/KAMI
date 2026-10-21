@@ -66,7 +66,7 @@ const STEPS = [
   // ─── visão geral das abas ─────────────────────────────────────────────
   {
     selector: ".tabs",
-    text: "organização junta suas notas e três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
+    text: "organização junta suas notas, a caixa de entrada da captura rápida e três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
   },
 
   // ─── aba: notas (padrão ao entrar na tela, ORG-01) ─────────────────────
@@ -78,6 +78,12 @@ const STEPS = [
     onEnter: () => switchTab("notas"),
     selector: '[data-nt="nova"]',
     text: "\"+ nova nota\" começa uma nota aqui; de qualquer tela, alt+shift+n abre uma nota rápida. markdown funciona ao digitar: \"- \" vira lista, \"[] \" vira tarefa, \"# \" vira título. criar nota rende xp (até 3 por dia).",
+  },
+
+  // ─── aba: entrada (ORG-02) ─────────────────────────────────────────────
+  {
+    selector: '.tab[data-tab="entrada"]',
+    text: "entrada: o que você anotou com alt+q (de qualquer tela) sem prefixo cai aqui pra decidir depois — cada item vira gasto, tarefa, nota, meta, evento ou lembrete com um clique, ou é descartado. com prefixo vai direto: \"$ 25 almoço\" gasto, \"# ideia\" nota, \"! sexta 14h\" evento, \"@ amanhã 9h\" lembrete.",
   },
 
   // ─── aba: github ───────────────────────────────────────────────────────
@@ -99,7 +105,7 @@ const STEPS = [
   // ─── aba: e-mail ───────────────────────────────────────────────────────
   {
     selector: '.tab[data-tab="email"]',
-    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local. sincronizar na mão rende xp uma vez por dia por conta.",
+    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local. clique num e-mail pra ler aqui mesmo, em texto limpo (sem rastreadores), ou abrir no webmail. sincronizar na mão rende xp uma vez por dia por conta.",
   },
   {
     onEnter: () => switchTab("email"),

@@ -32,7 +32,7 @@ const WIDGET_TEXTS = {
   financas_registros: "todo lançamento do mês, com filtro por conta e por status.",
   financas_assinaturas: "suas assinaturas recorrentes e quanto elas somam no mês.",
   dividas: "dívidas em aberto — status editável direto aqui, sem abrir nada.",
-  contas_fixas: "contas fixas do mês — aluguel, internet, esse tipo de coisa.",
+  contas_fixas: "contas fixas do mês — aluguel, internet, esse tipo de coisa. o sino de cada uma cria um lembrete pra pagar.",
   compras_parceladas: "compras parceladas e em que parcela cada uma está.",
   financas_grafico_fluxo: "entradas contra saídas, mês a mês.",
   financas_grafico_categorias: "pra onde seu dinheiro tá indo, por categoria.",

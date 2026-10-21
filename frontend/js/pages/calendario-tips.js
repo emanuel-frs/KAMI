@@ -34,7 +34,7 @@ const STEPS = [
   {
     // informar — visão geral da tela antes de entrar em detalhe
     selector: "#cal-grid",
-    text: "aqui ficam todos os seus compromissos do mês: contas, dívidas, assinaturas, parcelas, metas e ações, tudo num só lugar.",
+    text: "aqui ficam todos os seus compromissos do mês: contas, dívidas, assinaturas, parcelas, metas, ações, eventos e lembretes, tudo num só lugar.",
   },
   {
     // informar — navegação entre meses
@@ -68,6 +68,16 @@ const STEPS = [
     // informar — eventos manuais podem ser arrastados pra outro dia
     selector: ".cal-event-row-evento",
     text: "eventos manuais também podem ser arrastados pra outro dia direto na grade, pra reagendar rápido.",
+  },
+  {
+    // ORG-05: a aba "lembretes" do painel da direita
+    selector: '.cal-painel-abas [data-painel="lembretes"]',
+    text: "a aba lembretes lista todos os seus lembretes, com a próxima vez que cada um avisa — toque num pra editar ou apagar.",
+  },
+  {
+    // ORG-05: só informa (abre modal — mesma ressalva do passo abaixo)
+    selector: "#cal-new-lembrete-btn",
+    text: "lembrete avisa na hora (dentro do kami e pelo sistema) e pode repetir: todo dia, em dias da semana, todo mês ou todo ano. também dá pra criar com alt+q (\"@ amanhã 9h …\") ou pelo sino \"lembrar\" de notas, contas, metas e hábitos.",
   },
   {
     // informar — fecha explicando o cadastro manual (não força clique

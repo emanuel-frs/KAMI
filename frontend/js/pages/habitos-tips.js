@@ -24,6 +24,10 @@ const STEPS = [
     text: "viagem ou doença? pause o hábito: os dias pausados não contam nem quebram a sequência. arquivar guarda o histórico e tira da lista.",
   },
   {
+    selector: '.hb-card [data-acao="lembrar"]',
+    text: "o sino cria um lembrete pro hábito — ele só avisa se o hábito ainda não foi marcado naquele dia.",
+  },
+  {
     selector: "#hb-add-btn",
     text: "todo hábito novo começa aqui — todo dia, dias fixos ou x vezes por semana.",
     advanceOn: "interact",
