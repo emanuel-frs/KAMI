@@ -1,6 +1,6 @@
 // js/widgets/perfil-atividade.js
 import { getLog } from "../api/nucleo.js";
-import { escapeHtml, localDateKey } from "../components/format.js";
+import { escapeHtml, localDateKey, fmtData } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 /**
@@ -101,7 +101,7 @@ export async function render(el, widget) {
           const count = counts.get(key) || 0;
           const lvl = levelFor(count);
           const isToday = key === todayKey;
-          const dataStr = day.toLocaleDateString("pt-BR");
+          const dataStr = fmtData(key);
           const tip = count === 0 ? `${dataStr} — sem ações` : `${dataStr} — ${count} ${count === 1 ? "ação" : "ações"}`;
           altRows.push([dataStr, count === 0 ? "sem ações" : `${count} ${count === 1 ? "ação" : "ações"}`]);
           return `<span class="pa-cell pa-lvl${lvl}${isToday ? " pa-today" : ""}" data-tooltip="${escapeHtml(tip)}"></span>`;

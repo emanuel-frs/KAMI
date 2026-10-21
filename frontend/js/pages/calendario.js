@@ -1,5 +1,5 @@
 import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js";
-import { escapeHtml, fmtMoney } from "../components/format.js";
+import { escapeHtml, fmtMoney, fmtDataCompacta } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { setPendingFocus, consumePendingFocus } from "../components/pending-focus.js";
 import { TYPE_META } from "../components/event-types.js";
@@ -179,9 +179,7 @@ function rotuloRepeticao(l) {
 function quandoLegivel(iso) {
   if (!iso) return "encerrado";
   const [dia, hora] = iso.split("T");
-  const { y, m, d } = parseDateStr(dia);
-  const t = todayParts();
-  return `${pad2(d)}/${pad2(m)}${y !== t.year ? `/${y}` : ""} às ${hora}`;
+  return `${fmtDataCompacta(dia)} às ${hora}`;
 }
 
 async function renderLembretes() {

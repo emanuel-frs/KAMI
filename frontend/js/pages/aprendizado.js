@@ -10,7 +10,7 @@ import {
   deleteMilestone,
   reorderMilestones,
 } from "../api/aprendizado.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { getLog } from "../api/nucleo.js";
@@ -1267,8 +1267,7 @@ async function refreshTracks() {
 }
 
 function fmtDateShort(isoDate) {
-  const [y, m, d] = isoDate.split('-');
-  return `${d}/${m}/${y}`;
+  return fmtData(isoDate); // ORG-07
 }
 
 let heatmapEntries = null;
@@ -1376,8 +1375,7 @@ async function renderAprHeatmap() {
       const c = countsByDay[key] || 0;
       const lvl = c >= 3 ? 3 : c === 2 ? 2 : c === 1 ? 1 : 0;
       const isMilestone = !!milestoneByDay[key];
-      const [y, m, dd] = key.split('-');
-      const dataStr = `${dd}/${m}/${y}`;
+      const dataStr = fmtData(key);
       const registroStr = c ? `${c} registro${c > 1 ? 's' : ''} em aprendizado` : 'sem registro';
       const marcoStr = isMilestone ? `marco concluído: ${milestoneByDay[key].join('; ')}` : '';
       const tip = `${dataStr} · ${registroStr}` + (marcoStr ? ` · ${marcoStr}` : '');

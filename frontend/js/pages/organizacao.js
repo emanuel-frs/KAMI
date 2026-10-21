@@ -28,6 +28,7 @@
  * configurar a chave (ou pra abrir a busca direto no DuckDuckGo, que
  * continua disponível como fallback sem precisar de nenhuma chave).
  */
+import { fmtDataHora } from "../components/format.js";
 import * as api from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { icon } from "../components/icons.js";
@@ -1563,11 +1564,5 @@ function escapeAttr(str) {
 }
 
 function fmtDateTimeBR(iso) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  } catch (e) {
-    return iso;
-  }
+  return fmtDataHora(iso); // ORG-07
 }

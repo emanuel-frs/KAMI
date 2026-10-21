@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtDataCurta } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openTransacaoModal } from "../modals/transacao-modal.js";
 import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
@@ -28,8 +28,7 @@ function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatDate(iso) {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
+  return fmtDataCurta(iso); // ORG-07
 }
 
 export async function render(el, widget) {

@@ -621,6 +621,8 @@ NOTIF_COLUNAS = {
     "notif_fora_eventos": "INTEGER NOT NULL DEFAULT 1",
     "notif_ocultar_texto": "INTEGER NOT NULL DEFAULT 0",
     "avisos_hora": "TEXT NOT NULL DEFAULT '09:00'",
+    # ORG-07 (P-53): como as datas aparecem — 'sistema' segue o idioma do sistema
+    "formato_data": "TEXT NOT NULL DEFAULT 'sistema'",
 }
 
 

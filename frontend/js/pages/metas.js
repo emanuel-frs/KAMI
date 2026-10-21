@@ -9,7 +9,7 @@ import {
 import { listBanks } from "../api/carteira.js";
 import { listTracks } from "../api/aprendizado.js";
 import { listCareerEducations } from "../api/carreira.js";
-import { escapeHtml, fmtDateBR, fmtMoney } from "../components/format.js";
+import { escapeHtml, fmtMoney, fmtData } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -66,7 +66,7 @@ let currentReplayFn = null;
 
 // ─── helpers de formatação ─────────────────────────────────────────────────
 function fmtDeadline(iso) {
-  return iso ? fmtDateBR(iso.slice(0, 10)) : "";
+  return iso ? fmtData(iso.slice(0, 10)) : "";
 }
 
 function fmtCount(v) {

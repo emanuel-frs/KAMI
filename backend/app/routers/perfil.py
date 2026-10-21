@@ -43,6 +43,7 @@ class ProfileOut(BaseModel):
     notif_fora_eventos: bool = True
     notif_ocultar_texto: bool = False
     avisos_hora: str = "09:00"
+    formato_data: str = "sistema"  # ORG-07
     updated_at: str
 
 
@@ -69,6 +70,7 @@ class ProfileUpdate(Entrada):
     notif_fora_eventos: Optional[bool] = None
     notif_ocultar_texto: Optional[bool] = None
     avisos_hora: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    formato_data: Optional[str] = Field(None, pattern=r"^(sistema|dma|mda|iso)$")  # ORG-07
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -160,6 +162,8 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         value = getattr(payload, col)
         if value is not None:
             db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
+    if payload.formato_data is not None:
+        db.execute("UPDATE user_profile SET formato_data = ? WHERE id = ?", (payload.formato_data, row["id"]))
     if payload.avisos_hora is not None:
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
     db.commit()

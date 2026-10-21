@@ -9,7 +9,7 @@
 import { listEntrada, descartarEntrada } from "../api/entrada.js";
 import { converterItem, TIPOS_CONVERSAO } from "../components/captura.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, localDateKey } from "../components/format.js";
 
 let raiz = null;
 let itens = [];
@@ -19,7 +19,7 @@ function quando(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return d.toDateString() === new Date().toDateString() ? hh : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} ${hh}`;
+  return d.toDateString() === new Date().toDateString() ? hh : `${fmtDataCurta(localDateKey(d))} ${hh}`;
 }
 
 function desenhar() {

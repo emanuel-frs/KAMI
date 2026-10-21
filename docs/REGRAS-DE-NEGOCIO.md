@@ -169,6 +169,7 @@ verdade é o código e o teste.
 | ORG-21 | Lembrete ligado a hábito não dispara se o hábito já foi marcado no dia | `test_lembretes.py::test_habit_reminder_skips_when_already_done` |
 | ORG-22 | Repetição: todo dia, dias da semana, todo mês (dia 31 cai no último dia) e todo ano (29/02 vira 28/02); aparece no calendário | `test_lembretes.py::test_next_occurrence_for_each_repetition`, `test_lembretes.py::test_reminders_show_in_the_calendar` |
 | ORG-23 | Ativar o PIN liga "esconder o texto" das notificações do sistema (desligável) | `test_lembretes.py::test_enabling_pin_hides_notification_text_by_default` |
+| ORG-24 | Datas seguem o idioma do sistema por padrão; dá pra fixar dd/mm/aaaa, mm/dd/aaaa ou aaaa-mm-dd | `test_perfil.py::test_date_format_preference` |
 
 ## Sistema (backup e reset)
 

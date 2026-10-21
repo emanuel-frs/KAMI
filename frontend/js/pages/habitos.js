@@ -1,5 +1,5 @@
 import { listHabitos, updateHabito, deleteHabito, marcarHabito, desmarcarHabito } from "../api/habitos.js";
-import { escapeHtml, localDateKey } from "../components/format.js";
+import { escapeHtml, localDateKey, fmtDataCurta } from "../components/format.js";
 import { DIAS_CURTOS, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -58,7 +58,7 @@ function diaDaGrade(h, i) {
 
 function hojeLegivel() {
   const d = new Date();
-  return `${DIAS_CURTOS[(d.getDay() + 6) % 7]} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${DIAS_CURTOS[(d.getDay() + 6) % 7]} ${fmtDataCurta(localDateKey(d))}`;
 }
 
 // ---------------------------------------------------------------- grade
@@ -90,7 +90,7 @@ function gradeHtml(h) {
       const glifo = GLIFO[estado] ?? " ";
       if (marcavel) {
         const feito = estado === "feito";
-        const quando = `${DIAS_CURTOS[d]} ${String(dia.getDate()).padStart(2, "0")}/${String(dia.getMonth() + 1).padStart(2, "0")}`;
+        const quando = `${DIAS_CURTOS[d]} ${fmtDataCurta(localDateKey(dia))}`;
         linhas += `<button type="button" class="hb-cel hb-e-${estado} hb-marcavel" data-dia="${localDateKey(dia)}" aria-pressed="${feito}"
           aria-label="${escapeHtml(`${h.nome}, ${quando}: ${ESTADO_FALADO[estado]} — ${feito ? "desmarcar" : "marcar"}`)}"
           data-tooltip="${quando}: ${feito ? "desmarcar" : "marcar"}">${glifo}</button>`;

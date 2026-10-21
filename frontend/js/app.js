@@ -40,6 +40,8 @@ import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
 import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
+import { definirFormatoData, formatoData } from "./components/format.js";
+import { wireCamposData } from "./components/campos-data.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -199,6 +201,17 @@ function wireSettingsButton() {
  * configurações, avatar da própria sidebar, onboarding) e a sidebar
  * precisa acompanhar todos eles, não só o carregamento inicial.
  */
+/**
+ * ORG-07 (P-53): formato das datas (configurações › aparência). Trocar o
+ * formato remonta a tela atual, pra ela já aparecer com as datas novas.
+ */
+function aplicarFormatoData(profile) {
+  if (!profile) return;
+  const antes = formatoData();
+  definirFormatoData(profile.formato_data);
+  if (formatoData() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
+}
+
 function applyProfileToSidebar(profile) {
   if (!profile) return;
 
@@ -292,6 +305,8 @@ async function boot() {
   registerNavigator(showPage);
 
   store.subscribe("profile", applyProfileToSidebar);
+  store.subscribe("profile", aplicarFormatoData); // ORG-07
+  wireCamposData(); // ORG-07: campo de data vazio parece vazio (WebKitGTK)
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque

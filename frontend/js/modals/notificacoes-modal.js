@@ -1,4 +1,4 @@
-import { escapeHtml, fmtMoney, fmtRelDate } from "../components/format.js";
+import { escapeHtml, fmtMoney, fmtRelDate, fmtDataCompacta } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { TYPE_META } from "../components/event-types.js";
 import { fetchPendingAlerts, todayStr } from "../components/calendar-alerts.js";
@@ -284,8 +284,7 @@ async function loadEmailData() {
 function quandoLembrete(l) {
   const [dia, hora] = (l.pendente_quando || "").split("T");
   if (!dia) return "";
-  const [, m, d] = dia.split("-");
-  return `${dia === todayStr() ? "hoje" : `${d}/${m}`} às ${hora}`;
+  return `${dia === todayStr() ? "hoje" : fmtDataCompacta(dia)} às ${hora}`;
 }
 
 async function renderLembretes() {

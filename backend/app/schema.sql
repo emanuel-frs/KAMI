@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
     notif_fora_eventos     INTEGER NOT NULL DEFAULT 1,
     notif_ocultar_texto    INTEGER NOT NULL DEFAULT 0,  -- liga sozinho ao ativar o PIN; desligável
     avisos_hora            TEXT NOT NULL DEFAULT '09:00', -- P-47: hora dos avisos de vencimento (1 dia antes e no dia)
+    formato_data           TEXT NOT NULL DEFAULT 'sistema', -- ORG-07: sistema | dma | mda | iso
     updated_at            TEXT NOT NULL
 );
 

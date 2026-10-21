@@ -22,6 +22,7 @@
  * Nota nova só existe no backend depois do primeiro texto/título — "+
  * nova nota" e sair sem escrever nada não deixa nota vazia nem rende xp.
  */
+import { fmtDataCurta, localDateKey } from "../components/format.js";
 import * as api from "../api/notas.js";
 import { criarEditorNota } from "../components/nota-editor.js";
 import { icon } from "../components/icons.js";
@@ -77,7 +78,7 @@ function dataCurta(iso) {
   const mesmoDia = d.toDateString() === hoje.toDateString();
   const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   if (mesmoDia) return hh;
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return fmtDataCurta(localDateKey(d)); // ORG-07
 }
 
 function rascunhoChave(id) {

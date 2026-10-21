@@ -28,7 +28,7 @@ function buildModal() {
         <div class="field"><label for="dm-counterparty">credor (opcional)</label><input type="text" id="dm-counterparty" placeholder="ex: banco x, fulano..."></div>
         <div class="field-row">
           <div class="field"><label for="dm-amount">valor</label><input type="number" id="dm-amount" placeholder="0.00"></div>
-          <div class="field"><label for="dm-due">vencimento (opcional)</label><input type="text" id="dm-due" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="dm-due">vencimento (opcional)</label><input type="date" id="dm-due"></div>
         </div>
         <div class="field">
           <label for="dm-status">status</label>

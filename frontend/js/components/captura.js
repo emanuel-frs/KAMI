@@ -22,7 +22,7 @@ import * as api from "../api/entrada.js";
 import { listBanks } from "../api/carteira.js";
 import { interpretarCaptura } from "./captura-texto.js";
 import { icon } from "./icons.js";
-import { escapeHtml, fmtMoney } from "./format.js";
+import { escapeHtml, fmtMoney, fmtDataCompacta } from "./format.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { getShortcuts } from "./shortcuts.js";
@@ -66,9 +66,7 @@ function quandoCriar(caminho, fn) {
 }
 
 function dataLegivel(iso) {
-  if (!iso) return "";
-  const [a, m, d] = iso.split("-");
-  return `${d}/${m}${a !== String(new Date().getFullYear()) ? `/${a}` : ""}`;
+  return iso ? fmtDataCompacta(iso) : "";
 }
 
 /** O que cada tipo vira, a partir do texto (com ou sem prefixo). */

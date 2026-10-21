@@ -179,3 +179,10 @@ def test_ico_01_theme_icon_is_off_by_default_and_can_be_turned_on(client):
     assert client.put("/api/perfil", json={"icone_tema": True}).json()["icone_tema"] is True
     # mexer em outra coisa não desliga
     assert client.put("/api/perfil", json={"accent_color": "#e08fa0"}).json()["icone_tema"] is True
+
+
+def test_date_format_preference(client):
+    """ORG-07 (P-53): formato das datas — segue o sistema por padrão."""
+    assert client.get("/api/perfil").json()["formato_data"] == "sistema"
+    assert client.put("/api/perfil", json={"formato_data": "mda"}).json()["formato_data"] == "mda"
+    assert client.put("/api/perfil", json={"formato_data": "aaaa"}).status_code == 422

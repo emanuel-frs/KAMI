@@ -1,6 +1,6 @@
 import { getRetrospectiva, listRetrospectivas, markRetrospectivaVista } from "../api/nucleo.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtDataCurta } from "../components/format.js";
 import { fxAllows } from "../components/fx.js";
 import { showToast } from "../components/toast.js";
 
@@ -97,8 +97,7 @@ export function retroLines(r) {
   else lines.push([["  nenhuma neste mês", "dim"]]);
   lines.push([], [[" AÇÃO DO MÊS", "section"]]);
   if (r.acao_do_mes) {
-    const [, m, d] = r.acao_do_mes.dia.split("-");
-    lines.push([["  "], [r.acao_do_mes.descricao, "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${d}/${m}`, "meta"]]);
+    lines.push([["  "], [r.acao_do_mes.descricao, "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${fmtDataCurta(r.acao_do_mes.dia)}`, "meta"]]);
   } else {
     lines.push([["  —", "dim"]]);
   }

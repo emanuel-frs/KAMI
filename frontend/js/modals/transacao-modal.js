@@ -39,7 +39,7 @@ function buildModal() {
         </div>
         <div class="field-row">
           <div class="field"><label for="tm-amount">valor</label><input type="number" id="tm-amount" placeholder="0.00"></div>
-          <div class="field"><label for="tm-date">data</label><input type="text" id="tm-date" placeholder="YYYY-MM-DD"></div>
+          <div class="field"><label for="tm-date">data</label><input type="date" id="tm-date"></div>
         </div>
         <div class="field" id="tm-category-field">
           <label for="tm-category">categoria</label>

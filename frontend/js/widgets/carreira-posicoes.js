@@ -1,5 +1,5 @@
 import * as carreiraApi from "../api/carreira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { openPosicaoModal } from "../modals/posicao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
@@ -22,8 +22,7 @@ import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 function formatDate(iso) {
   if (!iso) return "atual";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return fmtData(iso); // ORG-07: formatador único
 }
 
 export async function render(el, widget) {

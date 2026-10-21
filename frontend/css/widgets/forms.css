@@ -336,3 +336,18 @@ input[type="time"]::-webkit-datetime-edit-minute-field,
 input[type="time"]::-webkit-datetime-edit-ampm-field {
   color: var(--text);
 }
+
+/* ORG-07: campo de data VAZIO (components/campos-data.js marca
+   data-vazio). O WebKitGTK mostra a data de hoje meio apagada num campo
+   vazio — num opcional ("em branco = atual") parecia preenchido. Fora de
+   foco o texto some (com uma linha "—" no lugar); com foco a máscara
+   volta pra digitar. */
+input[type="date"][data-vazio]:not(:focus)::-webkit-datetime-edit {
+  opacity: 0;
+}
+input[type="date"][data-vazio]:not(:focus) {
+  background-image: linear-gradient(var(--text-faint), var(--text-faint));
+  background-size: 10px 1px;
+  background-position: 12px 50%;
+  background-repeat: no-repeat;
+}

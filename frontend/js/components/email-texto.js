@@ -1,3 +1,5 @@
+import { fmtDataCurta, localDateKey } from "./format.js";
+
 /**
  * components/email-texto.js — desenha o texto de um e-mail (ORG-06).
  *
@@ -151,7 +153,7 @@ export function grupoDoDia(iso, agora = new Date()) {
 }
 
 /** Hora curta da linha da lista, combinando com o grupo: hoje/ontem só
- * a hora, esta semana o dia da semana, o resto dd/mm. */
+ * a hora, esta semana o dia da semana, o resto dia/mês no formato escolhido (ORG-07). */
 export function horaCurta(iso, agora = new Date()) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
@@ -159,7 +161,7 @@ export function horaCurta(iso, agora = new Date()) {
   const { chave } = grupoDoDia(iso, agora);
   if (chave === "hoje" || chave === "ontem") return hh;
   if (chave === "semana") return `${DIAS[d.getDay()]} ${hh}`;
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return fmtDataCurta(localDateKey(d)); // ORG-07
 }
 
 /** Data por extenso do cabeçalho do leitor: "ter, 20 de outubro de 2026 · 14:32". */

@@ -1,5 +1,5 @@
 import * as carreiraApi from "../api/carreira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
@@ -23,8 +23,7 @@ import { desenharNaLargura } from "../charts/na-largura.js";
 
 function formatDate(iso) {
   if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return fmtData(iso); // ORG-07: formatador único
 }
 
 function money(amount, currency) {

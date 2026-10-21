@@ -107,7 +107,7 @@ import {
 } from "../api/organizacao.js";
 import { openExternal } from "../components/open-external.js";
 import { showToast } from "../components/toast.js";
-import { escapeHtml, localDateKey } from "../components/format.js";
+import { escapeHtml, fmtDataNoFormato, localDateKey } from "../components/format.js";
 import { showErrorModal } from "./err-modal.js";
 import { showConfirmModal } from "./confirm-modal.js";
 import { openAvatarModal } from "./avatar-modal.js";
@@ -166,6 +166,15 @@ function buildTabsHtml() {
 }
 
 // GAM-04 — ver components/visual-effects.js
+// ORG-07 (P-53): formato das datas — o exemplo é preenchido ao abrir
+// (o de "sistema" depende do idioma da máquina)
+const FORMATO_DATA_OPCOES = [
+  { value: "sistema", label: "seguir o sistema", desc: "" },
+  { value: "dma", label: "dd/mm/aaaa", desc: "" },
+  { value: "mda", label: "mm/dd/aaaa", desc: "" },
+  { value: "iso", label: "aaaa-mm-dd", desc: "" },
+];
+
 const EFFECT_OPTIONS = [
   { value: "completo", label: "completo", desc: "tela de subida de nível, linhas de +xp e avisos" },
   { value: "sutil", label: "sutil", desc: "linhas de +xp e avisos, sem a tela cheia" },
@@ -203,6 +212,18 @@ function buildAparenciaPanel() {
           </label>`).join("")}
         </div>
         <p class="settings-status" id="cfg-effects-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>formato das datas</h4>
+        <p class="settings-desc">como as datas aparecem nas telas. os campos de data dos formulários seguem sempre o idioma do sistema.</p>
+        <div role="radiogroup" aria-label="formato das datas" id="cfg-formato-data">
+          ${FORMATO_DATA_OPCOES.map((o) => `
+          <label class="cfg-toggle">
+            <input type="radio" name="cfg-formato-data" value="${o.value}">
+            <span>${o.label}<small data-formato-exemplo="${o.value}">${o.desc}</small></span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-status" id="cfg-formato-data-status"></p>
       </div>
       <div class="settings-section">
         <h4>sons</h4>
@@ -818,6 +839,7 @@ function wireModal(wrap) {
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
+  wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
   wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
   wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
     saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
@@ -882,6 +904,34 @@ function renderIconeTema(wrap, profile) {
     statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? "ícone na cor de destaque" : "ícone padrão de volta"}`;
     statusEl.classList.add("settings-status--visible");
   });
+}
+
+function renderFormatoData(wrap, current) {
+  const atual = current || "sistema";
+  wrap.querySelectorAll("[data-formato-exemplo]").forEach((el) => {
+    const v = el.dataset.formatoExemplo;
+    const ex = fmtDataNoFormato("2026-10-21", v);
+    el.textContent = v === "sistema" ? `agora: ${ex} (idioma ${navigator.language || "?"})` : `ex: ${ex}`;
+  });
+  wrap.querySelectorAll('input[name="cfg-formato-data"]').forEach((input) => {
+    input.checked = input.value === atual;
+  });
+}
+
+async function selectFormatoData(wrap, value) {
+  const statusEl = wrap.querySelector("#cfg-formato-data-status");
+  statusEl.classList.remove("settings-status--visible");
+  try {
+    await updateProfile({ formato_data: value });
+  } catch (err) {
+    showErrorModal(err.message, "erro ao salvar o formato das datas");
+    renderFormatoData(wrap, store.get("profile")?.formato_data);
+    return;
+  }
+  // app.js ouve o perfil: aplica o formato e remonta a tela de trás
+  store.set("profile", { ...store.get("profile"), formato_data: value });
+  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
+  statusEl.classList.add("settings-status--visible");
 }
 
 function renderEffectsOptions(wrap, current) {
@@ -1953,6 +2003,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     const profile = await getProfile();
     renderAccentSwatches(modalEl, profile.accent_color);
     renderEffectsOptions(modalEl, profile.efeitos_visuais);
+    renderFormatoData(modalEl, profile.formato_data);
     renderIconeTema(modalEl, profile);
     renderSoundOptions(modalEl, profile);
     renderRewards(modalEl, profile);
