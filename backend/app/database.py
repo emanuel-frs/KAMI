@@ -614,6 +614,25 @@ SOM_COLUNAS = {
 }
 
 
+# ORG-05: notificações fora do app (coluna → default SQL). Ver schema.sql.
+NOTIF_COLUNAS = {
+    "notif_fora_lembretes": "INTEGER NOT NULL DEFAULT 1",
+    "notif_fora_vencimentos": "INTEGER NOT NULL DEFAULT 1",
+    "notif_fora_eventos": "INTEGER NOT NULL DEFAULT 1",
+    "notif_ocultar_texto": "INTEGER NOT NULL DEFAULT 0",
+    "avisos_hora": "TEXT NOT NULL DEFAULT '09:00'",
+}
+
+
+def _migrate_user_profile_notif_fora(conn: sqlite3.Connection) -> None:
+    """ORG-05: colunas de notificação fora do app (ver NOTIF_COLUNAS)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    for col, tipo in NOTIF_COLUNAS.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {tipo}")
+    conn.commit()
+
+
 def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
     """GAM-13: colunas de som em user_profile (ver SOM_COLUNAS)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
@@ -866,6 +885,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
+    _migrate_user_profile_notif_fora(conn)
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)

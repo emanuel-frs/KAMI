@@ -82,7 +82,7 @@ export function wireGlobalShortcuts() {
     ...pageShortcuts,
     { code: "KeyC", label: "abrir configurações", run: () => openConfiguracoesModal() },
     { code: "KeyN", shift: true, label: "nova nota rápida", run: () => openNotaRapida() },
-    { code: "KeyQ", label: "captura rápida ($ gasto, # nota, ! evento)", run: () => abrirCaptura() },
+    { code: "KeyQ", label: "captura rápida ($ gasto, # nota, ! evento, @ lembrete)", run: () => abrirCaptura() },
     { code: "Space", label: "captura rápida", group: "apelido", run: () => abrirCaptura() },
     {
       code: "KeyB",

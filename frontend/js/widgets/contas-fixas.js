@@ -80,6 +80,7 @@ export async function render(el, widget) {
             <div class="conta-fixa-row${b.active ? (paga ? " paga" : "") : " inactive"}" data-conta-fixa-id="${b.id}">
               <div class="cf-top">
                 <span class="cf-name" data-edit-bill="${b.id}" data-tooltip="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+                <span class="cf-remove cf-lembrar" data-lembrar-bill="${b.id}" data-tooltip="lembrar desta conta" aria-label="lembrar desta conta">${icon("bell-ring", { size: 11 })}</span>
                 <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa" aria-label="remover conta fixa">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cf-meta">
@@ -138,6 +139,16 @@ export async function render(el, widget) {
           }
         }
         await reload();
+      });
+    });
+
+    // ORG-05: lembrete ligado à conta fixa (sugere o dia do vencimento)
+    el.querySelectorAll("[data-lembrar-bill]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const bill = bills.find((x) => x.id === btn.getAttribute("data-lembrar-bill"));
+        if (!bill) return;
+        const { openLembreteModal } = await import("../modals/lembrete-modal.js");
+        openLembreteModal({ vinculo: { tipo: "conta_fixa", id: bill.id, nome: bill.name }, inicial: { titulo: `pagar ${bill.name}` } });
       });
     });
 

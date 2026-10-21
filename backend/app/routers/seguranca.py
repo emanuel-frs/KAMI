@@ -123,12 +123,16 @@ def get_pin():
 
 
 @router.post("/pin", status_code=201)
-def ativar_pin(payload: PinIn):
+def ativar_pin(payload: PinIn, db=Depends(get_db)):
     try:
         codigo = pin.ativar(payload.pin)
     except ValueError as exc:
         raise _erro_de_pin(exc) from exc
     logger.info("PIN de abertura ligado")
+    # ORG-05 (P-70): com PIN, a notificação do sistema esconde o texto por
+    # padrão (aparece na tela de bloqueio) — dá pra desligar em notificações
+    db.execute("UPDATE user_profile SET notif_ocultar_texto = 1")
+    db.commit()
     return {**pin.estado(), "codigo_recuperacao": codigo}
 
 

@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS user_profile (
     som_interface         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo cliques, modal, troca de tela, voz da kami
     som_avisos            INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo toast/notificação e erro
     icone_tema            INTEGER NOT NULL DEFAULT 0,   -- ICO-01: ícone do app na cor de destaque (desligado — P-08)
+    -- ORG-05 (P-61/P-70): o que pode virar notificação do SISTEMA (fora do
+    -- app); dentro do app (aviso + sino) tudo continua aparecendo
+    notif_fora_lembretes   INTEGER NOT NULL DEFAULT 1,
+    notif_fora_vencimentos INTEGER NOT NULL DEFAULT 1,
+    notif_fora_eventos     INTEGER NOT NULL DEFAULT 1,
+    notif_ocultar_texto    INTEGER NOT NULL DEFAULT 0,  -- liga sozinho ao ativar o PIN; desligável
+    avisos_hora            TEXT NOT NULL DEFAULT '09:00', -- P-47: hora dos avisos de vencimento (1 dia antes e no dia)
     updated_at            TEXT NOT NULL
 );
 
@@ -397,6 +404,29 @@ CREATE TABLE IF NOT EXISTS caixa_entrada (
     id         TEXT PRIMARY KEY,
     texto      TEXT NOT NULL,
     criado_em  TEXT NOT NULL
+);
+
+-- ---------------- LEMBRETES (ORG-05) ----------------
+-- item próprio (P-46) com dia, hora e repetição (app/lembretes.py),
+-- opcionalmente ligado a nota/conta fixa/meta/hábito/evento. O agendador
+-- guarda só a próxima ocorrência; ao disparar, o lembrete fica "pendente"
+-- no sino até ser dispensado ou adiado. Rotas em app/routers/lembretes.py.
+CREATE TABLE IF NOT EXISTS lembretes (
+    id               TEXT PRIMARY KEY,
+    titulo           TEXT NOT NULL,
+    data             TEXT NOT NULL,              -- YYYY-MM-DD (primeira ocorrência)
+    hora             TEXT NOT NULL,              -- HH:MM
+    repeticao        TEXT NOT NULL DEFAULT 'nao', -- nao | diario | dias | mensal | anual
+    dias_semana      TEXT NOT NULL DEFAULT '',   -- "0,2,4" quando repeticao = 'dias'
+    vinculo_tipo     TEXT,
+    vinculo_id       TEXT,
+    proxima          TEXT,                       -- YYYY-MM-DDTHH:MM; NULL = acabou
+    adiado_para      TEXT,                       -- "adiar" (P-64); vale antes da próxima
+    pendente_desde   TEXT,                       -- disparou e ainda está no sino
+    pendente_quando  TEXT,                       -- a ocorrência que disparou
+    pendente_atrasado INTEGER NOT NULL DEFAULT 0, -- disparou com o app fechado (P-65)
+    criado_em        TEXT NOT NULL,
+    atualizado_em    TEXT NOT NULL
 );
 
 -- ---------------- HÁBITOS (ORG-04) ----------------

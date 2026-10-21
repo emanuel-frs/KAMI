@@ -3,6 +3,7 @@ import { icon } from "./icons.js";
 import { openNotificacoesModal } from "../modals/notificacoes-modal.js";
 import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
+import { listPendentes } from "../api/lembretes.js";
 
 /**
  * Sino de notificações geral (rodapé da sidebar, ao lado do ícone de
@@ -44,8 +45,18 @@ async function entradaCount() {
   }
 }
 
+// ORG-05: lembretes que dispararam e ainda não foram dispensados
+async function lembretesCount() {
+  try {
+    return (await listPendentes()).length;
+  } catch {
+    return 0;
+  }
+}
+
 async function unreadCount() {
-  return (await emailCount()) + (await entradaCount());
+  const [a, b, c] = await Promise.all([emailCount(), entradaCount(), lembretesCount()]);
+  return a + b + c;
 }
 
 async function emailCount() {
@@ -93,6 +104,7 @@ export function wireNotificationBell() {
   // pra cada caso.
   store.subscribe("profile", renderBadge);
   window.addEventListener("kami:entrada-mudou", renderBadge);
+  window.addEventListener("kami:lembretes-mudaram", renderBadge);
 
   // primeira contagem pro badge já no boot, sem precisar abrir o modal
   renderBadge();

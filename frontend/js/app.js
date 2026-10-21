@@ -21,6 +21,8 @@ import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
+import { startLembretesAgendador } from "./components/lembretes-agendador.js";
+import { wireBandeja } from "./components/bandeja.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
@@ -338,6 +340,8 @@ async function boot() {
   wireModalAccessibility();
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
+  startLembretesAgendador(); // ORG-05
+  wireBandeja();
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   bootedWithBackend = !!store.get("profile");

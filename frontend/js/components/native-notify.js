@@ -64,3 +64,33 @@ export async function sendNativeNotification({ title, body = "" } = {}) {
   }
 }
 
+
+// ── ORG-05 (P-61/P-70): o que pode sair do app ─────────────────────────
+// Cada aviso tem um tipo; configurações › notificações escolhe quais viram
+// notificação do SISTEMA (dentro do app — aviso e sino — tudo continua).
+// Com "esconder o texto" (liga sozinho ao ativar o PIN), a notificação diz
+// só que tem algo no kami: ela aparece na tela de bloqueio do sistema.
+const COLUNA_POR_TIPO = {
+  lembretes: "notif_fora_lembretes",
+  vencimentos: "notif_fora_vencimentos",
+  eventos: "notif_fora_eventos",
+};
+const TEXTO_OCULTO = {
+  lembretes: "você tem um lembrete — abra o kami pra ver",
+  vencimentos: "tem coisa vencendo — abra o kami pra ver",
+  eventos: "você tem um evento — abra o kami pra ver",
+};
+
+/**
+ * Notificação do sistema conforme as preferências do perfil.
+ * @param {"lembretes"|"vencimentos"|"eventos"} tipo
+ * @param {{ title: string, body?: string }} msg
+ * @param {object|null} perfil — store.get("profile") (null = tudo ligado)
+ */
+export function notificarFora(tipo, { title, body = "" }, perfil) {
+  if (perfil && perfil[COLUNA_POR_TIPO[tipo]] === false) return Promise.resolve(false);
+  if (perfil?.notif_ocultar_texto) {
+    return sendNativeNotification({ title: "kami", body: TEXTO_OCULTO[tipo] });
+  }
+  return sendNativeNotification({ title, body });
+}

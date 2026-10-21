@@ -10,6 +10,8 @@ import { navigateTo } from "../components/navigate.js";
 import { emailAccountColor } from "../components/email-account-color.js";
 import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
+import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
+import { ADIAMENTOS, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
 
 /**
  * Modal unificado de notificações (notificações v2.1) — substitui DOIS
@@ -64,6 +66,7 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
+        <div class="notif-section" id="notif-lembretes-section" hidden></div>
         <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">
             ${icon("calendar-days", { size: 12 })}
@@ -80,6 +83,7 @@ function buildModal() {
   document.body.appendChild(wrap);
   wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeNotificacoesModal));
   wrap.addEventListener("click", (e) => { if (e.target === wrap) closeNotificacoesModal(); });
+  wrap.querySelector("#notif-lembretes-section").addEventListener("click", onLembreteClick);
   return wrap;
 }
 
@@ -275,6 +279,63 @@ async function loadEmailData() {
   }
 }
 
+// ── ORG-05: lembretes pendentes (sempre — como a caixa de entrada) ─────
+
+function quandoLembrete(l) {
+  const [dia, hora] = (l.pendente_quando || "").split("T");
+  if (!dia) return "";
+  const [, m, d] = dia.split("-");
+  return `${dia === todayStr() ? "hoje" : `${d}/${m}`} às ${hora}`;
+}
+
+async function renderLembretes() {
+  const el = modalEl.querySelector("#notif-lembretes-section");
+  let lista = [];
+  try {
+    lista = await listPendentes();
+  } catch {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = !lista.length;
+  if (!lista.length) return;
+  modalEl.querySelector("#notif-all-disabled").hidden = true;
+  el.innerHTML = `
+    <div class="notif-section-head">${icon("bell-ring", { size: 12 })}<span>lembretes</span></div>
+    <div class="notif-lembretes">${lista
+      .map(
+        (l) => `
+      <div class="notif-lembrete" data-lembrete-id="${l.id}">
+        <div class="notif-lembrete-texto">
+          <span class="notif-lembrete-titulo">${escapeHtml(l.titulo)}</span>
+          <span class="notif-lembrete-quando">${escapeHtml(quandoLembrete(l))}${l.atrasado ? ' · <span class="notif-lembrete-passou">passou com o kami fechado</span>' : ""}${l.vinculo ? ` · ${escapeHtml(l.vinculo.nome)}` : ""}</span>
+        </div>
+        <div class="notif-lembrete-acoes">
+          ${ADIAMENTOS.map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="adiar ${a.rotulo}: ${escapeHtml(l.titulo)}">adiar ${a.rotulo}</button>`).join("")}
+          <button type="button" class="btn sm" data-dispensar aria-label="ok, dispensar: ${escapeHtml(l.titulo)}">ok</button>
+        </div>
+      </div>`,
+      )
+      .join("")}</div>`;
+}
+
+async function onLembreteClick(e) {
+  const linha = e.target.closest("[data-lembrete-id]");
+  if (!linha) return;
+  const id = linha.dataset.lembreteId;
+  const adiar = e.target.closest("[data-adiar]");
+  try {
+    if (adiar) await adiarLembrete(id, ADIAMENTOS[Number(adiar.dataset.adiar)].quanto);
+    else if (e.target.closest("[data-dispensar]")) await dispensarLembrete(id);
+    else return;
+  } catch {
+    return; // o client já mostrou o erro
+  }
+  fecharAvisoDoLembrete(id);
+  window.dispatchEvent(new CustomEvent("kami:lembretes-mudaram"));
+  await renderLembretes();
+}
+
 export function closeNotificacoesModal() {
   modalEl?.classList.remove("open");
 }
@@ -302,6 +363,8 @@ export async function openNotificacoesModal() {
 
   if (showAlerts) alertsSectionEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">carregando…</div>`;
   if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">carregando…</div>`;
+
+  renderLembretes();
 
   // ORG-02: caixa de entrada (sempre — não é um tipo de aviso que se desliga)
   const entradaEl = modalEl.querySelector("#notif-entrada-section");

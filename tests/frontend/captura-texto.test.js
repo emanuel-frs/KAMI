@@ -56,3 +56,9 @@ test("lerValor", () => {
   assert.equal(lerValor("1.000"), 1000);
   assert.equal(lerValor("abc"), null);
 });
+
+test("lembrete (ORG-05): @ com data e hora, como evento", () => {
+  assert.deepEqual(cap("@ amanhã 9h ligar pro banco"), { tipo: "lembrete", texto: "@ amanhã 9h ligar pro banco", titulo: "ligar pro banco", data: "2026-10-21", hora: "09:00" });
+  assert.equal(cap("@18h remédio").hora, "18:00");
+  assert.equal(cap("@ sexta pagar luz").data, "2026-10-23");
+});

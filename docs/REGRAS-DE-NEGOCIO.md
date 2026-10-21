@@ -164,6 +164,11 @@ verdade é o código e o teste.
 | ORG-16 | Hábito se marca até 2 dias atrás, nunca no futuro nem fora dos dias fixos dele; pausado/arquivado não se marca | `test_habitos.py::test_past_days_up_to_two_back`, `test_habitos.py::test_fixed_day_off_cannot_be_marked`, `test_habitos.py::test_pause_resume_and_archive` |
 | ORG-17 | Sequência do hábito: dia fora da programação, pausado ou hoje ainda sem marca não quebra; "x por semana" conta em semanas cumpridas | `test_habitos.py::test_daily_streak_counts_back_and_today_unmarked_does_not_break`, `test_habitos.py::test_fixed_days_skip_the_days_off`, `test_habitos.py::test_paused_days_neither_count_nor_break`, `test_habitos.py::test_weekly_streak_is_in_weeks` |
 | ORG-18 | Marca de hábito é ação de verdade: conta na sequência geral e nas missões (marcar o hábito do dia; dias com todos os hábitos feitos) | `test_habitos.py::test_marking_counts_for_global_streak`, `test_habitos.py::test_daily_mission_for_a_habit_due_today`, `test_habitos.py::test_weekly_mission_counts_days_with_everything_done` |
+| ORG-19 | Lembrete dispara uma vez por ocorrência e fica pendente no sino até "ok" ou "adiar"; com o app fechado vira UM aviso "que passou", e a próxima ocorrência conta a partir de agora | `test_lembretes.py::test_fires_once_goes_pending_and_dismisses`, `test_lembretes.py::test_app_closed_for_days_gives_one_late_notice` |
+| ORG-20 | Adiar (10 min, 1 h, amanhã) não muda a regra de repetição; "ok" num lembrete que não repete apaga ele | `test_lembretes.py::test_snooze_minutes_and_tomorrow_keep_the_rule`, `test_lembretes.py::test_dismissing_a_finished_one_off_reminder_deletes_it` |
+| ORG-21 | Lembrete ligado a hábito não dispara se o hábito já foi marcado no dia | `test_lembretes.py::test_habit_reminder_skips_when_already_done` |
+| ORG-22 | Repetição: todo dia, dias da semana, todo mês (dia 31 cai no último dia) e todo ano (29/02 vira 28/02); aparece no calendário | `test_lembretes.py::test_next_occurrence_for_each_repetition`, `test_lembretes.py::test_reminders_show_in_the_calendar` |
+| ORG-23 | Ativar o PIN liga "esconder o texto" das notificações do sistema (desligável) | `test_lembretes.py::test_enabling_pin_hides_notification_text_by_default` |
 
 ## Sistema (backup e reset)
 

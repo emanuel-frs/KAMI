@@ -110,6 +110,7 @@ function cardHtml(h) {
   const acoes = arquivado
     ? `<span class="icon-btn" data-acao="desarquivar" data-tooltip="desarquivar" aria-label="desarquivar">${icon("archive", { size: 13 })}</span>`
     : `<span class="icon-btn" data-acao="${pausado ? "retomar" : "pausar"}" data-tooltip="${pausado ? "retomar" : "pausar (a sequência congela)"}" aria-label="${pausado ? "retomar" : "pausar"}">${icon(pausado ? "play" : "pause", { size: 13 })}</span>
+       <span class="icon-btn" data-acao="lembrar" data-tooltip="lembrar (não avisa se já marcou no dia)" aria-label="lembrar">${icon("bell-ring", { size: 13 })}</span>
        <span class="icon-btn" data-acao="editar" data-tooltip="editar" aria-label="editar">${icon("pencil", { size: 15 })}</span>
        <span class="icon-btn" data-acao="arquivar" data-tooltip="arquivar (guarda o histórico)" aria-label="arquivar">${icon("archive", { size: 13 })}</span>`;
   return `
@@ -220,6 +221,10 @@ async function aoClicar(e) {
     const acao = e.target.closest("[data-acao]")?.dataset.acao;
     if (!acao) return;
     if (acao === "editar") openHabitoModal({ habito: h, onSaved: atualizar });
+    else if (acao === "lembrar") {
+      const { openLembreteModal } = await import("../modals/lembrete-modal.js");
+      openLembreteModal({ vinculo: { tipo: "habito", id, nome: h.nome } });
+    }
     else if (acao === "pausar") atualizar(await updateHabito(id, { status: "pausado" }));
     else if (acao === "retomar") atualizar(await updateHabito(id, { status: "ativo" }));
     else if (acao === "arquivar") {

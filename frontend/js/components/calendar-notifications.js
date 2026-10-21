@@ -1,7 +1,8 @@
 import { listEvents } from "../api/calendario.js";
 import { isPendingAlertEvent } from "./event-types.js";
 import { showToast } from "./toast.js";
-import { sendNativeNotification } from "./native-notify.js";
+import { notificarFora } from "./native-notify.js";
+import { store } from "../state/store.js";
 
 /**
  * Agendador global de notificações do calendário — iniciado uma vez em
@@ -14,10 +15,9 @@ import { sendNativeNotification } from "./native-notify.js";
  *      funciona pra eventos COM hora definida, já que sem hora não tem
  *      instante preciso pra disparar (o evento continua aparecendo
  *      normal na grade, só não gera notificação puxada por horário).
- *   2. resumo diário: uma vez por dia (na primeira checagem após meia-
- *      noite), avisa se tem algo "vencendo hoje" entre conta
- *      fixa/dívida/assinatura/meta pendente — mesma regra de
- *      isPendingAlertEvent usada no badge da tela de calendário.
+ *   2. avisos de vencimento (ORG-05): uma vez por dia, na hora escolhida
+ *      em configurações (padrão 9h), um aviso só com o que vence hoje e
+ *      amanhã — ver checkDailyDigest.
  *
  * Cada disparo vira toast in-app (sempre) + notificação nativa do SO
  * quando o Tauri/plugin estiver disponível (ver native-notify.js — vira
@@ -112,34 +112,50 @@ function checkEventoReminders(events, firedSet) {
       iconName: "calendar-days",
       onClick: () => navigateToModuleCb?.("calendario"),
     });
-    sendNativeNotification({ title: `kami — ${e.title}`, body: `evento às ${e.time}` });
+    notificarFora("eventos", { title: `kami — ${e.title}`, body: `evento às ${e.time}` }, store.get("profile"));
   }
 }
 
+/** "luz, internet" / "luz, internet e mais 3" */
+function nomes(lista) {
+  if (lista.length <= 3) return lista.map((e) => e.title).join(", ");
+  return `${lista.slice(0, 2).map((e) => e.title).join(", ")} e mais ${lista.length - 2}`;
+}
+
+/**
+ * ORG-05 (P-47/P-66): avisos de vencimento — uma vez por dia, na hora de
+ * configurações › notificações (padrão 9h), UM aviso agrupado com o que
+ * vence hoje e amanhã (contas fixas, dívidas, assinaturas, parcelas,
+ * metas com prazo…). App aberto depois da hora: avisa na primeira checagem.
+ */
 function checkDailyDigest(events) {
   const today = todayStr();
-  if (localStorage.getItem(DAILY_DIGEST_STORAGE_KEY) === today) return; // já mostrado hoje
+  if (localStorage.getItem(DAILY_DIGEST_STORAGE_KEY) === today) return; // já avisou hoje
 
-  const dueToday = events.filter((e) => e.date === today && isPendingAlertEvent(e));
+  const perfil = store.get("profile");
+  const [h, m] = (perfil?.avisos_hora || "09:00").split(":").map(Number);
+  const agora = new Date();
+  if (agora.getHours() * 60 + agora.getMinutes() < h * 60 + m) return; // ainda não deu a hora
+
   localStorage.setItem(DAILY_DIGEST_STORAGE_KEY, today);
-  if (!dueToday.length) return;
+  const vence = (dia) => events.filter((e) => e.date === dia && (isPendingAlertEvent(e) || e.type === "parcela"));
+  const hoje = vence(today);
+  const amanha = vence(addDaysStr(today, 1));
+  if (!hoje.length && !amanha.length) return;
 
-  const first = dueToday[0];
-  const message = dueToday.length === 1
-    ? first.title
-    : `${first.title} e mais ${dueToday.length - 1}`;
+  const linhas = [hoje.length && `hoje: ${nomes(hoje)}`, amanha.length && `amanhã: ${nomes(amanha)}`].filter(Boolean);
+  const title = hoje.length
+    ? hoje.length === 1 ? "vence hoje" : `${hoje.length} itens vencem hoje`
+    : amanha.length === 1 ? "vence amanhã" : `${amanha.length} itens vencem amanhã`;
 
   showToast({
-    title: `${dueToday.length === 1 ? "vence hoje" : `${dueToday.length} itens vencem hoje`}`,
-    message,
+    title,
+    message: linhas.join(" · "),
     iconName: "bell-ring",
     duration: 12000,
     onClick: () => navigateToModuleCb?.("calendario"),
   });
-  sendNativeNotification({
-    title: dueToday.length === 1 ? "kami — vence hoje" : `kami — ${dueToday.length} itens vencem hoje`,
-    body: message,
-  });
+  notificarFora("vencimentos", { title: `kami — ${title}`, body: linhas.join("\n") }, perfil);
 }
 
 async function runCheck() {

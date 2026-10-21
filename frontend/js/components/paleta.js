@@ -94,6 +94,12 @@ function acoes(pinLigado) {
     { rotulo: "nova meta", extra: "objetivo", icone: "target", run: () => rodarNaTela("metas", "KeyN") },
     { rotulo: "nova trilha", extra: "curso estudo aprendizado", icone: "target", run: () => rodarNaTela("aprendizado", "KeyN") },
     { rotulo: "novo evento", extra: "compromisso agenda calendário", icone: "calendar-days", run: () => rodarNaTela("calendario", "KeyN") },
+    {
+      rotulo: "novo lembrete",
+      extra: "lembrar avisar alarme notificação",
+      icone: "bell-ring",
+      run: async () => (await import("../modals/lembrete-modal.js")).openLembreteModal(),
+    },
     { rotulo: "novo hábito", extra: "rotina diário todo dia", icone: "repeat", run: () => rodarNaTela("habitos", "KeyN") },
     {
       rotulo: "sincronizar e-mails",

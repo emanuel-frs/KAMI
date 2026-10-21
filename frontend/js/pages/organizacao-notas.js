@@ -331,6 +331,7 @@ function metaHtml(n) {
         <button type="button" class="nota-acao" data-nt="vinculo" data-tooltip="${n.vinculo ? "vínculo: " + esc(n.vinculo.nome) : "vincular a uma meta, trilha, evento ou posição"}" aria-label="vínculo">${icon("link", { size: 12 })}</button>
         <button type="button" class="nota-acao${n.fixada ? " on" : ""}" data-nt="fixar" data-tooltip="${n.fixada ? "desafixar" : "fixar no topo (e no widget)"}" aria-label="${n.fixada ? "desafixar" : "fixar"}" aria-pressed="${n.fixada}">${icon("star", { size: 12, fill: n.fixada ? "currentColor" : "none" })}</button>
         <button type="button" class="nota-acao${n.trancada ? " on" : ""}" data-nt="trancar" data-tooltip="${n.trancada ? "destrancar (pede o PIN)" : "trancar com o PIN"}" aria-label="${n.trancada ? "destrancar" : "trancar"}">${icon(n.trancada ? "lock" : "lock-open", { size: 12 })}</button>
+        <button type="button" class="nota-acao" data-nt="lembrar" data-tooltip="criar um lembrete desta nota" aria-label="lembrar">${icon("bell-ring", { size: 12 })}</button>
         <button type="button" class="nota-acao" data-nt="arquivar" data-tooltip="${n.arquivada ? "desarquivar" : "arquivar"}" aria-label="${n.arquivada ? "desarquivar" : "arquivar"}">${icon("archive", { size: 12 })}</button>
         <button type="button" class="nota-acao perigo" data-nt="apagar" data-tooltip="apagar" aria-label="apagar">${icon("x", { size: 12 })}</button>
       </div>
@@ -639,6 +640,13 @@ function onClick(e) {
   }
   if (acao === "cor") return $("#nota-cores")?.toggleAttribute("hidden");
   if (acao === "fixar") return aplicarMeta({ fixada: !st.atual.fixada });
+  if (acao === "lembrar") {
+    // ORG-05: lembrete ligado a esta nota
+    const { id, titulo } = st.atual;
+    return import("../modals/lembrete-modal.js").then((m) =>
+      m.openLembreteModal({ vinculo: { tipo: "nota", id, nome: titulo || "(sem título)" } }),
+    );
+  }
   if (acao === "arquivar") {
     const arquivar = !st.atual.arquivada;
     return aplicarMeta({ arquivada: arquivar }, { recarregar: true }).then(() => {

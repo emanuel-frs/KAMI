@@ -10,6 +10,7 @@
  *   # ideia: app de receitas -> nota (1ª linha = título)
  *   ! amanhã 9h dentista     -> evento amanhã às 09:00, "dentista"
  *   ! sexta 14:30 reunião    -> evento na próxima sexta
+ *   @ amanhã 9h ligar banco  -> lembrete (ORG-05) amanhã às 09:00
  *   qualquer outra coisa     -> vai pra caixa de entrada
  *
  * Datas em português: hoje, amanhã, depois de amanhã, ontem, anteontem,
@@ -138,7 +139,7 @@ export function lerValor(txt) {
 }
 
 /**
- * @returns {{ tipo: "gasto"|"nota"|"evento"|"entrada", texto: string,
+ * @returns {{ tipo: "gasto"|"nota"|"evento"|"lembrete"|"entrada", texto: string,
  *   valor?: number|null, descricao?: string, data?: string|null,
  *   hora?: string|null, titulo?: string, conteudo?: string }}
  */
@@ -171,6 +172,11 @@ export function interpretarCaptura(entrada, hoje = new Date()) {
     const corpo = texto.replace(/^!\s*/, "");
     const { resto, data, hora } = extrairDataHora(corpo, hoje, "futuro");
     return { tipo: "evento", texto, titulo: resto, data: data || null, hora };
+  }
+  if (texto.startsWith("@")) {
+    const corpo = texto.replace(/^@\s*/, "");
+    const { resto, data, hora } = extrairDataHora(corpo, hoje, "futuro");
+    return { tipo: "lembrete", texto, titulo: resto, data: data || null, hora };
   }
   return { tipo: "entrada", texto };
 }

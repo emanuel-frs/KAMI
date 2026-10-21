@@ -541,6 +541,7 @@ function goalCardHtml(goal) {
         <span class="goal-title" data-tooltip="${escapeHtml(goal.title)}">${escapeHtml(goal.title)}</span>
         <span class="push goal-card-icons">
           ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
+          ${isDone ? "" : `<span class="icon-btn" data-action="lembrar-goal" data-tooltip="lembrar">${icon("bell-ring", { size: 13 })}</span>`}
           <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
           <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">${icon("trash-2", { size: 15 })}</span>
         </span>
@@ -650,6 +651,12 @@ function wireCardActions(scopeEl) {
 
     card.querySelector('[data-action="toggle-progress"]')?.addEventListener("click", () => {
       toggleProgressPanel(goalId);
+    });
+
+    // ORG-05: lembrete ligado a esta meta
+    card.querySelector('[data-action="lembrar-goal"]')?.addEventListener("click", async () => {
+      const { openLembreteModal } = await import("../modals/lembrete-modal.js");
+      openLembreteModal({ vinculo: { tipo: "meta", id: goalId, nome: goal.title } });
     });
 
     card.querySelector('[data-action="edit-goal"]').addEventListener("click", () => {

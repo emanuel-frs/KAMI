@@ -19,6 +19,8 @@ Cada evento vem de uma fonte diferente, sem tabela própria:
                        encerrada não tem mais contrato pra vencer
   - revisao_salarial  career_positions (carreira)   — expected_salary_review, mesma
                        condição de contrato_fim acima
+  - lembrete          lembretes (ORG-05, P-46)      — cada ocorrência da repetição
+                       no mês; criados/editados em /api/lembretes
 
 (renda/salário deliberadamente fora daqui — ideia melhor pra isso ainda
 não implementada, ver conversa; income_entries/income_sources têm widget
@@ -38,6 +40,7 @@ from pydantic import BaseModel
 from app.database import get_db, new_id, now_iso
 from app.business_days import months_between
 from app.limites import Entrada
+from app.lembretes import ocorrencias as ocorrencias_lembrete
 
 router = APIRouter()
 
@@ -378,6 +381,23 @@ def _evento_events(db, year: int, month: int, month_str: str) -> List[dict]:
     return events
 
 
+def _lembrete_events(db, year: int, month: int) -> List[dict]:
+    first_day = datetime.date(year, month, 1)
+    last_day = datetime.date(year, month, calendar.monthrange(year, month)[1])
+    events: List[dict] = []
+    for r in db.execute("SELECT * FROM lembretes WHERE data <= ?", (last_day.isoformat(),)).fetchall():
+        for occ in ocorrencias_lembrete(dict(r), first_day, last_day):
+            events.append({
+                "id": f"lembrete:{r['id']}:{occ.isoformat()}",
+                "date": occ.isoformat(),
+                "type": "lembrete",
+                "title": r["titulo"],
+                "module": "lembretes",
+                "time": r["hora"],
+            })
+    return events
+
+
 # ==================== endpoint ====================
 
 @router.get("/events", response_model=List[CalendarEvent])
@@ -394,6 +414,7 @@ def get_events(month: str, db=Depends(get_db)):
     events += _evento_events(db, year, mo, month)
     events += _contrato_events(db, month)
     events += _revisao_salarial_events(db, month)
+    events += _lembrete_events(db, year, mo)
 
     events.sort(key=lambda e: (e["date"], e.get("time") or ""))
     return events

@@ -6,7 +6,7 @@
  * do terminal. Digita qualquer coisa e Enter:
  *   - sem prefixo: vai pra caixa de entrada (Organização › entrada) pra
  *     decidir depois o que vira;
- *   - "$ 25 almoço", "# ideia", "! amanhã 9h dentista": abre o formulário
+ *   - "$ 25 almoço", "# ideia", "! amanhã 9h dentista", "@ 18h remédio": abre o formulário
  *     certo JÁ PREENCHIDO pra conferir (P-38) — interpretação em
  *     components/captura-texto.js, e a linha embaixo do campo mostra o que
  *     vai acontecer antes do Enter.
@@ -33,6 +33,7 @@ export const TIPOS_CONVERSAO = [
   { tipo: "nota", rotulo: "nota", icone: "pencil" },
   { tipo: "meta", rotulo: "meta", icone: "target" },
   { tipo: "evento", rotulo: "evento", icone: "calendar-days" },
+  { tipo: "lembrete", rotulo: "lembrete", icone: "bell-ring" },
 ];
 
 function avisarMudou() {
@@ -72,10 +73,11 @@ function dataLegivel(iso) {
 
 /** O que cada tipo vira, a partir do texto (com ou sem prefixo). */
 function dadosPara(tipo, texto) {
-  const semPrefixo = texto.replace(/^[$#!]\s*/, "");
+  const semPrefixo = texto.replace(/^[$#!@]\s*/, "");
   if (tipo === "gasto") return interpretarCaptura(`$ ${semPrefixo}`);
   if (tipo === "evento") return interpretarCaptura(`! ${semPrefixo}`);
   if (tipo === "nota") return interpretarCaptura(`# ${semPrefixo}`);
+  if (tipo === "lembrete") return interpretarCaptura(`@ ${semPrefixo}`);
   return { titulo: semPrefixo };
 }
 
@@ -120,6 +122,14 @@ export async function converterItem(item, tipo) {
     openNotaRapida({ titulo: d.titulo, conteudo: d.conteudo || "", onCriada: sair });
     return;
   }
+  if (tipo === "lembrete") {
+    const { openLembreteModal } = await import("../modals/lembrete-modal.js");
+    const inicial = { titulo: d.titulo };
+    if (d.data) inicial.data = d.data;
+    if (d.hora) inicial.hora = d.hora;
+    openLembreteModal({ inicial, onSaved: (l) => l && sair() });
+    return;
+  }
   if (tipo === "meta") {
     quandoCriar(/^\/api\/metas\/?$/, sair);
     await navigateTo("metas");
@@ -153,6 +163,10 @@ function previa(texto) {
     const quando = [r.data ? dataLegivel(r.data) : "hoje", r.hora].filter(Boolean).join(" às ");
     return `${icon("calendar-days", { size: 11 })} evento: ${escapeHtml(r.titulo || "(sem título)")} · ${escapeHtml(quando)} — confira e confirme`;
   }
+  if (r.tipo === "lembrete") {
+    const quando = [r.data ? dataLegivel(r.data) : "hoje", r.hora || "(hora a escolher)"].join(" às ");
+    return `${icon("bell-ring", { size: 11 })} lembrete: ${escapeHtml(r.titulo || "(sem texto)")} · ${escapeHtml(quando)} — confira e confirme`;
+  }
   return `${icon("download", { size: 11 })} vai pra caixa de entrada — decida depois o que vira`;
 }
 
@@ -170,7 +184,7 @@ function montar() {
       </div>
       <div class="captura-previa" id="captura-previa" aria-live="polite"></div>
       <div class="paleta-rodape" aria-hidden="true">
-        <kbd>$</kbd> 25 almoço = gasto · <kbd>#</kbd> ideia = nota · <kbd>!</kbd> amanhã 9h dentista = evento · enter guarda · esc fecha
+        <kbd>$</kbd> 25 almoço = gasto · <kbd>#</kbd> ideia = nota · <kbd>!</kbd> amanhã 9h dentista = evento · <kbd>@</kbd> 18h remédio = lembrete · enter guarda · esc fecha
       </div>
     </div>`;
   document.body.appendChild(wrap);
