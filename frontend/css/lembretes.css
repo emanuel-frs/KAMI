@@ -1,0 +1,100 @@
+/* ── lembretes (ORG-05) — modals/lembrete-modal.js, sino
+ * (notificacoes-modal.js), aba "lembretes" do calendário e a hora dos
+ * avisos em configurações › notificações. Dias da semana do modal usam
+ * .hb-dia (habitos.css).
+ */
+
+/* modal: vínculo */
+.lbm-vinculo {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  padding: 6px 8px;
+  border: 1px dashed var(--border-soft);
+  margin-bottom: 8px;
+}
+.lbm-tirar {
+  background: none;
+  border: 0;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+.lbm-tirar:hover { color: var(--red); }
+.lbm-vinculo-dica { font-size: 9.5px; color: var(--text-faint); margin-top: 3px; }
+
+/* sino: lembretes pendentes */
+.notif-lembretes { display: flex; flex-direction: column; gap: 6px; }
+.notif-lembrete {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+}
+.notif-lembrete-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notif-lembrete-titulo { font-size: 12px; color: var(--text-bright); overflow-wrap: anywhere; }
+.notif-lembrete-quando { font-size: 10px; color: var(--text-faint); }
+.notif-lembrete-passou { color: var(--amber); }
+.notif-lembrete-acoes { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* calendário: abas do painel da direita + lista. Mesmo respiro de
+   12px das laterais do .card-head e da lista de eventos (calendario.css) */
+.cal-painel-abas {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.cal-painel-abas .tab { margin-right: 0; }
+#cal-painel-dia {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+#cal-painel-dia[hidden] { display: none; }
+.cal-lembretes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 14px;
+  overflow-y: auto;
+  flex: 1 1 0;
+}
+/* o display:flex acima venceria o [hidden] — a aba "dia" mostrava as duas listas */
+.cal-lembretes[hidden] { display: none; }
+.cal-lembrete-novo { align-self: flex-start; margin-bottom: 4px; }
+.cal-lembrete {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 9px;
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid #c9a0dc;
+  background: var(--card);
+  color: var(--text);
+  font-family: var(--font);
+  cursor: pointer;
+}
+.cal-lembrete:hover { border-color: var(--border-interactive); border-left-color: #c9a0dc; }
+.cal-lembrete.encerrado { opacity: 0.55; }
+.cal-lembrete-titulo { font-size: 11.5px; color: var(--text-bright); overflow-wrap: anywhere; }
+.cal-lembrete-meta { font-size: 9.5px; color: var(--text-faint); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* configurações: hora dos avisos */
+.cfg-linha-hora {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 10.5px;
+  color: var(--text-bright);
+}
+.cfg-linha-hora input { width: 110px; }

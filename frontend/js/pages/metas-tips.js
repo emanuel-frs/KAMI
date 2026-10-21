@@ -67,6 +67,11 @@ const STEPS = [
     text: "toda vez que avançar de verdade nessa meta, registre aqui — é isso que move a barra de progresso. contribuir rende xp uma vez por dia por meta; o bônus de conclusão vem sempre.",
   },
   {
+    // ORG-05: lembrete ligado à meta
+    selector: '[data-action="lembrar-goal"]',
+    text: "o sino cria um lembrete ligado a esta meta — ex.: \"guardar 200 todo dia 5\".",
+  },
+  {
     // informar — só existe se houver meta de aprendizado ativa
     selector: '[data-action="ver-trilha"]',
     text: "metas de aprendizado ficam sincronizadas com uma trilha — o progresso vem sozinho de lá. esse botão leva direto pra ela.",

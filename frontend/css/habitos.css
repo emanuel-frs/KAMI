@@ -1,0 +1,188 @@
+/* ── hábitos (ORG-04) — pages/habitos.js, widgets/habitos-hoje.js ─────────
+ * Reaproveita o esqueleto de Metas (.goals-toolbar, .goals-section-label,
+ * .goals-grid, .goal-card, .goal-tags — widget-metas.css). Aqui só o que é
+ * próprio: a lista do "hoje" (no visual "[x]/[ ]" das missões) e a grade
+ * de texto das 12 semanas (■ □ · ◇).
+ */
+
+/* ── hoje ───────────────────────────────────────────────────────────── */
+.hb-hoje {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hb-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--card);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: left;
+}
+button.hb-item { cursor: pointer; }
+button.hb-item:hover { border-color: var(--border-interactive); }
+.hb-check { color: var(--text-faint); white-space: pre; }
+.hb-item.done .hb-check { color: var(--accent); }
+.hb-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-bright);
+}
+.hb-item.done .hb-nome {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+.hb-freq, .hb-attr { font-size: 10px; color: var(--text-faint); white-space: nowrap; }
+.hb-semana { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.hb-seq {
+  font-size: 11px;
+  color: var(--amber);
+  min-width: 52px;
+  text-align: right;
+  white-space: nowrap;
+}
+.hb-folga { opacity: 0.6; }
+.hb-folga .hb-nome { color: var(--text-dim); }
+
+.hb-legenda {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.hb-legenda b { color: var(--accent); font-weight: normal; }
+.hb-legenda u { color: var(--amber); text-decoration: none; }
+
+/* ── grade de 12 semanas ────────────────────────────────────────────── */
+.hb-grade {
+  display: grid;
+  grid-template-columns: 30px repeat(var(--hb-semanas, 12), 16px);
+  grid-auto-rows: 15px;
+  align-items: center;
+  margin: 10px 0 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.hb-mes { font-size: 10px; white-space: nowrap; overflow: visible; }
+.hb-dia-sem { font-size: 10px; }
+.hb-cel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-faint);
+}
+.hb-e-feito { color: var(--accent); }
+.hb-e-faltou { color: var(--text-dim); }
+.hb-e-fora { color: var(--border); }
+.hb-e-livre { color: var(--text-faint); }
+.hb-e-hoje { color: var(--amber); }
+.hb-marcavel {
+  cursor: pointer;
+  outline: 1px dashed var(--border-soft);
+  outline-offset: 0;
+}
+.hb-marcavel:hover { outline-color: var(--accent-dim); color: var(--text-bright); }
+.hb-marcavel.hb-e-feito:hover { color: var(--accent); }
+
+.hb-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+.hb-stats b { color: var(--text-bright); font-weight: normal; }
+
+.hb-parado .hb-grade,
+.hb-parado .hb-stats { opacity: 0.6; }
+.hb-tag-parado { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+
+.hb-rodape {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+/* ── modal: dias da semana ──────────────────────────────────────────── */
+.field-label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+.hb-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.hb-dia {
+  position: relative;
+  font-size: 10.5px;
+  padding: 5px 9px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-interactive);
+  background: var(--bg);
+  cursor: pointer;
+  user-select: none;
+}
+.hb-dia input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.hb-dia:has(input:checked) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-alt);
+}
+.hb-dia:has(input:focus-visible) {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.hbm-dica {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin: 4px 0 12px;
+}
+
+/* ── widget "hábitos de hoje": card estreito, a meta desce de linha ─── */
+.hb-widget .hb-item {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  row-gap: 2px;
+}
+.hb-widget .hb-attr,
+.hb-widget .hb-semana { grid-column: 2; grid-row: 2; }
+.hb-widget .hb-semana + .hb-attr { display: none; }
+.hb-widget .hb-seq { grid-column: 3; grid-row: 1; }
+
+/* 960 e menor: atributo desce pra baixo do nome, como no widget */
+@media (max-width: 1100px) {
+  .hb-hoje:not(.hb-widget) .hb-item {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .hb-hoje:not(.hb-widget) .hb-semana { grid-column: 2; grid-row: 2; }
+  .hb-hoje:not(.hb-widget) .hb-attr { grid-column: 2; grid-row: 2; justify-self: start; }
+  .hb-hoje:not(.hb-widget) .hb-semana + .hb-attr { justify-self: end; }
+  .hb-hoje:not(.hb-widget) .hb-seq { grid-column: 3; grid-row: 1; }
+}

@@ -1,0 +1,145 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Leitor de e-mail (ORG-06) — modals/email-leitor-modal.js
+
+   Pensado pra leitura longa no visual do terminal: cabeçalho fixo
+   (assunto, remetente, conta, data, ações), só o texto rola, linha com
+   no máximo 80 colunas (a medida clássica do terminal, e ainda
+   confortável de ler em fonte mono) e entrelinha generosa. Links em cor de destaque com "↗",
+   citação com a barra lateral, assinatura apagada — o texto vem limpo
+   do backend (app/email_texto.py), nunca HTML.
+   ───────────────────────────────────────────────────────────────────── */
+.modal.em-leitor {
+  width: min(780px, 94vw);
+  display: flex;
+  flex-direction: column;
+  /* o .modal genérico rola inteiro; aqui só o corpo rola e o cabeçalho
+     (com as ações) fica sempre à vista */
+  overflow: hidden;
+  height: calc(100vh - (var(--titlebar-h) + 12px) * 2);
+  max-height: 900px;
+}
+.em-leitor .modal-head { gap: 10px; flex: 0 0 auto; }
+.eml-titulo { display: inline-flex; align-items: center; gap: 6px; }
+.eml-pos { color: var(--text-faint); font-size: 10.5px; margin-left: 4px; }
+.eml-nav { margin-left: auto; display: inline-flex; gap: 4px; }
+.eml-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+.eml-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.eml-nav-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.eml-nav-btn:disabled { opacity: 0.35; cursor: default; }
+.em-leitor .modal-head .close { margin-left: 6px; }
+
+.eml-cabecalho {
+  flex: 0 0 auto;
+  padding: 16px 22px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel);
+}
+.eml-assunto {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+.eml-de { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.eml-avatar.email-avatar { width: 32px; height: 32px; font-size: 13px; }
+.eml-de-texto { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.eml-nome {
+  font-size: 12.5px;
+  color: var(--text-bright);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eml-endereco {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eml-endereco:empty { display: none; }
+.eml-quando {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  text-align: right;
+}
+.eml-conta { color: var(--chip-color, var(--accent)); font-size: 10px; }
+.eml-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.eml-acoes .btn { display: inline-flex; align-items: center; gap: 5px; }
+.eml-acoes .btn[hidden] { display: none; }
+
+.eml-corpo {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+.eml-corpo:focus-visible { outline: 1px solid var(--accent-dim); outline-offset: -1px; }
+.eml-corpo.carregando { color: var(--text-faint); }
+.eml-corpo > *,
+.eml-corpo .em-assinatura > * { max-width: 80ch; }
+.eml-corpo p { margin: 0 0 1em; }
+.eml-corpo ul { margin: 0 0 1em; padding-left: 1.6em; }
+.eml-corpo li { margin: 0.15em 0; }
+.eml-corpo li::marker { color: var(--accent); }
+.eml-corpo blockquote {
+  margin: 0 0 1em;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--border-interactive);
+  color: var(--text-dim);
+}
+.eml-corpo .em-link {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.eml-corpo .em-link:hover,
+.eml-corpo .em-link:focus-visible { color: var(--text-bright); text-decoration-style: solid; outline: none; }
+.eml-corpo .em-link.so-seta { text-decoration: none; padding: 0 2px; }
+.eml-corpo .em-assinatura {
+  margin-top: 1.4em;
+  padding-top: 0.8em;
+  border-top: 1px dashed var(--border-soft);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.eml-corpo .eml-vazio { color: var(--text-faint); font-style: italic; }
+.eml-corpo .eml-aviso { margin-top: 1.4em; font-size: 10.5px; color: var(--amber); }
+
+.eml-rodape {
+  flex: 0 0 auto;
+  padding: 6px 22px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  background: var(--bg-alt);
+}
+
+@media (max-width: 700px) {
+  .eml-cabecalho, .eml-corpo { padding-left: 14px; padding-right: 14px; }
+  .eml-quando { display: none; }
+}

@@ -2,7 +2,7 @@ import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMesAno, formatoData, lerMesAno } from "../components/format.js";
 
 /**
  * Modal "nova compra parcelada" / "editar compra parcelada" — mesmo
@@ -41,7 +41,7 @@ function buildModal() {
         </div>
         <div class="field">
           <label for="cpm-mes">mês da 1ª parcela</label>
-          <input type="text" id="cpm-mes" placeholder="YYYY-MM">
+          <input type="text" id="cpm-mes" inputmode="numeric" autocomplete="off">
         </div>
         <div class="field">
           <label for="cpm-conta">conta (opcional — soma a parcela na fatura dela todo mês)</label>
@@ -63,9 +63,16 @@ async function submitCompraParcelada(wrap) {
   const nome = wrap.querySelector("#cpm-nome").value.trim();
   const valorTotal = Number(wrap.querySelector("#cpm-valor").value);
   const numParcelas = Number(wrap.querySelector("#cpm-parcelas").value);
-  const mes = wrap.querySelector("#cpm-mes").value.trim();
-  if (!nome || !valorTotal || !numParcelas || !mes) {
+  // ORG-07: o mês aparece no formato escolhido (mm/aaaa ou aaaa-mm) — o
+  // campo nativo de mês sai quebrado no WebKitGTK, por isso é texto
+  const mesTexto = wrap.querySelector("#cpm-mes").value.trim();
+  if (!nome || !valorTotal || !numParcelas || !mesTexto) {
     showErrorModal("preenche nome, valor total, número de parcelas e mês da 1ª parcela.", "atenção");
+    return;
+  }
+  const mes = lerMesAno(mesTexto);
+  if (!mes) {
+    showErrorModal(`mês da 1ª parcela inválido — use ${fmtMesAno("2026-10")} (mês e ano).`, "atenção");
     return;
   }
   const contaId = wrap.querySelector("#cpm-conta").value || null;
@@ -119,7 +126,8 @@ export function openCompraParceladaModal({ compra = null, accounts = [], onSaved
   modalEl.querySelector("#cpm-nome").value = editingCompra?.nome || "";
   modalEl.querySelector("#cpm-valor").value = editingCompra?.valor_total ?? "";
   modalEl.querySelector("#cpm-parcelas").value = editingCompra?.num_parcelas ?? "";
-  modalEl.querySelector("#cpm-mes").value = editingCompra?.mes_primeira_parcela || currentMonthStr();
+  modalEl.querySelector("#cpm-mes").value = fmtMesAno(editingCompra?.mes_primeira_parcela || currentMonthStr());
+  modalEl.querySelector("#cpm-mes").placeholder = formatoData() === "iso" ? "aaaa-mm" : "mm/aaaa";
   modalEl.querySelector("#cpm-conta").innerHTML =
     `<option value="">— nenhuma —</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");

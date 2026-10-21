@@ -21,6 +21,8 @@ import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
+import { startLembretesAgendador } from "./components/lembretes-agendador.js";
+import { wireBandeja } from "./components/bandeja.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
 import { startProgressWatcher } from "./components/progress-watcher.js";
@@ -36,6 +38,10 @@ import { startRetrospective } from "./modals/retrospectiva-modal.js";
 import { registerNavigator } from "./components/navigate.js";
 import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
+import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
+import { wirePaleta } from "./components/paleta.js";
+import { definirFormatoData, formatoData } from "./components/format.js";
+import { wireCamposData } from "./components/campos-data.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -49,6 +55,7 @@ const PAGES = {
   organizacao: () => import("./pages/organizacao.js"),
   metas: () => import("./pages/metas.js"),
   calendario: () => import("./pages/calendario.js"),
+  habitos: () => import("./pages/habitos.js"), // ORG-04
   carreira: () => import("./pages/carreira.js"),
 };
 
@@ -127,7 +134,10 @@ async function reloadCurrentPage() {
 async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
 
-  if (name === currentPageName) {
+  // `remontar` (ORG-03, paleta Ctrl+K): mesmo já estando na tela, monta de
+  // novo — o item escolhido é entregue por foco pendente
+  // (components/pending-focus.js), que só é lido ao montar
+  if (name === currentPageName && !opts?.remontar) {
     // já está na tela — não remonta (evitaria perder scroll/estado à
     // toa), só aplica os opts se a tela souber o que fazer com eles.
     await currentPageModule?.focus?.(opts);
@@ -191,6 +201,17 @@ function wireSettingsButton() {
  * configurações, avatar da própria sidebar, onboarding) e a sidebar
  * precisa acompanhar todos eles, não só o carregamento inicial.
  */
+/**
+ * ORG-07 (P-53): formato das datas (configurações › aparência). Trocar o
+ * formato remonta a tela atual, pra ela já aparecer com as datas novas.
+ */
+function aplicarFormatoData(profile) {
+  if (!profile) return;
+  const antes = formatoData();
+  definirFormatoData(profile.formato_data);
+  if (formatoData() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
+}
+
 function applyProfileToSidebar(profile) {
   if (!profile) return;
 
@@ -284,6 +305,8 @@ async function boot() {
   registerNavigator(showPage);
 
   store.subscribe("profile", applyProfileToSidebar);
+  store.subscribe("profile", aplicarFormatoData); // ORG-07
+  wireCamposData(); // ORG-07: campo de data vazio parece vazio (WebKitGTK)
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo
   wirePixelCursor(); // GAM-15: cursor em pixel art na cor de destaque
@@ -325,11 +348,15 @@ async function boot() {
   wireShortcuts();
   wireShortcutsHelp();
   wireGlobalShortcuts();
+  wireNotasVinculadas(); // ORG-01: "notas (N)" em metas/trilhas/eventos/posições
+  wirePaleta(); // ORG-03: Ctrl+K, busca global e comandos
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
+  startLembretesAgendador(); // ORG-05
+  wireBandeja();
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   bootedWithBackend = !!store.get("profile");

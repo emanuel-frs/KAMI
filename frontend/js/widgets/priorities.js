@@ -1,7 +1,7 @@
 // js/widgets/priorities.js
 import { getAttributes } from "../api/nucleo.js";
 import { listGoals } from "../api/metas.js";
-import { escapeHtml, fmtDateBR } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 
 /** "Atenção agora": atributo mais atrasado + meta com prazo mais próximo. */
@@ -38,7 +38,7 @@ export async function render(el, widget) {
       rows.push(`
         <div class="log-item">
           <span class="desc">meta mais próxima do prazo: <b style="color:var(--accent);">${escapeHtml(g.title)}</b></span>
-          <span class="meta">${fmtDateBR(g.deadline)}</span>
+          <span class="meta">${fmtData(g.deadline)}</span>
         </div>`);
     }
 

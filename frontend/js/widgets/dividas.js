@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { listBanks } from "../api/carteira.js";
 import { openQuitarDividaModal } from "../modals/quitar-divida-modal.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { openDividaModal } from "../modals/divida-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -24,8 +24,7 @@ function brl(v) {
 }
 function formatDate(iso) {
   if (!iso) return "sem data";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return fmtData(iso); // ORG-07: formatador único
 }
 
 export async function render(el, widget) {

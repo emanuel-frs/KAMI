@@ -30,13 +30,15 @@ export function registerNavigator(fn) {
   navigator = fn;
 }
 
+/** Devolve a Promise da troca de tela (resolve depois que ela montou) —
+ * a paleta Ctrl+K (components/paleta.js) espera pra rodar a ação da tela. */
 export function navigateTo(name, opts) {
   if (navigator) {
-    navigator(name, opts);
-    return;
+    return navigator(name, opts);
   }
   // fallback defensivo (app.js ainda não terminou de registrar, ex:
   // chamada muito cedo no boot) — perde os `opts`, mas ainda troca de
   // tela em vez de não fazer nada.
   document.querySelector(`.nav-link[data-page="${name}"]`)?.click();
+  return Promise.resolve();
 }

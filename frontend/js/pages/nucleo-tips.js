@@ -25,6 +25,9 @@ const WIDGET_TEXTS = {
   priorities: "o atributo mais atrasado e a meta com prazo mais próximo — por onde vale começar.",
   log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem. desfez algo (desmarcou um pagamento, reabriu um marco, apagou um item)? o registro e o xp dele saem juntos.",
   registrar: "registre qualquer ação manual pra ganhar xp direto num atributo — até 50 xp por ação.",
+  missoes: "três missões por dia e uma por semana, sorteadas pelo que dá pra fazer agora — elas se cumprem sozinhas quando você faz a ação e rendem xp bônus. toque numa pendente pra ir à tela dela.",
+  notas_rapidas: "suas notas fixadas, e um campo pra anotar sem sair daqui. alt+shift+n abre uma nota rápida de qualquer tela.",
+  habitos_hoje: "os hábitos que valem hoje — um clique marca (+5 xp) ou desmarca. a grade e o histórico ficam na tela hábitos (alt+9).",
   achievements: "marcos que destravam sozinhos conforme você usa o app. as bloqueadas mostram quanto falta; filtre por uma ou mais áreas.",
 };
 

@@ -1,0 +1,459 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Notas (ORG-01) — aba da Organização (pages/organizacao-notas.js) e o
+   editor (components/nota-editor.js).
+
+   Visual de terminal: mono, cinzas + a cor de destaque; a cor opcional
+   da nota (--nota-cor) só pinta a borda esquerda e o título — nada de
+   fundo colorido. A área de texto segue a medida de leitura do leitor
+   de e-mail (até 80 colunas).
+   ───────────────────────────────────────────────────────────────────── */
+
+.notas {
+  display: grid;
+  /* lista estreita na janela mínima (960px), até 300px nas grandes */
+  grid-template-columns: clamp(200px, 28%, 300px) 1fr;
+  gap: 12px;
+  /* ocupa a altura útil da tela: só a lista e o texto rolam */
+  height: calc(100vh - var(--titlebar-h) - 190px);
+  min-height: 460px;
+}
+
+/* ---------- lista ---------- */
+.notas-lista {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.notas-lista-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.notas-nova { justify-content: center; display: inline-flex; align-items: center; gap: 6px; }
+.notas-lista-topo input[type="search"] { width: 100%; }
+.notas-filtros { display: flex; flex-wrap: wrap; gap: 4px; }
+.nota-tag-filtro {
+  font-size: 9.5px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.nota-tag-filtro:hover { color: var(--text-dim); border-color: var(--border-interactive); }
+.nota-tag-filtro.on { color: var(--accent); border-color: var(--accent-dim); }
+
+.notas-itens { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.nota-item {
+  padding: 9px 10px 9px 12px;
+  border-bottom: 1px dashed var(--border-soft);
+  border-left: 2px solid var(--nota-cor, transparent);
+  cursor: pointer;
+}
+.nota-item:hover { background: rgba(255, 255, 255, 0.03); }
+.nota-item.on { background: color-mix(in srgb, var(--accent) 7%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.nota-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.nota-item-topo { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.nota-item-pin { color: var(--amber); display: inline-flex; }
+.nota-item-lock { color: var(--text-faint); display: inline-flex; }
+.nota-item-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--nota-cor, var(--text-bright));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nota-item-data { flex: 0 0 auto; font-size: 9.5px; color: var(--text-faint); }
+.nota-item-previa {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nota-item.trancada .nota-item-previa { font-style: italic; }
+.nota-item-rodape { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; font-size: 9.5px; color: var(--text-dim); }
+.nota-item-vinculo { display: inline-flex; align-items: center; gap: 3px; color: var(--text-faint); }
+.nota-item.nova .nota-item-data { color: var(--amber); }
+
+/* ---------- painel da nota ---------- */
+.notas-painel {
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+}
+.notas-vazio {
+  margin: auto;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 24px;
+}
+.notas-vazio pre { color: var(--text-dim); margin: 0 0 12px; font-size: 11px; line-height: 1.2; }
+.notas-vazio .dica { font-size: 10px; margin-top: 6px; }
+
+.nota-aberta {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  border-left: 2px solid var(--nota-cor, transparent);
+}
+.nota-cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 6px;
+}
+.nota-voltar {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.nota-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px dashed transparent !important;
+  padding: 2px 0 !important;
+  font-size: 16px !important;
+  font-weight: 600;
+  color: var(--nota-cor, var(--text-bright)) !important;
+}
+.nota-titulo:focus { border-bottom-color: var(--border-interactive) !important; outline: none; }
+.nota-titulo::placeholder { color: var(--text-faint); font-weight: 400; }
+.nota-status { flex: 0 0 auto; font-size: 10px; color: var(--text-faint); white-space: nowrap; }
+.nota-status[data-tipo="ok"] { color: var(--accent); }
+.nota-status[data-tipo="erro"] { color: var(--amber); }
+
+.nota-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 16px 8px;
+  flex-wrap: wrap;
+}
+.nota-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: 1 1 200px; min-width: 0; }
+.nota-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-soft);
+  padding: 1px 3px 1px 6px;
+}
+.nota-tag button {
+  display: inline-flex;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 1px;
+}
+.nota-tag button:hover { color: var(--red); }
+#nota-tag-input {
+  flex: 1 1 80px;
+  min-width: 70px;
+  background: transparent !important;
+  border: none !important;
+  font-size: 10.5px !important;
+  padding: 2px !important;
+}
+#nota-tag-input:focus { outline: none; }
+.nota-acoes { display: flex; align-items: center; gap: 4px; }
+.nota-acao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+.nota-acao:hover { border-color: var(--accent); color: var(--accent); }
+.nota-acao.on { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 55%, transparent); }
+.nota-acao.perigo:hover { border-color: var(--red); color: var(--red); }
+.nota-acao:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.nota-cor-wrap { position: relative; display: inline-flex; }
+.nota-cor-ponto {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--border-interactive);
+  background: transparent;
+}
+.nota-cores {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(5, 18px);
+  gap: 5px;
+  padding: 7px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 3px 3px 0 #000;
+}
+.nota-cores[hidden] { display: none; }
+.nota-cor-opcao {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-interactive);
+  cursor: pointer;
+  padding: 0;
+}
+.nota-cor-opcao.sem { background: transparent; color: var(--text-faint); display: inline-flex; align-items: center; justify-content: center; }
+.nota-cor-opcao:hover, .nota-cor-opcao:focus-visible { outline: 1px solid var(--text-bright); outline-offset: 1px; }
+
+.nota-vinculo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 16px 8px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.nota-vinculo a { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+.nota-vinculo-tirar { background: transparent; border: none; color: var(--text-faint); cursor: pointer; display: inline-flex; }
+.nota-vinculo-tirar:hover { color: var(--red); }
+.nota-vinculo-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.nota-vinculo-form[hidden] { display: none; }
+.nota-vinculo-form select { max-width: 260px; }
+
+.nota-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---------- nota trancada (pedindo o PIN) ---------- */
+.nota-trancada {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.nota-trancada pre { margin: 0; color: var(--accent); line-height: 1.15; }
+.nota-trancada input { width: 140px; text-align: center; letter-spacing: 6px; }
+.nota-trancada-erro { color: var(--red); min-height: 1em; margin: 0; }
+
+/* ---------- editor ---------- */
+.ne { position: relative; display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.ne-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+}
+.ne-sep { width: 1px; height: 16px; background: var(--border-soft); margin: 0 3px; }
+/* compactos o bastante pra barra caber numa linha na janela mínima (960px) */
+.ne-btn {
+  min-width: 22px;
+  height: 24px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ne-btn:hover { border-color: var(--border-interactive); color: var(--text-bright); }
+.ne-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ne-btn.ne-b { font-weight: 700; }
+.ne-btn.ne-i { font-style: italic; }
+.ne-btn.ne-u { text-decoration: underline; }
+.ne-btn.ne-s { text-decoration: line-through; }
+.ne-btn.ne-limpar { color: var(--text-faint); }
+
+.ne-bolha {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 3px 3px 0 #000;
+}
+.ne-bolha[hidden] { display: none; }
+
+.ne-area {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px 40px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--text);
+  outline: none;
+  overflow-wrap: break-word;
+  cursor: text;
+}
+.ne-area > * { max-width: 80ch; }
+.ne-area.vazia::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  position: absolute;
+  pointer-events: none;
+}
+.ne-area p { margin: 0 0 0.7em; }
+.ne-area h1, .ne-area h2, .ne-area h3 { color: var(--text-bright); margin: 1em 0 0.4em; line-height: 1.35; }
+.ne-area h1 { font-size: 17px; }
+.ne-area h2 { font-size: 14.5px; }
+.ne-area h3 { font-size: 13px; color: var(--accent); }
+.ne-area > :first-child { margin-top: 0; }
+.ne-area ul, .ne-area ol { margin: 0 0 0.7em; padding-left: 1.6em; }
+.ne-area li { margin: 0.1em 0; }
+.ne-area li::marker { color: var(--accent); }
+/* tarefa = li[data-checked] (por item; a lista pode misturar) */
+.ne-area li[data-checked] { list-style: none; position: relative; padding-left: 30px; margin-left: -1.2em; }
+.ne-area li[data-checked]::before {
+  content: "[ ]";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+}
+.ne-area li[data-checked="true"]::before { content: "[x]"; color: var(--accent); }
+.ne-area li[data-checked="true"] { color: var(--text-faint); text-decoration: line-through; }
+.ne-area blockquote {
+  margin: 0 0 0.7em;
+  padding: 1px 0 1px 12px;
+  border-left: 2px solid var(--border-interactive);
+  color: var(--text-dim);
+}
+.ne-area code {
+  font-family: inherit;
+  font-size: 0.95em;
+  padding: 0 4px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  color: var(--accent);
+}
+.ne-area pre {
+  margin: 0 0 0.7em;
+  padding: 10px 12px;
+  background: #000;
+  border: 1px solid var(--border-soft);
+  overflow-x: auto;
+  white-space: pre;
+  font-size: 11.5px;
+}
+.ne-area pre code { background: none; border: none; padding: 0; color: var(--text); }
+.ne-area hr { border: none; border-top: 1px dashed var(--border-interactive); margin: 1.2em 0; }
+.ne-area a { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+.ne-area table { border-collapse: collapse; margin: 0 0 0.9em; font-size: 11.5px; }
+.ne-area th, .ne-area td { border: 1px solid var(--border-soft); padding: 4px 10px; text-align: left; min-width: 60px; }
+.ne-area th { color: var(--text-bright); background: var(--bg-alt); font-weight: 600; }
+.ne-area u { text-underline-offset: 3px; }
+
+/* ---------- tela estreita: uma coluna só ---------- */
+@media (max-width: 900px) {
+  .notas { grid-template-columns: 1fr; }
+  .notas[data-modo="lista"] .notas-painel { display: none; }
+  .notas[data-modo="nota"] .notas-lista { display: none; }
+  .nota-voltar { display: inline-flex; }
+}
+
+/* ---------- widget "notas rápidas" (widgets/notas-rapidas.js) ---------- */
+.nr-form { margin-bottom: 8px; }
+.nr-input { width: 100%; }
+.nr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 4px 6px 8px;
+  border-bottom: 1px dashed var(--border-soft);
+  border-left: 2px solid var(--nota-cor, transparent);
+  cursor: pointer;
+  min-width: 0;
+}
+.nr-item:hover { background: rgba(255, 255, 255, 0.03); }
+.nr-titulo { font-size: 11px; color: var(--nota-cor, var(--text-bright)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nr-previa { font-size: 9.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nr-previa:empty { display: none; }
+.nr-todas { display: inline-block; margin-top: 8px; font-size: 10px; color: var(--text-dim); }
+.nr-todas:hover { color: var(--accent); }
+
+/* ---------- modal de nota rápida (Alt+Shift+N) ---------- */
+.modal.nota-rapida { width: min(680px, 94vw); display: flex; flex-direction: column; overflow: hidden; height: min(520px, calc(100vh - (var(--titlebar-h) + 12px) * 2)); }
+.nota-rapida .modal-head { gap: 10px; }
+.nota-rapida .modal-head .nota-status { margin-left: auto; }
+.nota-rapida .modal-head .close { margin-left: 8px; }
+.nrm-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px 0 0; }
+/* o .nota-titulo da aba é item de linha (flex: 1 1 auto); aqui, numa
+   coluna, isso o esticava na vertical — e width 100% + margem passava da
+   largura do modal (o foco rolava o modal 15px pro lado) */
+.nrm-corpo .nota-titulo { flex: 0 0 auto; width: calc(100% - 32px); margin: 0 16px 8px; font-size: 14px !important; }
+.nrm-editor { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.nrm-rodape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+}
+.nrm-dica { flex: 1 1 auto; font-size: 9.5px; color: var(--text-faint); }
+.nrm-rodape .btn { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- "notas (N)" em metas, trilhas, eventos e posições ---------- */
+.notas-vinc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-faint);
+  text-decoration: none;
+}
+.notas-vinc.tem { color: var(--accent); }
+.notas-vinc:hover, .notas-vinc:focus-visible { color: var(--text-bright); text-decoration: underline dotted; text-underline-offset: 3px; }
+.track-notas { margin-top: 3px; }
+.cem-notas-vinc { margin: -4px 0 10px; }
+
+/* ---------- caixa de entrada (ORG-02) — pages/organizacao-entrada.js ---------- */
+.tab-contagem { color: var(--amber); font-size: 0.9em; }
+.entrada-dica { font-size: 10px; color: var(--text-faint); }
+.entrada-item { padding: 10px 2px; border-bottom: 1px dashed var(--border-soft); }
+.entrada-item:last-child { border-bottom: none; }
+.entrada-texto { font-size: 12px; color: var(--text-bright); white-space: pre-wrap; overflow-wrap: anywhere; }
+.entrada-rodape { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.entrada-quando { font-size: 9.5px; color: var(--text-faint); flex: 1 1 auto; }
+.entrada-acoes { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entrada-vira { font-size: 10px; color: var(--text-faint); margin-right: 2px; }
+.entrada-btn { display: inline-flex; align-items: center; gap: 4px; }
+.notif-entrada-ir { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); margin-left: auto; }

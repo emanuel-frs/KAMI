@@ -1,8 +1,9 @@
 import * as carreiraApi from "../api/carreira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtData } from "../components/format.js";
 import { openFormacaoModal } from "../modals/formacao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
+import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 
 /**
  * Widget "formação acadêmica" (seção 4 do documento de regras de
@@ -33,8 +34,7 @@ const STATUS_LABELS = {
 
 function formatDate(iso) {
   if (!iso) return null;
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return fmtData(iso); // ORG-07: formatador único
 }
 
 export async function render(el, widget) {
@@ -94,4 +94,7 @@ export async function render(el, widget) {
   }
 
   await reload();
+  // ORG-03: item escolhido na busca (Ctrl+K)
+  const pedido = consumePendingFocus("formacao");
+  if (pedido) focusRow(el.querySelector(`[data-education-id="${CSS.escape(pedido)}"]`), "formacao");
 }

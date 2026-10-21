@@ -29,6 +29,8 @@ const COMPONENT_PATHS = {
   priorities: "./priorities.js",
   missoes: "./missoes.js",
   log: "./log.js",
+  notas_rapidas: "./notas-rapidas.js",
+  habitos_hoje: "./habitos-hoje.js",
   registrar: "./registrar.js",
   achievements: "./achievements.js",
   perfil_atividade: "./perfil-atividade.js",
