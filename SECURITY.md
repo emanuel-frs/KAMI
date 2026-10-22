@@ -53,6 +53,14 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   (N=2¹⁷, r=8, p=1); alterar qualquer byte do arquivo faz a abertura
   falhar. Esse backup leva as senhas salvas e funciona em outro
   computador. O backup **sem** senha é texto legível e avisa disso.
+- **Cópias automáticas do banco.** Uma por semana (as 4 últimas) e uma
+  antes de importar, apagar tudo, redefinir a chave ou restaurar, em
+  `<pasta de dados>/backups/`. São cópias do banco como ele está: os
+  segredos vão cifrados com a chave do cofre deste computador. Se você
+  escolher uma **pasta extra** (pendrive, HD externo, pasta do
+  Drive/Dropbox), a cópia semanal também vai pra lá — e, se for uma pasta
+  sincronizada, ela sai do computador pelo programa de sincronização, não
+  pelo Kami. O Kami só grava e apaga ali os próprios `kami-semanal-*.db`.
 - **Entrada validada.** Corpo de requisição limitado a 1 MB (50 MB na
   importação), textos e números com limite em todas as rotas, e um teste
   que varre a API inteira com entradas absurdas garante que nenhuma vira

@@ -97,7 +97,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
-  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
+  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; uma cópia do banco
+  sai sozinha toda semana e antes de importar ou apagar tudo, com "restaurar" em configurações › backup
+  (e uma pasta extra opcional, como um pendrive); e em
   configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
 - **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
   de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar

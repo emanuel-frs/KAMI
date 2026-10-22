@@ -10,6 +10,7 @@ import { escapeHtml, localDateKey } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { icon } from "../../components/icons.js";
+import { copiasSectionHtml, wireCopias } from "./copias.js";
 import { estado } from "./estado.js";
 
 const RESET_WORD = "excluir";
@@ -39,6 +40,7 @@ export function buildBackupPanel() {
         </div>
         <p class="settings-status" id="sm-export-status"></p>
       </div>
+      ${copiasSectionHtml()}
       <div class="settings-section">
         <h4>revisar xp</h4>
         <p class="settings-desc">corrige o xp gravado antes das regras atuais: registros que sobraram de ações desfeitas (pagamento desmarcado, item apagado, marco reaberto), repetições no mesmo dia do que hoje só rende xp 1x por dia e ações manuais acima de 50 xp. primeiro mostra o que mudaria — nada é gravado até você confirmar.</p>
@@ -50,7 +52,7 @@ export function buildBackupPanel() {
       </div>
       <div class="settings-section settings-warning">
         <h4>importar dados</h4>
-        <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) — não tem como desfazer depois.</p>
+        <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas). o estado de agora fica guardado nas cópias automáticas, acima, caso precise voltar.</p>
         <p class="settings-note">backup <strong>com senha</strong> traz também as senhas salvas (e-mail, github, busca), em qualquer computador. backup <strong>sem senha</strong> de outra máquina restaura o resto, mas essas senhas precisam ser cadastradas de novo em configurações › chaves.</p>
         <div class="field">
           <label for="sm-import-file">arquivo de backup (.json)</label>
@@ -71,7 +73,7 @@ export function buildBackupPanel() {
       </div>
       <div class="settings-section settings-danger">
         <h4>zona de perigo</h4>
-        <p class="settings-desc">apaga TODOS os seus dados e devolve o Kami ao estado de instalação nova. não tem como desfazer — exporte um backup antes, se quiser guardar algo.</p>
+        <p class="settings-desc">apaga TODOS os seus dados e devolve o Kami ao estado de instalação nova. antes, o kami guarda uma cópia nas cópias automáticas (acima) — é o único jeito de voltar.</p>
         <div class="field">
           <label for="sm-reset-confirm">digite <strong>${RESET_WORD}</strong> pra habilitar o botão abaixo</label>
           <input type="text" id="sm-reset-confirm" placeholder="${RESET_WORD}" autocomplete="off">
@@ -85,6 +87,7 @@ export function buildBackupPanel() {
 
 // ── aba backup e dados ───────────────────────────────────────────────
 export function wireBackupTab(wrap) {
+  wireCopias(wrap); // CONF-08
   const importFile = wrap.querySelector("#sm-import-file");
   const importConfirmInput = wrap.querySelector("#sm-import-confirm");
   const importBtn = wrap.querySelector("#sm-import-btn");

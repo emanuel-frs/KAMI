@@ -20,7 +20,13 @@ const PERFIL = {
 
 function backendFalso() {
   const chamadas = [];
-  const estado = { perfil: { ...PERFIL }, pin: { ativo: false, inatividade_min: null }, contas: [], gh: false };
+  const estado = {
+    perfil: { ...PERFIL }, pin: { ativo: false, inatividade_min: null }, contas: [], gh: false,
+    backups: {
+      copias: [{ nome: "kami-antes-de-apagar-tudo-20261021-090000.db", tipo: "antes", acao: "apagar-tudo", quando: "2026-10-21T09:00:00-03:00", tamanho: 2048 }],
+      semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
+    },
+  };
   const rotas = {
     "GET /api/perfil": () => estado.perfil,
     "PUT /api/perfil": (b) => (estado.perfil = { ...estado.perfil, ...b }),
@@ -49,6 +55,18 @@ function backendFalso() {
     "POST /api/seguranca/pin": () => ((estado.pin = { ativo: true, inatividade_min: null }), { ...estado.pin, codigo_recuperacao: "KAMI-AAAA-BBBB-CCCC" }),
     "PUT /api/seguranca/pin/inatividade": (b) => ((estado.pin = { ...estado.pin, inatividade_min: b.minutos }), estado.pin),
     "POST /api/seguranca/pin/desativar": () => ((estado.pin = { ativo: false, inatividade_min: null }), estado.pin),
+    // CONF-08
+    "GET /api/backups": () => estado.backups,
+    "POST /api/backups/agora": () => {
+      estado.backups.copias.unshift({ nome: "kami-semanal-20261022-100000.db", tipo: "semanal", acao: null, quando: "2026-10-22T10:00:00-03:00", tamanho: 524288 });
+      return estado.backups;
+    },
+    "PUT /api/backups/pasta-extra": (b) => {
+      if (b.pasta && !b.pasta.startsWith("/")) return { __status: 422, detail: "use o caminho completo da pasta" };
+      estado.backups = { ...estado.backups, pasta_extra: b.pasta, extra_ok_em: b.pasta ? "2026-10-22T10:01:00-03:00" : null };
+      return estado.backups;
+    },
+    "POST /api/backups/restaurar": () => estado.backups,
   };
   const fetch = async (url, opts = {}) => {
     const u = new URL(url);
@@ -57,7 +75,9 @@ function backendFalso() {
     chamadas.push({ metodo, caminho: u.pathname, corpo });
     const rota = rotas[`${metodo} ${u.pathname}`];
     if (!rota) return new Response(JSON.stringify({ detail: `rota falsa ausente: ${metodo} ${u.pathname}` }), { status: 404 });
-    return new Response(JSON.stringify(rota(corpo) ?? {}), { status: 200, headers: { "content-type": "application/json" } });
+    const resposta = rota(corpo) ?? {};
+    const status = resposta.__status ?? 200;
+    return new Response(JSON.stringify(resposta), { status, headers: { "content-type": "application/json" } });
   };
   return { chamadas, estado, fetch };
 }
@@ -223,6 +243,40 @@ test(
       $("#sm-export-btn").click();
       await espera(80);
       assert.equal(pedidos("GET", "/api/sistema/export").length, 1);
+    });
+
+    await t.test("backup: cópias automáticas — lista, copiar agora, pasta extra e restaurar", async () => {
+      await espera(60);
+      assert.match($("#cfg-copias-lista").textContent, /antes de apagar tudo/);
+      $("#cfg-copias-agora").click();
+      await espera(60);
+      assert.equal(doc.querySelectorAll("#cfg-copias-lista [data-restaurar]").length, 2);
+      assert.match($("#cfg-copias-lista").textContent, /semanal · 512 KB/);
+
+      digita($("#cfg-copias-pasta"), "relativa/kami");
+      $("#cfg-copias-pasta-salvar").click();
+      await espera(60);
+      assert.match($("#cfg-copias-pasta-status").textContent, /caminho completo/);
+      assert.equal($("#cfg-copias-pasta-tirar").hidden, true);
+      digita($("#cfg-copias-pasta"), "/media/pendrive/kami");
+      $("#cfg-copias-pasta-salvar").click();
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/backups/pasta-extra").at(-1).corpo, { pasta: "/media/pendrive/kami" });
+      assert.equal($("#cfg-copias-pasta-tirar").hidden, false);
+      $("#cfg-copias-pasta-tirar").click();
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/backups/pasta-extra").at(-1).corpo, { pasta: null });
+
+      doc.querySelector('#cfg-copias-lista [data-restaurar="kami-antes-de-apagar-tudo-20261021-090000.db"]').click();
+      await espera();
+      doc.querySelector('#confirm-modal [data-action="cancel"]').click();
+      await espera();
+      assert.equal(pedidos("POST", "/api/backups/restaurar").length, 0, "cancelar não restaura");
+      doc.querySelector('#cfg-copias-lista [data-restaurar="kami-antes-de-apagar-tudo-20261021-090000.db"]').click();
+      await confirma();
+      assert.deepEqual(pedidos("POST", "/api/backups/restaurar").at(-1).corpo, { nome: "kami-antes-de-apagar-tudo-20261021-090000.db", confirmation: "restaurar" });
+      const { estado } = await import("../../frontend/js/modals/configuracoes/estado.js");
+      estado.busy = false; // restaurar "recarrega a página" (no jsdom não recarrega)
     });
 
     await t.test("backup: importar só libera com arquivo + palavra e pede confirmação", async () => {

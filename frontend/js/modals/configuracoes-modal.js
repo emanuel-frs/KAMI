@@ -113,6 +113,7 @@ import {
 import { buildSegurancaPanel, wireSegurancaTab } from "./configuracoes/seguranca.js";
 import { buildBackupPanel, wireBackupTab } from "./configuracoes/backup.js";
 import { buildSobrePanel, wireSobreTab } from "./configuracoes/sobre.js";
+import { carregarCopias } from "./configuracoes/copias.js";
 import { estado } from "./configuracoes/estado.js";
 
 const TABS = [
@@ -276,6 +277,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
   });
 
   estado.modalEl.classList.add("open");
+  if (tabId === "backup") carregarCopias(estado.modalEl); // CONF-08 (aberto direto na aba, sem o clique)
 
   // busca o perfil atual toda vez que o modal abre — pode ter mudado
   // desde a última abertura (accent_color, nome, avatar), e tanto os

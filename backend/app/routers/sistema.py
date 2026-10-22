@@ -38,6 +38,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app import backup_auto
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
 from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
@@ -297,6 +298,9 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
             detail="arquivo não parece ser um backup válido do Kami (faltando user_profile)",
         )
 
+    # CONF-08: o estado de agora fica em backups/ antes de ser sobrescrito
+    backup_auto.copia_antes_de(db, "importar")
+
     try:
         # tabelas que de fato existem neste banco — se o schema.sql do
         # código for mais novo que este kami.db (ex.: sidecar compilado
@@ -393,6 +397,10 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
             status_code=422,
             detail=f"confirmação inválida; envie confirmation='{RESET_CONFIRMATION_WORD}' pra prosseguir",
         )
+
+    # CONF-08: "apagar tudo" sem querer passa a ter volta (configurações ›
+    # backup › cópias automáticas)
+    backup_auto.copia_antes_de(db, "apagar-tudo")
 
     existing_tables = {
         r["name"]
