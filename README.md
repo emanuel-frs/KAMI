@@ -221,17 +221,24 @@ tem custo: alguns arquivos ficaram grandes (veja o roadmap).
 
 ## Problemas conhecidos e roadmap
 
-Sem datas nem promessas; é o que eu faria em seguida.
+Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades por um tempo), o plano é:
 
-- **Windows:** assinatura de código (hoje o aviso do SmartScreen aparece; a opção gratuita para open
-  source não vale para a licença atual, veja o [SECURITY.md](./SECURITY.md#instaladores)) e testar em mais
-  configurações de Defender e Smart App Control. O CI valida instalação e backend, mas não o
-  comportamento do antivírus de cada PC.
-- **Mais plataformas e atualização:** macOS e atualização automática.
-- **Ícones dos links:** guardar o ícone localmente ao salvar o link, em vez da inicial.
-- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`).
-- **Distribuição:** PyInstaller em modo pasta (reduz falsos positivos), publicação no AUR e em outros
-  repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
+- **Base:** atualização avisada pelo próprio app (instala só quando você quiser), backup automático
+  (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada para trás, testes
+  automáticos cobrindo todas as telas e arquivos grandes divididos (`aprendizado.js`, `organizacao.py`).
+- **Idiomas:** português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi.
+- **Assistente de IA (opcional, desligado por padrão):** chat, ações sempre com prévia e confirmação,
+  avisos, e IA local rodando no seu computador. Nenhuma chave vem embutida.
+- **Banco cifrado em disco**, opcional.
+
+Ficam de fora, pelo menos até a 2.0:
+
+- **Windows:** assinatura de código. O aviso do SmartScreen continua aparecendo, porque a opção gratuita
+  para open source não vale para a licença atual (veja o [SECURITY.md](./SECURITY.md#instaladores)). O CI
+  valida instalação e backend, mas não o comportamento do antivírus de cada PC.
+- **macOS, celular e sincronização entre dispositivos.**
+- **Ícones dos links** guardados localmente, **PyInstaller em modo pasta** (reduz falsos positivos) e
+  publicação no AUR e em outros repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
 
 ## Licença e contribuição
 

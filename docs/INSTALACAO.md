@@ -117,10 +117,9 @@ O Smart App Control pode bloquear um aplicativo sem assinatura sem
 oferecer uma opção para liberá-lo naquela tela. Não desative as
 proteções do Windows para contornar esse bloqueio. As alternativas são
 usar uma instalação/máquina em que o aplicativo possa ser executado de
-acordo com a política local ou aguardar uma futura decisão sobre
-assinatura; não há garantia de que o aviso ou o bloqueio desapareçam.
-
-<!-- [PREENCHER: print da tela do SmartScreen e do botão "Executar assim mesmo" em docs/screenshots/smartscreen.png] -->
+acordo com a política local. Não há previsão de assinatura: a opção
+gratuita exige uma licença de código aberto, e o Kami não usa
+certificado pago — o aviso deve continuar aparecendo.
 
 ### Desinstalar e dados preservados
 
