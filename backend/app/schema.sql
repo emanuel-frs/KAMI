@@ -55,6 +55,17 @@ CREATE TABLE IF NOT EXISTS screen_tips_seen (
     seen_at   TEXT NOT NULL
 );
 
+-- MAN-05: "visto" POR DICA (antes só por tela, acima). Com a marca por
+-- tela, uma dica acrescentada depois (ou de um elemento que ainda não
+-- existia quando a sequência rodou) nunca aparecia pra quem já tinha
+-- visto aquela tela. `dica` = '<tela>/<id da dica>' (ids escritos à mão
+-- nos *-tips.js do frontend). screen_tips_seen continua só como
+-- registro de quem viu as dicas ANTES da 1.14 — não recebe mais linhas.
+CREATE TABLE IF NOT EXISTS dicas_vistas (
+    dica      TEXT PRIMARY KEY,
+    vista_em  TEXT NOT NULL
+);
+
 -- ---------------- DASHBOARDS / WIDGETS (decisão 17) ----------------
 CREATE TABLE IF NOT EXISTS dashboard_widgets (
     id          TEXT PRIMARY KEY,

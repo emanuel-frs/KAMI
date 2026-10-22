@@ -1,6 +1,5 @@
-import { store } from "../state/store.js";
-import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
+import { mostrarDicasNovas } from "../components/dicas-novas.js";
 
 /**
  * Dicas contextuais de Metas (etapa 5,
@@ -39,16 +38,19 @@ const SCREEN = "metas";
 const STEPS = [
   {
     // informar — orienta antes de entrar em detalhe de card
+    id: "em-andamento",
     selector: "#goals-section-active",
     text: "aqui ficam suas metas em andamento, cada uma com uma barra mostrando o quanto já foi atingido.",
   },
   {
     // informar — visão geral do card (tipo, peso em xp, progresso)
+    id: "card",
     selector: ".goal-card",
     text: "cada meta vira um card assim: o tipo, o peso em xp (quanto maior, maior o bônus ao concluir) e o quanto falta pra bater o alvo.",
   },
   {
     // ensinar a usar — ícone de gráfico só existe em metas que não são de aprendizado
+    id: "grafico",
     selector: '.goal-card-icons [data-action="toggle-progress"]',
     text: "toque aqui pra abrir um gráfico com o histórico de contribuições dessa meta.",
     advanceOn: "interact",
@@ -63,21 +65,25 @@ const STEPS = [
     // advance() estoura o índice e chama finish() antes do modal aparecer
     // por cima, em vez de tentar destacar mais alguma coisa). Por isso este
     // passo só aponta e explica, sem forçar o clique.
+    id: "contribuir",
     selector: '[data-action="contribute-goal"]',
     text: "toda vez que avançar de verdade nessa meta, registre aqui — é isso que move a barra de progresso. contribuir rende xp uma vez por dia por meta; o bônus de conclusão vem sempre.",
   },
   {
     // ORG-05: lembrete ligado à meta
+    id: "lembrar",
     selector: '[data-action="lembrar-goal"]',
     text: "o sino cria um lembrete ligado a esta meta — ex.: \"guardar 200 todo dia 5\".",
   },
   {
     // informar — só existe se houver meta de aprendizado ativa
+    id: "ver-trilha",
     selector: '[data-action="ver-trilha"]',
     text: "metas de aprendizado ficam sincronizadas com uma trilha — o progresso vem sozinho de lá. esse botão leva direto pra ela.",
   },
   {
     // informar — seção de histórico
+    id: "concluidas",
     selector: "#goals-section-done",
     text: "metas concluídas migram pra cá, com a data e o bônus de xp que elas renderam.",
   },
@@ -85,6 +91,7 @@ const STEPS = [
     // ensinar a usar — sempre presente, fecha a sequência (mesma lógica do
     // ADD_WIDGET_STEP em nucleo/perfil/financas: é o ponto de partida pra
     // quem chega com a tela vazia)
+    id: "nova-meta",
     selector: "#goals-add-btn",
     text: "toda meta nova começa aqui.",
     advanceOn: "interact",
@@ -109,38 +116,17 @@ export function replayMetasTips() {
   });
 }
 
+// MAN-05: ids das dicas que já existiam até a 1.12 — quem viu esta tela
+// antes da 1.14 não as vê de novo (components/dicas-novas.js). Dica nova
+// ou reescrita (id com "-2") fica FORA desta lista.
+const ATE_1_12 = ["em-andamento", "card", "grafico", "contribuir", "ver-trilha", "concluidas", "nova-meta"];
+
 /**
- * Dispara a sequência se: (a) o onboarding geral já foi concluído e
- * (b) Metas ainda não está em screen_tips_seen. Mesmo guard de chamada
- * repetida que as outras telas.
+ * Ao abrir a tela, mostra as dicas que a pessoa ainda não viu (todas, na
+ * primeira vez; só as novas, com o rótulo "novidade", depois) — regras
+ * em components/dicas-novas.js. Seguro de chamar várias vezes (mount e
+ * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
-export async function maybeStartMetasTips() {
-  if (running) return;
-  const profile = store.get("profile");
-  if (!profile?.onboarding_completed) return;
-
-  running = true;
-  let seen;
-  try {
-    seen = await getScreenTipsSeen();
-  } catch (err) {
-    console.error("erro ao checar dicas já vistas de metas:", err);
-    running = false;
-    return;
-  }
-  if (seen.seen.includes(SCREEN)) {
-    running = false;
-    return;
-  }
-
-  startTipSequence(STEPS, {
-    onFinish: async () => {
-      running = false;
-      try {
-        await markScreenTipsSeen(SCREEN);
-      } catch (err) {
-        console.error("erro ao marcar dicas de metas como vistas:", err);
-      }
-    },
-  });
+export function maybeStartMetasTips() {
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
 }

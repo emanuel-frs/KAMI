@@ -58,6 +58,7 @@ IMPORT_CONFIRMATION_WORD = "importar"
 _TABLES_DELETE_ORDER = [
     "calendar_events",
     "screen_tips_seen",
+    "dicas_vistas",
     "action_log_attributes",
     "dias_protegidos",
     "missoes",

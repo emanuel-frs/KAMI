@@ -186,3 +186,34 @@ def test_date_format_preference(client):
     assert client.get("/api/perfil").json()["formato_data"] == "sistema"
     assert client.put("/api/perfil", json={"formato_data": "mda"}).json()["formato_data"] == "mda"
     assert client.put("/api/perfil", json={"formato_data": "aaaa"}).status_code == 422
+
+
+# ─── MAN-05: dicas vistas uma a uma ─────────────────────────────────────
+
+
+def test_dicas_vistas_comecam_vazias(client):
+    resp = client.get("/api/perfil/dicas")
+    assert resp.status_code == 200
+    assert resp.json() == {"vistas": [], "telas_antigas": []}
+
+
+def test_marcar_dicas_vistas_e_idempotente(client):
+    resp = client.put("/api/perfil/dicas", json={"dicas": ["habitos/grade", "habitos/pausar"]})
+    assert resp.status_code == 200
+    assert resp.json()["vistas"] == ["habitos/grade", "habitos/pausar"]
+    primeira = client.get("/api/sistema/export").json()["tables"]["dicas_vistas"]
+    client.put("/api/perfil/dicas", json={"dicas": ["habitos/grade"]})
+    depois = client.get("/api/sistema/export").json()["tables"]["dicas_vistas"]
+    # a data da primeira vez fica
+    assert sorted(primeira, key=lambda r: r["dica"]) == sorted(depois, key=lambda r: r["dica"])
+
+
+def test_dicas_devolvem_as_telas_do_esquema_antigo(client):
+    client.put("/api/perfil/tips/nucleo")
+    resp = client.get("/api/perfil/dicas")
+    assert resp.json()["telas_antigas"] == ["nucleo"]
+
+
+def test_marcar_dicas_recusa_lista_enorme(client):
+    resp = client.put("/api/perfil/dicas", json={"dicas": [f"x/{i}" for i in range(101)]})
+    assert resp.status_code == 422

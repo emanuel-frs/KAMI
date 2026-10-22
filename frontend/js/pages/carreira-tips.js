@@ -1,6 +1,5 @@
-import { store } from "../state/store.js";
-import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
+import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
@@ -38,6 +37,7 @@ const WIDGET_TEXTS = {
 // Fica sempre por último e é sempre incluído (o botão sempre existe na
 // tela), diferente dos widgets, que dependem do que o usuário montou.
 const ADD_WIDGET_STEP = {
+  id: "adicionar-widget",
   selector: "#carreira-add-widget",
   text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
   advanceOn: "interact",
@@ -54,8 +54,7 @@ let running = false;
  * registrado em screen-tips-registry.js por carreira.js, chamado pelo
  * botão de ajuda global (help-menu.js, etapa 6) quando "rever dicas
  * desta tela" é escolhido estando em Carreira. Roda incondicionalmente
- * e NÃO chama markScreenTipsSeen — é uma revisão, não afeta o
- * "visto/não visto" de quem ainda não tinha passado pela etapa 5.
+ * e NÃO marca nada como visto — é uma revisão.
  */
 export function replayCarreiraTips(grid, container) {
   if (running) return;
@@ -69,43 +68,30 @@ export function replayCarreiraTips(grid, container) {
   });
 }
 
+// MAN-05: ids das dicas que já existiam até a 1.12 — quem viu esta tela
+// antes da 1.14 não as vê de novo (components/dicas-novas.js). Dica nova
+// ou reescrita (id com "-2") fica FORA desta lista.
+const ATE_1_12 = [
+  "widget-carreira_perfil",
+  "widget-carreira_interesses",
+  "widget-carreira_posicoes",
+  "widget-carreira_formacoes",
+  "widget-carreira_salario",
+  "adicionar-widget",
+];
+
 /**
- * Dispara a sequência se: (a) o onboarding geral já foi concluído —
- * não queremos os dois tutoriais competindo pela tela ao mesmo tempo —
- * e (b) Carreira ainda não está em screen_tips_seen. Mesmo guard de
- * chamada repetida que Núcleo/Perfil/Finanças (`running` + o guard
- * interno de startTipSequence contra empilhamento).
+ * Ao abrir a tela, mostra as dicas que a pessoa ainda não viu (todas, na
+ * primeira vez; só as novas, com o rótulo "novidade", depois) — regras
+ * em components/dicas-novas.js. Seguro de chamar várias vezes (mount e
+ * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
-export async function maybeStartCarreiraTips(grid, container) {
-  if (running) return;
-  const profile = store.get("profile");
-  if (!profile?.onboarding_completed) return;
-
-  running = true;
-  let seen;
-  try {
-    seen = await getScreenTipsSeen();
-  } catch (err) {
-    console.error("erro ao checar dicas já vistas de carreira:", err);
-    running = false;
-    return;
-  }
-  if (seen.seen.includes(SCREEN)) {
-    running = false;
-    return;
-  }
-
-  grid?.lockForTips();
-  startTipSequence(buildSteps(container), {
-    onFinish: async () => {
-      grid?.unlockForTips();
-      running = false;
-      try {
-        await markScreenTipsSeen(SCREEN);
-      } catch (err) {
-        // não trava nada — pior caso: a sequência reaparece no próximo boot
-        console.error("erro ao marcar dicas de carreira como vistas:", err);
-      }
-    },
+export function maybeStartCarreiraTips(grid, container) {
+  return mostrarDicasNovas({
+    tela: SCREEN,
+    passos: () => buildSteps(container),
+    ate112: ATE_1_12,
+    antes: () => grid?.lockForTips(),
+    depois: () => grid?.unlockForTips(),
   });
 }

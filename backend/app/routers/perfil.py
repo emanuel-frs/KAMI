@@ -89,6 +89,16 @@ class ScreenTipsOut(BaseModel):
     seen: list[str]
 
 
+class DicasOut(BaseModel):
+    vistas: list[str]
+    telas_antigas: list[str]
+
+
+class DicasVistasIn(Entrada):
+    # uma sequência tem no máximo ~15 dicas; 100 é folga, não limite real
+    dicas: list[str] = Field(..., max_length=100)
+
+
 def _get_profile_row(db):
     row = db.execute("SELECT * FROM user_profile LIMIT 1").fetchone()
     if not row:
@@ -228,3 +238,30 @@ def mark_screen_tips_seen(screen: str, db=Depends(get_db)):
     db.commit()
     rows = db.execute("SELECT screen FROM screen_tips_seen").fetchall()
     return {"seen": [r["screen"] for r in rows]}
+
+
+def _dicas(db):
+    vistas = [r["dica"] for r in db.execute("SELECT dica FROM dicas_vistas ORDER BY dica")]
+    telas = [r["screen"] for r in db.execute("SELECT screen FROM screen_tips_seen ORDER BY screen")]
+    return {"vistas": vistas, "telas_antigas": telas}
+
+
+@router.get("/dicas", response_model=DicasOut)
+def get_dicas_vistas(db=Depends(get_db)):
+    """
+    MAN-05: dicas já vistas, uma a uma ('<tela>/<id>'), e as telas
+    marcadas pelo esquema antigo (por tela, até a 1.13). Quem decide o
+    que mostrar é o frontend (components/dicas-novas.js): numa tela
+    antiga, as dicas que já existiam até a 1.12 contam como vistas.
+    """
+    return _dicas(db)
+
+
+@router.put("/dicas", response_model=DicasOut)
+def marcar_dicas_vistas(payload: DicasVistasIn, db=Depends(get_db)):
+    """Marca dicas como vistas (idempotente; a data da primeira vez fica)."""
+    agora = now_iso()
+    for dica in payload.dicas:
+        db.execute("INSERT OR IGNORE INTO dicas_vistas (dica, vista_em) VALUES (?, ?)", (dica, agora))
+    db.commit()
+    return _dicas(db)

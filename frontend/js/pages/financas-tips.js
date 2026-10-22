@@ -1,6 +1,5 @@
-import { store } from "../state/store.js";
-import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
+import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
@@ -46,13 +45,15 @@ const WIDGET_TEXTS = {
 // comentário acima) e também reforça, pra quem já montou algo, que dá
 // pra continuar adicionando.
 const ADD_WIDGET_STEP = {
+  id: "adicionar-widget",
   selector: "#financas-add-widget",
   text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
   advanceOn: "interact",
 };
 
 function buildSteps(container) {
-  return [...buildWidgetSteps(container, WIDGET_TEXTS), ADD_WIDGET_STEP];
+  // MAN-05: contas_fixas ganhou o sino na 1.13 — texto reescrito, aparece de novo
+  return [...buildWidgetSteps(container, WIDGET_TEXTS, { contas_fixas: 2 }), ADD_WIDGET_STEP];
 }
 
 let running = false;
@@ -75,40 +76,36 @@ export function replayFinancasTips(grid, container) {
   });
 }
 
+// MAN-05: ids das dicas que já existiam até a 1.12 — quem viu esta tela
+// antes da 1.14 não as vê de novo (components/dicas-novas.js). Dica nova
+// ou reescrita (id com "-2") fica FORA desta lista.
+const ATE_1_12 = [
+  "widget-carteira",
+  "widget-financas_resumo",
+  "widget-financas_renda",
+  "widget-financas_registros",
+  "widget-financas_assinaturas",
+  "widget-dividas",
+  "widget-compras_parceladas",
+  "widget-financas_grafico_fluxo",
+  "widget-financas_grafico_categorias",
+  "widget-financas_grafico_evolucao",
+  "widget-financas_grafico_limites",
+  "adicionar-widget",
+];
+
 /**
- * Dispara a sequência se: (a) o onboarding geral já foi concluído e
- * (b) Finanças ainda não está em screen_tips_seen. Mesmo guard de
- * chamada repetida que Núcleo/Perfil.
+ * Ao abrir a tela, mostra as dicas que a pessoa ainda não viu (todas, na
+ * primeira vez; só as novas, com o rótulo "novidade", depois) — regras
+ * em components/dicas-novas.js. Seguro de chamar várias vezes (mount e
+ * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
-export async function maybeStartFinancasTips(grid, container) {
-  if (running) return;
-  const profile = store.get("profile");
-  if (!profile?.onboarding_completed) return;
-
-  running = true;
-  let seen;
-  try {
-    seen = await getScreenTipsSeen();
-  } catch (err) {
-    console.error("erro ao checar dicas já vistas de finanças:", err);
-    running = false;
-    return;
-  }
-  if (seen.seen.includes(SCREEN)) {
-    running = false;
-    return;
-  }
-
-  grid?.lockForTips();
-  startTipSequence(buildSteps(container), {
-    onFinish: async () => {
-      grid?.unlockForTips();
-      running = false;
-      try {
-        await markScreenTipsSeen(SCREEN);
-      } catch (err) {
-        console.error("erro ao marcar dicas de finanças como vistas:", err);
-      }
-    },
+export function maybeStartFinancasTips(grid, container) {
+  return mostrarDicasNovas({
+    tela: SCREEN,
+    passos: () => buildSteps(container),
+    ate112: ATE_1_12,
+    antes: () => grid?.lockForTips(),
+    depois: () => grid?.unlockForTips(),
   });
 }
