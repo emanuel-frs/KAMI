@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.14.0] - em desenvolvimento
+
+_Sprint 6 da evolução — fundação para a 2.0 (MAN-01 a MAN-05, CONF-08, CONF-09, DIST-01 a DIST-03: dicas novas para quem já usa o app, arquivos grandes divididos, ferramentas fixadas, conferência automática da release, backup automático, testes ponta a ponta de todas as telas, aviso de versão nova, aviso claro do SmartScreen e desinstalação limpa). Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.13.0] - 2026-10-21
 
 _Sprint de organização: notas, captura rápida, busca em tudo, hábitos, lembretes com notificação do sistema e datas no formato do seu país._
