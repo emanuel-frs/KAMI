@@ -40,6 +40,10 @@ jobs:
 
       # CONF-04: piso de cobertura — não pode cair. Sobe aos poucos conforme
       # entram testes novos (era 89% no backend e 77% no frontend em 2026-10-17).
+      # MAN-03: o Node 22 contava os próprios arquivos de teste na cobertura
+      # do frontend; o Node 24 não conta. O número real era 72,7% — o piso
+      # (package.json, test:coverage) foi rebaixado pra ele e volta a subir
+      # com os testes novos.
       - name: Run backend tests (coverage floor)
         working-directory: backend
         run: pytest --cov=app --cov-report=term --cov-fail-under=89
