@@ -58,7 +58,7 @@ export function renderTracks() {
     listEl.innerHTML = `<div class="empty-state">nenhuma trilha criada.</div>`;
     return;
   }
-  const sorted = [...tracks].sort((a, b) => a.position - b.position);
+  const sorted = [...estado.tracks].sort((a, b) => a.position - b.position);
   // lista de seleção única: 1 parada de Tab (a trilha selecionada, ou a
   // primeira) e setas percorrem as demais — ver setupListEvents().
   listEl.setAttribute("role", "listbox");
@@ -333,7 +333,7 @@ export async function mount(container) {
   }
 
   if (!estado.selectedTrackId && estado.tracks.length > 0) {
-    const sorted = [...tracks].sort((a, b) => a.position - b.position);
+    const sorted = [...estado.tracks].sort((a, b) => a.position - b.position);
     estado.selectedTrackId = sorted[0].id;
     await refreshMilestones();
     renderTracks();

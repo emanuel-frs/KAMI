@@ -180,7 +180,7 @@ function startTrackDrag(item, startEvent) {
 // ─── Eventos da lista de trilhas ────────────────────────────────────────
 
 async function moveTrackByKeyboard(id, delta) {
-  const ids = [...tracks].sort((a, b) => a.position - b.position).map((t) => t.id);
+  const ids = [...estado.tracks].sort((a, b) => a.position - b.position).map((t) => t.id);
   const from = ids.indexOf(id);
   const to = from + delta;
   if (from === -1 || to < 0 || to >= ids.length) return;
