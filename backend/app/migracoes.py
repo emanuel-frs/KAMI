@@ -30,7 +30,7 @@ def _migrate_email_cache_body_preview(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE email_cache ADD COLUMN body_preview TEXT")
     # ORG-06: texto completo limpo + Message-ID (ver schema.sql). E-mails
     # antigos ficam com NULL e são completados na próxima sincronização
-    # que os trouxer de novo (routers/organizacao.py).
+    # que os trouxer de novo (routers/organizacao/emails.py).
     if "body_text" not in cols:
         conn.execute("ALTER TABLE email_cache ADD COLUMN body_text TEXT")
     if "body_cortado" not in cols:
@@ -342,7 +342,7 @@ def _migrate_github_repos_source(conn: sqlite3.Connection) -> None:
     """
     Migração leve pra quem já tinha um kami.db criado antes das colunas
     source/owner_login existirem (importação automática de repositórios
-    ao conectar/trocar o token — ver organizacao.py, PUT /github-token).
+    ao conectar/trocar o token — ver routers/organizacao/github.py, PUT /github-token).
     DEFAULT 'manual' pra não quebrar repos já cadastrados: continuam
     sendo tratados como cadastro manual (nunca removidos automaticamente
     numa troca de token), que é exatamente o comportamento que já tinham

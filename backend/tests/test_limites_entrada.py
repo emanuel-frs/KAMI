@@ -184,8 +184,9 @@ def _input_models():
 
     nomes = {body["$ref"].split("/")[-1] for _m, _p, body in WRITE_ROUTES}
     achados = {}
-    for mod in pkgutil.iter_modules(routers_pkg.__path__):
-        module = __import__(f"app.routers.{mod.name}", fromlist=["x"])
+    # walk_packages: desde o MAN-02 um router pode ser pacote (organizacao/)
+    for mod in pkgutil.walk_packages(routers_pkg.__path__, prefix="app.routers."):
+        module = __import__(mod.name, fromlist=["x"])
         for nome, obj in inspect.getmembers(module, inspect.isclass):
             if nome in nomes and obj.__module__ == module.__name__:
                 achados[nome] = obj

@@ -1,7 +1,7 @@
 """
 Testes da importação automática de repositórios do GitHub, disparada ao
 salvar o token (PUT /api/organizacao/github-token) — ver
-_auto_import_repos em app/routers/organizacao.py.
+_auto_import_repos em app/routers/organizacao/github.py.
 
 Cobre os três requisitos:
   1. conectar o token pela primeira vez importa todos os repositórios

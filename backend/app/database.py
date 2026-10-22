@@ -75,7 +75,7 @@ def get_connection() -> sqlite3.Connection:
     # timeout=30: quanto tempo o sqlite espera por um lock liberado antes de
     # estourar "database is locked" (default do driver é só 5s — curto
     # demais pra operações que ficam mais tempo com a conexão aberta, tipo
-    # o sync de e-mail via IMAP; ver sync_email_account em routers/organizacao.py).
+    # o sync de e-mail via IMAP; ver sync_email_account em routers/organizacao/emails.py).
     conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

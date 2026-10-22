@@ -2,7 +2,7 @@
  * pages/organizacao.js — módulo Organização (v1).
  *
  * Três abas: links, github, e-mail — espelha os três "tipos de fonte" do
- * router (app/routers/organizacao.py). Layout fixo (não usa o grid
+ * router (app/routers/organizacao/). Layout fixo (não usa o grid
  * configurável de dashboard_widgets — só Perfil e Núcleo usam isso).
  *
  * Contrato de app.js: mount(container) / unmount(). container é o
