@@ -56,6 +56,34 @@ fn salvar(dir: &PathBuf, prefs: &Preferencias) -> Result<(), String> {
     std::fs::write(arquivo(dir), texto).map_err(|e| format!("não foi possível salvar as preferências da janela: {}", e))
 }
 
+/// Instância única (ORG-05): abrir o kami de novo mostra a janela que já
+/// está aberta em vez de uma segunda.
+///
+/// CONF-09: com `KAMI_DATA_DIR` definido (modo demo, testes, e2e) a
+/// "identidade" da instância passa a ser a pasta de dados — no Linux o
+/// plugin aceita um nome próprio no D-Bus. Sem isso, um Kami de verdade
+/// aberto na bandeja recebia o app do teste (que fechava na hora) e o e2e
+/// não rodava na máquina de quem usa o app. Sem a variável nada muda: o
+/// nome continua o identificador do app. No Windows o plugin não tem essa
+/// opção (o e2e de lá roda no CI, sem outro Kami aberto).
+pub fn instancia_unica() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    let builder = tauri_plugin_single_instance::Builder::new().callback(|app, _args, _cwd| mostrar(app));
+    #[cfg(target_os = "linux")]
+    let builder = match std::env::var_os("KAMI_DATA_DIR").filter(|d| !d.is_empty()) {
+        Some(dir) => {
+            use std::hash::{Hash, Hasher};
+            // DefaultHasher::new() tem chave fixa: a mesma pasta dá o mesmo
+            // nome em toda execução (é o que a segunda instância precisa)
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            dir.hash(&mut h);
+            // parte de nome D-Bus não pode começar com dígito → "d" na frente
+            builder.dbus_id(format!("com.kami.app.d{:016x}", h.finish()))
+        }
+        None => builder,
+    };
+    builder.build()
+}
+
 /// Mostra a janela principal (da bandeja, da segunda instância…).
 pub fn mostrar(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {

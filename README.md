@@ -326,17 +326,32 @@ npm install && npm test  # frontend (runner nativo do Node)
 O CI roda essas duas suítes no Linux e no Windows em todo PR.
 
 **Teste ponta a ponta** (`tests/e2e/kami-e2e.mjs`): abre o app compilado
-com dados fictícios, passa pelas 8 telas em 3 tamanhos de janela e tira
-prints. Também registra uma ação pela interface, derruba o backend para
-conferir que ele volta sozinho e verifica que o log terminou sem erros. No
-CI ele roda em PRs para `main`, em `release/**` e no disparo manual, e os
-prints viram artefato do workflow. Para rodar no Linux, é preciso o
-`WebKitWebDriver` (pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o
-`tauri-driver` (`cargo install tauri-driver --locked`):
+com dados fictícios, passa pelas 9 telas em 3 tamanhos de janela e tira
+prints. Também registra uma ação pela interface e percorre, com teclado de
+verdade, a captura rápida (`Alt+Q`, inclusive um lembrete que tem que
+disparar), a paleta (`Ctrl+K`), uma nota criada, editada, trancada e
+destrancada, o formato das datas, a cópia automática com restauração, o
+PIN (liga, reabre o app, desbloqueia, desliga), a bandeja com a segunda
+instância e o início com o sistema. Derruba o backend para conferir que ele
+volta sozinho e verifica que o log terminou sem erros. No CI ele roda em
+PRs para `main`, em `release/**` e no disparo manual, e os prints viram
+artefato do workflow. Para rodar no Linux, é preciso o `WebKitWebDriver`
+(pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o `tauri-driver`
+(`cargo install tauri-driver --locked`). Pode rodar com o seu Kami aberto:
+o app do teste usa uma pasta pessoal descartável, não mexe no cofre de
+senhas e não conversa com a instância de verdade. Leva uns 4 minutos;
+`KAMI_E2E_RAPIDO=1` usa um tamanho de janela só.
 
 ```bash
 ./scripts/build_sidecar.sh && (cd src-tauri && cargo tauri build --debug --no-bundle)
 KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
+```
+
+No GNOME dá pra rodar sem janela na tela, num monitor virtual:
+
+```bash
+mutter --headless --wayland --no-x11 --wayland-display=kami-e2e --virtual-monitor 2000x1200 &
+WAYLAND_DISPLAY=kami-e2e KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
 ```
 
 ### Build de produção

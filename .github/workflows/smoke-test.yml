@@ -12,7 +12,10 @@ permissions:
 
 # CONF-03: o teste ponta a ponta (tests/e2e/kami-e2e.mjs) abre o app
 # compilado de verdade em Linux e Windows, passa pelas telas em 3 tamanhos
-# e guarda os prints como artefato. Roda só em PR pra main, em push pra
+# e guarda os prints como artefato. CONF-09: também os fluxos que vieram
+# depois (captura, paleta, notas, lembretes, PIN, cópias, formato de data,
+# bandeja e início com o sistema) — leva ~2,5 min a mais por sistema, metade
+# tudo esperando o lembrete disparar. Roda só em PR pra main, em push pra
 # release/** e no disparo manual (decisão P-02) — reaproveita o app que os
 # jobs de build já compilam, então não refaz build nenhum.
 env:

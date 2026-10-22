@@ -442,7 +442,7 @@ fn main() {
         // ORG-05 (P-67/P-68): abrir o kami de novo mostra a janela que já
         // está aberta (ou escondida na bandeja) em vez de uma segunda — tem
         // que ser o primeiro plugin registrado
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| janela::mostrar(app)))
+        .plugin(janela::instancia_unica())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![janela::ARG_OCULTO]),
