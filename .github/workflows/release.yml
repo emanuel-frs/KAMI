@@ -40,6 +40,10 @@ jobs:
             exit 1
           fi
 
+      # MAN-04: versões, CHANGELOG, marcadores e a tag no commit de release
+      - name: Check release readiness
+        run: ./scripts/conferir-release.sh --tag "$GITHUB_REF_NAME"
+
   build-linux:
     name: Build Linux installers
     needs: check-version

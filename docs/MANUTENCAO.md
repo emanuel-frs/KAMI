@@ -80,6 +80,8 @@ Exemplo: a última publicada é a 2.0.0 e apareceu um bug.
 2. Corrija, com teste; rode `pytest` e `npm test`.
 3. `./scripts/bump-version.sh 2.0.1 --no-tag`, reescreva a entrada do
    `CHANGELOG.md` à mão e faça o commit `chore(release): v2.0.1`.
+   `./scripts/conferir-release.sh` tem que terminar em "pronto pra
+   release" (o CI do PR e o `release.yml` rodam o mesmo script).
 4. PR para `main` (o CI roda o e2e), merge com merge commit, tag **no
    commit de release** (`git tag -a v2.0.1 <commit> -m v2.0.1 && git push
    origin v2.0.1`). O `release.yml` gera e publica os instaladores; não

@@ -58,7 +58,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
+          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh scripts/conferir-release.sh
+
+      # MAN-04: no PR pra main (e na branch release/**) o repositório tem que
+      # estar pronto pra virar release — versões iguais, CHANGELOG com data,
+      # nenhum marcador esquecido. Nas outras branches a entrada do CHANGELOG
+      # ainda é "em desenvolvimento", então não roda.
+      - name: Check release readiness
+        if: env.RUN_E2E == 'true' && github.event_name != 'workflow_dispatch'
+        run: ./scripts/conferir-release.sh
 
   # CONF-03: mesmas suítes no Windows, em todo PR (decisão do Emanuel) —
   # pega diferença de caminho (\ vs /), fuso, encoding e fim de linha.
