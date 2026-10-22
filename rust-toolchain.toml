@@ -1,0 +1,6 @@
+# MAN-03: versão do Rust fixada pra build reproduzível (local e CI usam a
+# mesma). Pra subir: troque aqui e o `toolchain:` dos workflows em
+# .github/workflows/ — ver docs/FLUXO-DE-DESENVOLVIMENTO-E-RELEASE.md,
+# "Voltando depois de muito tempo".
+[toolchain]
+channel = "1.97.1"

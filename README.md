@@ -258,10 +258,14 @@ que funcionou, o que travou e em que sistema. Pull requests podem ser recusados,
 
 ### Requisitos
 
-- Python 3.11 ou superior (o CI usa 3.11)
-- Node.js 22 (só para os testes do frontend)
-- Rust e a Tauri CLI (`cargo install tauri-cli --version "^2" --locked`), só para o modo desktop
+- Python 3.14 (`.python-version`; é o que o CI usa e o que vai dentro do backend empacotado)
+- Node.js 24 (`.nvmrc`; só para os testes do frontend)
+- Rust na versão de `rust-toolchain.toml` (o `rustup` instala sozinho) e a Tauri CLI
+  (`cargo install tauri-cli --version "^2" --locked`), só para o modo desktop
 - Dependências de sistema do Tauri no Linux: veja [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
+
+Voltando ao projeto depois de muito tempo (versões, runners do CI, dependências, soltar uma correção):
+[docs/MANUTENCAO.md](./docs/MANUTENCAO.md).
 
 ### Backend
 
