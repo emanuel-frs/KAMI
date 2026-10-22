@@ -38,9 +38,13 @@ export function novaVisitaDeTela() {
   avaliadas.clear();
 }
 
-/** Função pura (testada): os passos ainda não vistos de `tela`. */
+/** Função pura (testada): os passos ainda não vistos de `tela`.
+ * `<tela>/*` em `vistas` = todas as dicas da tela, inclusive as que vierem
+ * depois — só o modo demo usa (scripts/seed_demo.py), pra abrir o app como
+ * quem já viu tudo. */
 export function dicasPendentes(tela, passos, { vistas = [], telas_antigas = [] } = {}, ate112 = []) {
   const vistasSet = new Set(vistas);
+  if (vistasSet.has(`${tela}/*`)) return [];
   const legado = telas_antigas.includes(tela) ? new Set(ate112) : new Set();
   return passos.filter((p) => !vistasSet.has(`${tela}/${p.id}`) && !legado.has(p.id));
 }

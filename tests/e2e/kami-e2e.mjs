@@ -12,7 +12,8 @@
  *   3. registra uma ação pela interface (widget "registrar ação");
  *   4. CONF-09 — os fluxos que chegaram depois da Sprint 2, pela interface
  *      e com teclado de verdade (WebDriver Actions): captura (Alt+Q) e um
- *      lembrete criado por ela que tem que disparar; paleta (Ctrl+K); nota
+ *      lembrete criado por ela que tem que disparar; dicas revistas pela
+ *      ajuda (Ctrl+K não abre por baixo, Esc fecha); paleta (Ctrl+K); nota
  *      criada e editada; formato das datas; cópia automática + restaurar;
  *   5. derruba o backend e confere que o vigia (CONF-02) o traz de volta
  *      sozinho, sem fechar o app;
@@ -185,24 +186,13 @@ async function main() {
   const clicar = (sel) => wd.execute(`const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("não achei ${sel.replace(/"/g, "'")}"); e.click()`);
   const focar = (sel) => wd.execute(`const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("não achei ${sel.replace(/"/g, "'")}"); e.focus()`);
   const print = async (nome) => writeFileSync(join(OUT, `${nome}.png`), await wd.screenshot());
-  // MAN-05: a primeira visita a cada tela mostra a sequência de dicas
-  // (o demo marca as telas pelo esquema antigo, então vêm as "novidades").
-  // Na primeira que aparecer, confere que o Ctrl+K não abre a paleta por
-  // baixo dela (a dica fica por cima e o Esc é dela — achado no CONF-09);
-  // depois "pular tudo", como a pessoa faria, pra dica não cobrir o print.
-  let paletaComDicaConferida = false;
+  // o demo marca todas as dicas como vistas; se alguma aparecer mesmo
+  // assim (dica nova que o seed não cobre), "pular tudo" pra não cobrir o
+  // print — e avisa, porque o modo demo deveria abrir limpo
   const pularDicas = async () => {
-    const apareceu = await waitFor("a sequência de dicas", () => visivel(".tip-seq-root"), { timeout: 2500, every: 250 }).catch(() => false);
+    const apareceu = await waitFor("a sequência de dicas", () => visivel(".tip-seq-root"), { timeout: 1500, every: 250 }).catch(() => false);
     if (!apareceu) return;
-    if (!paletaComDicaConferida) {
-      paletaComDicaConferida = true;
-      await wd.keys("Control+k");
-      await sleep(400);
-      if (await visivel("#paleta")) {
-        fail("Ctrl+K abriu a paleta por baixo da sequência de dicas");
-        await wd.execute("document.getElementById('paleta').hidden = true");
-      }
-    }
+    log(`  (dica apareceu em ${await wd.execute("return document.querySelector('.nav-link.active')?.dataset.page")} — o seed não marcou)`);
     await clicar(".tip-seq-root .tip-skip");
     await waitFor("as dicas fecharem", async () => !(await visivel(".tip-seq-root")), { timeout: 5000 });
   };
@@ -346,6 +336,24 @@ async function main() {
       await clicar('#lembrete-modal [data-action="save"]');
       lembrete = await waitFor("o lembrete salvo", async () =>
         (await api("/api/lembretes")).body?.find((l) => /lembrete do e2e/.test(l.titulo)), { timeout: 10000 });
+    });
+
+    await etapa("dicas: rever pela ajuda; Ctrl+K não abre por baixo e Esc fecha", async () => {
+      // a dica fica por cima da paleta e o Esc é dela (achado no CONF-09)
+      await irPara("habitos");
+      await clicar("#btn-open-help");
+      await waitFor("o menu de ajuda", () => visivel('#help-menu-pop [data-action="screen-tips"]'), { timeout: 5000 });
+      await clicar('#help-menu-pop [data-action="screen-tips"]');
+      await waitFor("a sequência de dicas", () => visivel(".tip-seq-root"), { timeout: 5000 });
+      await print("dicas-habitos");
+      await wd.keys("Control+k");
+      await sleep(400);
+      if (await visivel("#paleta")) {
+        await wd.execute("document.getElementById('paleta').hidden = true");
+        throw new Error("Ctrl+K abriu a paleta por baixo da sequência de dicas");
+      }
+      await wd.keys("Escape");
+      await waitFor("as dicas fecharem com Esc", async () => !(await visivel(".tip-seq-root")), { timeout: 5000 });
     });
 
     await etapa("paleta (Ctrl+K) leva pra tela escolhida", async () => {

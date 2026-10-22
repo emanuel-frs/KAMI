@@ -30,6 +30,13 @@ test("tela vista no esquema antigo: as dicas até a 1.12 contam como vistas, as 
   assert.equal(jaViuATela("metas", estado), true);
 });
 
+test("'<tela>/*' (modo demo): nenhuma dica daquela tela, nem as futuras", () => {
+  const estado = { vistas: ["habitos/*"], telas_antigas: [] };
+  assert.deepEqual(dicasPendentes("habitos", [...PASSOS, { id: "nova-da-1-20" }], estado, []), []);
+  assert.equal(dicasPendentes("metas", PASSOS, estado, []).length, 3);
+  assert.equal(jaViuATela("habitos", estado), true);
+});
+
 function stubsDeLayout(dom) {
   const prev = {
     raf: globalThis.requestAnimationFrame,
