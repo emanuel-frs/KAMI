@@ -42,8 +42,9 @@ jobs:
       # entram testes novos (era 89% no backend e 77% no frontend em 2026-10-17).
       # MAN-03: o Node 22 contava os próprios arquivos de teste na cobertura
       # do frontend; o Node 24 não conta. O número real era 72,7% — o piso
-      # (package.json, test:coverage) foi rebaixado pra ele e volta a subir
-      # com os testes novos.
+      # (package.json, test:coverage) foi rebaixado pra ele e, com os testes do
+      # modal de configurações (configuracoes-modal.test.js), subiu pra 80%
+      # (real: 81,5% em 2026-10-22).
       - name: Run backend tests (coverage floor)
         working-directory: backend
         run: pytest --cov=app --cov-report=term --cov-fail-under=89
