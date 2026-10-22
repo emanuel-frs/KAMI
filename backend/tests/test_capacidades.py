@@ -21,6 +21,7 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
         "core:window:allow-minimize",
         "core:window:allow-start-dragging",
         "core:window:allow-toggle-maximize",
+        "dialog:allow-open",  # CONF-08: só o seletor de pasta; devolve o caminho, não lê nem grava nada
         "notification:default",
         "opener:allow-open-url",
     ]

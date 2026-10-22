@@ -71,7 +71,9 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   e-mails, chaves, senhas, valores e a pasta pessoal antes de mostrar o
   texto.
 - **Superfície mínima do app.** A janela não tem permissão de shell,
-  arquivos nem processos; só abre links `http`/`https`. A CSP só roda o
+  arquivos nem processos; só abre links `http`/`https` e o seletor de
+  pasta do sistema (que só devolve o caminho escolhido — usado na pasta
+  extra das cópias automáticas). A CSP só roda o
   código do próprio app e só fala com o backend local. Um teste fixa essa
   lista — liberar algo novo é uma mudança consciente. Os únicos comandos
   novos (1.13) ligam e desligam a bandeja e o "iniciar com o sistema",

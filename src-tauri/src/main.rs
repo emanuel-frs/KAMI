@@ -450,6 +450,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(BackendStatus::default())
         .manage(janela::EstadoJanela(Mutex::new(janela::carregar(&kami_data_dir()))))

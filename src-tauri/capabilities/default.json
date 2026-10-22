@@ -16,6 +16,7 @@
         { "url": "http://*" }
       ]
     },
-    "notification:default"
+    "notification:default",
+    "dialog:allow-open"
   ]
 }

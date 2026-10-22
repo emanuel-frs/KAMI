@@ -36,6 +36,7 @@ export function copiasSectionHtml() {
         </div>
         <p class="settings-note">a cópia semanal também vai pra lá (o kami só grava e apaga os próprios arquivos kami-semanal-*.db). as senhas salvas vão cifradas com a chave <strong>deste</strong> computador: noutra máquina o resto abre, elas não — pra levar tudo, exporte com senha.</p>
         <div class="form-actions">
+          <button class="btn sm" id="cfg-copias-pasta-escolher" hidden>escolher pasta…</button>
           <button class="btn sm" id="cfg-copias-pasta-salvar">usar esta pasta</button>
           <button class="btn sm" id="cfg-copias-pasta-tirar" hidden>parar de copiar pra lá</button>
         </div>
@@ -131,7 +132,30 @@ async function restaurar(wrap, nome, quando) {
   }
 }
 
+/**
+ * Seletor de pasta do sistema (tauri-plugin-dialog, só a permissão
+ * dialog:allow-open). Só existe no app instalado — no navegador de dev o
+ * botão fica escondido e o caminho é digitado.
+ */
+async function escolherPasta(wrap) {
+  try {
+    const pasta = await window.__TAURI__.core.invoke("plugin:dialog|open", {
+      options: { directory: true, multiple: false, title: "pasta extra das cópias do kami" },
+    });
+    if (!pasta) return; // cancelou
+    wrap.querySelector("#cfg-copias-pasta").value = pasta;
+    salvarPasta(wrap, pasta);
+  } catch (err) {
+    status(wrap, "#cfg-copias-pasta-status", `não deu pra abrir o seletor: ${escapeHtml(String(err))} — escreva o caminho no campo`, true);
+  }
+}
+
 export function wireCopias(wrap) {
+  const escolher = wrap.querySelector("#cfg-copias-pasta-escolher");
+  if (window.__TAURI__?.core?.invoke) {
+    escolher.hidden = false;
+    escolher.addEventListener("click", () => escolherPasta(wrap));
+  }
   wrap.querySelector('.cfg-tab[data-tab="backup"]').addEventListener("click", () => carregarCopias(wrap));
   wrap.querySelector("#cfg-copias-agora").addEventListener("click", async () => {
     if (estado.busy) return;

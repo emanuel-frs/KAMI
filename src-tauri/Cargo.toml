@@ -16,6 +16,8 @@ tauri = { version = "2", features = ["image-png", "tray-icon"] } # image-png: se
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
+# CONF-08: seletor de pasta da pasta extra das cópias (só o diálogo "abrir", ver capabilities)
+tauri-plugin-dialog = "2"
 dirs = "7"
 # ORG-05: abrir o kami de novo mostra a janela escondida na bandeja; iniciar com o sistema
 tauri-plugin-single-instance = "2"
