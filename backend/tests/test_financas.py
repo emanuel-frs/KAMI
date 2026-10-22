@@ -1,4 +1,4 @@
-"""Testes do router app/routers/financas.py."""
+"""Testes do router app/routers/financas/ (renda, contas, lançamentos)."""
 import datetime
 
 from app.business_days import add_business_days, nth_business_day_of_month

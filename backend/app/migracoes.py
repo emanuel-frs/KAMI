@@ -223,7 +223,7 @@ def _migrate_income_v2(conn: sqlite3.Connection) -> None:
     """
     Substitui income_sources/income_entries pelo modelo v2 (renda
     recorrente genérica, CRUD completo, encadeamento — ver
-    app/routers/financas.py) — dropa as tabelas antigas em bancos
+    app/routers/financas/) — dropa as tabelas antigas em bancos
     criados antes desta mudança. Sem perda de dado real:
     income_sources/income_entries só continham dado semeado ("parte 1"/
     "parte 2" hardcoded, sem CRUD próprio antes disso), nunca algo que o

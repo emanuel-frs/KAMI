@@ -62,7 +62,7 @@ Endpoints:
   DELETE /api/organizacao/search-key                 remove a chave
   GET    /api/organizacao/search?q=...               busca via tavily — resumo + lista de resultados
 
-Regras de negócio / XP (mesmo padrão do financas.py — ação automática
+Regras de negócio / XP (mesmo padrão de Finanças — ação automática
 credita XP pequeno em 'organizacao'; ajuste os valores se não for o
 comportamento esperado):
   - adicionar um link:            +2xp

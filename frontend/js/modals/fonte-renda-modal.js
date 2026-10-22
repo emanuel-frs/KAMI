@@ -20,7 +20,7 @@ import { escapeHtml } from "../components/format.js";
  *                       cadastradas, exceto a própria em edição) + offset_dias_uteis
  *
  * `avulsa` esconde tipo_data inteiro e pede só data_avulsa — uma entrada
- * única, sem gerar novas ocorrências (ver app/routers/financas.py).
+ * única, sem gerar novas ocorrências (ver app/routers/financas/renda.py).
  *
  * `conta_id`/`categoria` são opcionais — mesmo padrão de contas fixas/
  * assinaturas: sem conta vinculada, pagar continua sendo só lembrete;

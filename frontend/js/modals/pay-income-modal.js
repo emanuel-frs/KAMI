@@ -81,7 +81,7 @@ function wireModal(wrap) {
  * @param {{ nome: string, valorEsperado: number, expectedDate: string, conta?: object }} opts
  *   `conta` opcional — só pra exibir de onde o dinheiro vai entrar; sem
  *   ela, marcar como paga continua sendo só lembrete (sem conta_id não
- *   há transação real, ver app/routers/financas.py::pay_income_entry).
+ *   há transação real, ver app/routers/financas/renda.py::pay_income_entry).
  * @returns {Promise<{valor_recebido:number, paid_date:string, atualizar_valor_fonte:boolean}|null>}
  */
 export function openPayIncomeModal({ nome, valorEsperado, expectedDate, conta = null }) {
