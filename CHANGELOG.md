@@ -21,6 +21,7 @@ _Fundação para a 2.0: aviso de versão nova pelo próprio app, cópias automá
 
 ### Corrigido
 - `Ctrl+K` abria a busca por baixo das dicas da tela, e o `Esc` fechava a dica em vez da busca
+- no Windows, ligar o iniciar com o sistema com o Kami aberto como administrador criava a entrada para todos os usuários do computador (e o desinstalador não a apagava); agora é sempre só para você, e desligar tira também uma entrada antiga dessas
 
 ### Testes
 - o teste ponta a ponta do app compilado (Linux e Windows) passa pelas 9 telas e, com teclado de verdade, pela captura, um lembrete que tem que disparar, a busca, notas (inclusive trancada), formato das datas, cópias com restauração, PIN, bandeja, iniciar com o sistema, atualização pelo app (Windows) e "remover tudo"

@@ -464,10 +464,6 @@ fn main() {
         // está aberta (ou escondida na bandeja) em vez de uma segunda — tem
         // que ser o primeiro plugin registrado
         .plugin(janela::instancia_unica())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![janela::ARG_OCULTO]),
-        ))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())

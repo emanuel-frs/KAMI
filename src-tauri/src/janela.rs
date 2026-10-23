@@ -6,7 +6,7 @@
 //!   rodando (e avisando os lembretes) com um ícone na bandeja — menu
 //!   "abrir kami", "captura rápida", "sair".
 //! - `iniciar_com_sistema`: registra o kami pra abrir no login
-//!   (tauri-plugin-autostart) com `--oculto`; com a bandeja ligada ele
+//!   (crate auto-launch, ver `inicio_com_sistema`) com `--oculto`; com a bandeja ligada ele
 //!   começa escondido nela, sem a bandeja abre a janela normal.
 //!
 //! Ficam num arquivo da máquina (`janela.json` na pasta de dados), não no
@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_autostart::ManagerExt;
+use auto_launch::{AutoLaunch, AutoLaunchBuilder, WindowsEnableMode};
 
 pub const ARG_OCULTO: &str = "--oculto";
 const ID_BANDEJA: &str = "kami-bandeja";
@@ -157,11 +157,38 @@ pub fn bandeja_ligada(app: &AppHandle) -> bool {
     app.state::<EstadoJanela>().0.lock().map(|p| p.bandeja).unwrap_or(false)
 }
 
+/// O início com o sistema, SEMPRE só pra pessoa que está usando
+/// (`HKCU\...\Run` no Windows, `~/.config/autostart` no Linux).
+///
+/// Antes era o tauri-plugin-autostart, que usa o modo "dinâmico" do
+/// auto-launch: com o Kami aberto como administrador ele gravava em
+/// `HKLM\...\Run` — iniciar com o sistema pra TODOS os usuários do PC, e
+/// uma entrada que o desinstalador (por usuário) não apaga. Achado no e2e
+/// do Windows da 1.14 (o runner do GitHub é administrador). Desligar
+/// continua tirando das duas (o auto-launch tenta o HKLM e ignora se não
+/// tiver permissão), então uma entrada antiga em HKLM some ao desligar.
+fn inicio_com_sistema(app: &AppHandle) -> Result<AutoLaunch, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    // AppImage: o caminho do próprio .AppImage, não o do executável montado
+    // em /tmp/.mount_* (que some quando o app fecha)
+    let caminho = std::env::var_os("APPIMAGE")
+        .filter(|_| cfg!(target_os = "linux"))
+        .map(PathBuf::from)
+        .unwrap_or(exe);
+    AutoLaunchBuilder::new()
+        .set_app_name(&app.package_info().name)
+        .set_app_path(&caminho.display().to_string())
+        .set_args(&[ARG_OCULTO])
+        .set_windows_enable_mode(WindowsEnableMode::CurrentUser)
+        .build()
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn janela_preferencias(app: AppHandle) -> Preferencias {
     let mut prefs = app.state::<EstadoJanela>().0.lock().unwrap().clone();
     // o registro de verdade é do sistema (a pessoa pode ter tirado de lá)
-    if let Ok(ligado) = app.autolaunch().is_enabled() {
+    if let Ok(ligado) = inicio_com_sistema(&app).and_then(|a| a.is_enabled().map_err(|e| e.to_string())) {
         prefs.iniciar_com_sistema = ligado;
     }
     prefs
@@ -182,7 +209,7 @@ pub fn janela_definir(app: AppHandle, campo: String, valor: bool) -> Result<Pref
             prefs.bandeja = valor;
         }
         "iniciar_com_sistema" => {
-            let auto = app.autolaunch();
+            let auto = inicio_com_sistema(&app)?;
             let r = if valor { auto.enable() } else { auto.disable() };
             r.map_err(|e| format!("não foi possível {} o início com o sistema: {}", if valor { "ligar" } else { "desligar" }, e))?;
             if valor {
@@ -261,7 +288,7 @@ pub fn conferir_autostart(app: &AppHandle) {
             return; // não é o nosso
         }
         let sumiu = programa_do_exec(&texto).map(|p| !std::path::Path::new(p).exists()).unwrap_or(false);
-        if sumiu && app.autolaunch().enable().is_ok() {
+        if sumiu && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
             autostart_com_tryexec();
         }
     }
@@ -271,8 +298,10 @@ pub fn conferir_autostart(app: &AppHandle) {
 
 /// "Remover tudo do Kami deste computador": desliga o início com o sistema.
 pub fn desligar_autostart(app: &AppHandle) {
-    if app.autolaunch().is_enabled().unwrap_or(false) {
-        let _ = app.autolaunch().disable();
+    if let Ok(auto) = inicio_com_sistema(app) {
+        if auto.is_enabled().unwrap_or(false) {
+            let _ = auto.disable();
+        }
     }
 }
 

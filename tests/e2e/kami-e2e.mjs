@@ -453,9 +453,15 @@ async function main() {
       // algo feito DEPOIS da cópia tem que sumir ao restaurar
       await api("/api/organizacao/entrada", { method: "POST", body: JSON.stringify({ texto: "depois da cópia" }) });
       await waitFor("o botão restaurar da cópia nova", () => visivel(`[data-restaurar="${nova.nome}"]`), { timeout: 8000 });
+      // restaurar recarrega a página: a marca some quando a página nova
+      // assume (sem esperar isso, a etapa seguinte derrubava o backend com
+      // a página antiga na tela e o aviso "de volta" sumia no reload —
+      // falhou assim no CI da 1.14)
+      await wd.execute("window.__antesDeRestaurar = true");
       await clicar(`[data-restaurar="${nova.nome}"]`);
       await waitFor("a confirmação", () => visivel("#cm-confirm-btn"), { timeout: 5000 });
       await clicar("#cm-confirm-btn");
+      await waitFor("a página recarregada", async () => !(await wd.execute("return !!window.__antesDeRestaurar").catch(() => true)), { timeout: 30000 });
       await waitFor("o app de volta depois de restaurar", async () => {
         const itens = (await api("/api/organizacao/entrada")).body;
         return Array.isArray(itens) && !itens.some((i) => i.texto === "depois da cópia") && itens.some((i) => i.texto === "ideia guardada pelo e2e");
