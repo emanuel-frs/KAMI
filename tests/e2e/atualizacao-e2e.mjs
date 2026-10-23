@@ -156,6 +156,8 @@ async function main() {
   if (noRun()) throw new Error("o iniciar com o sistema ficou depois de desinstalar");
   const depois = credenciais();
   if (depois.includes("chave-dos-segredos-0123456789abcdef")) {
+    const diag = join(process.env.TEMP || "", "kami-desinstalar.log");
+    log(`saída do gancho do desinstalador: ${existsSync(diag) ? readFileSync(diag, "latin1") : "(sem kami-desinstalar.log — o gancho não rodou o PowerShell)"}`);
     log(`cofre depois de desinstalar:\n${depois.split("\n").filter((l) => /kami|chave-dos-segredos/i.test(l)).join("\n")}`);
     throw new Error("a chave das senhas ficou no cofre");
   }
