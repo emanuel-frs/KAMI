@@ -107,9 +107,10 @@ confiar.
 Antes de executar:
 
 1. Baixe o instalador apenas da [página de Releases](https://github.com/emanuel-frs/KAMI/releases/latest) deste repositório.
-2. Baixe também o `SHA256SUMS` da mesma Release e compare o hash no PowerShell:
-   `Get-FileHash .\kami-<versão>-windows-x64-setup.exe -Algorithm SHA256`
-   (o valor deve ser idêntico ao da linha desse arquivo no `SHA256SUMS`).
+2. Compare o hash no PowerShell, na pasta do download:
+   `Get-FileHash .\kami-<versão>-windows-x64-setup.exe -Algorithm SHA256`.
+   O valor certo está impresso na própria página da Release, logo abaixo
+   da tabela de arquivos (e na linha desse arquivo no `SHA256SUMS`).
 3. Se quiser uma segunda opinião, envie o arquivo ao VirusTotal.
    Alguns motores podem apontar falso positivo em executáveis não
    assinados.
@@ -123,13 +124,13 @@ Windows → Proteção contra vírus e ameaças → Histórico de proteção**,
 onde a detecção pode ser permitida no dispositivo. Faça isso somente se a
 origem e o hash estiverem conferidos.
 
-O Smart App Control pode bloquear um aplicativo sem assinatura sem
-oferecer uma opção para liberá-lo naquela tela. Não desative as
-proteções do Windows para contornar esse bloqueio. As alternativas são
-usar uma instalação/máquina em que o aplicativo possa ser executado de
-acordo com a política local. Não há previsão de assinatura: a opção
-gratuita exige uma licença de código aberto, e o Kami não usa
-certificado pago — o aviso deve continuar aparecendo.
+O **Smart App Control** (Windows 11) é mais rígido: ele bloqueia
+aplicativos sem assinatura e não oferece um "executar assim mesmo". Com
+ele ligado, o Kami não instala nesta máquina — não desative a proteção
+só para isso. Não há previsão de assinatura: a opção gratuita exige uma
+licença de código aberto, e o Kami não usa certificado pago, então o
+aviso do SmartScreen continua aparecendo a cada versão, inclusive quando
+você atualiza pelo próprio app.
 
 ### Desinstalar e dados preservados
 

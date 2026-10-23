@@ -269,10 +269,17 @@ jobs:
           if [[ "$tag" == *-* ]]; then
             prerelease_args+=(--prerelease)
           fi
+          # DIST-02: a página de download diz o que mudou, qual arquivo
+          # baixar e, ao lado do .exe, o aviso do SmartScreen com o hash
+          python3 scripts/gerar_notas_release.py \
+            --versao "${tag#v}" \
+            --changelog CHANGELOG.md \
+            --sums release-assets/SHA256SUMS \
+            > "$RUNNER_TEMP/notas.md"
           gh release create "$tag" release-assets/* \
             --target "$GITHUB_SHA" \
             --title "Kami $tag" \
-            --notes "Ver CHANGELOG.md para o detalhamento desta versão." \
+            --notes-file "$RUNNER_TEMP/notas.md" \
             "${prerelease_args[@]}"
 
   verify-release:

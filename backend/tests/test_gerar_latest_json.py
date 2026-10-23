@@ -77,3 +77,35 @@ def test_assinatura_vazia_para_a_release(tmp_path):
     (tmp_path / "w.sig").write_text("ok", encoding="utf-8")
     with pytest.raises(ValueError, match="assinatura vazia"):
         g.gerar("1.15.0", "https://x", ("a", tmp_path / "vazia.sig"), ("w", tmp_path / "w.sig"))
+
+
+# ─── DIST-02: notas da página de download ───────────────────────────────
+
+NOTAS = Path(__file__).resolve().parents[2] / "scripts" / "gerar_notas_release.py"
+
+
+def _notas():
+    spec = importlib.util.spec_from_file_location("gerar_notas_release", NOTAS)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_notas_trazem_novidades_smartscreen_e_o_hash_do_exe():
+    sums = (
+        "aaa111  kami-1.15.0-linux-amd64.deb\n"
+        "abcdef0123  kami-1.15.0-windows-x64-setup.exe\n"
+        "bbb222  latest.json\n"
+    )
+    texto = _notas().gerar("1.15.0", CHANGELOG, sums)
+    assert "- idioma: 10 línguas." in texto  # a seção do CHANGELOG
+    assert "aviso de versão nova" not in texto  # e só ela
+    assert "editor desconhecido" in texto and "Executar assim mesmo" in texto
+    assert "Get-FileHash .\\kami-1.15.0-windows-x64-setup.exe -Algorithm SHA256" in texto
+    assert "`ABCDEF0123`" in texto  # o Get-FileHash mostra em maiúsculas
+    assert "kami-1.15.0-linux-x86_64.AppImage" in texto
+
+
+def test_notas_param_sem_o_exe_no_sha256sums():
+    with pytest.raises(ValueError, match="não está no SHA256SUMS"):
+        _notas().gerar("1.15.0", CHANGELOG, "aaa111  kami-1.15.0-linux-amd64.deb\n")
