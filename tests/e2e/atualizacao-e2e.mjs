@@ -154,7 +154,13 @@ async function main() {
   await waitFor("o programa desinstalado", () => !existsSync(exe), { timeout: 120000, every: 2000 });
   await waitFor("a pasta de dados apagada", () => !existsSync(dadosReais), { timeout: 30000, every: 1000 });
   if (noRun()) throw new Error("o iniciar com o sistema ficou depois de desinstalar");
-  const depois = credenciais();
+  // o uninstall.exe se copia pro %TEMP% e se reabre: o processo que a gente
+  // chamou termina na hora e a desinstalação segue sozinha — o PowerShell
+  // do gancho (o último passo) roda depois de a pasta sumir. Espera.
+  const depois = await waitFor("a chave sair do cofre", () => {
+    const lista = credenciais();
+    return lista.includes("chave-dos-segredos-0123456789abcdef") ? null : lista;
+  }, { timeout: 60000, every: 2000 }).catch(() => credenciais());
   if (depois.includes("chave-dos-segredos-0123456789abcdef")) {
     const diag = join(process.env.TEMP || "", "kami-desinstalar.log");
     log(`saída do gancho do desinstalador: ${existsSync(diag) ? readFileSync(diag, "latin1") : "(sem kami-desinstalar.log — o gancho não rodou o PowerShell)"}`);
