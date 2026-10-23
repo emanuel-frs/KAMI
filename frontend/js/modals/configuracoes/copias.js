@@ -95,9 +95,19 @@ function render(wrap, dados) {
   }
 }
 
+// Cada pedido da lista ganha um número e só o mais recente desenha: abrir a
+// aba pede a lista mais de uma vez, e uma resposta atrasada redesenhava a
+// lista velha por cima da de "copiar agora" (achado no e2e da 1.14)
+let pedido = 0;
+async function desenharDepois(wrap, promessa) {
+  const meu = ++pedido;
+  const dados = await promessa;
+  if (meu === pedido) render(wrap, dados);
+}
+
 export async function carregarCopias(wrap) {
   try {
-    render(wrap, await getBackups());
+    await desenharDepois(wrap, getBackups());
   } catch (err) {
     wrap.querySelector("#cfg-copias-lista").innerHTML = `<li class="settings-desc">não deu pra listar as cópias: ${escapeHtml(err.message)}</li>`;
   }
@@ -107,7 +117,7 @@ async function salvarPasta(wrap, pasta) {
   if (estado.busy) return;
   estado.busy = true;
   try {
-    render(wrap, await definirPastaExtra(pasta));
+    await desenharDepois(wrap, definirPastaExtra(pasta));
     if (pasta) status(wrap, "#cfg-copias-pasta-status", `${icon("check", { size: 12 })} pasta salva — a cópia mais recente já foi pra lá`);
   } catch (err) {
     status(wrap, "#cfg-copias-pasta-status", escapeHtml(err.message), true);
@@ -162,7 +172,7 @@ export function wireCopias(wrap) {
     if (estado.busy) return;
     estado.busy = true;
     try {
-      render(wrap, await copiarAgora());
+      await desenharDepois(wrap, copiarAgora());
       status(wrap, "#cfg-copias-status", `${icon("check", { size: 12 })} cópia feita`);
     } catch (err) {
       status(wrap, "#cfg-copias-status", escapeHtml(err.message), true);
