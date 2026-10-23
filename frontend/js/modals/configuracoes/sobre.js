@@ -127,7 +127,8 @@ function wireAtualizacao(wrap) {
       await procurarAgora();
       renderAtualizacao(wrap);
     } catch (err) {
-      status.textContent = `não deu pra procurar agora (${String(err?.message || err)}). confira a internet e tente de novo.`;
+      // o Rust já manda a mensagem pronta (sem rede, sem a lista de versões...)
+      status.textContent = String(err?.message || err);
       status.classList.add("settings-status--visible");
     } finally {
       agora.disabled = false;

@@ -84,7 +84,17 @@ pub async fn atualizacao_procurar(app: AppHandle) -> Result<Option<Disponivel>, 
     let update = updater(&app)?
         .check()
         .await
-        .map_err(|e| format!("não deu pra procurar atualizações: {}", e))?;
+        .map_err(|e| match e {
+            // o GitHub respondeu, mas sem um latest.json válido — é o caso
+            // até sair a primeira versão com o aviso (a 1.14.0)
+            tauri_plugin_updater::Error::ReleaseNotFound => {
+                "o GitHub respondeu, mas a página de versões ainda não tem a lista de atualizações do kami. as versões publicadas estão em github.com/emanuel-frs/KAMI/releases.".to_string()
+            }
+            tauri_plugin_updater::Error::Reqwest(_) | tauri_plugin_updater::Error::Network(_) => {
+                "sem conexão com o GitHub agora — confira a internet e tente de novo.".to_string()
+            }
+            e => format!("não deu pra procurar atualizações: {}", e),
+        })?;
     let resposta = update.as_ref().map(|u| Disponivel {
         versao: u.version.clone(),
         atual: u.current_version.clone(),
