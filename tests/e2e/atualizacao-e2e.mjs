@@ -155,7 +155,10 @@ async function main() {
   await waitFor("a pasta de dados apagada", () => !existsSync(dadosReais), { timeout: 30000, every: 1000 });
   if (noRun()) throw new Error("o iniciar com o sistema ficou depois de desinstalar");
   const depois = credenciais();
-  if (depois.includes("chave-dos-segredos-0123456789abcdef")) throw new Error("a chave das senhas ficou no cofre");
+  if (depois.includes("chave-dos-segredos-0123456789abcdef")) {
+    log(`cofre depois de desinstalar:\n${depois.split("\n").filter((l) => /kami|chave-dos-segredos/i.test(l)).join("\n")}`);
+    throw new Error("a chave das senhas ficou no cofre");
+  }
   if (!depois.includes("outro-programa")) throw new Error("a desinstalação apagou uma credencial que não é do Kami");
   execFileSync("cmdkey", ["/delete:kami-controle-e2e"], { stdio: "ignore" });
   log("desinstalado: programa, iniciar com o sistema, pasta de dados e chave no cofre — credencial de outro programa intacta");

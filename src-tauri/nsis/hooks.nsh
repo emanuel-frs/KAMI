@@ -35,7 +35,9 @@
     ${If} $DeleteAppDataCheckboxState = 1
       SetShellVarContext current
       RmDir /r "$APPDATA\kami"
-      nsExec::Exec `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$alvo = $$null; cmdkey /list | ForEach-Object { if ($$_ -match 'target=(\S+)\s*$$') { $$alvo = $$Matches[1] } elseif ($$alvo -and $$_ -match 'chave-dos-segredos-[0-9a-f]{16}\s*$$') { cmdkey ('/delete:' + $$alvo) | Out-Null; $$alvo = $$null } }"`
+      ; o alvo aparece como "LegacyGeneric:target=kami": tenta o nome completo
+      ; e o curto (cada versão do cmdkey aceita um)
+      nsExec::Exec `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$alvo = $$null; cmdkey /list | ForEach-Object { if ($$_ -match '(\S*target=\S+)\s*$$') { $$alvo = $$Matches[1] } elseif ($$alvo -and $$_ -match 'chave-dos-segredos-[0-9a-f]{16}\s*$$') { cmdkey ('/delete:' + $$alvo) | Out-Null; cmdkey ('/delete:' + ($$alvo -replace '^.*target=', '')) | Out-Null; $$alvo = $$null } }"`
       Pop $R9
     ${EndIf}
   ${EndIf}
