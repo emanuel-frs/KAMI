@@ -227,9 +227,9 @@ tem custo: alguns arquivos ficaram grandes (veja o roadmap).
 
 Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades por um tempo), o plano é:
 
-- **Base:** atualização avisada pelo próprio app (instala só quando você quiser), backup automático
-  (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada para trás, testes
-  automáticos cobrindo todas as telas e arquivos grandes divididos (`aprendizado.js`, `organizacao.py`).
+- ~~**Base:**~~ feito na 1.14: atualização avisada pelo próprio app (instala só quando você quiser),
+  backup automático (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada
+  para trás, testes automáticos cobrindo todas as telas e arquivos grandes divididos.
 - **Idiomas:** português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi.
 - **Assistente de IA (opcional, desligado por padrão):** chat, ações sempre com prévia e confirmação,
   avisos, e IA local rodando no seu computador. Nenhuma chave vem embutida.
