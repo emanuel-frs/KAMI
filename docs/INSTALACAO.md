@@ -128,6 +128,27 @@ para remover o Kami. A desinstalação do programa não deve apagar a pasta
 de dados do usuário: `%APPDATA%\kami`. O log do backend fica em
 `%APPDATA%\kami\kami-backend.log`.
 
+## Atualizar
+
+O Kami avisa no sino quando sai uma versão nova — ele **nunca baixa nem
+instala sozinho**. Para saber, consulta só a lista de versões da página de
+Releases (ao abrir e uma vez por dia); dá pra desligar em configurações ›
+sobre › "procurar atualizações", e lá também tem "procurar agora".
+
+- **Windows** e **AppImage**: "atualizar agora" (no sino ou em
+  configurações › sobre) guarda uma cópia do banco
+  (`backups/kami-antes-de-atualizar-…`), baixa a versão nova, confere a
+  assinatura das atualizações e instala; o Kami fecha e abre de novo já
+  atualizado. No Windows o SmartScreen pode mostrar "editor desconhecido"
+  de novo nessa hora — é o mesmo aviso da instalação (veja
+  [Windows sem assinatura](#windows-sem-assinatura)).
+- **`.deb`, `.rpm` e AUR**: o aviso aparece igual, mas quem atualiza é o
+  gerenciador de pacotes do sistema (baixe o pacote novo da Release e
+  instale por cima, ou `yay -Syu` no Arch). Os seus dados ficam.
+
+Avisos de versão de teste (`2.0.0-rc.1`, por exemplo) não aparecem: só
+versões publicadas.
+
 ## Dados, logs e diagnóstico
 
 | Sistema | Dados e log |
@@ -160,7 +181,7 @@ buscas e filtros no disco.
 | Arquivo | O que é |
 |---|---|
 | `kami.db` (e `kami.db-wal`, `kami.db-shm`) | todos os seus dados |
-| `backups/` | cópias automáticas do banco antes de atualizar para uma versão nova (as 3 últimas) |
+| `backups/` | cópias automáticas do banco: semanais (as 4 últimas), antes de ações grandes — importar, apagar tudo, redefinir a chave, restaurar, atualizar o app — (as 5 últimas) e antes de migrar o banco para uma versão nova (as 3 últimas) |
 | `kami-backend.log` (e `.old`) | o log do backend |
 | `backend_port.txt`, `backend_token.txt` | porta e token da execução atual; recriados a cada abertura |
 | `pin.json` | só com o PIN ligado: o hash do PIN e do código de recuperação |

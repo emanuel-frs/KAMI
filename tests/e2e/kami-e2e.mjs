@@ -66,6 +66,9 @@ const HOME_E2E = IS_WINDOWS ? null : mkdtempSync(join(tmpdir(), "kami-e2e-home-"
 const APP_ENV = {
   ...process.env,
   KAMI_DATA_DIR: DATA_DIR,
+  // DIST-01: o aviso de versão nova consultaria o GitHub 1 min depois de
+  // abrir — aqui vai pra um endereço local fechado e falha calado
+  KAMI_ATUALIZACAO_URL: "https://127.0.0.1:9/latest.json",
   ...(HOME_E2E && {
     HOME: HOME_E2E,
     XDG_CONFIG_HOME: join(HOME_E2E, ".config"),
@@ -409,6 +412,16 @@ async function main() {
         iso.test(await wd.execute("return document.getElementById('page-root').innerText")), { timeout: 8000 });
       await print("datas-iso");
       await api("/api/perfil", { method: "PUT", body: JSON.stringify({ formato_data: "sistema" }) });
+    });
+
+    await etapa("configurações › sobre mostra as atualizações (DIST-01)", async () => {
+      await clicar("#btn-open-settings");
+      await waitFor("configurações", () => visivel('.cfg-tab[data-tab="sobre"]'), { timeout: 5000 });
+      await clicar('.cfg-tab[data-tab="sobre"]');
+      await waitFor("a seção de atualizações", () => visivel("#cfg-atualiza"), { timeout: 5000 });
+      if (!(await wd.execute("return document.getElementById('cfg-atualiza-procurar').checked"))) throw new Error("\"procurar atualizações\" deveria começar ligado (P-88)");
+      await print("configuracoes-sobre");
+      await wd.keys("Escape");
     });
 
     await etapa("lembrete dispara na hora (aviso dentro do app)", async () => {

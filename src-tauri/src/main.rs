@@ -407,9 +407,25 @@ async fn restart_backend(
                 .to_string(),
         );
     }
+    // DIST-01: o backend caiu de propósito pra instalar a versão nova
+    if atualizacao::instalando() {
+        return Err("instalando a versão nova — o kami vai reabrir sozinho".to_string());
+    }
+    subir_backend_de_novo(&app);
+    Ok(())
+}
+
+/// Derruba o backend (DIST-01: antes de instalar uma versão nova).
+pub(crate) fn parar_backend(app: &tauri::AppHandle) {
     if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
         kill_backend(child);
     }
+}
+
+/// Derruba (se estiver de pé) e sobe um backend novo, numa geração nova —
+/// o "reiniciar" do vigia e a volta de uma instalação que falhou.
+pub(crate) fn subir_backend_de_novo(app: &tauri::AppHandle) {
+    parar_backend(app);
     {
         let status = app.state::<BackendStatus>();
         let mut state = status.0.lock().unwrap();
@@ -417,8 +433,7 @@ async fn restart_backend(
         state.failure = None;
         state.tail.clear();
     }
-    spawn_backend(&app);
-    Ok(())
+    spawn_backend(app);
 }
 
 /// Abre a pasta de dados com o kami-backend.log selecionado (ou só a
@@ -434,6 +449,7 @@ fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
     result.map_err(|e| format!("não foi possível abrir a pasta do log ({}): {}", kami_data_dir().display(), e))
 }
 
+mod atualizacao; // DIST-01: aviso de versão nova e atualização pelo app
 mod icone_tema; // ICO-01: ícone do app na cor de destaque
 mod janela; // ORG-05: bandeja e iniciar com o sistema
 
@@ -451,7 +467,9 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendProcess(Mutex::new(None)))
+        .manage(atualizacao::Pendente::default())
         .manage(BackendStatus::default())
         .manage(janela::EstadoJanela(Mutex::new(janela::carregar(&kami_data_dir()))))
         .invoke_handler(tauri::generate_handler![
@@ -462,7 +480,9 @@ fn main() {
             icone_tema::aplicar_icone_tema,
             janela::janela_preferencias,
             janela::janela_definir,
-            janela::janela_sair
+            janela::janela_sair,
+            atualizacao::atualizacao_procurar,
+            atualizacao::atualizacao_instalar
         ])
         .setup(|app| {
             // ORG-05: bandeja ligada → ícone já no começo; iniciado pelo

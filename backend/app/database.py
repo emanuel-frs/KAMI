@@ -130,6 +130,17 @@ NOTIF_COLUNAS = {
 }
 
 
+# DIST-01 (P-75/P-88): aviso de versão nova. O app só AVISA — quem baixa e
+# instala é a pessoa, quando quiser. `atualizacao_avisada`: a versão que já
+# contou no sino (o aviso não insiste: uma vez por versão); `..._pulada`:
+# "pular esta versão" (some do sino, continua em configurações › sobre).
+ATUALIZACAO_COLUNAS = {
+    "atualizacoes_procurar": "INTEGER NOT NULL DEFAULT 1",
+    "atualizacao_avisada": "TEXT",
+    "atualizacao_pulada": "TEXT",
+}
+
+
 # MAN-02: as migrações moram em app/migracoes.py; os nomes vêm pra cá pra
 # _init_db chamá-las como sempre (e quem troca uma delas aqui, nos testes,
 # continua trocando a que roda). Fica DEPOIS de new_id/now_iso/SOM_COLUNAS:
@@ -158,6 +169,7 @@ from app.migracoes import (
     _migrate_user_profile_sequencia_protecao,
     _migrate_user_profile_recompensas,
     _migrate_user_profile_notif_fora,
+    _migrate_user_profile_atualizacao,
     _migrate_user_profile_som,
     _migrate_missoes_widget,
     migrate_timestamps_to_local,
@@ -300,6 +312,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_user_profile_recompensas(conn)
     _migrate_user_profile_som(conn)
     _migrate_user_profile_notif_fora(conn)
+    _migrate_user_profile_atualizacao(conn)
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)

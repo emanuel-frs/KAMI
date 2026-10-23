@@ -90,11 +90,35 @@ Exemplo: a última publicada é a 2.0.0 e apareceu um bug.
    `git switch develop && git merge --ff-only origin/main` (ou merge
    normal, se `develop` andou).
 
-## Se a chave de assinatura das atualizações se perder
+## A chave de assinatura das atualizações
 
-(Vale depois do DIST-01, a atualização pelo app.) Os pacotes de
-atualização são assinados com uma chave própria do Tauri, guardada como
-secret do GitHub e numa cópia fora dele. Sem ela, quem já tem o app
-instalado não aceita mais as atualizações pelo app: a pessoa precisa
-baixar o instalador novo na página de releases uma vez. Nesse caso, gere
-uma chave nova, troque a pública no `tauri.conf.json` e avise na release.
+O aviso de versão nova (DIST-01) consulta o `latest.json` da última
+Release e, se a pessoa pede "atualizar agora", confere o pacote baixado
+com a **chave pública** que está em `src-tauri/tauri.conf.json` ›
+`plugins.updater.pubkey`. A **chave privada** (com senha) assina o
+AppImage e o instalador do Windows na release:
+
+- no GitHub: secrets `TAURI_SIGNING_PRIVATE_KEY` (o conteúdo do arquivo
+  `.key`) e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. O `release.yml` para
+  logo no começo se faltar um deles;
+- fora do GitHub: o arquivo `kami-updater.key` e a senha, guardados pelo
+  Emanuel (gerenciador de senhas / pendrive). Gerados em 2026-10-22 com
+  `cargo tauri signer generate`.
+
+Os builds do smoke test não assinam (`--config ci/sem-updater.json`): a
+chave só existe na release.
+
+**Trocar a chave sem perder ninguém:** publique uma versão assinada com a
+chave ANTIGA que já traga a pública NOVA no `tauri.conf.json`; quem
+atualizar por ela passa a aceitar a nova. Só depois troque os secrets.
+
+**Se a privada se perder:** quem já tem o app não aceita mais
+atualização pelo app (assinatura não confere) e precisa baixar o
+instalador novo na página de Releases uma vez. Gere uma chave nova,
+troque a pública no `tauri.conf.json` e os secrets, e avise nas notas da
+release.
+
+**Testar a atualização** sem publicar nada: compile com
+`--config ci/teste-atualizacao.json` (única configuração que aceita http)
+e aponte o app pra um servidor local com `KAMI_ATUALIZACAO_URL=http://127.0.0.1:<porta>/latest.json`
+— o `scripts/gerar_latest_json.py` monta o arquivo a partir dos `.sig`.

@@ -144,13 +144,14 @@ um backend em Python empacotado com PyInstaller, formato que antivírus às veze
 Passo a passo do SmartScreen, do Defender e do Smart App Control em
 [docs/INSTALACAO.md](./docs/INSTALACAO.md#windows-sem-assinatura).
 
-**Outras limitações:** sem atualização automática (baixe a nova Release), interface só em português e
-feriados do Brasil.
+**Outras limitações:** a atualização pelo app (só avisa; instala quando você pede) vale para o
+instalador do Windows e o AppImage — `.deb`, `.rpm` e AUR atualizam pelo gerenciador de pacotes;
+interface só em português e feriados do Brasil.
 
 ## Privacidade: o que sai da sua máquina
 
-Seus dados ficam num banco SQLite local. O app só acessa a internet quando você ativa uma integração.
-Sem isso, nada sai do computador. Não há telemetria nem conta de usuário.
+Seus dados ficam num banco SQLite local. O app só acessa a internet quando você ativa uma integração,
+e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria nem conta de usuário.
 
 | Destino | Quando | O que é enviado |
 |---|---|---|
@@ -158,6 +159,7 @@ Sem isso, nada sai do computador. Não há telemetria nem conta de usuário.
 | Seu provedor de e-mail (IMAP) | só se você cadastrar uma conta | usuário e senha de app, por conexão SSL |
 | `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
+| `github.com` (Releases do Kami) | ao abrir e uma vez por dia, com "procurar atualizações" ligado (padrão; desliga em configurações › sobre) | só o pedido do arquivo de versões (`latest.json`), sem nada seu; e o download da versão nova, se você pedir "atualizar agora" |
 | Microsoft (Windows) | só na instalação, se faltar o WebView2 | download do runtime |
 
 Senhas de app e tokens ficam cifrados no banco, com a chave no cofre do sistema (Gerenciador de

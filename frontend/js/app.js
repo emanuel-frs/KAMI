@@ -23,6 +23,7 @@ import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { startLembretesAgendador } from "./components/lembretes-agendador.js";
 import { iniciarCopiasAutomaticas } from "./components/copias-automaticas.js";
+import { iniciarAtualizacoes } from "./components/atualizacao.js";
 import { wireBandeja } from "./components/bandeja.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
@@ -364,6 +365,7 @@ async function boot() {
   await loadProfile();
   bootedWithBackend = !!store.get("profile");
   iniciarCopiasAutomaticas(); // CONF-08: cópia semanal mesmo com o app dias aberto na bandeja
+  iniciarAtualizacoes(); // DIST-01: só avisa de versão nova (e só se ligado)
   startProgressWatcher(); // depois do perfil: a foto inicial precisa do backend de pé
   startSidebarLevel();
   await showPage("nucleo"); // tela inicial

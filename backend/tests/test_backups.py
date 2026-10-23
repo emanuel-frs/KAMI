@@ -166,3 +166,13 @@ def test_extra_folder_is_not_exported(client, tmp_path):
     extra.mkdir()
     client.put("/api/backups/pasta-extra", json={"pasta": str(extra)})
     assert "sistema_info" not in client.get("/api/sistema/export").json()["tables"]
+
+
+def test_dist_01_copy_before_updating_the_app(client):
+    # P-90: o app pede a cópia logo antes de instalar uma versão nova
+    client.put("/api/perfil", json={"display_name": "antes da 1.15"})
+    resp = client.post("/api/backups/antes-de-atualizar")
+    assert resp.status_code == 200
+    antes = [c for c in resp.json()["copias"] if c["tipo"] == "antes"]
+    assert [c["acao"] for c in antes] == ["atualizar"]
+    assert _nome_profile(database.backups_dir() / antes[0]["nome"]) == "antes da 1.15"

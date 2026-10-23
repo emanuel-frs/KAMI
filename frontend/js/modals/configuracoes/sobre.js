@@ -8,6 +8,16 @@ import { copyText } from "../../components/clipboard.js";
 import { escapeHtml, localDateKey } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
+import {
+  temAtualizador,
+  estadoAtualizacao,
+  procurarAgora,
+  definirProcurar,
+  atualizarAgora,
+  verNovidades,
+  comoAtualiza,
+} from "../../components/atualizacao.js";
+import { store } from "../../state/store.js";
 
 // CONF-06: relato de problema (templates em .github/ISSUE_TEMPLATE)
 const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
@@ -24,6 +34,20 @@ export function buildSobrePanel() {
       <div class="settings-section" style="padding-top:0;">
         <h4>kami</h4>
         <p class="settings-desc" id="cfg-sobre-versao">versão —</p>
+      </div>
+      <div class="settings-section" id="cfg-atualiza" hidden>
+        <h4>atualizações</h4>
+        <p class="settings-desc">o kami avisa no sino quando sai uma versão nova — nunca baixa nem instala sozinho. pra saber, ele consulta só a lista de versões da página do kami no GitHub (ao abrir e uma vez por dia); nada seu vai junto.</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-atualiza-procurar">
+          <span>procurar atualizações<small>desligado, o kami não faz essa consulta nunca — dá pra ver as versões em github.com/emanuel-frs/KAMI/releases.</small></span>
+        </label>
+        <div class="form-actions">
+          <button class="btn sm" id="cfg-atualiza-agora">procurar agora</button>
+          <button class="btn sm primary" id="cfg-atualiza-instalar" hidden>atualizar agora</button>
+          <button class="btn sm" id="cfg-atualiza-novidades" hidden>ver novidades</button>
+        </div>
+        <p class="settings-status" id="cfg-atualiza-status" aria-live="polite"></p>
       </div>
       <div class="settings-section">
         <h4>diagnóstico</h4>
@@ -55,6 +79,64 @@ async function loadDiagnostico(wrap) {
   }
 }
 
+// ── atualizações (DIST-01) ─────────────────────────────────────────────
+// Só no app instalado (quem consulta é o Rust). Mostra sempre a versão
+// encontrada, mesmo a que foi "pulada" no sino.
+function renderAtualizacao(wrap) {
+  const sec = wrap.querySelector("#cfg-atualiza");
+  if (!sec) return;
+  const { disponivel, ultimaConsulta, ligado, instalando } = estadoAtualizacao();
+  wrap.querySelector("#cfg-atualiza-procurar").checked = ligado;
+  const instalar = wrap.querySelector("#cfg-atualiza-instalar");
+  instalar.hidden = !disponivel?.instalavel;
+  instalar.disabled = instalando;
+  instalar.textContent = instalando ? "atualizando…" : "atualizar agora";
+  wrap.querySelector("#cfg-atualiza-novidades").hidden = !disponivel;
+  const pulada = disponivel && disponivel.versao === store.get("profile")?.atualizacao_pulada;
+  const status = wrap.querySelector("#cfg-atualiza-status");
+  if (disponivel) {
+    status.textContent = `versão ${disponivel.versao} disponível${pulada ? " (pulada no sino)" : ""} — ${comoAtualiza(disponivel)}.`;
+  } else if (ultimaConsulta) {
+    status.textContent = `você está na versão mais recente (conferido às ${String(ultimaConsulta.getHours()).padStart(2, "0")}:${String(ultimaConsulta.getMinutes()).padStart(2, "0")}).`;
+  } else {
+    status.textContent = ligado ? "" : "procura desligada.";
+  }
+  status.classList.toggle("settings-status--visible", !!status.textContent);
+}
+
+function wireAtualizacao(wrap) {
+  const sec = wrap.querySelector("#cfg-atualiza");
+  if (!temAtualizador()) return;
+  sec.hidden = false;
+  window.addEventListener("kami:atualizacao", () => renderAtualizacao(wrap));
+  wrap.querySelector("#cfg-atualiza-procurar").addEventListener("change", async (e) => {
+    try {
+      await definirProcurar(e.target.checked);
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      showErrorModal(err.message, "erro ao salvar");
+    }
+  });
+  const agora = wrap.querySelector("#cfg-atualiza-agora");
+  agora.addEventListener("click", async () => {
+    const status = wrap.querySelector("#cfg-atualiza-status");
+    agora.disabled = true;
+    status.textContent = "procurando…";
+    status.classList.add("settings-status--visible");
+    try {
+      await procurarAgora();
+      renderAtualizacao(wrap);
+    } catch (err) {
+      status.textContent = `não deu pra procurar agora (${String(err?.message || err)}). confira a internet e tente de novo.`;
+      status.classList.add("settings-status--visible");
+    } finally {
+      agora.disabled = false;
+    }
+  });
+  wrap.querySelector("#cfg-atualiza-instalar").addEventListener("click", () => atualizarAgora());
+  wrap.querySelector("#cfg-atualiza-novidades").addEventListener("click", () => verNovidades());
+}
+
 function diagStatus(wrap, html) {
   const el = wrap.querySelector("#cfg-diag-status");
   el.innerHTML = html;
@@ -62,7 +144,11 @@ function diagStatus(wrap, html) {
 }
 
 export function wireSobreTab(wrap) {
-  wrap.querySelector('.cfg-tab[data-tab="sobre"]').addEventListener("click", () => loadDiagnostico(wrap));
+  wrap.querySelector('.cfg-tab[data-tab="sobre"]').addEventListener("click", () => {
+    loadDiagnostico(wrap);
+    renderAtualizacao(wrap);
+  });
+  wireAtualizacao(wrap);
   wrap.querySelector("#cfg-diag-copy").addEventListener("click", async () => {
     if (!diagText) await loadDiagnostico(wrap);
     const ok = diagText && (await copyText(diagText));

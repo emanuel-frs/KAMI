@@ -522,6 +522,15 @@ def _migrate_user_profile_notif_fora(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_atualizacao(conn: sqlite3.Connection) -> None:
+    """DIST-01: aviso de versão nova (ver database.ATUALIZACAO_COLUNAS)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    for col, tipo in database.ATUALIZACAO_COLUNAS.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {tipo}")
+    conn.commit()
+
+
 def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
     """GAM-13: colunas de som em user_profile (ver database.SOM_COLUNAS)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}

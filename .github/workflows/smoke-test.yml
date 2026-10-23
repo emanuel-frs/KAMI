@@ -145,7 +145,8 @@ jobs:
           source ../backend/.venv/bin/activate
           python -m pip install -r ../backend/requirements.txt pyinstaller
           bash ../scripts/build_sidecar.sh
-          cargo tauri build
+          # DIST-01: sem assinar pro updater — a chave só existe na release
+          cargo tauri build --config ci/sem-updater.json
 
       - name: Verify Linux runtime links
         working-directory: src-tauri
@@ -450,7 +451,8 @@ jobs:
 
       - name: Build NSIS installer
         working-directory: src-tauri
-        run: cargo tauri build
+        # DIST-01: sem assinar pro updater — a chave só existe na release
+        run: cargo tauri build --config ci/sem-updater.json
 
       - name: Install per-user and verify bundled sidecar
         shell: pwsh
@@ -553,6 +555,46 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # DIST-01: dois instaladores (a versão atual e a seguinte) assinados com
+      # uma chave DESCARTÁVEL gerada aqui — a da release nunca entra no CI de
+      # PR — e com http liberado (ci/teste-atualizacao.json), pro e2e-windows
+      # atualizar um pelo outro a partir de um servidor local. Fica DEPOIS dos
+      # artefatos acima: recompila o mesmo target/ e trocaria o kami.exe deles.
+      - name: Build two signed installers for the update test
+        if: env.RUN_E2E == 'true'
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/atualizacao"
+          mkdir -p "$out"
+          cargo tauri signer generate --ci -w "$out/teste.key" -p teste
+          export TAURI_SIGNING_PRIVATE_KEY="$(cat "$out/teste.key")" TAURI_SIGNING_PRIVATE_KEY_PASSWORD=teste
+          antiga="$(tr -d '[:space:]' < ../VERSION)"
+          nova="$(python -c "import sys; v = sys.argv[1].split('-')[0].split('.'); v[2] = str(int(v[2]) + 1); print('.'.join(v))" "$antiga")"
+          for v in "$antiga" "$nova"; do
+            python - "$out/teste.key.pub" "$v" > "$out/config-$v.json" <<'PYEOF'
+          import json, sys
+          pub = open(sys.argv[1], encoding="utf-8").read().strip()
+          print(json.dumps({"version": sys.argv[2], "plugins": {"updater": {"pubkey": pub}}}))
+          PYEOF
+            cargo tauri build --bundles nsis --config ci/teste-atualizacao.json --config "$out/config-$v.json"
+          done
+          cp target/release/bundle/nsis/*_"${antiga}"_x64-setup.exe "$out/antiga-setup.exe"
+          cp target/release/bundle/nsis/*_"${nova}"_x64-setup.exe "$out/nova-setup.exe"
+          cp target/release/bundle/nsis/*_"${nova}"_x64-setup.exe.sig "$out/nova-setup.exe.sig"
+          printf '{"antiga": "%s", "nova": "%s"}\n' "$antiga" "$nova" > "$out/versoes.json"
+          rm -f "$out"/teste.key*
+
+      - name: Keep the update test installers
+        if: env.RUN_E2E == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-update-test
+          path: ${{ runner.temp }}/atualizacao
+          if-no-files-found: error
+          retention-days: 3
+
   # CONF-03: teste ponta a ponta do app compilado no Windows.
   #
   # Por que windows-2022 e não windows-latest: a automação do WebView2 pelo
@@ -610,6 +652,21 @@ jobs:
           & $env:KAMI_E2E_NATIVE_DRIVER --version
           Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
           node tests/e2e/kami-e2e.mjs
+
+      # DIST-01: instala a versão atual e atualiza pelo app pra seguinte
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-update-test
+          path: atualizacao
+
+      - name: Update the installed app through the app itself
+        shell: pwsh
+        run: |
+          $env:KAMI_E2E_ATUALIZACAO = Join-Path $PWD "atualizacao"
+          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
+          $env:KAMI_E2E_PYTHON = "python"
+          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          node tests/e2e/atualizacao-e2e.mjs
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

@@ -1,6 +1,7 @@
 """Testes do router app/routers/perfil.py."""
-
 import re
+
+import pytest
 
 
 def test_get_profile_returns_seeded_defaults(client):
@@ -217,3 +218,27 @@ def test_dicas_devolvem_as_telas_do_esquema_antigo(client):
 def test_marcar_dicas_recusa_lista_enorme(client):
     resp = client.put("/api/perfil/dicas", json={"dicas": [f"x/{i}" for i in range(101)]})
     assert resp.status_code == 422
+
+
+# ─── DIST-01: aviso de versão nova ──────────────────────────────────────
+
+
+def test_atualizacoes_comecam_ligadas_e_sem_versao_guardada(client):
+    perfil = client.get("/api/perfil").json()
+    assert perfil["atualizacoes_procurar"] is True  # P-88
+    assert perfil["atualizacao_avisada"] is None
+    assert perfil["atualizacao_pulada"] is None
+
+
+def test_atualizacoes_guardam_avisada_pulada_e_limpam_com_vazio(client):
+    r = client.put("/api/perfil", json={"atualizacoes_procurar": False, "atualizacao_avisada": "1.15.0", "atualizacao_pulada": "2.0.0-rc.1"})
+    assert r.status_code == 200
+    assert (r.json()["atualizacoes_procurar"], r.json()["atualizacao_avisada"], r.json()["atualizacao_pulada"]) == (False, "1.15.0", "2.0.0-rc.1")
+    # mexer em outra coisa não apaga
+    assert client.put("/api/perfil", json={"display_name": "x"}).json()["atualizacao_pulada"] == "2.0.0-rc.1"
+    assert client.put("/api/perfil", json={"atualizacao_pulada": ""}).json()["atualizacao_pulada"] is None
+
+
+@pytest.mark.parametrize("versao", ["v1.15.0", "1.15", "1.15.0; DROP", "x" * 41])
+def test_atualizacao_recusa_versao_que_nao_e_semver(client, versao):
+    assert client.put("/api/perfil", json={"atualizacao_pulada": versao}).status_code == 422

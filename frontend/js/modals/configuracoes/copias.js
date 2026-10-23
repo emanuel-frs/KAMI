@@ -16,6 +16,7 @@ const ACOES = {
   importar: "antes de importar",
   "apagar-tudo": "antes de apagar tudo",
   "redefinir-chave": "antes de redefinir a chave",
+  atualizar: "antes de atualizar o app",
   restaurar: "antes de restaurar",
 };
 
@@ -23,7 +24,7 @@ export function copiasSectionHtml() {
   return `
       <div class="settings-section" id="cfg-copias">
         <h4>cópias automáticas</h4>
-        <p class="settings-desc">o kami guarda sozinho uma cópia do banco por semana (as 4 últimas) e uma antes de importar, apagar tudo, redefinir a chave ou restaurar. restaurar volta tudo pra como estava naquela hora — e o estado de agora fica guardado antes.</p>
+        <p class="settings-desc">o kami guarda sozinho uma cópia do banco por semana (as 4 últimas) e uma antes de importar, apagar tudo, redefinir a chave, restaurar ou atualizar o app. restaurar volta tudo pra como estava naquela hora — e o estado de agora fica guardado antes.</p>
         <p class="settings-note">as cópias ficam no mesmo disco do kami: protegem de erro e de banco estragado, <strong>não</strong> de perder o disco. pra isso, use a pasta extra abaixo ou exporte um backup.</p>
         <ul class="cfg-copias-lista" id="cfg-copias-lista"><li class="settings-desc">carregando…</li></ul>
         <div class="form-actions">

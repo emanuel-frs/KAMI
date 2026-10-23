@@ -106,6 +106,12 @@ Nada, a não ser que você ative uma integração — a tabela completa está no
 IMAP do seu e-mail e a busca, cada um só quando você cadastra. Não há
 telemetria nem conta de usuário.
 
+A única consulta que o Kami faz sozinho é o **aviso de versão nova**
+(DIST-01): ao abrir e uma vez por dia, ele pede o `latest.json` da página
+de Releases do Kami no GitHub — sem nada seu no pedido além do que qualquer
+acesso a um site mostra (o endereço IP). Fica ligado por padrão e se desliga
+em configurações › sobre; desligado, nenhuma requisição sai.
+
 O **assistente com IA** (planejado) segue a mesma regra: fica desligado
 até você configurar uma chave sua (ou um modelo local), nenhuma chave vem
 embutida, e só o necessário para cada pedido é enviado. Esta seção será
@@ -115,8 +121,17 @@ atualizada com o que exatamente sai quando ele existir.
 
 Os instaladores do Windows **não são assinados** (veja
 [docs/INSTALACAO.md](./docs/INSTALACAO.md)): confira o SHA-256 publicado
-no `SHA256SUMS` de cada Release. Não há atualização automática — baixe as
-novas versões pela página de Releases.
+no `SHA256SUMS` de cada Release.
+
+**Atualização pelo app** (DIST-01): o Kami só avisa; nada é baixado nem
+instalado sem você pedir. Quando você pede, o pacote baixado é conferido
+com uma assinatura própria das atualizações (chave do Tauri; a pública vai
+dentro do app, a privada fica fora do repositório) e um pacote com
+assinatura errada é recusado antes de instalar. Isso garante que a
+atualização saiu da release do Kami — não é a assinatura de código do
+Windows, então o SmartScreen continua avisando "editor desconhecido". O
+endereço consultado só aceita https no app publicado. Antes de instalar, o
+Kami guarda uma cópia do banco (`backups/kami-antes-de-atualizar-…`).
 
 Assinatura, no futuro: a opção gratuita da
 [SignPath Foundation](https://signpath.org/) exige uma licença open

@@ -44,7 +44,15 @@ class ProfileOut(BaseModel):
     notif_ocultar_texto: bool = False
     avisos_hora: str = "09:00"
     formato_data: str = "sistema"  # ORG-07
+    # DIST-01
+    atualizacoes_procurar: bool = True
+    atualizacao_avisada: Optional[str] = None
+    atualizacao_pulada: Optional[str] = None
     updated_at: str
+
+
+# DIST-01: versão semver (1.15.0, 2.0.0-rc.1) ou "" pra limpar
+VERSAO_OU_VAZIO = r"^(\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?)?$"
 
 
 class ProfileUpdate(Entrada):
@@ -71,6 +79,10 @@ class ProfileUpdate(Entrada):
     notif_ocultar_texto: Optional[bool] = None
     avisos_hora: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     formato_data: Optional[str] = Field(None, pattern=r"^(sistema|dma|mda|iso)$")  # ORG-07
+    # DIST-01: "" limpa a versão guardada
+    atualizacoes_procurar: Optional[bool] = None
+    atualizacao_avisada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
+    atualizacao_pulada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -176,6 +188,12 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute("UPDATE user_profile SET formato_data = ? WHERE id = ?", (payload.formato_data, row["id"]))
     if payload.avisos_hora is not None:
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
+    if payload.atualizacoes_procurar is not None:
+        db.execute("UPDATE user_profile SET atualizacoes_procurar = ? WHERE id = ?", (int(payload.atualizacoes_procurar), row["id"]))
+    for col in ("atualizacao_avisada", "atualizacao_pulada"):
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (value or None, row["id"]))
     db.commit()
     return dict(_get_profile_row(db))
 

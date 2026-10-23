@@ -10,6 +10,8 @@ Endpoints:
                                  cada poucas horas — o app pode ficar dias
                                  aberto na bandeja)
   POST /api/backups/agora        cópia semanal agora, mesmo sem vencer
+  POST /api/backups/antes-de-atualizar  cópia antes de instalar uma versão
+                                 nova (DIST-01)
   PUT  /api/backups/pasta-extra  liga (valida e já copia) ou desliga
   POST /api/backups/restaurar    volta o banco pra uma cópia (guarda o
                                  estado atual antes); exige a palavra
@@ -70,6 +72,13 @@ def verificar(db=Depends(get_db)):
 @router.post("/agora", response_model=BackupsOut)
 def copiar_agora(db=Depends(get_db)):
     backup_auto.copia_semanal_se_precisar(db, forcar=True)
+    return backup_auto.status(db)
+
+
+@router.post("/antes-de-atualizar", response_model=BackupsOut)
+def copiar_antes_de_atualizar(db=Depends(get_db)):
+    """DIST-01 (P-90): o app chama logo antes de instalar uma versão nova."""
+    backup_auto.copia_antes_de(db, "atualizar")
     return backup_auto.status(db)
 
 
