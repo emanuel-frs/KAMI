@@ -14,6 +14,10 @@ Endpoints:
                              protegido + a senha)
   POST /api/sistema/reset    apaga tudo e recria o estado de instalação
                              nova (mesma seed do primeiro boot)
+  POST /api/sistema/remover-do-computador
+                             DIST-03: apaga a chave do cofre do sistema;
+                             os arquivos quem apaga é o app (src-tauri),
+                             depois de derrubar este backend
   POST /api/sistema/erro-frontend
                              registra no kami-backend.log um erro de
                              JavaScript da tela (CONF-01)
@@ -42,7 +46,7 @@ from app import backup_auto
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
 from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
-from app.crypto import ChaveIndisponivel, decrypt_password, encrypt_password
+from app.crypto import ChaveIndisponivel, apagar_do_cofre, decrypt_password, encrypt_password
 from app.limites import Entrada
 
 logger = logging.getLogger(__name__)
@@ -50,6 +54,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 RESET_CONFIRMATION_WORD = "excluir"
+REMOVER_CONFIRMATION_WORD = "remover"
 IMPORT_CONFIRMATION_WORD = "importar"
 
 # ordem de leaf -> root, pra respeitar as foreign keys mesmo em bancos
@@ -380,6 +385,25 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
     seed_achievements(db)
 
     return {"status": "ok", "segredos_restaurados": segredos_restaurados, "segredos_fora": segredos_fora}
+
+
+@router.post("/remover-do-computador")
+def remover_do_computador(payload: ResetIn):
+    """
+    DIST-03 (P-91): primeiro passo do "remover tudo do Kami deste
+    computador" — a chave das senhas sai do cofre do sistema (só a desta
+    pasta de dados). Pasta de dados, cópias, autostart, atalhos e o cache
+    da tela quem apaga é o app (src-tauri/src/limpeza.rs), com este backend
+    já fora do ar. A pasta extra das cópias fica (P-92).
+    """
+    if payload.confirmation != REMOVER_CONFIRMATION_WORD:
+        raise HTTPException(
+            status_code=422,
+            detail=f"confirmação inválida; envie confirmation='{REMOVER_CONFIRMATION_WORD}' pra prosseguir",
+        )
+    havia = apagar_do_cofre()
+    logger.warning("remover tudo do computador: chave %s", "apagada do cofre" if havia else "não estava no cofre")
+    return {"cofre": havia}
 
 
 @router.post("/reset")

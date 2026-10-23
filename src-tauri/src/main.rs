@@ -411,6 +411,10 @@ async fn restart_backend(
     if atualizacao::instalando() {
         return Err("instalando a versão nova — o kami vai reabrir sozinho".to_string());
     }
+    // DIST-03: o backend caiu de propósito pra apagar a pasta de dados
+    if limpeza::removendo() {
+        return Err("removendo o kami deste computador".to_string());
+    }
     subir_backend_de_novo(&app);
     Ok(())
 }
@@ -451,6 +455,7 @@ fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
 
 mod atualizacao; // DIST-01: aviso de versão nova e atualização pelo app
 mod icone_tema; // ICO-01: ícone do app na cor de destaque
+mod limpeza; // DIST-03: remover tudo do Kami deste computador
 mod janela; // ORG-05: bandeja e iniciar com o sistema
 
 fn main() {
@@ -482,9 +487,12 @@ fn main() {
             janela::janela_definir,
             janela::janela_sair,
             atualizacao::atualizacao_procurar,
-            atualizacao::atualizacao_instalar
+            atualizacao::atualizacao_instalar,
+            limpeza::remover_tudo_do_computador
         ])
         .setup(|app| {
+            // DIST-03: autostart apontando pra um programa que sumiu
+            janela::conferir_autostart(app.handle());
             // ORG-05: bandeja ligada → ícone já no começo; iniciado pelo
             // sistema (--oculto) com bandeja → começa escondido nela
             if janela::bandeja_ligada(app.handle()) {
@@ -543,6 +551,7 @@ fn main() {
                 if let Some(child) = app.state::<BackendProcess>().0.lock().unwrap().take() {
                     kill_backend(child);
                 }
+                limpeza::ao_sair(app);
             }
         });
 }

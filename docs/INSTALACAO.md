@@ -51,13 +51,23 @@ Opções disponíveis:
 ```sh
 sh scripts/install.sh --version 1.8.1
 sh scripts/install.sh --uninstall
+sh scripts/install.sh --uninstall --apagar-dados
 sh scripts/install.sh --help
 ```
 
-O `--uninstall` remove o pacote ou AppImage e o atalho correspondente,
-mas preserva os dados do usuário. Em Linux, os dados ficam em
+O `--uninstall` remove o pacote ou AppImage e o que o Kami deixou na sua
+pasta pessoal (o iniciar com o sistema e o lançador com o ícone da cor),
+mas preserva os dados do usuário. Com `--apagar-dados` ele apaga também
+os dados, o cache da tela e a chave das senhas no cofre do sistema —
+pede para você digitar `apagar` antes. Em Linux, os dados ficam em
 `$XDG_DATA_HOME/kami` ou, quando `XDG_DATA_HOME` não estiver definido,
 em `~/.local/share/kami`.
+
+Removeu o pacote direto pelo `apt`/`dnf`/`yay`, sem o script? O Kami
+não aparece mais no menu nem tenta abrir no login (as entradas que ele
+deixou na pasta pessoal se desligam sozinhas quando o programa some), e os
+arquivos que sobraram estão listados em
+[Remover tudo à mão](#remover-tudo-à-mão).
 
 ### Instalação manual e verificação
 
@@ -124,9 +134,43 @@ certificado pago — o aviso deve continuar aparecendo.
 ### Desinstalar e dados preservados
 
 Use **Configurações do Windows → Aplicativos → Aplicativos instalados**
-para remover o Kami. A desinstalação do programa não deve apagar a pasta
-de dados do usuário: `%APPDATA%\kami`. O log do backend fica em
-`%APPDATA%\kami\kami-backend.log`.
+para remover o Kami. O desinstalador tira os atalhos e o iniciar com o
+sistema. Os seus dados (`%APPDATA%\kami`) ficam, a não ser que você marque
+**"Remover dados do programa"** — aí vão também os dados, as cópias
+automáticas e a chave das senhas no Gerenciador de Credenciais. Para
+desinstalar sem perguntas: `uninstall.exe /S` (mantém os dados) ou
+`uninstall.exe /S /APAGARDADOS`, na pasta do Kami
+(`%LOCALAPPDATA%\Kami`).
+
+## Remover tudo do Kami deste computador
+
+Vai parar de usar o Kami nesta máquina? Em **configurações › backup e
+dados › remover tudo do kami deste computador** o próprio app apaga, depois
+de você confirmar duas vezes: seus dados, as cópias automáticas, a chave
+das senhas no cofre do sistema, o iniciar com o sistema, o ícone da cor no
+lançador/atalhos e o cache da tela — e fecha. Exporte um backup antes se
+quiser guardar algo (o botão está ali mesmo). Ficam: a **pasta extra** das
+cópias, se você configurou uma (é a sua cópia fora do computador), e o
+**programa** — no Windows o desinstalador abre no fim; no Linux remova o
+pacote (`sudo apt remove kami`, `sudo dnf remove kami`, `yay -R kami-bin`)
+ou apague o AppImage.
+
+### Remover tudo à mão
+
+O que o Kami cria fora da pasta do programa:
+
+| O quê | Linux | Windows |
+|---|---|---|
+| dados (banco, cópias, log, ícones da cor) | `~/.local/share/kami` | `%APPDATA%\kami` |
+| cache e armazenamento da tela | `~/.local/share/com.kami.app`, `~/.cache/com.kami.app` | `%APPDATA%\com.kami.app`, `%LOCALAPPDATA%\com.kami.app` |
+| iniciar com o sistema | `~/.config/autostart/Kami.desktop` | registro: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, valor `Kami` |
+| ícone da cor no menu | `~/.local/share/applications/Kami.desktop` (só se tiver `X-Kami-IconeTema`) | atalhos `Kami.lnk` (somem com o programa) |
+| chave das senhas | Secret Service/KWallet: serviço `kami`, usuário `chave-dos-segredos-…` | Gerenciador de Credenciais: `kami`, usuário `chave-dos-segredos-…` |
+| cópias na pasta extra | a pasta que você escolheu (`kami-semanal-*.db`) | idem |
+
+Na chave das senhas, apague só a do usuário `chave-dos-segredos-…` — outras
+entradas do serviço `kami` (de uma pasta de demonstração, por exemplo) são
+de outra pasta de dados.
 
 ## Atualizar
 

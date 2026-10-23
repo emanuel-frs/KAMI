@@ -16,7 +16,12 @@
  *   4. o app fecha, o instalador troca os arquivos e abre o app de novo:
  *      confere a versão do kami.exe instalado e que ele está rodando. Se o
  *      backend antigo não tivesse saído antes (on_before_exit), o
- *      instalador não conseguiria trocar o kami-backend.exe.
+ *      instalador não conseguiria trocar o kami-backend.exe. O iniciar com
+ *      o sistema, ligado antes, tem que continuar lá;
+ *   5. DIST-03: desinstala com `uninstall.exe /S /APAGARDADOS` (o mesmo que
+ *      a caixa "Remover dados do programa") e confere que o programa, o
+ *      iniciar com o sistema, a pasta de dados e a chave no cofre sumiram —
+ *      e que uma credencial de outro programa ficou.
  *
  * Variáveis: KAMI_E2E_ATUALIZACAO (pasta com antiga-setup.exe,
  * nova-setup.exe, nova-setup.exe.sig e versoes.json), KAMI_E2E_TAURI_DRIVER,
@@ -41,6 +46,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(`[atualizacao ${new Date().toISOString().slice(11, 19)}]`, ...a);
 const ps = (script) => execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8" }).trim();
 // o recurso de versão do Windows pode vir com 4 partes (1.14.0.0)
+const RUN = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const noRun = () => ps(`(Get-ItemProperty '${RUN}' -Name Kami -ErrorAction SilentlyContinue).Kami`).toLowerCase().includes("kami.exe");
+const credenciais = () => ps("cmdkey /list | Out-String -Width 4096");
 const versaoDoExe = (exe) => ps(`(Get-Item '${exe}').VersionInfo.ProductVersion`).replace(/^(\d+\.\d+\.\d+)\.0$/, "$1");
 
 async function waitFor(what, fn, { timeout = 30000, every = 1000 } = {}) {
@@ -97,6 +105,11 @@ async function main() {
     await waitFor("o tauri-driver", async () => (await fetch("http://127.0.0.1:4444/status")).ok, { timeout: 20000 });
     await wd.start(exe);
     await waitFor("o backend", () => existsSync(join(DATA_DIR, "backend_port.txt")), { timeout: 120000 });
+    // DIST-03: o iniciar com o sistema ligado tem que SOBREVIVER à
+    // atualização (o NSIS desinstala a antiga com /UPDATE) e sumir na
+    // desinstalação de verdade (passo 5)
+    await wd.execute("return window.__TAURI__.core.invoke('janela_definir', { campo: 'iniciar_com_sistema', valor: true })");
+    if (!noRun()) throw new Error("o iniciar com o sistema não ligou");
     const achou = await wd.execute("return window.__TAURI__.core.invoke('atualizacao_procurar')");
     log(`procurar: ${JSON.stringify(achou)}`);
     if (achou?.versao !== nova || !achou.instalavel) throw new Error(`procurar devolveu ${JSON.stringify(achou)}`);
@@ -117,6 +130,27 @@ async function main() {
   log(`pedidos ao servidor: ${pedidos.join(", ")}`);
   ps("Get-Process -Name kami,kami-backend -ErrorAction SilentlyContinue | Stop-Process -Force");
   servidor.close();
+  if (!noRun()) throw new Error("a atualização apagou o iniciar com o sistema (o /UPDATE não pode)");
+  log("iniciar com o sistema continua depois da atualização");
+
+  // 5. DIST-03: desinstalar apagando os dados (o que a caixa "Remover
+  // dados do programa" faz; /APAGARDADOS é o mesmo sem tela). Uma chave
+  // do Kami no cofre e uma de controle, de outro programa, que tem que ficar.
+  const dadosReais = join(process.env.APPDATA, "kami");
+  mkdirSync(dadosReais, { recursive: true });
+  writeFileSync(join(dadosReais, "kami.db"), "teste");
+  execFileSync("cmdkey", ["/generic:kami", "/user:chave-dos-segredos-0123456789abcdef", "/pass:e2e"], { stdio: "ignore" });
+  execFileSync("cmdkey", ["/generic:kami-controle-e2e", "/user:outro-programa", "/pass:e2e"], { stdio: "ignore" });
+  if (!credenciais().includes("chave-dos-segredos-0123456789abcdef")) throw new Error("não deu pra criar a credencial de teste");
+  execFileSync(join(process.env.LOCALAPPDATA, "Kami", "uninstall.exe"), ["/S", "/APAGARDADOS"], { stdio: "inherit" });
+  await waitFor("o programa desinstalado", () => !existsSync(exe), { timeout: 120000, every: 2000 });
+  await waitFor("a pasta de dados apagada", () => !existsSync(dadosReais), { timeout: 30000, every: 1000 });
+  if (noRun()) throw new Error("o iniciar com o sistema ficou depois de desinstalar");
+  const depois = credenciais();
+  if (depois.includes("chave-dos-segredos-0123456789abcdef")) throw new Error("a chave das senhas ficou no cofre");
+  if (!depois.includes("outro-programa")) throw new Error("a desinstalação apagou uma credencial que não é do Kami");
+  execFileSync("cmdkey", ["/delete:kami-controle-e2e"], { stdio: "ignore" });
+  log("desinstalado: programa, iniciar com o sistema, pasta de dados e chave no cofre — credencial de outro programa intacta");
 }
 
 main().then(

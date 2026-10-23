@@ -1,6 +1,7 @@
 /**
  * Aba "backup e dados" das configurações: exportar (com ou sem senha,
- * SEG-03), importar, revisão do xp e apagar tudo.
+ * SEG-03), importar, revisão do xp, apagar tudo e remover tudo do
+ * computador (DIST-03, remover.js).
  * MAN-02: saiu de configuracoes-modal.js.
  */
 import { exportData, exportProtegido, importData, importProtegido, resetData } from "../../api/sistema.js";
@@ -11,6 +12,7 @@ import { showErrorModal } from "../err-modal.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { icon } from "../../components/icons.js";
 import { copiasSectionHtml, wireCopias } from "./copias.js";
+import { removerSectionHtml, wireRemover } from "./remover.js";
 import { estado } from "./estado.js";
 
 const RESET_WORD = "excluir";
@@ -81,7 +83,7 @@ export function buildBackupPanel() {
         <div class="form-actions">
           <button class="btn sm danger" id="sm-reset-btn" data-action="reset" disabled>limpar todos os dados</button>
         </div>
-      </div>
+      </div>${removerSectionHtml()}
     </div>`;
 }
 
@@ -134,6 +136,7 @@ export function wireBackupTab(wrap) {
   wrap.querySelector("#sm-xpreview-btn").addEventListener("click", () => handleXpReviewPreview(wrap));
   importBtn.addEventListener("click", () => handleImport(wrap));
   resetBtn.addEventListener("click", () => handleReset(wrap));
+  wireRemover(wrap, { exportar: () => handleExport(wrap) }); // DIST-03
 }
 
 async function handleExport(wrap) {

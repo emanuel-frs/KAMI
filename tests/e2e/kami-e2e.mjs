@@ -22,7 +22,10 @@
  *   7. bandeja (fechar só esconde; abrir de novo traz a janela de volta,
  *      sem segunda instância) e iniciar com o sistema (entrada criada e
  *      removida — registro no Windows, .desktop no Linux);
- *   8. no fim, o kami-backend.log não pode ter erro da tela
+ *   8. por último, DIST-03: "remover tudo do Kami deste computador" pela
+ *      tela, com autostart e ícone da cor ligados — a pasta de dados, o
+ *      autostart, o lançador e (Windows) a chave no cofre têm que sumir;
+ *   9. no fim, o kami-backend.log não pode ter erro da tela
  *      ([app.frontend]) nem erro inesperado do backend ([app.erros]).
  *
  * Os prints e o log vão pra KAMI_E2E_OUT — no CI viram artefato do
@@ -48,7 +51,8 @@
  *   WAYLAND_DISPLAY=kami-e2e KAMI_E2E_APP=src-tauri/target/debug/kami node tests/e2e/kami-e2e.mjs
  */
 import { spawn, execSync, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { WebDriver } from "./webdriver.mjs";
@@ -147,6 +151,7 @@ const ps = (script) => execFileSync("powershell", ["-NoProfile", "-NonInteractiv
 async function main() {
   if (!APP || !existsSync(APP)) throw new Error(`KAMI_E2E_APP não aponta pra um executável: ${APP}`);
   mkdirSync(OUT, { recursive: true });
+  rmSync(join(OUT, "kami-backend.log"), { force: true }); // o de uma rodada anterior
   log(`app: ${APP}`);
   log(`dados: ${DATA_DIR}`);
 
@@ -554,22 +559,24 @@ async function main() {
       await invoke("janela_definir", { campo: "bandeja", valor: false });
     });
 
+    const entrada = () => {
+      if (IS_WINDOWS) {
+        // HKCU\...\Run: o valor com o caminho do executável
+        const out = ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue | Out-String -Width 4096)");
+        return out.toLowerCase().includes(APP.toLowerCase()) ? out : null;
+      }
+      const pasta = join(HOME_E2E, ".config", "autostart");
+      if (!existsSync(pasta)) return null;
+      const f = readdirSync(pasta).map((n) => readFileSync(join(pasta, n), "utf8")).find((t) => t.includes(APP));
+      return f || null;
+    };
     await etapa("iniciar com o sistema: entrada criada e removida", async () => {
-      const entrada = () => {
-        if (IS_WINDOWS) {
-          // HKCU\...\Run: o valor com o caminho do executável
-          const out = ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue | Out-String -Width 4096)");
-          return out.toLowerCase().includes(APP.toLowerCase()) ? out : null;
-        }
-        const pasta = join(HOME_E2E, ".config", "autostart");
-        if (!existsSync(pasta)) return null;
-        const f = readdirSync(pasta).map((n) => readFileSync(join(pasta, n), "utf8")).find((t) => t.includes(APP));
-        return f || null;
-      };
       await invoke("janela_definir", { campo: "iniciar_com_sistema", valor: true });
       const criada = entrada();
       if (!criada) throw new Error("nenhuma entrada de início com o sistema apontando pro app");
       if (!criada.includes("--oculto")) throw new Error(`a entrada não abre escondido (--oculto): ${criada}`);
+      // DIST-03: removido o programa, a sessão ignora a entrada sozinha
+      if (!IS_WINDOWS && !criada.includes(`TryExec=${APP}`)) throw new Error(`a entrada não tem TryExec: ${criada}`);
       if (!(await invoke("janela_preferencias")).iniciar_com_sistema) throw new Error("as preferências não dizem que está ligado");
       await invoke("janela_definir", { campo: "iniciar_com_sistema", valor: false });
       if (entrada()) throw new Error("desligar não removeu a entrada");
@@ -577,16 +584,48 @@ async function main() {
 
     const errosFinais = await errosNaTela();
     if (errosFinais.length) fail(`aviso de erro no fim dos fluxos: ${errosFinais.join(" | ")}`);
+
+    // 8. DIST-03, por último (o app fecha): remover tudo do Kami deste
+    // computador pela tela, com autostart e ícone da cor ligados antes
+    if (existsSync(join(DATA_DIR, "kami-backend.log"))) copyFileSync(join(DATA_DIR, "kami-backend.log"), join(OUT, "kami-backend.log"));
+    await etapa("remover tudo do kami deste computador (DIST-03)", async () => {
+      // o nome da entrada no cofre é o do backend (app/crypto.py::_entry_user)
+      const usuarioCofre = "chave-dos-segredos-" + createHash("sha256").update(realpathSync.native(DATA_DIR)).digest("hex").slice(0, 16);
+      const noCofre = () => ps("cmdkey /list | Out-String -Width 4096").includes(usuarioCofre);
+      if (IS_WINDOWS && !noCofre()) throw new Error(`a chave das senhas não estava no cofre antes (${usuarioCofre})`);
+      const lancador = HOME_E2E && join(HOME_E2E, ".local", "share", "applications", "Kami.desktop");
+      await invoke("janela_definir", { campo: "iniciar_com_sistema", valor: true });
+      const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: 'coral' })");
+      if (!entrada()) throw new Error("o início com o sistema não ligou antes de remover");
+
+      await clicar("#btn-open-settings");
+      await waitFor("configurações", () => visivel('.cfg-tab[data-tab="backup"]'), { timeout: 5000 });
+      await clicar('.cfg-tab[data-tab="backup"]');
+      await waitFor("a seção remover tudo", () => visivel("#sm-remover"), { timeout: 5000 });
+      await wd.execute("document.getElementById('sm-remover').scrollIntoView()");
+      await focar("#sm-remover-confirm");
+      await wd.keys("remover", { texto: true });
+      await print("remover-tudo");
+      await clicar("#sm-remover-btn");
+      await waitFor("a confirmação", () => visivel("#cm-confirm-btn"), { timeout: 5000 });
+      await clicar("#cm-confirm-btn").catch(() => {}); // o app fecha no meio
+      await waitFor("a pasta de dados apagada", () => !existsSync(DATA_DIR), { timeout: 30000 });
+      if (entrada()) throw new Error("o início com o sistema ficou");
+      if (onde?.includes("lançador") && existsSync(lancador)) throw new Error(`o lançador com o ícone da cor ficou: ${lancador}`);
+      if (IS_WINDOWS && noCofre()) throw new Error("a chave das senhas ficou no cofre");
+      log(`  removido: pasta de dados, início com o sistema${onde?.includes("lançador") ? ", lançador" : ""}${IS_WINDOWS ? ", chave no cofre" : ""}`);
+    });
   } finally {
     await wd.quit().catch(() => {});
     driver.kill();
     await sleep(1500);
+    if (HOME_E2E) rmSync(HOME_E2E, { recursive: true, force: true });
   }
 
-  // 8. o log não pode ter erro da tela nem erro inesperado
-  const logFile = join(DATA_DIR, "kami-backend.log");
+  // 9. o log não pode ter erro da tela nem erro inesperado (copiado pra
+  // OUT antes do "remover tudo", que apaga a pasta de dados)
+  const logFile = join(OUT, "kami-backend.log");
   if (existsSync(logFile)) {
-    copyFileSync(logFile, join(OUT, "kami-backend.log"));
     const text = readFileSync(logFile, "utf8");
     for (const line of text.split("\n")) {
       if (/\[app\.frontend\]|\[app\.erros\]/.test(line)) fail(`log: ${line.trim()}`);

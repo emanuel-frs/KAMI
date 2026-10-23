@@ -19,7 +19,7 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Uso: install.sh [--version X.Y.Z] [--dry-run] [--uninstall] [--help]
+Uso: install.sh [--version X.Y.Z] [--dry-run] [--uninstall [--apagar-dados]] [--help]
 
 Instala o Kami pela release oficial e verifica o SHA-256 antes de
 instalar ou executar qualquer asset baixado. Sem --version, usa a
@@ -27,13 +27,20 @@ instalar ou executar qualquer asset baixado. Sem --version, usa a
 
   --version X.Y.Z  instala uma versão específica
   --dry-run        mostra as ações sem baixar, instalar ou remover arquivos
-  --uninstall      remove o pacote/AppImage, preservando os dados do usuário
+  --uninstall      remove o pacote/AppImage e o que o Kami deixou na sua
+                   pasta pessoal (iniciar com o sistema, ícone da cor no
+                   lançador), preservando os dados do usuário
+  --apagar-dados   com --uninstall: apaga também os dados (banco, cópias
+                   automáticas, log), o cache da tela e a chave das senhas
+                   no cofre do sistema — pede confirmação. A pasta extra
+                   das cópias, se você configurou uma, fica.
   --help           mostra esta ajuda
 EOF
 }
 
 DRY_RUN=0
 UNINSTALL=0
+APAGAR_DADOS=0
 REQUESTED_VERSION=""
 
 while [ "$#" -gt 0 ]; do
@@ -44,6 +51,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --uninstall)
       UNINSTALL=1
+      shift
+      ;;
+    --apagar-dados)
+      APAGAR_DADOS=1
       shift
       ;;
     --version)
@@ -99,6 +110,49 @@ run_privileged() {
   fi
 }
 
+# DIST-03: o pacote (.deb/.rpm/AUR) não mexe na pasta pessoal de ninguém,
+# então isto fica aqui. Só o que é do Kami: o autostart dele (tem o
+# --oculto) e o lançador com o ícone da cor (marcado com X-Kami-IconeTema).
+remove_user_entries() {
+  autostart="${HOME}/.config/autostart/Kami.desktop"
+  lancador="${DATA_HOME}/applications/Kami.desktop"
+  for entry in "$autostart" "$lancador"; do
+    [ -f "$entry" ] || continue
+    if grep -q -e '--oculto' -e 'X-Kami-IconeTema' "$entry"; then
+      if [ "$DRY_RUN" -eq 1 ]; then
+        say "Removeria $entry."
+      else
+        rm -f "$entry"
+        say "Removido: $entry."
+      fi
+    fi
+  done
+}
+
+# DIST-03 (P-93): dados, cache da tela e a chave no cofre. A entrada do
+# cofre é a desta pasta de dados — mesmo nome que o backend usa
+# (backend/app/crypto.py::_entry_user), nunca as outras do serviço "kami".
+remove_user_data() {
+  data_dir="${DATA_HOME}/kami"
+  cache_home="${XDG_CACHE_HOME:-${HOME}/.cache}"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    say "Apagaria $data_dir, ${DATA_HOME}/com.kami.app, ${cache_home}/com.kami.app e a chave das senhas no cofre."
+    return
+  fi
+  say "Isto apaga seus dados do Kami ($data_dir), inclusive as cópias automáticas. Não tem volta."
+  printf '%s' "Kami: digite apagar para confirmar: "
+  resposta=""
+  read -r resposta </dev/tty || true
+  [ "$resposta" = "apagar" ] || fail "confirmação diferente de 'apagar'; nenhum dado foi apagado."
+  if command -v secret-tool >/dev/null 2>&1; then
+    pasta_real=$(realpath -m "$data_dir")
+    usuario="chave-dos-segredos-$(printf '%s' "$pasta_real" | sha256sum | cut -c1-16)"
+    secret-tool clear service kami username "$usuario" 2>/dev/null || true
+  fi
+  rm -rf "$data_dir" "${DATA_HOME}/com.kami.app" "${cache_home}/com.kami.app"
+  say "Dados, cache e chave das senhas apagados."
+}
+
 remove_appimage() {
   if [ "$DRY_RUN" -eq 1 ]; then
     say "Removeria $APPIMAGE_PATH e $DESKTOP_FILE."
@@ -143,9 +197,16 @@ if [ "$UNINSTALL" -eq 1 ]; then
       remove_appimage
       ;;
   esac
-  say "Os dados do usuário foram preservados em ${DATA_HOME}/kami."
+  remove_user_entries
+  if [ "$APAGAR_DADOS" -eq 1 ]; then
+    remove_user_data
+  else
+    say "Os dados do usuário foram preservados em ${DATA_HOME}/kami (apague com --uninstall --apagar-dados)."
+  fi
   exit 0
 fi
+
+[ "$APAGAR_DADOS" -eq 0 ] || fail "--apagar-dados só vale junto com --uninstall."
 
 case "$(uname -m)" in
   x86_64|amd64)

@@ -653,13 +653,14 @@ jobs:
           Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
           node tests/e2e/kami-e2e.mjs
 
-      # DIST-01: instala a versão atual e atualiza pelo app pra seguinte
+      # DIST-01: instala a versão atual e atualiza pelo app pra seguinte;
+      # DIST-03: depois desinstala apagando os dados (ganchos do NSIS)
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-update-test
           path: atualizacao
 
-      - name: Update the installed app through the app itself
+      - name: Update the installed app through the app itself, then uninstall it
         shell: pwsh
         run: |
           $env:KAMI_E2E_ATUALIZACAO = Join-Path $PWD "atualizacao"
