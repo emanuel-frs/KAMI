@@ -46,6 +46,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(`[atualizacao ${new Date().toISOString().slice(11, 19)}]`, ...a);
 const ps = (script) => execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8" }).trim();
 // o recurso de versão do Windows pode vir com 4 partes (1.14.0.0)
+// sem processo nenhum o PowerShell sai com erro mesmo com SilentlyContinue
+const encerrarKami = () => ps("Get-Process -Name kami,kami-backend -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; exit 0");
 const RUN = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const noRun = () => ps(`(Get-ItemProperty '${RUN}' -Name Kami -ErrorAction SilentlyContinue).Kami`).toLowerCase().includes("kami.exe");
 const credenciais = () => ps("cmdkey /list | Out-String -Width 4096");
@@ -134,7 +136,7 @@ async function main() {
   if (reaberto) log(`app reaberto pelo instalador (${reaberto} processo)`);
   else log(`AVISO: o instalador não reabriu o app neste runner (RunAsUser depende do Explorer da sessão). processos: ${ps("Get-Process | Where-Object { $_.Name -match 'kami|explorer' } | ForEach-Object { $_.Name } | Out-String").replace(/\s+/g, " ").trim() || "nenhum"}`);
   log(`pedidos ao servidor: ${pedidos.join(", ")}`);
-  ps("Get-Process -Name kami,kami-backend -ErrorAction SilentlyContinue | Stop-Process -Force");
+  encerrarKami();
   servidor.close();
   if (!noRun()) throw new Error("a atualização apagou o iniciar com o sistema (o /UPDATE não pode)");
   log("iniciar com o sistema continua depois da atualização");
@@ -167,7 +169,7 @@ main().then(
   (e) => {
     console.error(`\nfalha no teste de atualização: ${e.stack || e.message}`);
     try {
-      ps("Get-Process -Name kami,kami-backend -ErrorAction SilentlyContinue | Stop-Process -Force");
+      encerrarKami();
     } catch {
       /* nada aberto */
     }
