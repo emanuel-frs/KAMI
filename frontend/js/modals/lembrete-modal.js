@@ -34,6 +34,20 @@ function proximaHoraCheia() {
   return { data: localDateKey(d), hora: `${String(d.getHours()).padStart(2, "0")}:00` };
 }
 
+/**
+ * O dia de um lembrete que veio só com a hora ("@ 23h30 remédio" da
+ * captura): hoje se a hora ainda não passou, senão amanhã. Antes caía no
+ * dia da "próxima hora cheia" — depois das 23h, isso é amanhã, e um
+ * "@ 23h30" digitado às 23h10 ia para o dia seguinte (achado no e2e do
+ * Windows da 1.14, que rodou depois das 23h). Função pura (testada).
+ */
+export function diaDaHora(hora, agora = new Date()) {
+  const [h, m] = hora.split(":").map(Number);
+  const d = new Date(agora);
+  if (h * 60 + m <= agora.getHours() * 60 + agora.getMinutes()) d.setDate(d.getDate() + 1);
+  return localDateKey(d);
+}
+
 function buildModal() {
   const wrap = document.createElement("div");
   wrap.className = "modal-backdrop";
@@ -155,7 +169,8 @@ export function openLembreteModal({ lembrete = null, vinculo: v = null, inicial 
   modalEl.querySelector('[data-action="save"]').textContent = lembrete ? "salvar alterações" : "+ criar";
   modalEl.querySelector('[data-action="apagar"]').hidden = !lembrete;
   modalEl.querySelector("#lbm-titulo").value = lembrete?.titulo ?? inicial.titulo ?? (v ? v.nome : "");
-  modalEl.querySelector("#lbm-data").value = lembrete?.data ?? inicial.data ?? padrao.data;
+  modalEl.querySelector("#lbm-data").value =
+    lembrete?.data ?? inicial.data ?? (inicial.hora ? diaDaHora(inicial.hora) : padrao.data);
   modalEl.querySelector("#lbm-hora").value = lembrete?.hora ?? inicial.hora ?? padrao.hora;
   modalEl.querySelector("#lbm-rep").value = lembrete?.repeticao ?? (v?.tipo === "habito" ? "diario" : "nao");
   const dias = new Set(lembrete?.dias_semana ?? [0, 1, 2, 3, 4]);

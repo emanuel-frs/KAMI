@@ -21,6 +21,7 @@ _Fundação para a 2.0: aviso de versão nova pelo próprio app, cópias automá
 
 ### Corrigido
 - `Ctrl+K` abria a busca por baixo das dicas da tela, e o `Esc` fechava a dica em vez da busca
+- um lembrete criado só com a hora depois das 23h (`@ 23h30 remédio` às 23h10) ia para o dia seguinte; agora é hoje se a hora ainda não passou
 - no Windows, ligar o iniciar com o sistema com o Kami aberto como administrador criava a entrada para todos os usuários do computador (e o desinstalador não a apagava); agora é sempre só para você, e desligar tira também uma entrada antiga dessas
 
 ### Testes
