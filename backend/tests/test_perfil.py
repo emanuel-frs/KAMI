@@ -1,6 +1,7 @@
 """Testes do router app/routers/perfil.py."""
-
 import re
+
+import pytest
 
 
 def test_get_profile_returns_seeded_defaults(client):
@@ -186,3 +187,58 @@ def test_date_format_preference(client):
     assert client.get("/api/perfil").json()["formato_data"] == "sistema"
     assert client.put("/api/perfil", json={"formato_data": "mda"}).json()["formato_data"] == "mda"
     assert client.put("/api/perfil", json={"formato_data": "aaaa"}).status_code == 422
+
+
+# ─── MAN-05: dicas vistas uma a uma ─────────────────────────────────────
+
+
+def test_dicas_vistas_comecam_vazias(client):
+    resp = client.get("/api/perfil/dicas")
+    assert resp.status_code == 200
+    assert resp.json() == {"vistas": [], "telas_antigas": []}
+
+
+def test_marcar_dicas_vistas_e_idempotente(client):
+    resp = client.put("/api/perfil/dicas", json={"dicas": ["habitos/grade", "habitos/pausar"]})
+    assert resp.status_code == 200
+    assert resp.json()["vistas"] == ["habitos/grade", "habitos/pausar"]
+    primeira = client.get("/api/sistema/export").json()["tables"]["dicas_vistas"]
+    client.put("/api/perfil/dicas", json={"dicas": ["habitos/grade"]})
+    depois = client.get("/api/sistema/export").json()["tables"]["dicas_vistas"]
+    # a data da primeira vez fica
+    assert sorted(primeira, key=lambda r: r["dica"]) == sorted(depois, key=lambda r: r["dica"])
+
+
+def test_dicas_devolvem_as_telas_do_esquema_antigo(client):
+    client.put("/api/perfil/tips/nucleo")
+    resp = client.get("/api/perfil/dicas")
+    assert resp.json()["telas_antigas"] == ["nucleo"]
+
+
+def test_marcar_dicas_recusa_lista_enorme(client):
+    resp = client.put("/api/perfil/dicas", json={"dicas": [f"x/{i}" for i in range(101)]})
+    assert resp.status_code == 422
+
+
+# ─── DIST-01: aviso de versão nova ──────────────────────────────────────
+
+
+def test_atualizacoes_comecam_ligadas_e_sem_versao_guardada(client):
+    perfil = client.get("/api/perfil").json()
+    assert perfil["atualizacoes_procurar"] is True  # P-88
+    assert perfil["atualizacao_avisada"] is None
+    assert perfil["atualizacao_pulada"] is None
+
+
+def test_atualizacoes_guardam_avisada_pulada_e_limpam_com_vazio(client):
+    r = client.put("/api/perfil", json={"atualizacoes_procurar": False, "atualizacao_avisada": "1.15.0", "atualizacao_pulada": "2.0.0-rc.1"})
+    assert r.status_code == 200
+    assert (r.json()["atualizacoes_procurar"], r.json()["atualizacao_avisada"], r.json()["atualizacao_pulada"]) == (False, "1.15.0", "2.0.0-rc.1")
+    # mexer em outra coisa não apaga
+    assert client.put("/api/perfil", json={"display_name": "x"}).json()["atualizacao_pulada"] == "2.0.0-rc.1"
+    assert client.put("/api/perfil", json={"atualizacao_pulada": ""}).json()["atualizacao_pulada"] is None
+
+
+@pytest.mark.parametrize("versao", ["v1.15.0", "1.15", "1.15.0; DROP", "x" * 41])
+def test_atualizacao_recusa_versao_que_nao_e_semver(client, versao):
+    assert client.put("/api/perfil", json={"atualizacao_pulada": versao}).status_code == 422

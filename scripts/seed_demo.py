@@ -41,9 +41,10 @@ try:
 except ImportError:  # pragma: no cover - mensagem amigável
     sys.exit("erro: instale o httpx (pip install httpx) — já vem em backend/requirements.txt")
 
+# telas com sequência de dicas (o SCREEN de cada frontend/js/pages/*-tips.js)
 TIPS_SCREENS = [
-    "nucleo", "perfil", "financas", "carteira", "aprendizado",
-    "metas", "organizacao", "calendario", "carreira",
+    "nucleo", "perfil", "financas", "aprendizado", "metas",
+    "organizacao", "calendario", "carreira", "habitos",
 ]
 
 
@@ -300,8 +301,10 @@ class Seeder:
         if mostrar:
             return
         self.put("/api/perfil/onboarding", {"completed": True})
-        for tela in TIPS_SCREENS:
-            self.put(f"/api/perfil/tips/{tela}")
+        # MAN-05: o "visto" é por dica; "<tela>/*" conta todas as da tela,
+        # inclusive as que vierem depois (a rota antiga, /tips/{tela}, deixa
+        # as dicas novas aparecendo como "novidade")
+        self.put("/api/perfil/dicas", {"dicas": [f"{tela}/*" for tela in TIPS_SCREENS]})
 
 
 def main() -> None:

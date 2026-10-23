@@ -12,7 +12,7 @@ aplica:
   - Assinaturas afetam saldo/fatura OPCIONALMENTE: se a assinatura tem
     conta_id vinculada e o usuário confirma no momento de marcar como
     paga, gera uma transação 'saida' real (ver app/finance_utils.py) —
-    mesmo mecanismo de fixed_bills em financas.py (item 6,
+    mesmo mecanismo de fixed_bills em financas/contas.py (item 6,
     resolvido junto com a unificação do item 1). Sem conta
     vinculada, continua sendo só lembrete + toggle pago/não-pago por mês
     (mesmo padrão sob-demanda de income_entries).
@@ -404,7 +404,7 @@ def delete_subscription(sub_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="assinatura não encontrada")
     # P-14 (CONF-04): estorna o xp dos meses pagos antes do cascade apagar
     # os períodos (as transações reais lançadas ficam) — mesmo padrão de
-    # delete_fixed_bill em financas.py.
+    # delete_fixed_bill em financas/contas.py.
     for row in db.execute(
         "SELECT id FROM wallet_subscription_periods WHERE subscription_id = ?", (sub_id,)
     ).fetchall():

@@ -187,3 +187,38 @@ def test_seg_01_status_and_diagnostic_say_where_the_key_is(client):
     assert resp["local"] == crypto.LOCAL_COFRE
     assert resp["segredos_salvos"] == 0
     assert "chave dos segredos: cofre" in client.get("/api/sistema/diagnostico").json()["texto"]
+
+
+# ─── DIST-03: remover tudo do computador ────────────────────────────────
+
+
+def test_dist_03_remove_takes_only_this_folders_key_out_of_the_vault(client, cofre_de_teste, tmp_path, monkeypatch):
+    # outra pasta de dados (ex.: o modo demo) com a própria entrada no cofre
+    pasta_real = crypto.KEY_PATH
+    _recarregar()
+    outra = tmp_path / "demo"
+    outra.mkdir()
+    monkeypatch.setattr(crypto, "KEY_PATH", outra / ".secret_key")
+    monkeypatch.setattr(crypto, "MARKER_PATH", outra / ".secret_key_no_cofre")
+    _recarregar()
+    entrada_demo = crypto._entry_user()
+    monkeypatch.setattr(crypto, "KEY_PATH", pasta_real)
+    monkeypatch.setattr(crypto, "MARKER_PATH", pasta_real.parent / ".secret_key_no_cofre")
+    _recarregar()
+    assert len(cofre_de_teste.store) == 2
+
+    assert client.post("/api/sistema/remover-do-computador", json={"confirmation": "excluir"}).status_code == 422
+    assert len(cofre_de_teste.store) == 2
+
+    resp = client.post("/api/sistema/remover-do-computador", json={"confirmation": "remover"})
+    assert resp.status_code == 200 and resp.json() == {"cofre": True}
+    assert list(cofre_de_teste.store) == [("kami", entrada_demo)]
+    # de novo: não há mais nada desta pasta
+    assert client.post("/api/sistema/remover-do-computador", json={"confirmation": "remover"}).json() == {"cofre": False}
+
+
+def test_dist_03_remove_without_a_vault_is_not_an_error(client, monkeypatch):
+    monkeypatch.setenv(crypto.COFRE_ENV_VAR, "desligado")
+    _recarregar()
+    resp = client.post("/api/sistema/remover-do-computador", json={"confirmation": "remover"})
+    assert resp.status_code == 200 and resp.json() == {"cofre": False}

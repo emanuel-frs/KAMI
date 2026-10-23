@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS user_profile (
     notif_ocultar_texto    INTEGER NOT NULL DEFAULT 0,  -- liga sozinho ao ativar o PIN; desligável
     avisos_hora            TEXT NOT NULL DEFAULT '09:00', -- P-47: hora dos avisos de vencimento (1 dia antes e no dia)
     formato_data           TEXT NOT NULL DEFAULT 'sistema', -- ORG-07: sistema | dma | mda | iso
+    -- DIST-01: aviso de versão nova (só avisa; ver database.ATUALIZACAO_COLUNAS)
+    atualizacoes_procurar  INTEGER NOT NULL DEFAULT 1,  -- P-88: ligado, explicado em configurações › sobre
+    atualizacao_avisada    TEXT,                        -- versão que já contou no sino
+    atualizacao_pulada     TEXT,                        -- "pular esta versão"
     updated_at            TEXT NOT NULL
 );
 
@@ -53,6 +57,17 @@ CREATE TABLE IF NOT EXISTS user_profile (
 CREATE TABLE IF NOT EXISTS screen_tips_seen (
     screen    TEXT PRIMARY KEY,   -- 'nucleo' | 'perfil' | 'financas' | 'aprendizado' | 'organizacao' | 'metas'
     seen_at   TEXT NOT NULL
+);
+
+-- MAN-05: "visto" POR DICA (antes só por tela, acima). Com a marca por
+-- tela, uma dica acrescentada depois (ou de um elemento que ainda não
+-- existia quando a sequência rodou) nunca aparecia pra quem já tinha
+-- visto aquela tela. `dica` = '<tela>/<id da dica>' (ids escritos à mão
+-- nos *-tips.js do frontend). screen_tips_seen continua só como
+-- registro de quem viu as dicas ANTES da 1.14 — não recebe mais linhas.
+CREATE TABLE IF NOT EXISTS dicas_vistas (
+    dica      TEXT PRIMARY KEY,
+    vista_em  TEXT NOT NULL
 );
 
 -- ---------------- DASHBOARDS / WIDGETS (decisão 17) ----------------

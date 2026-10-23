@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 from typing import Optional
 
-from app import crypto, pin
+from app import backup_auto, crypto, pin
 from app.database import get_db, now_iso
 from app.limites import Entrada
 
@@ -67,6 +67,7 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
             detail=f"confirmação inválida; envie confirmation='{REDEFINIR_CONFIRMATION_WORD}' pra prosseguir",
         )
     apagados = _segredos_salvos(db)
+    backup_auto.copia_antes_de(db, "redefinir-chave")  # CONF-08
     estado = crypto.redefinir_chave()
     # cifrados com a chave antiga = lixo ilegível; a conta de e-mail fica
     # (com a senha vazia) pra pessoa só informar a senha de app de novo

@@ -316,3 +316,11 @@
 .cfg-pin-mais summary:hover { color: var(--accent); }
 .cfg-pin-mais[open] summary { margin-bottom: 8px; }
 .settings-status--erro { color: var(--red); }
+
+/* CONF-08: lista das cópias automáticas (configurações › backup) */
+.cfg-copias-lista { list-style: none; margin: 8px 0; padding: 0; border: 1px solid var(--border); max-height: 220px; overflow-y: auto; }
+.cfg-copias-lista li { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.cfg-copias-lista li:last-child { border-bottom: 0; }
+.cfg-copias-quando { color: var(--text); white-space: nowrap; }
+.cfg-copias-tipo { color: var(--text-dim); flex: 1; min-width: 0; }
+.cfg-copias-lista .btn { flex-shrink: 0; }

@@ -97,7 +97,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
-  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; e em
+  uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; uma cópia do banco
+  sai sozinha toda semana e antes de importar ou apagar tudo, com "restaurar" em configurações › backup
+  (e uma pasta extra opcional, como um pendrive); e em
   configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
 - **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
   de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar
@@ -142,13 +144,14 @@ um backend em Python empacotado com PyInstaller, formato que antivírus às veze
 Passo a passo do SmartScreen, do Defender e do Smart App Control em
 [docs/INSTALACAO.md](./docs/INSTALACAO.md#windows-sem-assinatura).
 
-**Outras limitações:** sem atualização automática (baixe a nova Release), interface só em português e
-feriados do Brasil.
+**Outras limitações:** a atualização pelo app (só avisa; instala quando você pede) vale para o
+instalador do Windows e o AppImage — `.deb`, `.rpm` e AUR atualizam pelo gerenciador de pacotes;
+interface só em português e feriados do Brasil.
 
 ## Privacidade: o que sai da sua máquina
 
-Seus dados ficam num banco SQLite local. O app só acessa a internet quando você ativa uma integração.
-Sem isso, nada sai do computador. Não há telemetria nem conta de usuário.
+Seus dados ficam num banco SQLite local. O app só acessa a internet quando você ativa uma integração,
+e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria nem conta de usuário.
 
 | Destino | Quando | O que é enviado |
 |---|---|---|
@@ -156,6 +159,7 @@ Sem isso, nada sai do computador. Não há telemetria nem conta de usuário.
 | Seu provedor de e-mail (IMAP) | só se você cadastrar uma conta | usuário e senha de app, por conexão SSL |
 | `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
+| `github.com` (Releases do Kami) | ao abrir e uma vez por dia, com "procurar atualizações" ligado (padrão; desliga em configurações › sobre) | só o pedido do arquivo de versões (`latest.json`), sem nada seu; e o download da versão nova, se você pedir "atualizar agora" |
 | Microsoft (Windows) | só na instalação, se faltar o WebView2 | download do runtime |
 
 Senhas de app e tokens ficam cifrados no banco, com a chave no cofre do sistema (Gerenciador de
@@ -221,17 +225,24 @@ tem custo: alguns arquivos ficaram grandes (veja o roadmap).
 
 ## Problemas conhecidos e roadmap
 
-Sem datas nem promessas; é o que eu faria em seguida.
+Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades por um tempo), o plano é:
 
-- **Windows:** assinatura de código (hoje o aviso do SmartScreen aparece; a opção gratuita para open
-  source não vale para a licença atual, veja o [SECURITY.md](./SECURITY.md#instaladores)) e testar em mais
-  configurações de Defender e Smart App Control. O CI valida instalação e backend, mas não o
-  comportamento do antivírus de cada PC.
-- **Mais plataformas e atualização:** macOS e atualização automática.
-- **Ícones dos links:** guardar o ícone localmente ao salvar o link, em vez da inicial.
-- **Qualidade de código:** quebrar arquivos grandes (`aprendizado.js`, `organizacao.py`).
-- **Distribuição:** PyInstaller em modo pasta (reduz falsos positivos), publicação no AUR e em outros
-  repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
+- **Base:** atualização avisada pelo próprio app (instala só quando você quiser), backup automático
+  (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada para trás, testes
+  automáticos cobrindo todas as telas e arquivos grandes divididos (`aprendizado.js`, `organizacao.py`).
+- **Idiomas:** português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi.
+- **Assistente de IA (opcional, desligado por padrão):** chat, ações sempre com prévia e confirmação,
+  avisos, e IA local rodando no seu computador. Nenhuma chave vem embutida.
+- **Banco cifrado em disco**, opcional.
+
+Ficam de fora, pelo menos até a 2.0:
+
+- **Windows:** assinatura de código. O aviso do SmartScreen continua aparecendo, porque a opção gratuita
+  para open source não vale para a licença atual (veja o [SECURITY.md](./SECURITY.md#instaladores)). O CI
+  valida instalação e backend, mas não o comportamento do antivírus de cada PC.
+- **macOS, celular e sincronização entre dispositivos.**
+- **Ícones dos links** guardados localmente, **PyInstaller em modo pasta** (reduz falsos positivos) e
+  publicação no AUR e em outros repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
 
 ## Licença e contribuição
 
@@ -251,10 +262,14 @@ que funcionou, o que travou e em que sistema. Pull requests podem ser recusados,
 
 ### Requisitos
 
-- Python 3.11 ou superior (o CI usa 3.11)
-- Node.js 22 (só para os testes do frontend)
-- Rust e a Tauri CLI (`cargo install tauri-cli --version "^2" --locked`), só para o modo desktop
+- Python 3.14 (`.python-version`; é o que o CI usa e o que vai dentro do backend empacotado)
+- Node.js 24 (`.nvmrc`; só para os testes do frontend)
+- Rust na versão de `rust-toolchain.toml` (o `rustup` instala sozinho) e a Tauri CLI
+  (`cargo install tauri-cli --version "^2" --locked`), só para o modo desktop
 - Dependências de sistema do Tauri no Linux: veja [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
+
+Voltando ao projeto depois de muito tempo (versões, runners do CI, dependências, soltar uma correção):
+[docs/MANUTENCAO.md](./docs/MANUTENCAO.md).
 
 ### Backend
 
@@ -313,17 +328,32 @@ npm install && npm test  # frontend (runner nativo do Node)
 O CI roda essas duas suítes no Linux e no Windows em todo PR.
 
 **Teste ponta a ponta** (`tests/e2e/kami-e2e.mjs`): abre o app compilado
-com dados fictícios, passa pelas 8 telas em 3 tamanhos de janela e tira
-prints. Também registra uma ação pela interface, derruba o backend para
-conferir que ele volta sozinho e verifica que o log terminou sem erros. No
-CI ele roda em PRs para `main`, em `release/**` e no disparo manual, e os
-prints viram artefato do workflow. Para rodar no Linux, é preciso o
-`WebKitWebDriver` (pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o
-`tauri-driver` (`cargo install tauri-driver --locked`):
+com dados fictícios, passa pelas 9 telas em 3 tamanhos de janela e tira
+prints. Também registra uma ação pela interface e percorre, com teclado de
+verdade, a captura rápida (`Alt+Q`, inclusive um lembrete que tem que
+disparar), a paleta (`Ctrl+K`), uma nota criada, editada, trancada e
+destrancada, o formato das datas, a cópia automática com restauração, o
+PIN (liga, reabre o app, desbloqueia, desliga), a bandeja com a segunda
+instância e o início com o sistema. Derruba o backend para conferir que ele
+volta sozinho e verifica que o log terminou sem erros. No CI ele roda em
+PRs para `main`, em `release/**` e no disparo manual, e os prints viram
+artefato do workflow. Para rodar no Linux, é preciso o `WebKitWebDriver`
+(pacote `webkit2gtk-driver`/`webkit2gtk4.1`) e o `tauri-driver`
+(`cargo install tauri-driver --locked`). Pode rodar com o seu Kami aberto:
+o app do teste usa uma pasta pessoal descartável, não mexe no cofre de
+senhas e não conversa com a instância de verdade. Leva uns 4 minutos;
+`KAMI_E2E_RAPIDO=1` usa um tamanho de janela só.
 
 ```bash
 ./scripts/build_sidecar.sh && (cd src-tauri && cargo tauri build --debug --no-bundle)
 KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
+```
+
+No GNOME dá pra rodar sem janela na tela, num monitor virtual:
+
+```bash
+mutter --headless --wayland --no-x11 --wayland-display=kami-e2e --virtual-monitor 2000x1200 &
+WAYLAND_DISPLAY=kami-e2e KAMI_E2E_APP=src-tauri/target/debug/kami KAMI_E2E_PYTHON=backend/.venv/bin/python node tests/e2e/kami-e2e.mjs
 ```
 
 ### Build de produção

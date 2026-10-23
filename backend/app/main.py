@@ -7,13 +7,16 @@ http://127.0.0.1:<porta dinâmica>. CORS liberado porque tudo é
 local/localhost (ver nota junto do CORSMiddleware abaixo sobre uma
 tentativa de restringir que foi revertida).
 """
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.database import init_db
+from app import backup_auto
+from app.database import get_connection, init_db
 from app.crypto import ChaveIndisponivel
 from app.erros import ErrosInesperadosMiddleware, corpo_erro, http_exception_handler
 from app.limites import LimiteDeCorpoMiddleware
@@ -36,6 +39,7 @@ from app.routers import widgets
 from app.routers import calendario
 from app.routers import carreira
 from app.routers import seguranca
+from app.routers import backups
 
 # data/hora em toda linha do log (AJU-05, ver app/logs.py) — aqui no
 # import pra valer também no modo dev (`uvicorn app.main:app`), em que o
@@ -93,6 +97,15 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # CONF-08: cópia semanal ao abrir — nunca impede o backend de subir
+    try:
+        conn = get_connection()
+        try:
+            backup_auto.copia_semanal_se_precisar(conn)
+        finally:
+            conn.close()
+    except Exception:
+        logging.getLogger(__name__).exception("a cópia semanal do banco falhou")
 
 
 @app.get("/health")
@@ -176,3 +189,4 @@ app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
 app.include_router(calendario.router, prefix="/api/calendario", tags=["calendario"])
 app.include_router(carreira.router, prefix="/api/carreira", tags=["carreira"])
 app.include_router(seguranca.router, prefix="/api/seguranca", tags=["seguranca"])
+app.include_router(backups.router, prefix="/api/backups", tags=["backups"])

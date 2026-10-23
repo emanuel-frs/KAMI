@@ -1,5 +1,5 @@
 """
-Helpers compartilhados entre app/routers/financas.py (contas fixas) e
+Helpers compartilhados entre app/routers/financas/contas.py (contas fixas) e
 app/routers/wallet.py (assinaturas) pra gerar/reverter uma transação real
 a partir de um evento recorrente marcado como pago — item 6 do mapa de
 problemas, resolvido como OPCIONAL por registro (mesmo espírito de apps
@@ -19,7 +19,7 @@ não criar acoplamento entre os dois routers só por causa desse caso de
 uso — mesma razão de business_days.py/actions.py serem módulos soltos.
 
 A lógica de validação/atualização de saldo replica o branch 'saida' de
-financas.py::create_transaction (mesmas regras: escolhe forma_pagamento
+financas/lancamentos.py::create_transaction (mesmas regras: escolhe forma_pagamento
 sozinho quando a conta só tem uma opção, exige escolha explícita quando
 tem as duas, valida saldo/limite disponível).
 """
@@ -100,9 +100,9 @@ def create_entrada_transaction(db, conta, amount: float, category: str, descript
                                 date: str = None) -> str:
     """Cria uma transação 'entrada' pra `conta`, credita saldo_atual, e
     devolve o id da transação criada. Espelha create_saida_transaction
-    (mesmo módulo) e o branch 'entrada' de financas.py::create_transaction
+    (mesmo módulo) e o branch 'entrada' de financas/lancamentos.py::create_transaction
     — usada quando uma fonte de renda com conta_id vinculada é marcada
-    como paga (ver financas.py::pay_income_entry). Levanta HTTPException
+    como paga (ver financas/renda.py::pay_income_entry). Levanta HTTPException
     422 se a conta não tiver saldo pra receber (mesma regra de
     POST /financas/transactions)."""
     if not conta["possui_saldo"]:

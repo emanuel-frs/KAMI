@@ -15,15 +15,21 @@
  */
 import { WIDGET_CATALOG, widgetsForScreen } from "./registry.js";
 import { icon } from "../components/icons.js";
-import { openWidgetShortcutsModal } from "../modals/widget-shortcuts-modal.js";
 import { colsForWidth, packLayout } from "./grid-pack.js";
+import {
+  widgetsInDomOrder,
+  announceToScreenReader,
+  createKeyboardReorder,
+  mountKeyboardHelpButton,
+} from "./grid-teclado.js";
+import { attachResizeHandle, attachDragHandle } from "./grid-arrastar.js";
 
 const WG_UNITS  = 6;   // "sextos" — mesmo valor do protótipo
 const WG_ROW    = 4;   // grid-auto-rows em px   (grid.css)
-const WG_GAP    = 16;  // column-gap em px       (grid.css)
+export const WG_GAP    = 16;  // column-gap em px       (grid.css)
 const WG_ROW_MARGIN = 16; // espaço vertical entre cards, em px — aplicado como
                           // margin-bottom no card (grid.css), NÃO como row-gap
-const WG_MIN_H  = 88;  // altura mínima em px — nunca deixa o widget ilegível
+export const WG_MIN_H  = 88;  // altura mínima em px — nunca deixa o widget ilegível
 
 // Passo ÚNICO de altura de card, em px.
 //
@@ -46,7 +52,7 @@ const WG_MIN_H  = 88;  // altura mínima em px — nunca deixa o widget ilegíve
 // múltiplos de 12 ≡ 0 ou 12 (mod 24), elas nunca se cruzavam — era
 // impossível chegar no tamanho padrão arrastando. Agora é tudo a mesma rede.)
 const WG_SNAP = WG_ROW; // 4px
-const WG_RESIZE_STEP = WG_SNAP; // incremento da altura nos controles de resize
+export const WG_RESIZE_STEP = WG_SNAP; // incremento da altura nos controles de resize
 const WG_AUTO_SNAP = WG_SNAP;   // arredondamento da altura dos widgets automáticos
 
 // Quantas linhas do grid a margin-box do card ocupa. Com row-gap: 0 a área de
@@ -61,7 +67,7 @@ function snapHeight(height) {
 }
 
 // aliases mantidos pra leitura do código nos dois contextos (manual/automático)
-const snapResizeHeight = snapHeight;
+export const snapResizeHeight = snapHeight;
 const snapAutoHeight = snapHeight;
 
 function spanFromStyle(value, fallback) {
@@ -76,7 +82,7 @@ function spanFromStyle(value, fallback) {
  * min-height — o `height` do card continua sendo o do conteúdo (ou o
  * manual), e é ele que é salvo.
  */
-function packCards(container, cols, { alinhar = true } = {}) {
+export function packCards(container, cols, { alinhar = true } = {}) {
   const els = [...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder")];
   const pos = packLayout(
     els.map((el) => ({
@@ -96,7 +102,7 @@ function packCards(container, cols, { alinhar = true } = {}) {
   });
 }
 
-function currentCols(container) {
+export function currentCols(container) {
   return (
     parseInt(getComputedStyle(container).getPropertyValue("--wg-cols"), 10) ||
     WG_UNITS
@@ -116,7 +122,7 @@ function scaledToUnit(scaled, cols) {
   return Math.max(1, Math.min(WG_UNITS, Math.round((scaled / cols) * WG_UNITS)));
 }
 
-function getScaled(card, cols) {
+export function getScaled(card, cols) {
   return unitToScaled(parseInt(card.dataset.span, 10) || 2, cols);
 }
 
@@ -133,7 +139,7 @@ function applyScaled(card, scaled, cols) {
 }
 
 /** Resize manual: a pessoa escolheu a largura — essa vira a salva. */
-function setScaled(card, scaled, cols) {
+export function setScaled(card, scaled, cols) {
   scaled = Math.max(1, Math.min(cols, scaled));
   card.dataset.span = scaledToUnit(scaled, cols);
   card.dataset.scaled = String(scaled);
@@ -148,7 +154,7 @@ function setScaled(card, scaled, cols) {
  * manual (regra 3) quanto pra "curar" alturas manuais já persistidas
  * (ex: vindas do backend) que ficaram menores do que o conteúdo precisa.
  */
-function contentMinHeight(card) {
+export function contentMinHeight(card) {
   const prevHeight = card.style.height;
   const prevMinHeight = card.style.minHeight; // crescimento das faixas — não é conteúdo
   const prevAlignSelf = card.style.alignSelf;
@@ -202,7 +208,7 @@ function contentMinWidth(card) {
   return w;
 }
 
-function minScaled(card, cols) {
+export function minScaled(card, cols) {
   const catalogMin = unitToScaled(parseInt(card.dataset.minSpan, 10) || 1, cols);
 
   // piso adicional baseado no conteúdo real (regra 3) — converte a
@@ -216,7 +222,7 @@ function minScaled(card, cols) {
   return Math.max(catalogMin, Math.min(contentMin, cols));
 }
 
-function maxScaled(card, cols) {
+export function maxScaled(card, cols) {
   return unitToScaled(parseInt(card.dataset.maxSpan, 10) || WG_UNITS, cols);
 }
 
@@ -228,7 +234,7 @@ function maxScaled(card, cols) {
  * Se a altura ainda for 0 (antes do primeiro paint), mantém o span
  * inicial de 12 rows (≈ 96px) pra evitar colapso visual.
  */
-function placeCard(card, cols) {
+export function placeCard(card, cols) {
   let scaled = getScaled(card, cols);
   const min = minScaled(card, cols);
   const max = maxScaled(card, cols);
@@ -319,662 +325,6 @@ function syncGrid(container) {
     placeCard(card, cols)
   );
   packCards(container, cols);
-}
-
-/** Agrupa os cards de um grid por linha visual, comparando offsetTop. */
-function rowsOf(container) {
-  const cards = [...container.querySelectorAll(":scope > .card")];
-  const rows = [];
-  let lastTop = null;
-  cards.forEach((c) => {
-    const top = c.offsetTop;
-    if (lastTop === null || Math.abs(top - lastTop) > 2) {
-      rows.push([c]);
-      lastTop = top;
-    } else {
-      rows[rows.length - 1].push(c);
-    }
-  });
-  return rows;
-}
-
-/**
- * Reordena o array `widgets` (de fora) pra bater com a ordem atual dos
- * cards no DOM — chamado depois de soltar um card arrastado.
- */
-function widgetsInDomOrder(container, widgets) {
-  const order = [...container.querySelectorAll(":scope > .card")].map(
-    (c) => c.dataset.widget
-  );
-  const byType = new Map(widgets.map((w) => [w.widget_type, w]));
-  return order.map((type) => byType.get(type)).filter(Boolean);
-}
-
-/**
- * Cards que podem ser reordenados — exclui o fixo (data-pinned, ex:
- * profile), que nunca sai da posição 1/1 (mesma regra do drag de
- * mouse, ver onMove() em attachDragHandle e pinnedFirst()). Usado
- * tanto pelo drag quanto pela reordenação por teclado como a "lista de
- * posições possíveis".
- */
-function movableCards(container) {
-  return [...container.querySelectorAll(":scope > .card:not([data-pinned])")];
-}
-
-/**
- * Devolve [primeiroCard, últimoCard] (só os reordenáveis) da mesma
- * linha visual do card passado — usado pelos atalhos "início/fim da
- * linha" (Shift+Home/End e Ctrl/Cmd+Shift+←/→) da reordenação por
- * teclado. `null` se o card não estiver (ainda) renderizado em
- * nenhuma linha.
- */
-function movableRowBounds(container, card) {
-  const row = rowsOf(container).find((r) => r.includes(card));
-  if (!row) return null;
-  const movable = row.filter((c) => !c.hasAttribute("data-pinned"));
-  return movable.length ? [movable[0], movable[movable.length - 1]] : null;
-}
-
-/**
- * Move `card` `steps` posições à frente (positivo) ou pra trás
- * (negativo) dentro de movableCards(), reinserindo-o no DOM
- * imediatamente antes/depois do card que hoje ocupa a posição de
- * destino — mesma técnica (`el.before()`/`el.after()`) já usada pelo
- * placeholder do drag de mouse (ver attachDragHandle/onMove), só que
- * movendo o card de verdade em vez de um placeholder. Clampa nas
- * bordas em vez de estourar; devolve `false` quando não houve
- * movimento real (já estava na borda, ou nada pra mover). Usado pelas
- * setas da reordenação por teclado (ver createKeyboardReorder()).
- */
-function stepCard(container, card, steps) {
-  const list = movableCards(container);
-  const from = list.indexOf(card);
-  if (from === -1 || steps === 0) return false;
-  const to = Math.max(0, Math.min(list.length - 1, from + steps));
-  if (to === from) return false;
-  const ref = list[to];
-  if (to > from) ref.after(card);
-  else ref.before(card);
-  return true;
-}
-
-/**
- * Move `card` pra primeira ou última posição reordenável do grid
- * inteiro — Ctrl/Cmd+Shift+↑/↓ da reordenação por teclado.
- */
-function moveCardToGridEdge(container, card, edge) {
-  const list = movableCards(container);
-  if (list.length < 2) return false;
-  const target = edge === "start" ? list[0] : list[list.length - 1];
-  if (target === card) return false;
-  target[edge === "start" ? "before" : "after"](card);
-  return true;
-}
-
-/**
- * Move `card` pro início ou fim da SUA linha visual atual —
- * Shift+Home/End e Ctrl/Cmd+Shift+←/→ da reordenação por teclado.
- */
-function moveCardToRowEdge(container, card, edge) {
-  const bounds = movableRowBounds(container, card);
-  if (!bounds) return false;
-  const [start, end] = bounds;
-  const target = edge === "start" ? start : end;
-  if (target === card) return false;
-  target[edge === "start" ? "before" : "after"](card);
-  return true;
-}
-
-/**
- * Reaplica uma ordem completa (array de cards) no DOM, na sequência
- * exata dada — usado só pra desfazer uma reordenação por teclado
- * cancelada (Esc), restaurando o snapshot tirado no momento em que o
- * card foi selecionado. Não é o caminho "quente" (cada passo de
- * movimento usa stepCard/moveCardTo*Edge, que são O(1) via
- * before()/after()) — aqui reinserir tudo em sequência é o jeito mais
- * simples de garantir a ordem exata sem ter que calcular o diff entre
- * a ordem atual e a original.
- */
-function restoreCardOrder(container, orderedCards) {
-  let ref = container.querySelector(":scope > .card[data-pinned]") || null;
-  orderedCards.forEach((c) => {
-    if (ref) ref.after(c);
-    else container.prepend(c);
-    ref = c;
-  });
-}
-
-function restoreCardSize(card, snapshot) {
-  card.dataset.span = snapshot.span;
-  if (snapshot.height === "") {
-    card.style.height = "";
-  } else {
-    card.style.height = snapshot.height;
-  }
-  if (snapshot.manual) card.dataset.manual = "1";
-  else delete card.dataset.manual;
-  placeCard(card, currentCols(card.parentElement));
-}
-
-/** true se `el` é um campo de formulário (ou está dentro de um) — usado
- * pra não capturar "?" (abrir modal de atalhos) nem outras teclas de
- * reordenação enquanto o usuário está digitando dentro de um widget. */
-function isEditableTarget(el) {
-  return !!el?.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]');
-}
-
-// região aria-live compartilhada por todas as instâncias do grid da
-// página (só uma tela com grid fica montada por vez) — criada sob
-// demanda, mesmo padrão singleton dos modais (ver modals/*.js).
-// Anuncia pro leitor de tela cada passo da reordenação por teclado.
-let kwLiveRegionEl = null;
-function announceToScreenReader(message) {
-  if (!kwLiveRegionEl || !document.body.contains(kwLiveRegionEl)) {
-    kwLiveRegionEl = document.getElementById("wg-kw-live-region");
-    if (!kwLiveRegionEl) {
-      kwLiveRegionEl = document.createElement("div");
-      kwLiveRegionEl.id = "wg-kw-live-region";
-      kwLiveRegionEl.className = "sr-only";
-      kwLiveRegionEl.setAttribute("aria-live", "polite");
-      kwLiveRegionEl.setAttribute("aria-atomic", "true");
-      document.body.appendChild(kwLiveRegionEl);
-    }
-  }
-  // limpa antes de setar — repete a mesma mensagem duas vezes seguidas
-  // (ex: "já está na borda do grid.") sem isso não dispara um novo
-  // anúncio em alguns leitores de tela, porque o texto não mudou.
-  kwLiveRegionEl.textContent = "";
-  requestAnimationFrame(() => {
-    if (kwLiveRegionEl) kwLiveRegionEl.textContent = message;
-  });
-}
-
-/**
- * Controle de teclado do grid. Ctrl+D entra em um modo próprio de
- * navegação: Tab fica bloqueado e as setas trocam o widget pré-selecionado.
- * Enter confirma esse widget para movimentação; as setas então alteram a
- * ordem, Shift+setas ajustam o tamanho e Enter salva as mudanças. A alça
- * continua sendo exclusivamente o alvo do drag com mouse.
- */
-function createKeyboardReorder(container, getCommit) {
-  let mode = false;
-  let preselected = null;
-  let selected = null; // { card, snapshot: Card[] } | null
-
-  function widgetLabel(card) {
-    return WIDGET_CATALOG[card.dataset.widget]?.label || card.dataset.widget || "widget";
-  }
-
-  function positionOf(card) {
-    const list = movableCards(container);
-    return { index: list.indexOf(card), total: list.length };
-  }
-
-  function describeHandle(card, handle) {
-    const { index, total } = positionOf(card);
-    handle.setAttribute(
-      "aria-label",
-      `arrastar ${widgetLabel(card)}, posição ${index + 1} de ${total}.`
-    );
-    handle.setAttribute("aria-pressed", "false");
-  }
-
-  function focusCard(card) {
-    if (!card) return;
-    card.tabIndex = -1;
-    card.focus({ preventScroll: true });
-  }
-
-  function setPreselected(card) {
-    if (preselected) preselected.classList.remove("kw-preselected");
-    preselected = card;
-    if (preselected) {
-      preselected.classList.add("kw-preselected");
-      focusCard(preselected);
-      const { index, total } = positionOf(preselected);
-      announceToScreenReader(`${widgetLabel(preselected)} pré-selecionado, posição ${index + 1} de ${total}.`);
-    }
-  }
-
-  function movePreselection(direction) {
-    const list = movableCards(container);
-    const index = Math.max(0, list.indexOf(preselected));
-    const cols = Math.max(1, currentCols(container));
-    const delta = direction === "ArrowLeft" ? -1
-      : direction === "ArrowRight" ? 1
-      : direction === "ArrowUp" ? -cols
-      : cols;
-    const next = Math.max(0, Math.min(list.length - 1, index + delta));
-    if (list[next] !== preselected) setPreselected(list[next]);
-  }
-
-  function enterMode() {
-    const first = movableCards(container)[0];
-    if (!first) return;
-    mode = true;
-    container.classList.add("wg-keyboard-mode");
-    setPreselected(first);
-    announceToScreenReader("Modo de seleção de widgets ativado. Use as setas para escolher um widget.");
-  }
-
-  function exitMode({ restore = false, silent = false } = {}) {
-    if (selected && restore) {
-      restoreCardOrder(container, selected.snapshot);
-      restoreCardSize(selected.card, selected.sizeSnapshot);
-      container.querySelectorAll(":scope > .card").forEach((card) => {
-        if (card !== selected.card) placeCard(card, currentCols(container));
-      });
-    }
-    selected?.card.classList.remove("kw-grabbed");
-    preselected?.classList.remove("kw-preselected");
-    selected = null;
-    preselected = null;
-    mode = false;
-    container.classList.remove("wg-keyboard-mode");
-    if (!silent) announceToScreenReader("Modo de seleção de widgets encerrado.");
-  }
-
-  function cancelIfActive({ silent = false } = {}) {
-    if (mode) exitMode({ restore: Boolean(selected), silent });
-  }
-
-  function confirmSelection() {
-    if (selected) {
-      const card = selected.card;
-      card.classList.remove("kw-grabbed");
-      selected = null;
-      setPreselected(card);
-      getCommit(true)();
-      announceToScreenReader(`${widgetLabel(card)} posição e tamanho salvos. Use as setas para escolher outro widget ou escape para sair.`);
-      return;
-    }
-    if (preselected) {
-      selected = {
-        card: preselected,
-        snapshot: movableCards(container),
-        sizeSnapshot: {
-          span: preselected.dataset.span,
-          height: preselected.style.height,
-          manual: preselected.dataset.manual === "1",
-        },
-      };
-      selected.card.classList.remove("kw-preselected");
-      selected.card.classList.add("kw-grabbed");
-      announceToScreenReader(`${widgetLabel(selected.card)} selecionado para mover. Use as setas e enter para confirmar.`);
-    }
-  }
-
-  function resizeSelected(direction) {
-    const card = selected?.card;
-    if (!card) return false;
-
-    const cols = Math.max(1, currentCols(container));
-    if (direction === "ArrowLeft" || direction === "ArrowRight") {
-      const delta = direction === "ArrowLeft" ? -1 : 1;
-      const next = Math.max(
-        minScaled(card, cols),
-        Math.min(maxScaled(card, cols), getScaled(card, cols) + delta)
-      );
-      if (next === getScaled(card, cols)) return false;
-      setScaled(card, next, cols);
-    } else {
-      const currentHeight = card.dataset.manual === "1" && card.style.height
-        ? parseInt(card.style.height, 10)
-        : Math.ceil(card.getBoundingClientRect().height);
-      const floor = Math.max(WG_MIN_H, contentMinHeight(card));
-      const delta = direction === "ArrowUp" ? -WG_RESIZE_STEP : WG_RESIZE_STEP;
-      const nextHeight = Math.max(
-        snapResizeHeight(floor),
-        snapResizeHeight(currentHeight + delta)
-      );
-      if (nextHeight === currentHeight) return false;
-      card.style.height = `${nextHeight}px`;
-      card.dataset.manual = "1";
-    }
-
-    placeCard(card, cols);
-    container.querySelectorAll(":scope > .card").forEach((other) => {
-      if (other !== card) placeCard(other, cols);
-    });
-    return true;
-  }
-
-  function onKeydown(e) {
-    if (e.key === "?" && !isEditableTarget(e.target)) {
-      e.preventDefault();
-      cancelIfActive({ silent: true });
-      openWidgetShortcutsModal();
-      return;
-    }
-
-    if (!isEditableTarget(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
-      e.preventDefault();
-      if (!mode) enterMode();
-      return;
-    }
-
-    if (!mode || container.classList.contains("wg-tips-locked") || isEditableTarget(e.target)) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      exitMode({ restore: Boolean(selected) });
-      return;
-    }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      return;
-    }
-    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
-      e.preventDefault();
-      confirmSelection();
-      return;
-    }
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
-
-    e.preventDefault();
-    if (selected) {
-      if (e.shiftKey) {
-        if (resizeSelected(e.key)) {
-          focusCard(selected.card);
-          announceToScreenReader(`${widgetLabel(selected.card)} redimensionado. Pressione Enter para salvar.`);
-        }
-        return;
-      }
-      const cols = Math.max(1, currentCols(container));
-      const delta = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" ? -cols : cols;
-      if (stepCard(container, selected.card, delta)) {
-        focusCard(selected.card);
-        announceToScreenReader(`${widgetLabel(selected.card)} movido.`);
-      }
-    } else {
-      movePreselection(e.key);
-    }
-  }
-
-  container.addEventListener("keydown", onKeydown);
-  const onDocumentKeydown = (e) => {
-    if (e.target.closest?.(".modal-backdrop.open")) return;
-    if (mode && e.key === "Tab" && !isEditableTarget(e.target)) {
-      e.preventDefault();
-      return;
-    }
-    if (!isEditableTarget(e.target) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
-      e.preventDefault();
-      if (!mode) enterMode();
-    }
-  };
-  document.addEventListener("keydown", onDocumentKeydown);
-  return {
-    describeHandle,
-    cancelIfActive,
-    /** Recalcula o aria-label de TODAS as alças do grid — chamado depois
-     * de inserir cards no DOM em lote (render()/setWidgets()), já que
-     * describeHandle() sozinho só é reacionado no foco de cada alça
-     * (ver attachDragHandle) e cards recém-inseridos ainda não foram
-     * focados por ninguém. */
-    refreshAllLabels() {
-      container.querySelectorAll(":scope > .card > .card-head > .drag-handle").forEach((h) => {
-        const card = h.closest(".card");
-        if (card) describeHandle(card, h);
-      });
-    },
-    destroy() {
-      cancelIfActive({ silent: true });
-      container.removeEventListener("keydown", onKeydown);
-      document.removeEventListener("keydown", onDocumentKeydown);
-    },
-  };
-}
-
-/**
- * Botão "?" de ajuda dos atalhos de teclado — inserido de preferência
- * dentro da .wg-toolbar (mesma barra do "+ adicionar widget", ver
- * dashboard.js) logo acima do grid; se essa barra não existir (algum
- * uso futuro de initGrid fora do padrão de createDashboardPage), cai
- * num botão solto logo antes do grid. Nunca é inserido DENTRO do
- * container do grid — ele é um item de CSS grid (.widget-grid,
- * display:grid) e um filho a mais ali entraria no auto-placement dos
- * widgets, empurrando/roubando espaço de um card de verdade.
- */
-function mountKeyboardHelpButton(container) {
-  const parent = container.parentElement;
-  if (!parent) return null;
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "wg-kw-help-btn";
-  btn.dataset.tooltip = "atalhos de teclado (?)";
-  btn.setAttribute("aria-label", "ver atalhos de teclado do grid de widgets");
-  btn.innerHTML = icon("circle-help", { size: 13, title: "atalhos de teclado" });
-  btn.addEventListener("click", () => openWidgetShortcutsModal());
-
-  const toolbar = container.previousElementSibling?.classList.contains("wg-toolbar")
-    ? container.previousElementSibling
-    : null;
-
-  if (toolbar) {
-    toolbar.insertBefore(btn, toolbar.firstChild);
-  } else {
-    btn.classList.add("wg-kw-help-btn-standalone");
-    parent.insertBefore(btn, container);
-  }
-  return btn;
-}
-
-/**
- * Handle de resize (⋰, canto inferior direito) — largura em frações da
- * linha (ajusta os vizinhos da mesma linha pra não estourar), altura livre
- * com mínimo garantido. Persiste a nova largura via onLayoutChange ao soltar.
- */
-function attachResizeHandle(card, container, getCommit, pauseObservers, resumeObservers) {
-  if (card.querySelector(":scope > .resize-handle")) return;
-
-  const badge = document.createElement("div");
-  badge.className = "wg-size-badge";
-  card.appendChild(badge);
-
-  const handle = document.createElement("div");
-  handle.className = "resize-handle";
-  handle.dataset.tooltip =
-    "arraste pra redimensionar";
-  handle.innerHTML = icon("resize", { size: 12, title: "redimensionar widget" });
-  card.appendChild(handle);
-
-  const reset = document.createElement("div");
-  reset.className = "resize-reset";
-  reset.dataset.tooltip = "voltar ao tamanho automático";
-  reset.innerHTML = icon("undo", { size: 11, title: "voltar ao tamanho automático" });
-  reset.onclick = () => {
-    const cols = currentCols(container);
-    card.style.height = "";
-    card.dataset.span = card.dataset.origSpan ?? card.dataset.span;
-    delete card.dataset.manual;
-    placeCard(card, cols);
-    getCommit()();
-  };
-  card.appendChild(reset);
-
-  if (card.dataset.origSpan === undefined) {
-    card.dataset.origSpan = card.dataset.span;
-  }
-
-  let startX, startY, startH, startScaled, colStep, cols;
-
-  function onMove(e) {
-    try {
-      const dy = e.clientY - startY;
-      // piso real = o maior entre o mínimo absoluto do app e a altura que
-      // o conteúdo atual precisa pra não cortar nada (regra 3) — mede na
-      // largura já aplicada nesse frame (a largura pode ter mudado no
-      // mesmo drag, e isso afeta quebra de linha/altura do conteúdo)
-      const floor = Math.max(WG_MIN_H, contentMinHeight(card));
-      const newH = snapResizeHeight(Math.max(floor, startH + dy));
-      card.style.height = `${newH}px`;
-      card.dataset.manual = "1";
-
-      const dx = e.clientX - startX;
-      const deltaCols = Math.round(dx / colStep);
-      const min = minScaled(card, cols);
-      const max = maxScaled(card, cols);
-      const scaled = Math.max(min, Math.min(max, startScaled + deltaCols));
-      setScaled(card, scaled, cols);
-
-      placeCard(card, cols);
-
-      // outros cards podem ter sido empurrados/puxados de linha pelo
-      // auto-placement dense do grid — recalcula a altura (grid-row-end)
-      // de todos, já que a posição deles pode ter mudado
-      container.querySelectorAll(":scope > .card").forEach((c) => {
-        if (c !== card) placeCard(c, cols);
-      });
-      // sem faixas durante o resize manual: o card mostra a altura que a
-      // pessoa está escolhendo, não a alinhada
-      packCards(container, cols, { alinhar: false });
-    } catch (err) {
-      console.error("erro no resize:", err);
-    }
-  }
-
-  function onUp() {
-    document.removeEventListener("pointermove", onMove);
-    document.removeEventListener("pointerup", onUp);
-    card.classList.remove("resizing");
-    card.style.alignSelf = "";           // volta ao comportamento normal (align-self:start via CSS)
-    document.body.classList.remove("kami-resizing");
-    resumeObservers();
-    getCommit()();
-  }
-
-  handle.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    document.addEventListener("dragstart", (e) => e.preventDefault());
-    card.classList.add("resizing");
-    card.style.alignSelf = "start";
-    document.body.classList.add("kami-resizing");
-    pauseObservers();
-    startX = e.clientX;
-    startY = e.clientY;
-    const rect = card.getBoundingClientRect();
-    startH = rect.height;
-    cols = currentCols(container);
-    const gridRect = container.getBoundingClientRect();
-    colStep = (gridRect.width - WG_GAP * (cols - 1)) / cols + WG_GAP;
-    startScaled = getScaled(card, cols);
-
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-  });
-}
-
-/**
- * Handle de drag (ícone "grip", no card-head) — arrasta o card inteiro pra
- * reordenar dentro do grid, usando um placeholder que segue o cursor entre
- * os cards vizinhos. Persiste a nova ordem via onLayoutChange ao soltar.
- */
-function attachDragHandle(card, container, getCommit, pauseObservers, resumeObservers, kw) {
-  const head = card.querySelector(":scope > .card-head");
-  if (!head || head.querySelector(":scope > .drag-handle")) return;
-
-  // <button> (não <span>) — precisa entrar na ordem de Tab e receber
-  // Enter/Espaço pra viabilizar a reordenação por teclado (ver kw.* /
-  // createKeyboardReorder() em initGrid). O reset visual de botão
-  // nativo (fundo/borda/padding) fica em card-base.css .drag-handle.
-  const handle = document.createElement("button");
-  handle.type = "button";
-  handle.className = "drag-handle";
-  handle.tabIndex = -1;
-  handle.dataset.tooltip = "arraste pra reordenar";
-  handle.innerHTML = icon("grip", { size: 12, title: "arraste pra reordenar" });
-  handle.setAttribute("aria-pressed", "false");
-  head.insertBefore(handle, head.firstChild);
-
-  // aria-label com a posição atual só é calculado quando a alça
-  // recebe foco (em vez de mantido sempre atualizado) — mais barato, e
-  // é exatamente o momento em que um leitor de tela precisa da
-  // informação; kw.describeHandle() sabe a posição/total atuais na
-  // hora porque lê o DOM ao vivo.
-  handle.addEventListener("focus", () => kw?.describeHandle(card, handle));
-
-  handle.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    // se havia uma reordenação por teclado pendente (em outro card,
-    // ou neste mesmo), o mouse assume — cancela sem persistir, mesma
-    // semântica do Esc.
-    kw?.cancelIfActive({ silent: true });
-    pauseObservers();
-    document.body.classList.add("kami-dragging");
-    card.classList.add("dragging-card");
-
-    const rect = card.getBoundingClientRect();
-    const placeholder = document.createElement("div");
-    placeholder.className = "wg-placeholder";
-    placeholder.dataset.scaled = card.dataset.scaled || "";
-    placeholder.dataset.rows = card.dataset.rows || "";
-    card.after(placeholder);
-
-    const offX = e.clientX - rect.left;
-    const offY = e.clientY - rect.top;
-    card.style.width = `${rect.width}px`;
-    card.style.position = "fixed";
-    card.style.top = `${rect.top}px`;
-    card.style.left = `${rect.left}px`;
-    card.style.zIndex = 1000;
-    card.style.pointerEvents = "none";
-    document.body.appendChild(card);
-
-    function onMove(ev) {
-      card.style.top = `${ev.clientY - offY}px`;
-      card.style.left = `${ev.clientX - offX}px`;
-      const targets = [
-        ...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder"),
-      ].filter((el) => el !== placeholder);
-      const target = targets.find((el) => {
-        const r = el.getBoundingClientRect();
-        return (
-          ev.clientX >= r.left &&
-          ev.clientX <= r.right &&
-          ev.clientY >= r.top &&
-          ev.clientY <= r.bottom
-        );
-      });
-      if (target) {
-        // nunca deixa soltar ANTES do card fixo (ex: profile) — ele
-        // precisa continuar sendo o primeiro no DOM pra CSS garantir
-        // a posição 1/1 sem sobreposição (ver pinnedFirst()/render()).
-        if (target.hasAttribute("data-pinned")) {
-          target.after(placeholder);
-          return;
-        }
-        const r = target.getBoundingClientRect();
-        const before = ev.clientX < r.left + r.width / 2;
-        const ref = before ? target.previousElementSibling : target.nextElementSibling;
-        if (ref !== placeholder) {
-          target[before ? "before" : "after"](placeholder);
-          // a posição é calculada pelo Kami (packLayout), não pelo navegador:
-          // reempacota pra prévia mostrar onde o card vai cair
-          packCards(container, currentCols(container));
-        }
-      }
-    }
-
-    function onUp() {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      card.style.position = "";
-      card.style.top = "";
-      card.style.left = "";
-      card.style.width = "";
-      card.style.zIndex = "";
-      card.style.pointerEvents = "";
-      placeholder.replaceWith(card);
-      card.classList.remove("dragging-card");
-      document.body.classList.remove("kami-dragging");
-      resumeObservers();          // reconecta e faz 1 syncGrid final, não N durante o drag
-      getCommit(true)();
-    }
-
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-  });
 }
 
 /**

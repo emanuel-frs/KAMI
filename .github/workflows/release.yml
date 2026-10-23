@@ -40,6 +40,22 @@ jobs:
             exit 1
           fi
 
+      # MAN-04: versões, CHANGELOG, marcadores e a tag no commit de release
+      - name: Check release readiness
+        run: ./scripts/conferir-release.sh --tag "$GITHUB_REF_NAME"
+
+      # DIST-01: sem a chave do updater a release sairia sem latest.json e
+      # ninguém seria avisado — melhor parar aqui (ver docs/MANUTENCAO.md)
+      - name: Check updater signing secrets
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$TAURI_SIGNING_PRIVATE_KEY" || -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]]; then
+            echo "Faltam os secrets TAURI_SIGNING_PRIVATE_KEY / _PASSWORD (chave do updater, DIST-01)." >&2
+            exit 1
+          fi
+
   build-linux:
     name: Build Linux installers
     needs: check-version
@@ -49,11 +65,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # versão em rust-toolchain.toml
         with:
-          toolchain: stable
+          toolchain: "1.97.1"
 
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -96,6 +112,9 @@ jobs:
         working-directory: src-tauri
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
+          # DIST-01: assina o AppImage pro updater (gera o .AppImage.sig)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           python -m venv ../backend/.venv
           source ../backend/.venv/bin/activate
@@ -110,6 +129,7 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
           if-no-files-found: error
           retention-days: 7
 
@@ -122,11 +142,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # versão em rust-toolchain.toml
         with:
-          toolchain: stable
+          toolchain: "1.97.1"
 
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -156,6 +176,10 @@ jobs:
       - name: Build Windows sidecar and installer
         working-directory: src-tauri
         shell: bash
+        env:
+          # DIST-01: assina o instalador pro updater (gera o -setup.exe.sig)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           python -m venv ../backend/.venv
           source ../backend/.venv/Scripts/activate
@@ -166,7 +190,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-installer
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
           if-no-files-found: error
           retention-days: 7
 
@@ -214,6 +240,19 @@ jobs:
           cp "$installer" "release-assets/kami-${version}-windows-x64-setup.exe"
           sed "s/^pkgver=.*/pkgver=${version}/" packaging/arch/PKGBUILD \
             > "release-assets/kami-${version}-PKGBUILD"
+
+          # DIST-01: latest.json, que o app consulta pra avisar de versão
+          # nova (endereço em tauri.conf.json › plugins.updater). Só o
+          # AppImage e o instalador do Windows se atualizam pelo app; quem
+          # instalou .deb/.rpm/AUR só recebe o aviso. A assinatura é a do
+          # arquivo (o nome publicado muda, o conteúdo não).
+          python3 scripts/gerar_latest_json.py \
+            --versao "$version" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}" \
+            --appimage "kami-${version}-linux-x86_64.AppImage" "${appimage}.sig" \
+            --windows "kami-${version}-windows-x64-setup.exe" "${installer}.sig" \
+            --changelog CHANGELOG.md \
+            > release-assets/latest.json
           (
             cd release-assets
             sha256sum kami-*
@@ -230,10 +269,17 @@ jobs:
           if [[ "$tag" == *-* ]]; then
             prerelease_args+=(--prerelease)
           fi
+          # DIST-02: a página de download diz o que mudou, qual arquivo
+          # baixar e, ao lado do .exe, o aviso do SmartScreen com o hash
+          python3 scripts/gerar_notas_release.py \
+            --versao "${tag#v}" \
+            --changelog CHANGELOG.md \
+            --sums release-assets/SHA256SUMS \
+            > "$RUNNER_TEMP/notas.md"
           gh release create "$tag" release-assets/* \
             --target "$GITHUB_SHA" \
             --title "Kami $tag" \
-            --notes "Ver CHANGELOG.md para o detalhamento desta versão." \
+            --notes-file "$RUNNER_TEMP/notas.md" \
             "${prerelease_args[@]}"
 
   verify-release:

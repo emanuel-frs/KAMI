@@ -1,6 +1,5 @@
-import { store } from "../state/store.js";
-import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
+import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { switchTab } from "./organizacao.js";
 
 /**
@@ -51,64 +50,76 @@ const SCREEN = "organizacao";
 const STEPS = [
   // ─── busca (topo da tela, independe de aba) ──────────────────────────
   {
+    id: "busca",
     selector: "#org-search",
     text: "busca na web sem sair do kami — funciona em qualquer uma das abas abaixo.",
   },
   {
+    id: "chave-busca",
     selector: "#org-search-key-badge",
     text: "a chave de busca é opcional: sem ela, o resultado abre direto no duckduckgo; com uma chave configurada aqui, você vê um resumo direto nesta tela.",
   },
   {
+    id: "limpar-busca",
     selector: "#org-search-clear",
     text: "esse botão limpa o texto e o resultado da última busca.",
   },
 
   // ─── visão geral das abas ─────────────────────────────────────────────
   {
+    id: "abas-2",
     selector: ".tabs",
     text: "organização junta suas notas, a caixa de entrada da captura rápida e três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
   },
 
   // ─── aba: notas (padrão ao entrar na tela, ORG-01) ─────────────────────
   {
+    id: "aba-notas",
     selector: '.tab[data-tab="notas"]',
     text: "notas: texto com formatação (negrito, listas, checklist, tabela…), tags, cor, e dá pra fixar, arquivar ou trancar com o PIN. tudo salva sozinho enquanto você escreve.",
   },
   {
     onEnter: () => switchTab("notas"),
+    id: "nova-nota",
     selector: '[data-nt="nova"]',
     text: "\"+ nova nota\" começa uma nota aqui; de qualquer tela, alt+shift+n abre uma nota rápida. markdown funciona ao digitar: \"- \" vira lista, \"[] \" vira tarefa, \"# \" vira título. criar nota rende xp (até 3 por dia).",
   },
 
   // ─── aba: entrada (ORG-02) ─────────────────────────────────────────────
   {
+    id: "aba-entrada",
     selector: '.tab[data-tab="entrada"]',
     text: "entrada: o que você anotou com alt+q (de qualquer tela) sem prefixo cai aqui pra decidir depois — cada item vira gasto, tarefa, nota, meta, evento ou lembrete com um clique, ou é descartado. com prefixo vai direto: \"$ 25 almoço\" gasto, \"# ideia\" nota, \"! sexta 14h\" evento, \"@ amanhã 9h\" lembrete.",
   },
 
   // ─── aba: github ───────────────────────────────────────────────────────
   {
+    id: "aba-github",
     selector: '.tab[data-tab="github"]',
     text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github. sincronizar rende xp uma vez por dia por repositório.",
   },
   {
     onEnter: () => switchTab("github"),
+    id: "conectar-repo",
     selector: '[data-action="open-repo-modal"]',
     text: "\"+ conectar repositório\" só precisa do nome usuario/repositorio — se colar a url inteira do github sem querer, o kami entende do mesmo jeito.",
   },
   {
     onEnter: () => switchTab("github"),
+    id: "token-github",
     selector: '[data-action="open-github-token-modal"]',
     text: "o token é opcional: sem ele você só vê repositórios públicos, com 60 requisições/hora. com um token de leitura, também vê privados e sobe pra 5000/hora.",
   },
 
   // ─── aba: e-mail ───────────────────────────────────────────────────────
   {
+    id: "aba-email-2",
     selector: '.tab[data-tab="email"]',
     text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local. clique num e-mail pra ler aqui mesmo, em texto limpo (sem rastreadores), ou abrir no webmail. sincronizar na mão rende xp uma vez por dia por conta.",
   },
   {
     onEnter: () => switchTab("email"),
+    id: "contas-email",
     selector: '[data-action="open-manage-accounts-modal"]',
     text: '"gerenciar contas" é onde tudo acontece: adicionar uma conta nova (host e porta imap, usuário, e uma senha de app — não a sua senha normal; gmail, outlook etc. geram essa senha separada nas configurações de segurança), silenciar ou remover as existentes. dá pra ter várias contas, e marcar quais ficam selecionadas por padrão sempre que você abrir a tela.',
   },
@@ -118,6 +129,7 @@ const STEPS = [
     // ensinar a usar — abre modal, então precisa ser o ÚLTIMO passo da
     // sequência inteira (ver comentário no topo do arquivo)
     onEnter: () => switchTab("links"),
+    id: "novo-link",
     selector: '[data-action="open-link-modal"]',
     text: "\"+ adicionar link\" cadastra um atalho novo. a categoria é livre — você escolhe os nomes, e os links viram grupos por categoria aqui embaixo.",
     advanceOn: "interact",
@@ -142,38 +154,17 @@ export function replayOrganizacaoTips() {
   });
 }
 
+// MAN-05: ids das dicas que já existiam até a 1.12 — quem viu esta tela
+// antes da 1.14 não as vê de novo (components/dicas-novas.js). Dica nova
+// ou reescrita (id com "-2") fica FORA desta lista.
+const ATE_1_12 = ["busca", "chave-busca", "limpar-busca", "aba-github", "conectar-repo", "token-github", "contas-email", "novo-link"];
+
 /**
- * Dispara a sequência se: (a) o onboarding geral já foi concluído e
- * (b) Organização ainda não está em screen_tips_seen. Mesmo guard de
- * chamada repetida que as outras telas.
+ * Ao abrir a tela, mostra as dicas que a pessoa ainda não viu (todas, na
+ * primeira vez; só as novas, com o rótulo "novidade", depois) — regras
+ * em components/dicas-novas.js. Seguro de chamar várias vezes (mount e
+ * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
-export async function maybeStartOrganizacaoTips() {
-  if (running) return;
-  const profile = store.get("profile");
-  if (!profile?.onboarding_completed) return;
-
-  running = true;
-  let seen;
-  try {
-    seen = await getScreenTipsSeen();
-  } catch (err) {
-    console.error("erro ao checar dicas já vistas de organização:", err);
-    running = false;
-    return;
-  }
-  if (seen.seen.includes(SCREEN)) {
-    running = false;
-    return;
-  }
-
-  startTipSequence(STEPS, {
-    onFinish: async () => {
-      running = false;
-      try {
-        await markScreenTipsSeen(SCREEN);
-      } catch (err) {
-        console.error("erro ao marcar dicas de organização como vistas:", err);
-      }
-    },
-  });
+export function maybeStartOrganizacaoTips() {
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
 }

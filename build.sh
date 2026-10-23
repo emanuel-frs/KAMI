@@ -398,8 +398,19 @@ rm -rf "$TAURI_DIR/target/release/bundle/deb" \
 export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
 export NO_STRIP="${NO_STRIP:-1}"
 
+# DIST-01: com a chave pública do updater no tauri.conf.json, o Tauri
+# exige a privada pra assinar os pacotes ("A public key has been found,
+# but no private key"). Build local não é publicado, então não assina —
+# a menos que TAURI_SIGNING_PRIVATE_KEY esteja no ambiente (ver "A chave
+# de assinatura das atualizações" em docs/MANUTENCAO.md).
+TAURI_ARGS=()
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+  TAURI_ARGS+=(--config ci/sem-updater.json)
+  log "sem TAURI_SIGNING_PRIVATE_KEY: pacotes sem assinatura do updater (normal num build local)"
+fi
+
 TAURI_RC=0
-run_with_progress "tauri" "$LOG_DIR/02-tauri-build.log" cargo tauri build || TAURI_RC=$?
+run_with_progress "tauri" "$LOG_DIR/02-tauri-build.log" cargo tauri build "${TAURI_ARGS[@]}" || TAURI_RC=$?
 
 if [ "$TAURI_RC" -eq 0 ]; then
   ok "cargo tauri build terminou sem erros"

@@ -55,6 +55,18 @@ test(
     doc.body.append(modal);
     tecla(doc, "k", { ctrlKey: true, code: "KeyK" });
     assert.equal(paleta.hidden, true);
+    modal.remove();
+
+    // nem com a sequência de dicas aberta (ela fica por cima e o Esc é
+    // dela — achado no e2e do CONF-09)
+    const dica = doc.createElement("div");
+    dica.className = "tip-seq-root";
+    doc.body.append(dica);
+    tecla(doc, "k", { ctrlKey: true, code: "KeyK" });
+    assert.equal(paleta.hidden, true);
+    dica.remove();
+    tecla(doc, "k", { ctrlKey: true, code: "KeyK" });
+    assert.equal(paleta.hidden, false, "sem nada aberto volta a abrir");
     fechar();
   })
 );

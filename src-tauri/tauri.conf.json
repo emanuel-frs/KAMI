@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Kami",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "identifier": "com.kami.app",
   "build": {
     "frontendDist": "../frontend"
@@ -26,6 +26,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "nsis",
       "deb",
@@ -50,6 +51,7 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
+        "installerHooks": "nsis/hooks.nsh",
         "languages": [
           "PortugueseBR",
           "English"
@@ -57,6 +59,17 @@
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERFQ0IwNjM0OUQwRUY3MTIKUldRUzl3NmROQWJMM3VxajAzR25Gb0U5azQ3c3RJNlBJM0lNdlkrRFVIams2SDNSOWFBcWRyQXkK",
+      "endpoints": [
+        "https://github.com/emanuel-frs/KAMI/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

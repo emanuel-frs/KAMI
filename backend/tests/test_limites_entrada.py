@@ -184,8 +184,9 @@ def _input_models():
 
     nomes = {body["$ref"].split("/")[-1] for _m, _p, body in WRITE_ROUTES}
     achados = {}
-    for mod in pkgutil.iter_modules(routers_pkg.__path__):
-        module = __import__(f"app.routers.{mod.name}", fromlist=["x"])
+    # walk_packages: desde o MAN-02 um router pode ser pacote (organizacao/)
+    for mod in pkgutil.walk_packages(routers_pkg.__path__, prefix="app.routers."):
+        module = __import__(mod.name, fromlist=["x"])
         for nome, obj in inspect.getmembers(module, inspect.isclass):
             if nome in nomes and obj.__module__ == module.__name__:
                 achados[nome] = obj
@@ -203,7 +204,12 @@ def test_seg_09_every_input_model_inherits_the_limits():
 
 def test_seg_09_no_route_takes_a_file_path():
     # nenhuma rota recebe caminho de arquivo; se um dia receber, tem que
-    # validar que fica dentro da pasta de dados — e este teste lembra disso
+    # validar que fica dentro da pasta de dados — e este teste lembra disso.
+    # Exceção decidida (CONF-08): a pasta extra das cópias automáticas, que
+    # é de propósito FORA da pasta de dados (pendrive, HD externo, pasta
+    # sincronizada). Limites em app/backup_auto.py: caminho absoluto, pasta
+    # que existe e aceita escrita, e só kami-semanal-*.db é escrito/apagado.
+    excecoes = {"pasta", "pasta_extra"}
     suspeitos = ("path", "caminho", "pasta", "arquivo", "file", "dir")
     nomes = []
     for _path, ops in SPEC["paths"].items():
@@ -211,4 +217,4 @@ def test_seg_09_no_route_takes_a_file_path():
             nomes += [p["name"] for p in op.get("parameters", [])]
     for schema in SCHEMAS.values():
         nomes += list(schema.get("properties", {}))
-    assert [n for n in nomes if any(s in n.lower() for s in suspeitos)] == []
+    assert [n for n in nomes if n not in excecoes and any(s in n.lower() for s in suspeitos)] == []

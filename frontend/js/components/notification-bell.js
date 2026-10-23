@@ -4,6 +4,7 @@ import { openNotificacoesModal } from "../modals/notificacoes-modal.js";
 import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
 import { listPendentes } from "../api/lembretes.js";
+import { noSino } from "./atualizacao.js";
 
 /**
  * Sino de notificações geral (rodapé da sidebar, ao lado do ícone de
@@ -56,7 +57,8 @@ async function lembretesCount() {
 
 async function unreadCount() {
   const [a, b, c] = await Promise.all([emailCount(), entradaCount(), lembretesCount()]);
-  return a + b + c;
+  // DIST-01: versão nova conta uma vez (abrir o sino marca como avisada)
+  return a + b + c + (noSino().contar ? 1 : 0);
 }
 
 async function emailCount() {
@@ -105,6 +107,7 @@ export function wireNotificationBell() {
   store.subscribe("profile", renderBadge);
   window.addEventListener("kami:entrada-mudou", renderBadge);
   window.addEventListener("kami:lembretes-mudaram", renderBadge);
+  window.addEventListener("kami:atualizacao", renderBadge);
 
   // primeira contagem pro badge já no boot, sem precisar abrir o modal
   renderBadge();
