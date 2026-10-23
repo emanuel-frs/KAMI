@@ -36,14 +36,9 @@
       SetShellVarContext current
       RmDir /r "$APPDATA\kami"
       ; o alvo aparece como "LegacyGeneric:target=kami": tenta o nome completo
-      ; e o curto (cada versão do cmdkey aceita um). A saída vai pra
-      ; %TEMP%\kami-desinstalar.log (diagnóstico; o e2e do Windows lê)
-      nsExec::ExecToStack `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$alvo = $$null; cmdkey /list | ForEach-Object { if ($$_ -match '(\S*target=\S+)\s*$$') { $$alvo = $$Matches[1] } elseif ($$alvo -and $$_ -match 'chave-dos-segredos-[0-9a-f]{16}\s*$$') { 'apagando ' + $$alvo; cmdkey ('/delete:' + $$alvo); cmdkey ('/delete:' + ($$alvo -replace '^.*target=', '')); $$alvo = $$null } }"`
+      ; e o curto (cada versão do cmdkey aceita um)
+      nsExec::Exec `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$alvo = $$null; cmdkey /list | ForEach-Object { if ($$_ -match '(\S*target=\S+)\s*$$') { $$alvo = $$Matches[1] } elseif ($$alvo -and $$_ -match 'chave-dos-segredos-[0-9a-f]{16}\s*$$') { cmdkey ('/delete:' + $$alvo) | Out-Null; cmdkey ('/delete:' + ($$alvo -replace '^.*target=', '')) | Out-Null; $$alvo = $$null } }"`
       Pop $R9
-      Pop $R8
-      FileOpen $R7 "$TEMP\kami-desinstalar.log" w
-      FileWrite $R7 "codigo=$R9$\r$\n$R8"
-      FileClose $R7
     ${EndIf}
   ${EndIf}
 !macroend
