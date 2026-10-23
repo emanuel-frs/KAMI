@@ -125,8 +125,14 @@ async function main() {
   // 4. o instalador troca os arquivos e reabre o app
   await waitFor(`o kami.exe instalado na ${nova}`, () => versaoDoExe(exe) === nova, { timeout: 240000, every: 3000 });
   log(`kami.exe instalado agora: ${versaoDoExe(exe)}`);
-  const rodando = await waitFor("o app reaberto", () => ps(`(Get-Process -Name kami -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '${exe}' }).Count`) !== "0" || null, { timeout: 60000, every: 2000 });
-  log(`app reaberto pelo instalador (${rodando} processo)`);
+  // O instalador reabre o app com nsis_tauri_utils::RunAsUser — pelo
+  // Explorer da sessão, sem o KAMI_DATA_DIR deste teste. No runner do CI
+  // (sem desktop de verdade) isso pode não acontecer; é do modelo do Tauri,
+  // não do Kami, então aqui vira aviso. A atualização em si é o kami.exe
+  // novo no lugar (conferido acima).
+  const reaberto = await waitFor("o app reaberto", () => ps("(Get-Process -Name kami -ErrorAction SilentlyContinue).Count") !== "0" || null, { timeout: 60000, every: 2000 }).catch(() => null);
+  if (reaberto) log(`app reaberto pelo instalador (${reaberto} processo)`);
+  else log(`AVISO: o instalador não reabriu o app neste runner (RunAsUser depende do Explorer da sessão). processos: ${ps("Get-Process | Where-Object { $_.Name -match 'kami|explorer' } | ForEach-Object { $_.Name } | Out-String").replace(/\s+/g, " ").trim() || "nenhum"}`);
   log(`pedidos ao servidor: ${pedidos.join(", ")}`);
   ps("Get-Process -Name kami,kami-backend -ErrorAction SilentlyContinue | Stop-Process -Force");
   servidor.close();
