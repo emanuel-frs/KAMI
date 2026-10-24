@@ -170,6 +170,7 @@ from app.migracoes import (
     _migrate_user_profile_recompensas,
     _migrate_user_profile_notif_fora,
     _migrate_user_profile_atualizacao,
+    _migrate_user_profile_idioma,
     _migrate_user_profile_som,
     _migrate_missoes_widget,
     migrate_timestamps_to_local,
@@ -313,6 +314,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_user_profile_som(conn)
     _migrate_user_profile_notif_fora(conn)
     _migrate_user_profile_atualizacao(conn)
+    _migrate_user_profile_idioma(conn)
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)

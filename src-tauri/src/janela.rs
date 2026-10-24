@@ -94,15 +94,44 @@ pub fn mostrar(app: &AppHandle) {
 }
 
 /// Cria o ícone da bandeja (se ainda não existe).
+/// I18N-01: os textos do menu da bandeja no idioma do app. Quem traduz é o
+/// frontend (os dicionários moram lá) e manda com `janela_textos_bandeja`;
+/// até ele mandar — a bandeja pode nascer antes, com o Kami iniciado
+/// escondido — fica o português.
+pub struct TextosBandeja(pub Mutex<[String; 3]>);
+
+impl Default for TextosBandeja {
+    fn default() -> Self {
+        Self(Mutex::new(["abrir kami".into(), "captura rápida".into(), "sair".into()]))
+    }
+}
+
+fn menu_da_bandeja(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let [abrir, captura, sair] = app.state::<TextosBandeja>().0.lock().unwrap().clone();
+    let abrir = MenuItem::with_id(app, "abrir", abrir, true, None::<&str>)?;
+    let captura = MenuItem::with_id(app, "captura", captura, true, None::<&str>)?;
+    let separador = PredefinedMenuItem::separator(app)?;
+    let sair = MenuItem::with_id(app, "sair", sair, true, None::<&str>)?;
+    Menu::with_items(app, &[&abrir, &captura, &separador, &sair])
+}
+
+#[tauri::command]
+pub fn janela_textos_bandeja(app: AppHandle, abrir: String, captura: String, sair: String) -> Result<(), String> {
+    // texto de menu curto; nada de vir um parágrafo inteiro de fora
+    let curto = |s: String| s.chars().take(60).collect::<String>();
+    *app.state::<TextosBandeja>().0.lock().unwrap() = [curto(abrir), curto(captura), curto(sair)];
+    if let Some(bandeja) = app.tray_by_id(ID_BANDEJA) {
+        let menu = menu_da_bandeja(&app).map_err(|e| e.to_string())?;
+        bandeja.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 pub fn criar_bandeja(app: &AppHandle) -> tauri::Result<()> {
     if app.tray_by_id(ID_BANDEJA).is_some() {
         return Ok(());
     }
-    let abrir = MenuItem::with_id(app, "abrir", "abrir kami", true, None::<&str>)?;
-    let captura = MenuItem::with_id(app, "captura", "captura rápida", true, None::<&str>)?;
-    let separador = PredefinedMenuItem::separator(app)?;
-    let sair = MenuItem::with_id(app, "sair", "sair", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&abrir, &captura, &separador, &sair])?;
+    let menu = menu_da_bandeja(app)?;
 
     let mut builder = TrayIconBuilder::with_id(ID_BANDEJA)
         .tooltip("kami")

@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS user_profile (
     atualizacoes_procurar  INTEGER NOT NULL DEFAULT 1,  -- P-88: ligado, explicado em configurações › sobre
     atualizacao_avisada    TEXT,                        -- versão que já contou no sino
     atualizacao_pulada     TEXT,                        -- "pular esta versão"
+    -- I18N-01 (P-74/P-96): idioma das telas; NULL = ainda não escolhido (banco
+    -- novo: o app usa o do sistema e grava). Quem já usava ficou com 'pt'.
+    idioma                 TEXT,
     updated_at            TEXT NOT NULL
 );
 

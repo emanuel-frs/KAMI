@@ -56,6 +56,8 @@ def test_seg_23_rust_commands_exposed_to_the_window_are_known():
         "atualizacao::atualizacao_instalar", "atualizacao::atualizacao_procurar",
         "get_backend_port", "get_backend_token", "icone_tema::aplicar_icone_tema",
         "janela::janela_definir", "janela::janela_preferencias", "janela::janela_sair",
+        # I18N-01: os textos do menu da bandeja no idioma do app (só textos)
+        "janela::janela_textos_bandeja",
         # DIST-03: remover tudo do Kami deste computador (só depois da
         # confirmação dupla na tela; não recebe caminho nenhum — apaga a
         # pasta de dados do próprio app, src-tauri/src/limpeza.rs)

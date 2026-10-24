@@ -1,4 +1,4 @@
-import { getProfile, updateAvatar } from "./api/perfil.js";
+import { getProfile, updateAvatar, updateProfile } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
@@ -45,6 +45,7 @@ import { wirePaleta } from "./components/paleta.js";
 import { definirFormatoData, formatoData } from "./components/format.js";
 import { wireCamposData } from "./components/campos-data.js";
 import { novaVisitaDeTela } from "./components/dicas-novas.js";
+import { carregarIdioma, idiomaAtual, idiomaDoSistema, idiomaGuardado, t } from "./i18n.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -216,6 +217,39 @@ function aplicarFormatoData(profile) {
   if (formatoData() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
 }
 
+/**
+ * I18N-01: o idioma do perfil manda. Banco novo (idioma vazio) fica com o
+ * que a abertura escolheu pelo sistema, e grava — a partir daí é a escolha
+ * da pessoa. Perfil com outro idioma (trocado em configurações, ou backup
+ * de outra máquina importado) carrega o dicionário e redesenha.
+ */
+async function aplicarIdiomaDoPerfil(profile) {
+  if (!profile) return;
+  if (!profile.idioma) {
+    try {
+      store.set("profile", await updateProfile({ idioma: idiomaAtual() }));
+    } catch {
+      /* fica pra próxima abertura */
+    }
+    return;
+  }
+  if (profile.idioma !== idiomaAtual()) await carregarIdioma(profile.idioma);
+}
+
+/** Trocou o idioma: textos fixos já foram (i18n.js); falta o resto. */
+function aoTrocarIdioma() {
+  applyProfileToSidebar(store.get("profile"));
+  enviarTextosDaBandeja();
+  if (currentPageName) showPage(currentPageName, { remontar: true });
+}
+
+/** O menu da bandeja é montado pelo Rust; os textos vão daqui (I18N-01). */
+function enviarTextosDaBandeja() {
+  window.__TAURI__?.core
+    ?.invoke("janela_textos_bandeja", { abrir: t("bandeja.abrir"), captura: t("bandeja.captura"), sair: t("bandeja.sair") })
+    .catch(() => {});
+}
+
 function applyProfileToSidebar(profile) {
   if (!profile) return;
 
@@ -228,6 +262,7 @@ function applyProfileToSidebar(profile) {
   // sem avatar: o aviso quebra linha como texto normal (o <pre> do desenho
   // ASCII cortava em "sem avatar ainda — con", LAY-01)
   sidebarAvatarEl?.classList.toggle("mini-avatar--vazio", !profile.avatar_ascii);
+  if (sidebarAvatarEl && !profile.avatar_ascii) sidebarAvatarEl.textContent = t("sidebar.sem_avatar");
   if (sidebarAvatarEl && profile.avatar_ascii) {
     sidebarAvatarEl.textContent = profile.avatar_ascii;
     try {
@@ -298,6 +333,11 @@ async function boot() {
   // cor e tema da última vez, antes de qualquer coisa aparecer (o perfil
   // só chega depois — e com o PIN ligado, só depois do desbloqueio)
   restaurarAparencia();
+  // I18N-01: o idioma antes de qualquer texto (a tela de PIN vem antes do
+  // perfil): o da última vez ou, na primeira abertura, o do sistema
+  await carregarIdioma(idiomaGuardado() || idiomaDoSistema());
+  window.addEventListener("kami:idioma", aoTrocarIdioma);
+  enviarTextosDaBandeja();
 
   // splash roda em todo boot (assinatura visual, não é gate de primeira
   // vez) — dispara em paralelo com o carregamento real, pra tela já
@@ -310,6 +350,7 @@ async function boot() {
 
   store.subscribe("profile", applyProfileToSidebar);
   store.subscribe("profile", aplicarFormatoData); // ORG-07
+  store.subscribe("profile", aplicarIdiomaDoPerfil); // I18N-01
   wireCamposData(); // ORG-07: campo de data vazio parece vazio (WebKitGTK)
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo

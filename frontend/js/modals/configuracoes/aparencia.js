@@ -12,12 +12,18 @@ import { ACCENT_OPTIONS } from "../../components/accent-colors.js";
 import { store } from "../../state/store.js";
 import { playSound } from "../../components/sound.js";
 import { estado } from "./estado.js";
+import { IDIOMAS, carregarIdioma, idiomaAtual, t } from "../../i18n.js";
+import { enhanceSelect, refreshCustomSelect } from "../../components/custom-select.js";
+import { openExternal } from "../../components/open-external.js";
+
+// I18N-01 (P-84): onde mandar uma correção de tradução
+const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
 
 // GAM-04 — ver components/visual-effects.js
 // ORG-07 (P-53): formato das datas — o exemplo é preenchido ao abrir
 // (o de "sistema" depende do idioma da máquina)
 const FORMATO_DATA_OPCOES = [
-  { value: "sistema", label: "seguir o sistema", desc: "" },
+  { value: "sistema", label: "seguir o idioma", desc: "" },
   { value: "dma", label: "dd/mm/aaaa", desc: "" },
   { value: "mda", label: "mm/dd/aaaa", desc: "" },
   { value: "iso", label: "aaaa-mm-dd", desc: "" },
@@ -40,6 +46,17 @@ export function buildAparenciaPanel() {
   return `
     <div class="cfg-panel on" data-panel="aparencia">
       <div class="settings-section" style="padding-top:0;">
+        <h4>${t("aparencia.idioma.titulo")}</h4>
+        <p class="settings-desc">${t("aparencia.idioma.desc")}</p>
+        <div class="field">
+          <select id="cfg-idioma" aria-label="${t("aparencia.idioma.titulo")}">
+            ${IDIOMAS.map((i) => `<option value="${i.codigo}" lang="${i.intl}">${escapeHtml(i.nome)}</option>`).join("")}
+          </select>
+        </div>
+        <p class="settings-desc" id="cfg-idioma-ia">${t("aparencia.idioma.aviso_ia")} <a href="#" id="cfg-idioma-sugerir">${t("aparencia.idioma.sugerir")}</a></p>
+        <p class="settings-status" id="cfg-idioma-status"></p>
+      </div>
+      <div class="settings-section">
         <h4>cor de destaque</h4>
         <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app.</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
@@ -63,7 +80,7 @@ export function buildAparenciaPanel() {
       </div>
       <div class="settings-section">
         <h4>formato das datas</h4>
-        <p class="settings-desc">como as datas aparecem nas telas. os campos de data dos formulários seguem sempre o idioma do sistema.</p>
+        <p class="settings-desc">como as datas aparecem nas telas. "seguir o idioma" usa a ordem do idioma do kami; os campos de data dos formulários seguem sempre o idioma do sistema.</p>
         <div role="radiogroup" aria-label="formato das datas" id="cfg-formato-data">
           ${FORMATO_DATA_OPCOES.map((o) => `
           <label class="cfg-toggle">
@@ -150,12 +167,44 @@ export function renderIconeTema(wrap, profile) {
   });
 }
 
+// ── idioma (I18N-01) ───────────────────────────────────────────────────
+// Salva no perfil e carrega o dicionário; o app redesenha a tela aberta e
+// este modal (configuracoes-modal.js ouve o kami:idioma). O português não
+// mostra o aviso de tradução — é a língua em que o Kami foi escrito.
+export function renderIdioma(wrap) {
+  const select = wrap.querySelector("#cfg-idioma");
+  select.value = idiomaAtual();
+  refreshCustomSelect(select);
+  wrap.querySelector("#cfg-idioma-ia").hidden = idiomaAtual() === "pt";
+}
+
+export function wireIdioma(wrap) {
+  const select = wrap.querySelector("#cfg-idioma");
+  enhanceSelect(select);
+  select.addEventListener("change", async () => {
+    const idioma = select.value;
+    try {
+      store.set("profile", await updateProfile({ idioma }));
+    } catch (err) {
+      select.value = idiomaAtual();
+      refreshCustomSelect(select);
+      showErrorModal(err.message, "erro ao salvar o idioma");
+      return;
+    }
+    await carregarIdioma(idioma);
+  });
+  wrap.querySelector("#cfg-idioma-sugerir").addEventListener("click", (e) => {
+    e.preventDefault();
+    openExternal(ISSUES_URL);
+  });
+}
+
 export function renderFormatoData(wrap, current) {
   const atual = current || "sistema";
   wrap.querySelectorAll("[data-formato-exemplo]").forEach((el) => {
     const v = el.dataset.formatoExemplo;
     const ex = fmtDataNoFormato("2026-10-21", v);
-    el.textContent = v === "sistema" ? `agora: ${ex} (idioma ${navigator.language || "?"})` : `ex: ${ex}`;
+    el.textContent = v === "sistema" ? `agora: ${ex}` : `ex: ${ex}`;
   });
   wrap.querySelectorAll('input[name="cfg-formato-data"]').forEach((input) => {
     input.checked = input.value === atual;

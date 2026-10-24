@@ -531,6 +531,20 @@ def _migrate_user_profile_atualizacao(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_idioma(conn: sqlite3.Connection) -> None:
+    """
+    I18N-01: idioma das telas. Banco que já existia (a coluna é nova) fica
+    em português — quem atualiza não vê o Kami mudar de idioma sozinho
+    (P-96). Banco novo nasce com a coluna (schema.sql) e NULL: o app
+    escolhe pelo idioma do sistema na primeira abertura.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "idioma" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN idioma TEXT")
+        conn.execute("UPDATE user_profile SET idioma = 'pt'")
+    conn.commit()
+
+
 def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:
     """GAM-13: colunas de som em user_profile (ver database.SOM_COLUNAS)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}

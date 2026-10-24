@@ -87,12 +87,15 @@ import { showErrorModal } from "./err-modal.js";
 import { icon } from "../components/icons.js";
 import { store } from "../state/store.js";
 import { playSound } from "../components/sound.js";
+import { destroyCustomSelect } from "../components/custom-select.js";
 import {
   buildAparenciaPanel,
   renderAccentSwatches,
   renderIconeTema,
   renderFormatoData,
   selectFormatoData,
+  renderIdioma,
+  wireIdioma,
   renderEffectsOptions,
   selectEffectsMode,
   renderSoundOptions,
@@ -202,6 +205,7 @@ function wireModal(wrap) {
   wireChavesTab(wrap);
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
   wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
+  wireIdioma(wrap); // I18N-01
   wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
   wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
     saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
@@ -289,6 +293,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     renderAccentSwatches(estado.modalEl, profile.accent_color);
     renderEffectsOptions(estado.modalEl, profile.efeitos_visuais);
     renderFormatoData(estado.modalEl, profile.formato_data);
+    renderIdioma(estado.modalEl);
     renderIconeTema(estado.modalEl, profile);
     renderSoundOptions(estado.modalEl, profile);
     renderRewards(estado.modalEl, profile);
@@ -315,6 +320,21 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     showErrorModal(err.message, "erro ao carregar status das credenciais");
   }
   await loadChavesAccounts(estado.modalEl);
+}
+
+// I18N-01: o modal é montado uma vez e reaproveitado — trocou o idioma, ele
+// é jogado fora e montado de novo (se estava aberto, reabre na mesma aba)
+if (typeof window !== "undefined") {
+  window.addEventListener("kami:idioma", () => {
+    const el = estado.modalEl;
+    if (!el) return;
+    const aberto = el.classList.contains("open");
+    const aba = el.querySelector(".cfg-tab.on")?.dataset.tab;
+    el.querySelectorAll("select").forEach(destroyCustomSelect);
+    el.remove();
+    estado.modalEl = null;
+    if (aberto) openConfiguracoesModal(aba);
+  });
 }
 
 export function closeConfiguracoesModal() {

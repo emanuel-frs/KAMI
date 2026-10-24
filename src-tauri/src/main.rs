@@ -471,6 +471,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendProcess(Mutex::new(None)))
         .manage(atualizacao::Pendente::default())
+        .manage(janela::TextosBandeja::default())
         .manage(BackendStatus::default())
         .manage(janela::EstadoJanela(Mutex::new(janela::carregar(&kami_data_dir()))))
         .invoke_handler(tauri::generate_handler![
@@ -482,6 +483,7 @@ fn main() {
             janela::janela_preferencias,
             janela::janela_definir,
             janela::janela_sair,
+            janela::janela_textos_bandeja,
             atualizacao::atualizacao_procurar,
             atualizacao::atualizacao_instalar,
             limpeza::remover_tudo_do_computador

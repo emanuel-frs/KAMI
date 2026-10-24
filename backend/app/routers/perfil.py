@@ -48,6 +48,7 @@ class ProfileOut(BaseModel):
     atualizacoes_procurar: bool = True
     atualizacao_avisada: Optional[str] = None
     atualizacao_pulada: Optional[str] = None
+    idioma: Optional[str] = None  # I18N-01: None = ainda não escolhido
     updated_at: str
 
 
@@ -83,6 +84,8 @@ class ProfileUpdate(Entrada):
     atualizacoes_procurar: Optional[bool] = None
     atualizacao_avisada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
     atualizacao_pulada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
+    # I18N-01 (P-74): os 10 idiomas — frontend/js/i18n.js::IDIOMAS
+    idioma: Optional[str] = Field(None, pattern=r"^(pt|en|es|fr|it|de|zh|ja|ko|hi)$")
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -190,6 +193,8 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
     if payload.atualizacoes_procurar is not None:
         db.execute("UPDATE user_profile SET atualizacoes_procurar = ? WHERE id = ?", (int(payload.atualizacoes_procurar), row["id"]))
+    if payload.idioma is not None:
+        db.execute("UPDATE user_profile SET idioma = ? WHERE id = ?", (payload.idioma, row["id"]))
     for col in ("atualizacao_avisada", "atualizacao_pulada"):
         value = getattr(payload, col)
         if value is not None:

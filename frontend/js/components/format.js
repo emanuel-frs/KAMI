@@ -1,4 +1,5 @@
 /** Portado de kami_telas_final.html (fmtRelDate/fmtDateBR/fmtMoney). */
+import { localeAtual } from "../i18n.js";
 
 /**
  * "YYYY-MM-DD" de um Date no fuso LOCAL de quem usa. Substitui o
@@ -30,7 +31,8 @@ export function fmtRelDate(iso) {
 // ── datas (ORG-07, P-53) ───────────────────────────────────────────────
 // Um formatador só pra toda data numérica do app. A ordem vem de
 // configurações › aparência › formato das datas: "sistema" (padrão — segue
-// o idioma do sistema: dd/mm/aaaa no Brasil, mm/dd/aaaa nos EUA…), "dma",
+// o idioma do app desde a I18N-01: dd/mm/aaaa em português, mm/dd/aaaa em
+// inglês, aaaa/mm/dd em chinês…), "dma",
 // "mda" ou "iso" (aaaa-mm-dd). app.js chama definirFormatoData() com o
 // perfil no boot e quando ele muda. Os campos de data dos formulários são
 // os nativos (P-71) e seguem o sistema sozinhos. Nome de mês por extenso
@@ -38,28 +40,31 @@ export function fmtRelDate(iso) {
 
 const FORMATOS = ["dma", "mda", "iso"];
 let preferencia = "sistema";
-let doSistema = null;
+const ordemPorLocale = new Map();
 
 /** @param {"sistema"|"dma"|"mda"|"iso"} formato */
 export function definirFormatoData(formato) {
   preferencia = FORMATOS.includes(formato) ? formato : "sistema";
 }
 
-/** A ordem do idioma do sistema, pela ordem das partes no Intl. */
+/** A ordem do idioma do app, pela ordem das partes no Intl. */
 function ordemDoSistema() {
-  if (doSistema) return doSistema;
-  try {
-    const idioma = (typeof navigator !== "undefined" && navigator.language) || "pt-BR";
-    const partes = new Intl.DateTimeFormat(idioma, { day: "2-digit", month: "2-digit", year: "numeric" })
-      .formatToParts(new Date(2026, 9, 21))
-      .filter((p) => p.type !== "literal")
-      .map((p) => p.type[0])
-      .join("");
-    doSistema = partes === "mdy" ? "mda" : partes === "ymd" ? "iso" : "dma";
-  } catch {
-    doSistema = "dma";
+  const locale = localeAtual();
+  if (!ordemPorLocale.has(locale)) {
+    let ordem = "dma";
+    try {
+      const partes = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" })
+        .formatToParts(new Date(2026, 9, 21))
+        .filter((p) => p.type !== "literal")
+        .map((p) => p.type[0])
+        .join("");
+      ordem = partes === "mdy" ? "mda" : partes === "ymd" ? "iso" : "dma";
+    } catch {
+      /* fica dd/mm/aaaa */
+    }
+    ordemPorLocale.set(locale, ordem);
   }
-  return doSistema;
+  return ordemPorLocale.get(locale);
 }
 
 /** A ordem em uso agora: "dma" | "mda" | "iso". */

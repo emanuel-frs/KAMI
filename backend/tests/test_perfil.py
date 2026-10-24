@@ -242,3 +242,35 @@ def test_atualizacoes_guardam_avisada_pulada_e_limpam_com_vazio(client):
 @pytest.mark.parametrize("versao", ["v1.15.0", "1.15", "1.15.0; DROP", "x" * 41])
 def test_atualizacao_recusa_versao_que_nao_e_semver(client, versao):
     assert client.put("/api/perfil", json={"atualizacao_pulada": versao}).status_code == 422
+
+
+# ─── I18N-01: idioma das telas ──────────────────────────────────────────
+
+
+def test_banco_novo_comeca_sem_idioma_e_guarda_o_escolhido(client):
+    assert client.get("/api/perfil").json()["idioma"] is None  # o app usa o do sistema
+    assert client.put("/api/perfil", json={"idioma": "ja"}).json()["idioma"] == "ja"
+    assert client.put("/api/perfil", json={"display_name": "x"}).json()["idioma"] == "ja"
+
+
+@pytest.mark.parametrize("idioma", ["pt-BR", "ru", "", "EN"])
+def test_idioma_so_aceita_os_10(client, idioma):
+    assert client.put("/api/perfil", json={"idioma": idioma}).status_code == 422
+
+
+def test_quem_ja_usava_fica_em_portugues_ao_atualizar():
+    # P-96: banco de antes da 1.15 (sem a coluna) → 'pt', nada muda sozinho
+    import sqlite3
+
+    from app import migracoes
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE user_profile (id TEXT PRIMARY KEY, display_name TEXT)")
+    conn.execute("INSERT INTO user_profile VALUES ('1', 'Emanuel')")
+    migracoes._migrate_user_profile_idioma(conn)
+    assert conn.execute("SELECT idioma FROM user_profile").fetchone()[0] == "pt"
+    # rodar de novo não mexe numa escolha feita depois
+    conn.execute("UPDATE user_profile SET idioma = 'ko'")
+    migracoes._migrate_user_profile_idioma(conn)
+    assert conn.execute("SELECT idioma FROM user_profile").fetchone()[0] == "ko"
