@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.15.0] - em desenvolvimento
+
+_Sprint 7 da evolução — idioma (I18N-01 a I18N-06): o Kami em 10 idiomas (português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi), fontes para todas as escritas, moeda e país (feriados) escolhidos pela pessoa. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.14.0] - 2026-10-23
 
 _Fundação para a 2.0: aviso de versão nova pelo próprio app, cópias automáticas do banco, desinstalação sem rastros e a página de download explicando o aviso do Windows._
