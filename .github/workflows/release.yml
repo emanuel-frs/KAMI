@@ -255,7 +255,10 @@ jobs:
             > release-assets/latest.json
           (
             cd release-assets
-            sha256sum kami-*
+            # latest.json (DIST-01) também: a conferência do fim exige que
+            # TODO arquivo publicado esteja aqui (na 1.14.0 faltou e ela falhou
+            # depois de publicar — os arquivos estavam certos)
+            sha256sum kami-* latest.json
           ) > release-assets/SHA256SUMS
 
       - name: Create release and upload assets
