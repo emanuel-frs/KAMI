@@ -60,5 +60,5 @@ export const getSummary = (month) => get(`/api/financas/summary?month=${month}`)
 // NOTA: listCreditCards/createCreditCard/deleteCreditCard e
 // listSubscriptions/createSubscription/deleteSubscription foram REMOVIDOS
 // daqui — os endpoints /credit-cards e /subscriptions antigos não existem
-// mais em financas.py. A carteira (bancos/contas) e as assinaturas novas
+// mais em routers/financas/. A carteira (bancos/contas) e as assinaturas novas
 // (com toggle pago/mês) estão em api/carteira.js.

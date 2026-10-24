@@ -22,14 +22,17 @@
  * A ordem dos passos segue a ordem dos cards no DOM (ordem real do
  * grid), não a ordem das chaves de `textsByType`.
  */
-export function buildWidgetSteps(container, textsByType) {
+export function buildWidgetSteps(container, textsByType, revisoes = {}) {
   const cards = container.querySelectorAll(".card[data-widget]");
   const steps = [];
   cards.forEach((card) => {
     const type = card.dataset.widget;
     const text = textsByType[type];
     if (!text) return;
-    steps.push({ selector: `.card[data-widget="${type}"]`, text });
+    // MAN-05: id estável por widget; texto reescrito que deve aparecer de
+    // novo ganha um sufixo em `revisoes` (ex.: { contas_fixas: 2 })
+    const rev = revisoes[type];
+    steps.push({ id: rev ? `widget-${type}-${rev}` : `widget-${type}`, selector: `.card[data-widget="${type}"]`, text });
   });
   return steps;
 }

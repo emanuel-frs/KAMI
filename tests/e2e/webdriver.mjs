@@ -11,6 +11,16 @@
  * nativo do sistema: WebKitWebDriver no Linux, msedgedriver no Windows.
  */
 
+// códigos das teclas especiais na especificação do WebDriver
+const TECLAS = {
+  Alt: "",
+  Control: "",
+  Shift: "",
+  Enter: "",
+  Escape: "",
+  Backspace: "",
+};
+
 export class WebDriver {
   constructor(baseUrl = "http://127.0.0.1:4444") {
     this.baseUrl = baseUrl.replace(/\/$/, "");
@@ -62,6 +72,26 @@ export class WebDriver {
       if (!r?.ok) throw new Error(`erro no script da página: ${r?.e}`);
       return r.v;
     });
+  }
+
+  /**
+   * Teclado de verdade (CONF-09): W3C Actions — o driver entrega a tecla
+   * ao motor como uma tecla física, então passa pelo mesmo caminho de um
+   * Alt+Q digitado (o sistema pode engolir; um dispatchEvent não pegaria).
+   * `combo`: "Alt+q", "Control+k", "Enter", "Escape" ou um texto a digitar
+   * (`{ texto: true }`), caractere por caractere.
+   */
+  async keys(combo, { texto = false } = {}) {
+    const actions = [];
+    if (texto) {
+      for (const ch of combo) actions.push({ type: "keyDown", value: ch }, { type: "keyUp", value: ch });
+    } else {
+      const partes = combo.split("+").map((p) => TECLAS[p] || p);
+      for (const p of partes) actions.push({ type: "keyDown", value: p });
+      for (const p of [...partes].reverse()) actions.push({ type: "keyUp", value: p });
+    }
+    await this.#call("POST", this.#session("/actions"), { actions: [{ type: "key", id: "teclado", actions }] });
+    await this.#call("DELETE", this.#session("/actions")).catch(() => {});
   }
 
   refresh() {

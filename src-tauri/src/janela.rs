@@ -6,7 +6,7 @@
 //!   rodando (e avisando os lembretes) com um ícone na bandeja — menu
 //!   "abrir kami", "captura rápida", "sair".
 //! - `iniciar_com_sistema`: registra o kami pra abrir no login
-//!   (tauri-plugin-autostart) com `--oculto`; com a bandeja ligada ele
+//!   (crate auto-launch, ver `inicio_com_sistema`) com `--oculto`; com a bandeja ligada ele
 //!   começa escondido nela, sem a bandeja abre a janela normal.
 //!
 //! Ficam num arquivo da máquina (`janela.json` na pasta de dados), não no
@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_autostart::ManagerExt;
+use auto_launch::{AutoLaunch, AutoLaunchBuilder, WindowsEnableMode};
 
 pub const ARG_OCULTO: &str = "--oculto";
 const ID_BANDEJA: &str = "kami-bandeja";
@@ -54,6 +54,34 @@ pub fn carregar(dir: &PathBuf) -> Preferencias {
 fn salvar(dir: &PathBuf, prefs: &Preferencias) -> Result<(), String> {
     let texto = serde_json::to_string_pretty(prefs).map_err(|e| e.to_string())?;
     std::fs::write(arquivo(dir), texto).map_err(|e| format!("não foi possível salvar as preferências da janela: {}", e))
+}
+
+/// Instância única (ORG-05): abrir o kami de novo mostra a janela que já
+/// está aberta em vez de uma segunda.
+///
+/// CONF-09: com `KAMI_DATA_DIR` definido (modo demo, testes, e2e) a
+/// "identidade" da instância passa a ser a pasta de dados — no Linux o
+/// plugin aceita um nome próprio no D-Bus. Sem isso, um Kami de verdade
+/// aberto na bandeja recebia o app do teste (que fechava na hora) e o e2e
+/// não rodava na máquina de quem usa o app. Sem a variável nada muda: o
+/// nome continua o identificador do app. No Windows o plugin não tem essa
+/// opção (o e2e de lá roda no CI, sem outro Kami aberto).
+pub fn instancia_unica() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    let builder = tauri_plugin_single_instance::Builder::new().callback(|app, _args, _cwd| mostrar(app));
+    #[cfg(target_os = "linux")]
+    let builder = match std::env::var_os("KAMI_DATA_DIR").filter(|d| !d.is_empty()) {
+        Some(dir) => {
+            use std::hash::{Hash, Hasher};
+            // DefaultHasher::new() tem chave fixa: a mesma pasta dá o mesmo
+            // nome em toda execução (é o que a segunda instância precisa)
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            dir.hash(&mut h);
+            // parte de nome D-Bus não pode começar com dígito → "d" na frente
+            builder.dbus_id(format!("com.kami.app.d{:016x}", h.finish()))
+        }
+        None => builder,
+    };
+    builder.build()
 }
 
 /// Mostra a janela principal (da bandeja, da segunda instância…).
@@ -129,11 +157,38 @@ pub fn bandeja_ligada(app: &AppHandle) -> bool {
     app.state::<EstadoJanela>().0.lock().map(|p| p.bandeja).unwrap_or(false)
 }
 
+/// O início com o sistema, SEMPRE só pra pessoa que está usando
+/// (`HKCU\...\Run` no Windows, `~/.config/autostart` no Linux).
+///
+/// Antes era o tauri-plugin-autostart, que usa o modo "dinâmico" do
+/// auto-launch: com o Kami aberto como administrador ele gravava em
+/// `HKLM\...\Run` — iniciar com o sistema pra TODOS os usuários do PC, e
+/// uma entrada que o desinstalador (por usuário) não apaga. Achado no e2e
+/// do Windows da 1.14 (o runner do GitHub é administrador). Desligar
+/// continua tirando das duas (o auto-launch tenta o HKLM e ignora se não
+/// tiver permissão), então uma entrada antiga em HKLM some ao desligar.
+fn inicio_com_sistema(app: &AppHandle) -> Result<AutoLaunch, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    // AppImage: o caminho do próprio .AppImage, não o do executável montado
+    // em /tmp/.mount_* (que some quando o app fecha)
+    let caminho = std::env::var_os("APPIMAGE")
+        .filter(|_| cfg!(target_os = "linux"))
+        .map(PathBuf::from)
+        .unwrap_or(exe);
+    AutoLaunchBuilder::new()
+        .set_app_name(&app.package_info().name)
+        .set_app_path(&caminho.display().to_string())
+        .set_args(&[ARG_OCULTO])
+        .set_windows_enable_mode(WindowsEnableMode::CurrentUser)
+        .build()
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn janela_preferencias(app: AppHandle) -> Preferencias {
     let mut prefs = app.state::<EstadoJanela>().0.lock().unwrap().clone();
     // o registro de verdade é do sistema (a pessoa pode ter tirado de lá)
-    if let Ok(ligado) = app.autolaunch().is_enabled() {
+    if let Ok(ligado) = inicio_com_sistema(&app).and_then(|a| a.is_enabled().map_err(|e| e.to_string())) {
         prefs.iniciar_com_sistema = ligado;
     }
     prefs
@@ -154,9 +209,12 @@ pub fn janela_definir(app: AppHandle, campo: String, valor: bool) -> Result<Pref
             prefs.bandeja = valor;
         }
         "iniciar_com_sistema" => {
-            let auto = app.autolaunch();
+            let auto = inicio_com_sistema(&app)?;
             let r = if valor { auto.enable() } else { auto.disable() };
             r.map_err(|e| format!("não foi possível {} o início com o sistema: {}", if valor { "ligar" } else { "desligar" }, e))?;
+            if valor {
+                autostart_com_tryexec();
+            }
             prefs.iniciar_com_sistema = valor;
         }
         _ => return Err(format!("opção desconhecida: {}", campo)),
@@ -169,4 +227,94 @@ pub fn janela_definir(app: AppHandle, campo: String, valor: bool) -> Result<Pref
 #[tauri::command]
 pub fn janela_sair(app: AppHandle) {
     app.exit(0);
+}
+
+// ── DIST-03: autostart que não sobra ────────────────────────────────────
+
+/// Arquivo do autostart no Linux — o mesmo caminho que o `auto-launch`
+/// usa (`$HOME/.config/autostart`, ele não olha o XDG_CONFIG_HOME), com o
+/// nome do app ("Kami").
+#[cfg(target_os = "linux")]
+fn arquivo_autostart() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".config/autostart/Kami.desktop"))
+}
+
+/// O programa do `Exec=` (o caminho que o `auto-launch` escreveu).
+#[cfg(target_os = "linux")]
+fn programa_do_exec(texto: &str) -> Option<&str> {
+    texto.lines().find_map(|l| l.strip_prefix("Exec=")).and_then(|e| e.split_whitespace().next())
+}
+
+/// Acrescenta `TryExec=<programa>`: se o Kami for removido (`dnf remove`,
+/// AppImage apagado) sem abrir de novo, a sessão ignora a entrada em vez de
+/// tentar abrir um programa que não existe a cada login.
+#[cfg(target_os = "linux")]
+fn com_tryexec(texto: &str) -> String {
+    if texto.lines().any(|l| l.starts_with("TryExec=")) {
+        return texto.to_string();
+    }
+    let Some(prog) = programa_do_exec(texto) else { return texto.to_string() };
+    let mut linhas: Vec<String> = Vec::new();
+    for l in texto.lines() {
+        linhas.push(l.to_string());
+        if l.starts_with("Exec=") {
+            linhas.push(format!("TryExec={prog}"));
+        }
+    }
+    linhas.join("\n") + "\n"
+}
+
+#[cfg(target_os = "linux")]
+fn autostart_com_tryexec() {
+    let Some(arquivo) = arquivo_autostart() else { return };
+    if let Ok(texto) = std::fs::read_to_string(&arquivo) {
+        let _ = std::fs::write(&arquivo, com_tryexec(&texto));
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn autostart_com_tryexec() {}
+
+/// Na abertura: o autostart aponta pra um programa que não existe mais
+/// (trocou o .deb pelo AppImage, moveu o AppImage) → reescreve pro
+/// executável atual. Só quando o de lá SUMIU: um build de desenvolvimento
+/// aberto não toma o autostart da versão instalada.
+pub fn conferir_autostart(app: &AppHandle) {
+    #[cfg(target_os = "linux")]
+    {
+        let Some(arquivo) = arquivo_autostart() else { return };
+        let Ok(texto) = std::fs::read_to_string(&arquivo) else { return };
+        if !texto.contains(ARG_OCULTO) {
+            return; // não é o nosso
+        }
+        let sumiu = programa_do_exec(&texto).map(|p| !std::path::Path::new(p).exists()).unwrap_or(false);
+        if sumiu && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
+            autostart_com_tryexec();
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = app;
+}
+
+/// "Remover tudo do Kami deste computador": desliga o início com o sistema.
+pub fn desligar_autostart(app: &AppHandle) {
+    if let Ok(auto) = inicio_com_sistema(app) {
+        if auto.is_enabled().unwrap_or(false) {
+            let _ = auto.disable();
+        }
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod testes {
+    use super::*;
+
+    #[test]
+    fn autostart_ganha_tryexec_uma_vez() {
+        let texto = "[Desktop Entry]\nType=Application\nName=Kami\nExec=/opt/kami/Kami.AppImage --oculto\nTerminal=false";
+        let novo = com_tryexec(texto);
+        assert!(novo.contains("Exec=/opt/kami/Kami.AppImage --oculto\nTryExec=/opt/kami/Kami.AppImage\n"));
+        assert_eq!(com_tryexec(&novo), novo);
+        assert_eq!(programa_do_exec(texto), Some("/opt/kami/Kami.AppImage"));
+    }
 }

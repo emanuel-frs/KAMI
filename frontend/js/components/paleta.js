@@ -407,8 +407,11 @@ export function wirePaleta() {
   ligado = true;
   document.addEventListener("keydown", (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "k" || e.repeat) return;
-    // tela de PIN, apresentação do primeiro uso ou modal aberto: não
-    if (document.querySelector(".lock-screen:not([hidden]), .ki-backdrop.open, .modal-backdrop.open")) return;
+    // tela de PIN, apresentação do primeiro uso, modal ou sequência de
+    // dicas aberta: não (a dica fica por cima da paleta e o Esc é dela —
+    // mesma regra dos atalhos Alt, contextIsBusy() em shortcuts.js;
+    // achado no e2e do CONF-09)
+    if (document.querySelector(".lock-screen:not([hidden]), .ki-backdrop.open, .modal-backdrop.open, .tip-seq-root")) return;
     e.preventDefault();
     if (el && !el.hidden) fechar();
     else abrirPaleta();

@@ -12,7 +12,10 @@ permissions:
 
 # CONF-03: o teste ponta a ponta (tests/e2e/kami-e2e.mjs) abre o app
 # compilado de verdade em Linux e Windows, passa pelas telas em 3 tamanhos
-# e guarda os prints como artefato. Roda só em PR pra main, em push pra
+# e guarda os prints como artefato. CONF-09: também os fluxos que vieram
+# depois (captura, paleta, notas, lembretes, PIN, cópias, formato de data,
+# bandeja e início com o sistema) — leva ~2,5 min a mais por sistema, metade
+# tudo esperando o lembrete disparar. Roda só em PR pra main, em push pra
 # release/** e no disparo manual (decisão P-02) — reaproveita o app que os
 # jobs de build já compilam, então não refaz build nenhum.
 env:
@@ -27,11 +30,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Install backend dependencies
         run: |
@@ -40,6 +43,11 @@ jobs:
 
       # CONF-04: piso de cobertura — não pode cair. Sobe aos poucos conforme
       # entram testes novos (era 89% no backend e 77% no frontend em 2026-10-17).
+      # MAN-03: o Node 22 contava os próprios arquivos de teste na cobertura
+      # do frontend; o Node 24 não conta. O número real era 72,7% — o piso
+      # (package.json, test:coverage) foi rebaixado pra ele e, com os testes do
+      # modal de configurações (configuracoes-modal.test.js), subiu pra 80%
+      # (real: 81,5% em 2026-10-22).
       - name: Run backend tests (coverage floor)
         working-directory: backend
         run: pytest --cov=app --cov-report=term --cov-fail-under=89
@@ -53,7 +61,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh
+          shellcheck scripts/install.sh scripts/ci/smoke_backend.sh scripts/conferir-release.sh
+
+      # MAN-04: no PR pra main (e na branch release/**) o repositório tem que
+      # estar pronto pra virar release — versões iguais, CHANGELOG com data,
+      # nenhum marcador esquecido. Nas outras branches a entrada do CHANGELOG
+      # ainda é "em desenvolvimento", então não roda.
+      - name: Check release readiness
+        if: env.RUN_E2E == 'true' && github.event_name != 'workflow_dispatch'
+        run: ./scripts/conferir-release.sh
 
   # CONF-03: mesmas suítes no Windows, em todo PR (decisão do Emanuel) —
   # pega diferença de caminho (\ vs /), fuso, encoding e fim de linha.
@@ -67,11 +83,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Install backend dependencies
         run: |
@@ -95,11 +111,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # versão em rust-toolchain.toml
         with:
-          toolchain: stable
+          toolchain: "1.97.1"
 
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -129,7 +145,8 @@ jobs:
           source ../backend/.venv/bin/activate
           python -m pip install -r ../backend/requirements.txt pyinstaller
           bash ../scripts/build_sidecar.sh
-          cargo tauri build
+          # DIST-01: sem assinar pro updater — a chave só existe na release
+          cargo tauri build --config ci/sem-updater.json
 
       - name: Verify Linux runtime links
         working-directory: src-tauri
@@ -188,7 +205,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: env.RUN_E2E == 'true'
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Install end-to-end test tools (WebKitWebDriver, Xvfb, tauri-driver)
         if: env.RUN_E2E == 'true'
@@ -365,11 +382,11 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # versão em rust-toolchain.toml
         with:
-          toolchain: stable
+          toolchain: "1.97.1"
 
       - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -434,7 +451,8 @@ jobs:
 
       - name: Build NSIS installer
         working-directory: src-tauri
-        run: cargo tauri build
+        # DIST-01: sem assinar pro updater — a chave só existe na release
+        run: cargo tauri build --config ci/sem-updater.json
 
       - name: Install per-user and verify bundled sidecar
         shell: pwsh
@@ -537,6 +555,46 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # DIST-01: dois instaladores (a versão atual e a seguinte) assinados com
+      # uma chave DESCARTÁVEL gerada aqui — a da release nunca entra no CI de
+      # PR — e com http liberado (ci/teste-atualizacao.json), pro e2e-windows
+      # atualizar um pelo outro a partir de um servidor local. Fica DEPOIS dos
+      # artefatos acima: recompila o mesmo target/ e trocaria o kami.exe deles.
+      - name: Build two signed installers for the update test
+        if: env.RUN_E2E == 'true'
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/atualizacao"
+          mkdir -p "$out"
+          cargo tauri signer generate --ci -w "$out/teste.key" -p teste
+          export TAURI_SIGNING_PRIVATE_KEY="$(cat "$out/teste.key")" TAURI_SIGNING_PRIVATE_KEY_PASSWORD=teste
+          antiga="$(tr -d '[:space:]' < ../VERSION)"
+          nova="$(python -c "import sys; v = sys.argv[1].split('-')[0].split('.'); v[2] = str(int(v[2]) + 1); print('.'.join(v))" "$antiga")"
+          for v in "$antiga" "$nova"; do
+            python - "$out/teste.key.pub" "$v" > "$out/config-$v.json" <<'PYEOF'
+          import json, sys
+          pub = open(sys.argv[1], encoding="utf-8").read().strip()
+          print(json.dumps({"version": sys.argv[2], "plugins": {"updater": {"pubkey": pub}}}))
+          PYEOF
+            cargo tauri build --bundles nsis --config ci/teste-atualizacao.json --config "$out/config-$v.json"
+          done
+          cp target/release/bundle/nsis/*_"${antiga}"_x64-setup.exe "$out/antiga-setup.exe"
+          cp target/release/bundle/nsis/*_"${nova}"_x64-setup.exe "$out/nova-setup.exe"
+          cp target/release/bundle/nsis/*_"${nova}"_x64-setup.exe.sig "$out/nova-setup.exe.sig"
+          printf '{"antiga": "%s", "nova": "%s"}\n' "$antiga" "$nova" > "$out/versoes.json"
+          rm -f "$out"/teste.key*
+
+      - name: Keep the update test installers
+        if: env.RUN_E2E == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-update-test
+          path: ${{ runner.temp }}/atualizacao
+          if-no-files-found: error
+          retention-days: 3
+
   # CONF-03: teste ponta a ponta do app compilado no Windows.
   #
   # Por que windows-2022 e não windows-latest: a automação do WebView2 pelo
@@ -559,15 +617,15 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version: "24"
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # versão em rust-toolchain.toml
         with:
-          toolchain: stable
+          toolchain: "1.97.1"
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -594,6 +652,22 @@ jobs:
           & $env:KAMI_E2E_NATIVE_DRIVER --version
           Get-ItemProperty "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue | Select-Object pv
           node tests/e2e/kami-e2e.mjs
+
+      # DIST-01: instala a versão atual e atualiza pelo app pra seguinte;
+      # DIST-03: depois desinstala apagando os dados (ganchos do NSIS)
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-update-test
+          path: atualizacao
+
+      - name: Update the installed app through the app itself, then uninstall it
+        shell: pwsh
+        run: |
+          $env:KAMI_E2E_ATUALIZACAO = Join-Path $PWD "atualizacao"
+          $env:KAMI_E2E_NATIVE_DRIVER = Join-Path $PWD "msedgedriver.exe"
+          $env:KAMI_E2E_PYTHON = "python"
+          $env:KAMI_E2E_OUT = Join-Path $env:RUNNER_TEMP "e2e-windows"
+          node tests/e2e/atualizacao-e2e.mjs
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

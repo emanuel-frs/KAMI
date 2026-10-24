@@ -44,7 +44,15 @@ class ProfileOut(BaseModel):
     notif_ocultar_texto: bool = False
     avisos_hora: str = "09:00"
     formato_data: str = "sistema"  # ORG-07
+    # DIST-01
+    atualizacoes_procurar: bool = True
+    atualizacao_avisada: Optional[str] = None
+    atualizacao_pulada: Optional[str] = None
     updated_at: str
+
+
+# DIST-01: versão semver (1.15.0, 2.0.0-rc.1) ou "" pra limpar
+VERSAO_OU_VAZIO = r"^(\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?)?$"
 
 
 class ProfileUpdate(Entrada):
@@ -71,6 +79,10 @@ class ProfileUpdate(Entrada):
     notif_ocultar_texto: Optional[bool] = None
     avisos_hora: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     formato_data: Optional[str] = Field(None, pattern=r"^(sistema|dma|mda|iso)$")  # ORG-07
+    # DIST-01: "" limpa a versão guardada
+    atualizacoes_procurar: Optional[bool] = None
+    atualizacao_avisada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
+    atualizacao_pulada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -87,6 +99,16 @@ class OnboardingUpdate(Entrada):
 
 class ScreenTipsOut(BaseModel):
     seen: list[str]
+
+
+class DicasOut(BaseModel):
+    vistas: list[str]
+    telas_antigas: list[str]
+
+
+class DicasVistasIn(Entrada):
+    # uma sequência tem no máximo ~15 dicas; 100 é folga, não limite real
+    dicas: list[str] = Field(..., max_length=100)
 
 
 def _get_profile_row(db):
@@ -166,6 +188,12 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute("UPDATE user_profile SET formato_data = ? WHERE id = ?", (payload.formato_data, row["id"]))
     if payload.avisos_hora is not None:
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
+    if payload.atualizacoes_procurar is not None:
+        db.execute("UPDATE user_profile SET atualizacoes_procurar = ? WHERE id = ?", (int(payload.atualizacoes_procurar), row["id"]))
+    for col in ("atualizacao_avisada", "atualizacao_pulada"):
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (value or None, row["id"]))
     db.commit()
     return dict(_get_profile_row(db))
 
@@ -228,3 +256,30 @@ def mark_screen_tips_seen(screen: str, db=Depends(get_db)):
     db.commit()
     rows = db.execute("SELECT screen FROM screen_tips_seen").fetchall()
     return {"seen": [r["screen"] for r in rows]}
+
+
+def _dicas(db):
+    vistas = [r["dica"] for r in db.execute("SELECT dica FROM dicas_vistas ORDER BY dica")]
+    telas = [r["screen"] for r in db.execute("SELECT screen FROM screen_tips_seen ORDER BY screen")]
+    return {"vistas": vistas, "telas_antigas": telas}
+
+
+@router.get("/dicas", response_model=DicasOut)
+def get_dicas_vistas(db=Depends(get_db)):
+    """
+    MAN-05: dicas já vistas, uma a uma ('<tela>/<id>'), e as telas
+    marcadas pelo esquema antigo (por tela, até a 1.13). Quem decide o
+    que mostrar é o frontend (components/dicas-novas.js): numa tela
+    antiga, as dicas que já existiam até a 1.12 contam como vistas.
+    """
+    return _dicas(db)
+
+
+@router.put("/dicas", response_model=DicasOut)
+def marcar_dicas_vistas(payload: DicasVistasIn, db=Depends(get_db)):
+    """Marca dicas como vistas (idempotente; a data da primeira vez fica)."""
+    agora = now_iso()
+    for dica in payload.dicas:
+        db.execute("INSERT OR IGNORE INTO dicas_vistas (dica, vista_em) VALUES (?, ?)", (dica, agora))
+    db.commit()
+    return _dicas(db)

@@ -117,6 +117,9 @@
    pros avisos comuns. Não some sozinho (duration: 0). */
 .toast-item.toast-erro { border-color: var(--red); }
 .toast-item.toast-erro .toast-icon { color: var(--red); }
+/* CONF-08: aviso que pede atenção sem ser erro (cópia na pasta extra atrasada) */
+.toast-item.toast-aviso { border-color: var(--amber); }
+.toast-item.toast-aviso .toast-icon { color: var(--amber); }
 .toast-actions {
   display: flex;
   flex-wrap: wrap;

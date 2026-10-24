@@ -72,7 +72,7 @@ def _candidatos_diarios(db, hoje: datetime.date) -> list:
     out = [("lancamento", None, "lance um gasto ou uma entrada", "financas")]
 
     # conta fixa só gera ação (e xp) quando tem conta vinculada — ver
-    # routers/financas.py::pay_fixed_bill_period
+    # routers/financas/contas.py::pay_fixed_bill_period
     for b in db.execute(
         "SELECT b.id, b.name FROM fixed_bills b "
         "WHERE b.active = 1 AND b.conta_id IS NOT NULL AND b.due_day <= ? "

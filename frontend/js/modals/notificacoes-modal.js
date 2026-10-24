@@ -11,6 +11,7 @@ import { emailAccountColor } from "../components/email-account-color.js";
 import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
 import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
+import { noSino, marcarAvisada, estadoAtualizacao, atualizarAgora, verNovidades, pularVersao, comoAtualiza } from "../components/atualizacao.js";
 import { ADIAMENTOS, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
 
 /**
@@ -66,6 +67,7 @@ function buildModal() {
     <div class="modal">
       <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
       <div class="modal-body">
+        <div class="notif-section" id="notif-atualizacao-section" hidden></div>
         <div class="notif-section" id="notif-lembretes-section" hidden></div>
         <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">
@@ -84,6 +86,8 @@ function buildModal() {
   wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeNotificacoesModal));
   wrap.addEventListener("click", (e) => { if (e.target === wrap) closeNotificacoesModal(); });
   wrap.querySelector("#notif-lembretes-section").addEventListener("click", onLembreteClick);
+  wrap.querySelector("#notif-atualizacao-section").addEventListener("click", onAtualizacaoClick);
+  window.addEventListener("kami:atualizacao", () => modalEl?.classList.contains("open") && renderAtualizacao());
   return wrap;
 }
 
@@ -335,6 +339,48 @@ async function onLembreteClick(e) {
   await renderLembretes();
 }
 
+// DIST-01: versão nova do kami (components/atualizacao.js). Só avisa:
+// instalar é sempre a pessoa que pede.
+function renderAtualizacao() {
+  const el = modalEl.querySelector("#notif-atualizacao-section");
+  const { disponivel, instalando } = estadoAtualizacao();
+  el.hidden = !noSino().mostrar;
+  if (el.hidden) return;
+  modalEl.querySelector("#notif-all-disabled").hidden = true;
+  const { versao, atual, data, instalavel } = disponivel;
+  el.innerHTML = `
+    <div class="notif-section-head">${icon("download", { size: 12 })}<span>versão nova do kami</span></div>
+    <div class="notif-lembretes">
+      <div class="notif-lembrete">
+        <div class="notif-lembrete-texto">
+          <span class="notif-lembrete-titulo">versão ${escapeHtml(versao)} disponível</span>
+          <span class="notif-lembrete-quando">você está na ${escapeHtml(atual)}${data ? ` · publicada em ${escapeHtml(fmtDataCompacta(data))}` : ""} · ${escapeHtml(comoAtualiza())}</span>
+        </div>
+        <div class="notif-lembrete-acoes">
+          <button type="button" class="btn sm" data-atualizacao="novidades">ver novidades</button>
+          ${instalavel ? `<button type="button" class="btn sm primary" data-atualizacao="agora"${instalando ? " disabled" : ""}>${instalando ? "atualizando…" : "atualizar agora"}</button>` : ""}
+          <button type="button" class="btn sm" data-atualizacao="pular">pular esta versão</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function onAtualizacaoClick(e) {
+  const acao = e.target.closest("[data-atualizacao]")?.dataset.atualizacao;
+  if (acao === "novidades") verNovidades();
+  else if (acao === "agora") {
+    closeNotificacoesModal();
+    await atualizarAgora();
+  } else if (acao === "pular") {
+    try {
+      await pularVersao();
+    } catch {
+      return; // o client já mostrou o erro
+    }
+    renderAtualizacao();
+  }
+}
+
 export function closeNotificacoesModal() {
   modalEl?.classList.remove("open");
 }
@@ -364,6 +410,8 @@ export async function openNotificacoesModal() {
   if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">carregando…</div>`;
 
   renderLembretes();
+  renderAtualizacao();
+  marcarAvisada(); // DIST-01: viu no sino → não conta mais no badge
 
   // ORG-02: caixa de entrada (sempre — não é um tipo de aviso que se desliga)
   const entradaEl = modalEl.querySelector("#notif-entrada-section");

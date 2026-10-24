@@ -22,6 +22,8 @@ import { wireModalAccessibility } from "./components/modal-accessibility.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { startLembretesAgendador } from "./components/lembretes-agendador.js";
+import { iniciarCopiasAutomaticas } from "./components/copias-automaticas.js";
+import { iniciarAtualizacoes } from "./components/atualizacao.js";
 import { wireBandeja } from "./components/bandeja.js";
 import { wireNotificationBell } from "./components/notification-bell.js";
 import { startEmailSyncScheduler } from "./components/email-sync-scheduler.js";
@@ -42,6 +44,7 @@ import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
 import { definirFormatoData, formatoData } from "./components/format.js";
 import { wireCamposData } from "./components/campos-data.js";
+import { novaVisitaDeTela } from "./components/dicas-novas.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -162,6 +165,7 @@ async function showPage(name, opts) {
   currentPageModule = mod;
   currentPageName = name;
   setTelaAtual(name); // CONF-01: entra no "copiar detalhes" e no log de erro da tela
+  novaVisitaDeTela(); // MAN-05: dicas novas só ao abrir a tela, uma vez por visita
   await mod.mount(pageRoot, opts);
   playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
@@ -360,6 +364,8 @@ async function boot() {
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();
   bootedWithBackend = !!store.get("profile");
+  iniciarCopiasAutomaticas(); // CONF-08: cópia semanal mesmo com o app dias aberto na bandeja
+  iniciarAtualizacoes(); // DIST-01: só avisa de versão nova (e só se ligado)
   startProgressWatcher(); // depois do perfil: a foto inicial precisa do backend de pé
   startSidebarLevel();
   await showPage("nucleo"); // tela inicial

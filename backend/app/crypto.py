@@ -216,6 +216,32 @@ def redefinir_chave() -> dict:
         return dict(estado)
 
 
+def apagar_do_cofre() -> bool:
+    """
+    DIST-03: tira a chave deste banco do cofre do sistema ("remover tudo do
+    Kami deste computador"). Só a entrada DESTA pasta de dados
+    (`_entry_user`) — nunca as outras do serviço "kami". Devolve se havia
+    uma entrada pra apagar. O arquivo da chave (sistema sem cofre) vai
+    junto com a pasta de dados, que quem apaga é o app (src-tauri).
+    """
+    global _fernet, _estado
+    with _lock:
+        backend, _motivo = _abrir_cofre()
+        if backend is None:
+            return False
+        try:
+            if backend.get_password(KEYRING_SERVICE, _entry_user()) is None:
+                return False
+            backend.delete_password(KEYRING_SERVICE, _entry_user())
+        except Exception as exc:  # noqa: BLE001 — cofre que falha não impede o resto da limpeza
+            logger.warning("não deu pra apagar a chave do cofre (%s)", type(exc).__name__)
+            return False
+        _fernet = None
+        _estado = None
+        logger.warning("chave dos segredos apagada do cofre (remover tudo do computador)")
+        return True
+
+
 def _resetar_para_testes(fernet=None, estado=None):
     global _fernet, _estado
     _fernet = fernet

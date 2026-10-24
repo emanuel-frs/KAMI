@@ -41,6 +41,22 @@ def test_seed_popula_todos_os_modulos_e_recusa_segunda_execucao(client):
     assert len(client.get("/api/aprendizado/tracks").json()) == 3
     assert client.get("/api/perfil").json()["display_name"] == "Demo"
     assert client.get("/api/perfil").json()["onboarding_completed"] is True
+    # MAN-05: demo abre como quem já viu todas as dicas (inclusive as novas)
+    assert set(client.get("/api/perfil/dicas").json()["vistas"]) == {f"{t}/*" for t in seed.TIPS_SCREENS}
+
+
+def test_seed_cobre_todas_as_telas_com_dicas():
+    """Tela nova com dicas (frontend/js/pages/*-tips.js) entra no seed também."""
+    import re
+
+    seed = _carregar_seed()
+    pages = SEED_PATH.parents[1] / "frontend" / "js" / "pages"
+    telas = {
+        m.group(1)
+        for f in pages.glob("*-tips.js")
+        if (m := re.search(r'const SCREEN = "([a-z]+)"', f.read_text(encoding="utf-8")))
+    }
+    assert telas and set(seed.TIPS_SCREENS) == telas
 
 
 def test_seed_pode_deixar_onboarding_pendente(client):

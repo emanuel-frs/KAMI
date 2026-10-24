@@ -115,25 +115,48 @@ fn desktop_do_usuario() -> Option<PathBuf> {
 #[cfg(target_os = "linux")]
 fn aplicar_lancador(png: &Path, _ico: &Path) -> Result<bool, String> {
     let Some(sistema) = DESKTOP_DO_SISTEMA.iter().map(Path::new).find(|p| p.exists()) else {
-        return Ok(false); // AppImage ou modo dev: não há lançador instalado pra sobrepor
+        // AppImage ou modo dev: não há lançador instalado pra sobrepor. Se
+        // sobrou um nosso de quando havia (a pessoa trocou o .deb pelo
+        // AppImage), ele sai — apontaria pra um programa que não existe
+        // mais (DIST-03)
+        restaurar_lancador()?;
+        return Ok(false);
     };
     let Some(destino) = desktop_do_usuario() else { return Ok(false) };
     let original = std::fs::read_to_string(sistema).map_err(|e| e.to_string())?;
-    let mut linhas: Vec<String> = original
-        .lines()
-        .filter(|l| !l.starts_with(MARCA_DESKTOP))
-        .map(|l| if l.starts_with("Icon=") { format!("Icon={}", png.display()) } else { l.to_string() })
-        .collect();
-    linhas.push(format!("{MARCA_DESKTOP}=true"));
     if let Some(pasta) = destino.parent() {
         std::fs::create_dir_all(pasta).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&destino, linhas.join("\n") + "\n").map_err(|e| e.to_string())?;
+    std::fs::write(&destino, desktop_com_icone(&original, png)).map_err(|e| e.to_string())?;
     Ok(true)
 }
 
+/// O `.desktop` do sistema com o `Icon=` da cor e a nossa marca. DIST-03:
+/// e com `TryExec=` (o programa do `Exec=`) — se o pacote for removido sem
+/// o Kami abrir de novo, o menu ignora este arquivo sozinho em vez de
+/// mostrar um Kami que não abre.
 #[cfg(target_os = "linux")]
-fn restaurar_lancador() -> Result<bool, String> {
+fn desktop_com_icone(original: &str, png: &Path) -> String {
+    let tem_tryexec = original.lines().any(|l| l.starts_with("TryExec="));
+    let mut linhas = Vec::new();
+    for l in original.lines().filter(|l| !l.starts_with(MARCA_DESKTOP)) {
+        if l.starts_with("Icon=") {
+            linhas.push(format!("Icon={}", png.display()));
+        } else {
+            linhas.push(l.to_string());
+        }
+        if !tem_tryexec {
+            if let Some(prog) = l.strip_prefix("Exec=").and_then(|e| e.split_whitespace().next()) {
+                linhas.push(format!("TryExec={prog}"));
+            }
+        }
+    }
+    linhas.push(format!("{MARCA_DESKTOP}=true"));
+    linhas.join("\n") + "\n"
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn restaurar_lancador() -> Result<bool, String> {
     let Some(destino) = desktop_do_usuario() else { return Ok(false) };
     match std::fs::read_to_string(&destino) {
         // só apaga o que é nosso — um Kami.desktop que a pessoa escreveu fica
@@ -187,7 +210,7 @@ fn aplicar_lancador(_png: &Path, ico: &Path) -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn restaurar_lancador() -> Result<bool, String> {
+pub(crate) fn restaurar_lancador() -> Result<bool, String> {
     atalhos(None)
 }
 
@@ -199,7 +222,7 @@ fn aplicar_lancador(_png: &Path, _ico: &Path) -> Result<bool, String> {
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-fn restaurar_lancador() -> Result<bool, String> {
+pub(crate) fn restaurar_lancador() -> Result<bool, String> {
     Ok(false)
 }
 
@@ -213,5 +236,18 @@ mod testes {
             assert!(Image::from_bytes(png).is_ok(), "png de {nome}");
             assert_eq!(&ico[..4], &[0, 0, 1, 0], "ico de {nome}"); // cabeçalho de .ico
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn lancador_com_icone_ganha_tryexec_e_marca() {
+        let original = "[Desktop Entry]\nExec=kami %U\nIcon=kami\nName=Kami\n";
+        let novo = desktop_com_icone(original, Path::new("/d/icones/kami-coral.png"));
+        assert_eq!(
+            novo,
+            "[Desktop Entry]\nExec=kami %U\nTryExec=kami\nIcon=/d/icones/kami-coral.png\nName=Kami\nX-Kami-IconeTema=true\n"
+        );
+        // reaplicar não duplica nada
+        assert_eq!(desktop_com_icone(&novo, Path::new("/d/icones/kami-coral.png")), novo);
     }
 }

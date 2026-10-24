@@ -51,13 +51,23 @@ Opções disponíveis:
 ```sh
 sh scripts/install.sh --version 1.8.1
 sh scripts/install.sh --uninstall
+sh scripts/install.sh --uninstall --apagar-dados
 sh scripts/install.sh --help
 ```
 
-O `--uninstall` remove o pacote ou AppImage e o atalho correspondente,
-mas preserva os dados do usuário. Em Linux, os dados ficam em
+O `--uninstall` remove o pacote ou AppImage e o que o Kami deixou na sua
+pasta pessoal (o iniciar com o sistema e o lançador com o ícone da cor),
+mas preserva os dados do usuário. Com `--apagar-dados` ele apaga também
+os dados, o cache da tela e a chave das senhas no cofre do sistema —
+pede para você digitar `apagar` antes. Em Linux, os dados ficam em
 `$XDG_DATA_HOME/kami` ou, quando `XDG_DATA_HOME` não estiver definido,
 em `~/.local/share/kami`.
+
+Removeu o pacote direto pelo `apt`/`dnf`/`yay`, sem o script? O Kami
+não aparece mais no menu nem tenta abrir no login (as entradas que ele
+deixou na pasta pessoal se desligam sozinhas quando o programa some), e os
+arquivos que sobraram estão listados em
+[Remover tudo à mão](#remover-tudo-à-mão).
 
 ### Instalação manual e verificação
 
@@ -97,9 +107,10 @@ confiar.
 Antes de executar:
 
 1. Baixe o instalador apenas da [página de Releases](https://github.com/emanuel-frs/KAMI/releases/latest) deste repositório.
-2. Baixe também o `SHA256SUMS` da mesma Release e compare o hash no PowerShell:
-   `Get-FileHash .\kami-<versão>-windows-x64-setup.exe -Algorithm SHA256`
-   (o valor deve ser idêntico ao da linha desse arquivo no `SHA256SUMS`).
+2. Compare o hash no PowerShell, na pasta do download:
+   `Get-FileHash .\kami-<versão>-windows-x64-setup.exe -Algorithm SHA256`.
+   O valor certo está impresso na própria página da Release, logo abaixo
+   da tabela de arquivos (e na linha desse arquivo no `SHA256SUMS`).
 3. Se quiser uma segunda opinião, envie o arquivo ao VirusTotal.
    Alguns motores podem apontar falso positivo em executáveis não
    assinados.
@@ -113,21 +124,75 @@ Windows → Proteção contra vírus e ameaças → Histórico de proteção**,
 onde a detecção pode ser permitida no dispositivo. Faça isso somente se a
 origem e o hash estiverem conferidos.
 
-O Smart App Control pode bloquear um aplicativo sem assinatura sem
-oferecer uma opção para liberá-lo naquela tela. Não desative as
-proteções do Windows para contornar esse bloqueio. As alternativas são
-usar uma instalação/máquina em que o aplicativo possa ser executado de
-acordo com a política local ou aguardar uma futura decisão sobre
-assinatura; não há garantia de que o aviso ou o bloqueio desapareçam.
-
-<!-- [PREENCHER: print da tela do SmartScreen e do botão "Executar assim mesmo" em docs/screenshots/smartscreen.png] -->
+O **Smart App Control** (Windows 11) é mais rígido: ele bloqueia
+aplicativos sem assinatura e não oferece um "executar assim mesmo". Com
+ele ligado, o Kami não instala nesta máquina — não desative a proteção
+só para isso. Não há previsão de assinatura: a opção gratuita exige uma
+licença de código aberto, e o Kami não usa certificado pago, então o
+aviso do SmartScreen continua aparecendo a cada versão, inclusive quando
+você atualiza pelo próprio app.
 
 ### Desinstalar e dados preservados
 
 Use **Configurações do Windows → Aplicativos → Aplicativos instalados**
-para remover o Kami. A desinstalação do programa não deve apagar a pasta
-de dados do usuário: `%APPDATA%\kami`. O log do backend fica em
-`%APPDATA%\kami\kami-backend.log`.
+para remover o Kami. O desinstalador tira os atalhos e o iniciar com o
+sistema. Os seus dados (`%APPDATA%\kami`) ficam, a não ser que você marque
+**"Remover dados do programa"** — aí vão também os dados, as cópias
+automáticas e a chave das senhas no Gerenciador de Credenciais. Para
+desinstalar sem perguntas: `uninstall.exe /S` (mantém os dados) ou
+`uninstall.exe /S /APAGARDADOS`, na pasta do Kami
+(`%LOCALAPPDATA%\Kami`).
+
+## Remover tudo do Kami deste computador
+
+Vai parar de usar o Kami nesta máquina? Em **configurações › backup e
+dados › remover tudo do kami deste computador** o próprio app apaga, depois
+de você confirmar duas vezes: seus dados, as cópias automáticas, a chave
+das senhas no cofre do sistema, o iniciar com o sistema, o ícone da cor no
+lançador/atalhos e o cache da tela — e fecha. Exporte um backup antes se
+quiser guardar algo (o botão está ali mesmo). Ficam: a **pasta extra** das
+cópias, se você configurou uma (é a sua cópia fora do computador), e o
+**programa** — no Windows o desinstalador abre no fim; no Linux remova o
+pacote (`sudo apt remove kami`, `sudo dnf remove kami`, `yay -R kami-bin`)
+ou apague o AppImage.
+
+### Remover tudo à mão
+
+O que o Kami cria fora da pasta do programa:
+
+| O quê | Linux | Windows |
+|---|---|---|
+| dados (banco, cópias, log, ícones da cor) | `~/.local/share/kami` | `%APPDATA%\kami` |
+| cache e armazenamento da tela | `~/.local/share/com.kami.app`, `~/.cache/com.kami.app` | `%APPDATA%\com.kami.app`, `%LOCALAPPDATA%\com.kami.app` |
+| iniciar com o sistema | `~/.config/autostart/Kami.desktop` | registro: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, valor `Kami` |
+| ícone da cor no menu | `~/.local/share/applications/Kami.desktop` (só se tiver `X-Kami-IconeTema`) | atalhos `Kami.lnk` (somem com o programa) |
+| chave das senhas | Secret Service/KWallet: serviço `kami`, usuário `chave-dos-segredos-…` | Gerenciador de Credenciais: `kami`, usuário `chave-dos-segredos-…` |
+| cópias na pasta extra | a pasta que você escolheu (`kami-semanal-*.db`) | idem |
+
+Na chave das senhas, apague só a do usuário `chave-dos-segredos-…` — outras
+entradas do serviço `kami` (de uma pasta de demonstração, por exemplo) são
+de outra pasta de dados.
+
+## Atualizar
+
+O Kami avisa no sino quando sai uma versão nova — ele **nunca baixa nem
+instala sozinho**. Para saber, consulta só a lista de versões da página de
+Releases (ao abrir e uma vez por dia); dá pra desligar em configurações ›
+sobre › "procurar atualizações", e lá também tem "procurar agora".
+
+- **Windows** e **AppImage**: "atualizar agora" (no sino ou em
+  configurações › sobre) guarda uma cópia do banco
+  (`backups/kami-antes-de-atualizar-…`), baixa a versão nova, confere a
+  assinatura das atualizações e instala; o Kami fecha e abre de novo já
+  atualizado. No Windows o SmartScreen pode mostrar "editor desconhecido"
+  de novo nessa hora — é o mesmo aviso da instalação (veja
+  [Windows sem assinatura](#windows-sem-assinatura)).
+- **`.deb`, `.rpm` e AUR**: o aviso aparece igual, mas quem atualiza é o
+  gerenciador de pacotes do sistema (baixe o pacote novo da Release e
+  instale por cima, ou `yay -Syu` no Arch). Os seus dados ficam.
+
+Avisos de versão de teste (`2.0.0-rc.1`, por exemplo) não aparecem: só
+versões publicadas.
 
 ## Dados, logs e diagnóstico
 
@@ -161,7 +226,7 @@ buscas e filtros no disco.
 | Arquivo | O que é |
 |---|---|
 | `kami.db` (e `kami.db-wal`, `kami.db-shm`) | todos os seus dados |
-| `backups/` | cópias automáticas do banco antes de atualizar para uma versão nova (as 3 últimas) |
+| `backups/` | cópias automáticas do banco: semanais (as 4 últimas), antes de ações grandes — importar, apagar tudo, redefinir a chave, restaurar, atualizar o app — (as 5 últimas) e antes de migrar o banco para uma versão nova (as 3 últimas) |
 | `kami-backend.log` (e `.old`) | o log do backend |
 | `backend_port.txt`, `backend_token.txt` | porta e token da execução atual; recriados a cada abertura |
 | `pin.json` | só com o PIN ligado: o hash do PIN e do código de recuperação |

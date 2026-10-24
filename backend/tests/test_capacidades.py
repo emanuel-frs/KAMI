@@ -21,6 +21,7 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
         "core:window:allow-minimize",
         "core:window:allow-start-dragging",
         "core:window:allow-toggle-maximize",
+        "dialog:allow-open",  # CONF-08: só o seletor de pasta; devolve o caminho, não lê nem grava nada
         "notification:default",
         "opener:allow-open-url",
     ]
@@ -47,8 +48,17 @@ def test_seg_23_rust_commands_exposed_to_the_window_are_known():
     comandos = sorted(c.strip() for c in bloco.split(",") if c.strip())
     # ORG-05: janela_* = bandeja/iniciar com o sistema (só ligam/desligam as
     # duas opções da máquina e saem do app — src-tauri/src/janela.rs)
+    # DIST-01: atualizacao_* = procurar (só consulta o latest.json) e
+    # instalar a versão encontrada, com a assinatura conferida pela chave
+    # embutida (src-tauri/src/atualizacao.rs) — o plugin do updater não tem
+    # permissão nenhuma na janela
     assert comandos == [
+        "atualizacao::atualizacao_instalar", "atualizacao::atualizacao_procurar",
         "get_backend_port", "get_backend_token", "icone_tema::aplicar_icone_tema",
         "janela::janela_definir", "janela::janela_preferencias", "janela::janela_sair",
+        # DIST-03: remover tudo do Kami deste computador (só depois da
+        # confirmação dupla na tela; não recebe caminho nenhum — apaga a
+        # pasta de dados do próprio app, src-tauri/src/limpeza.rs)
+        "limpeza::remover_tudo_do_computador",
         "open_log_folder", "restart_backend",
     ]

@@ -1,0 +1,5 @@
+{
+  "plugins": {
+    "updater": { "dangerousInsecureTransportProtocol": true }
+  }
+}

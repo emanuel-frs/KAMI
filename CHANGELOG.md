@@ -4,6 +4,34 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.14.0] - 2026-10-23
+
+_Fundação para a 2.0: aviso de versão nova pelo próprio app, cópias automáticas do banco, desinstalação sem rastros e a página de download explicando o aviso do Windows._
+
+### Adicionado
+- aviso de versão nova no sino: o Kami consulta a lista de versões do GitHub ao abrir e uma vez por dia (só isso sai da sua máquina; desliga em configurações › sobre, onde também tem "procurar agora"). Nada é baixado sozinho: no Windows e no AppImage, "atualizar agora" guarda uma cópia do banco, baixa, confere a assinatura da atualização e abre já na versão nova; quem instalou por `.deb`, `.rpm` ou AUR recebe o aviso e atualiza pelo gerenciador de pacotes. "Pular esta versão" tira o aviso do sino. Quem está na 1.13 instala esta versão à mão uma vez — o aviso vale a partir daqui
+- cópias automáticas do banco: uma por semana (as 4 últimas) e uma antes de importar, apagar tudo, redefinir a chave, restaurar ou atualizar o app (as 5 últimas). Em configurações › backup e dados dá para ver as cópias, copiar agora, restaurar qualquer uma (o estado de agora é guardado antes) e escolher uma pasta extra — pendrive, HD externo ou uma pasta sincronizada (Drive, Dropbox, Nextcloud) — que recebe a cópia semanal também
+- "remover tudo do kami deste computador" (configurações › backup e dados): para quem vai parar de usar o Kami numa máquina — apaga dados, cópias, a chave das senhas no cofre do sistema, o iniciar com o sistema, o ícone da cor e o cache da tela, e fecha; no Windows abre o desinstalador no fim. A pasta extra das cópias fica
+- dicas novas aparecem uma vez para quem já tinha visto a tela (antes, só pelo "rever dicas desta tela")
+- a página de download de cada versão diz qual arquivo baixar em cada sistema e, ao lado do instalador do Windows, que o aviso "editor desconhecido" é esperado, com o código (SHA256) do arquivo para conferir antes de "executar assim mesmo"
+
+### Modificado
+- desinstalar não deixa rastros: no Linux, removido o pacote, o Kami some do menu e não tenta mais abrir no login; `install.sh --uninstall` limpa o que ficou na pasta pessoal e, com `--apagar-dados`, apaga também os dados (pede confirmação). No Windows, "Remover dados do programa" no desinstalador apaga também a pasta de dados e a chave das senhas
+- trocar o `.deb` pelo AppImage (ou mover o AppImage) não deixa o iniciar com o sistema apontando para um programa que não existe mais
+
+### Corrigido
+- `Ctrl+K` abria a busca por baixo das dicas da tela, e o `Esc` fechava a dica em vez da busca
+- um lembrete criado só com a hora depois das 23h (`@ 23h30 remédio` às 23h10) ia para o dia seguinte; agora é hoje se a hora ainda não passou
+- no Windows, ligar o iniciar com o sistema com o Kami aberto como administrador criava a entrada para todos os usuários do computador (e o desinstalador não a apagava); agora é sempre só para você, e desligar tira também uma entrada antiga dessas
+
+### Testes
+- o teste ponta a ponta do app compilado (Linux e Windows) passa pelas 9 telas e, com teclado de verdade, pela captura, um lembrete que tem que disparar, a busca, notas (inclusive trancada), formato das datas, cópias com restauração, PIN, bandeja, iniciar com o sistema, atualização pelo app (Windows) e "remover tudo"
+
+### Manutenção
+- arquivos grandes divididos por assunto (configurações, organização, finanças, aprendizado, grade dos widgets, migrações do banco), sem mudar comportamento
+- Python 3.14, Node 24 e Rust fixados, com o guia `docs/MANUTENCAO.md` para quem voltar ao projeto depois de muito tempo
+- conferência automática antes de cada release (versões iguais em todo lugar, CHANGELOG com data, tag no commit certo)
+
 ## [1.13.0] - 2026-10-21
 
 _Sprint de organização: notas, captura rápida, busca em tudo, hábitos, lembretes com notificação do sistema e datas no formato do seu país._

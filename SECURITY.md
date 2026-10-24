@@ -53,6 +53,14 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   (N=2¹⁷, r=8, p=1); alterar qualquer byte do arquivo faz a abertura
   falhar. Esse backup leva as senhas salvas e funciona em outro
   computador. O backup **sem** senha é texto legível e avisa disso.
+- **Cópias automáticas do banco.** Uma por semana (as 4 últimas) e uma
+  antes de importar, apagar tudo, redefinir a chave ou restaurar, em
+  `<pasta de dados>/backups/`. São cópias do banco como ele está: os
+  segredos vão cifrados com a chave do cofre deste computador. Se você
+  escolher uma **pasta extra** (pendrive, HD externo, pasta do
+  Drive/Dropbox), a cópia semanal também vai pra lá — e, se for uma pasta
+  sincronizada, ela sai do computador pelo programa de sincronização, não
+  pelo Kami. O Kami só grava e apaga ali os próprios `kami-semanal-*.db`.
 - **Entrada validada.** Corpo de requisição limitado a 1 MB (50 MB na
   importação), textos e números com limite em todas as rotas, e um teste
   que varre a API inteira com entradas absurdas garante que nenhuma vira
@@ -63,7 +71,9 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   e-mails, chaves, senhas, valores e a pasta pessoal antes de mostrar o
   texto.
 - **Superfície mínima do app.** A janela não tem permissão de shell,
-  arquivos nem processos; só abre links `http`/`https`. A CSP só roda o
+  arquivos nem processos; só abre links `http`/`https` e o seletor de
+  pasta do sistema (que só devolve o caminho escolhido — usado na pasta
+  extra das cópias automáticas). A CSP só roda o
   código do próprio app e só fala com o backend local. Um teste fixa essa
   lista — liberar algo novo é uma mudança consciente. Os únicos comandos
   novos (1.13) ligam e desligam a bandeja e o "iniciar com o sistema",
@@ -96,6 +106,12 @@ Nada, a não ser que você ative uma integração — a tabela completa está no
 IMAP do seu e-mail e a busca, cada um só quando você cadastra. Não há
 telemetria nem conta de usuário.
 
+A única consulta que o Kami faz sozinho é o **aviso de versão nova**
+(DIST-01): ao abrir e uma vez por dia, ele pede o `latest.json` da página
+de Releases do Kami no GitHub — sem nada seu no pedido além do que qualquer
+acesso a um site mostra (o endereço IP). Fica ligado por padrão e se desliga
+em configurações › sobre; desligado, nenhuma requisição sai.
+
 O **assistente com IA** (planejado) segue a mesma regra: fica desligado
 até você configurar uma chave sua (ou um modelo local), nenhuma chave vem
 embutida, e só o necessário para cada pedido é enviado. Esta seção será
@@ -105,8 +121,17 @@ atualizada com o que exatamente sai quando ele existir.
 
 Os instaladores do Windows **não são assinados** (veja
 [docs/INSTALACAO.md](./docs/INSTALACAO.md)): confira o SHA-256 publicado
-no `SHA256SUMS` de cada Release. Não há atualização automática — baixe as
-novas versões pela página de Releases.
+no `SHA256SUMS` de cada Release.
+
+**Atualização pelo app** (DIST-01): o Kami só avisa; nada é baixado nem
+instalado sem você pedir. Quando você pede, o pacote baixado é conferido
+com uma assinatura própria das atualizações (chave do Tauri; a pública vai
+dentro do app, a privada fica fora do repositório) e um pacote com
+assinatura errada é recusado antes de instalar. Isso garante que a
+atualização saiu da release do Kami — não é a assinatura de código do
+Windows, então o SmartScreen continua avisando "editor desconhecido". O
+endereço consultado só aceita https no app publicado. Antes de instalar, o
+Kami guarda uma cópia do banco (`backups/kami-antes-de-atualizar-…`).
 
 Assinatura, no futuro: a opção gratuita da
 [SignPath Foundation](https://signpath.org/) exige uma licença open

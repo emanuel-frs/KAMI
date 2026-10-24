@@ -1,5 +1,5 @@
 """
-Testes do router app/routers/organizacao.py.
+Testes do router app/routers/organizacao/ (links, github, emails, busca).
 
 Chamadas reais de rede (GitHub via urllib, e-mail via imaplib) são sempre
 mockadas — ver fixtures `mock_github_urlopen` e `mock_imap` no conftest.py.

@@ -1,6 +1,5 @@
-import { store } from "../state/store.js";
-import { getScreenTipsSeen, markScreenTipsSeen } from "../api/perfil.js";
 import { startTipSequence } from "../components/tip-sequence.js";
+import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
 
 /**
@@ -36,6 +35,7 @@ const WIDGET_TEXTS = {
 // Fica sempre por último e é sempre incluído (o botão sempre existe na
 // tela), diferente dos widgets, que dependem do que o usuário montou.
 const ADD_WIDGET_STEP = {
+  id: "adicionar-widget",
   selector: "#nucleo-add-widget",
   text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
   advanceOn: "interact",
@@ -52,10 +52,8 @@ let running = false;
  * em screen-tips-registry.js ao montar, e o botão de ajuda global
  * (help-menu.js, etapa 6) chama ela quando o usuário escolhe "rever
  * dicas desta tela" estando no Núcleo. Ao contrário de
- * maybeStartNucleoTips(), roda incondicionalmente (ignora
- * onboarding_completed e screen_tips_seen) e NÃO chama
- * markScreenTipsSeen — é uma revisão, não afeta o "visto/não visto" de
- * quem ainda não tinha passado pela etapa 5.
+ * maybeStartNucleoTips(), roda incondicionalmente (ignora o tour geral
+ * e as dicas já vistas) e NÃO marca nada como visto — é uma revisão.
  */
 export function replayNucleoTips(grid, container) {
   if (running) return;
@@ -69,45 +67,30 @@ export function replayNucleoTips(grid, container) {
   });
 }
 
+// MAN-05: ids das dicas que já existiam até a 1.12 — quem viu esta tela
+// antes da 1.14 não as vê de novo (components/dicas-novas.js). Dica nova
+// ou reescrita (id com "-2") fica FORA desta lista.
+const ATE_1_12 = [
+  "widget-attributes",
+  "widget-priorities",
+  "widget-log",
+  "widget-registrar",
+  "widget-achievements",
+  "adicionar-widget",
+];
+
 /**
- * Dispara a sequência se: (a) o onboarding geral já foi concluído — não
- * queremos os dois tutoriais competindo pela tela ao mesmo tempo — e
- * (b) o Núcleo ainda não está em screen_tips_seen. Seguro de chamar
- * várias vezes (ex: uma vez no mount da tela, outra via store.subscribe
- * quando o onboarding termina em seguida) — `running` e o guard interno
- * de startTipSequence contra empilhamento cobrem a repetição.
+ * Ao abrir a tela, mostra as dicas que a pessoa ainda não viu (todas, na
+ * primeira vez; só as novas, com o rótulo "novidade", depois) — regras
+ * em components/dicas-novas.js. Seguro de chamar várias vezes (mount e
+ * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
-export async function maybeStartNucleoTips(grid, container) {
-  if (running) return;
-  const profile = store.get("profile");
-  if (!profile?.onboarding_completed) return;
-
-  running = true;
-  let seen;
-  try {
-    seen = await getScreenTipsSeen();
-  } catch (err) {
-    console.error("erro ao checar dicas já vistas do núcleo:", err);
-    running = false;
-    return;
-  }
-  if (seen.seen.includes(SCREEN)) {
-    running = false;
-    return;
-  }
-
-  grid?.lockForTips();
-  startTipSequence(buildSteps(container), {
-    onFinish: async () => {
-      grid?.unlockForTips();
-      running = false;
-      try {
-        await markScreenTipsSeen(SCREEN);
-      } catch (err) {
-        // não trava nada — pior caso: a sequência reaparece no próximo boot
-        console.error("erro ao marcar dicas do núcleo como vistas:", err);
-      }
-    },
+export function maybeStartNucleoTips(grid, container) {
+  return mostrarDicasNovas({
+    tela: SCREEN,
+    passos: () => buildSteps(container),
+    ate112: ATE_1_12,
+    antes: () => grid?.lockForTips(),
+    depois: () => grid?.unlockForTips(),
   });
 }
-

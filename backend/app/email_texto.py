@@ -394,7 +394,7 @@ def url_webmail(
 
     Abrir o e-mail em si: `#all/<X-GM-MSGID em hexadecimal>` (o id
     interno do Gmail, que a sincronização pede ao IMAP do Gmail — ver
-    routers/organizacao.py). Sem ele (e-mail antigo), a busca por
+    routers/organizacao/emails.py). Sem ele (e-mail antigo), a busca por
     `rfc822msgid:` mostra uma lista com só esse e-mail — um clique a mais."""
     from urllib.parse import quote
 

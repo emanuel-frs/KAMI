@@ -80,7 +80,7 @@ function buildDom() {
   // cliques ali já passam direto sem precisar de handler nenhum)
   root.querySelectorAll(".tip-shade").forEach((el) => el.addEventListener("click", (e) => e.stopPropagation()));
   const skipEl = root.querySelector('[data-action="skip"]');
-  skipEl.addEventListener("click", () => finish());
+  skipEl.addEventListener("click", () => finish(true));
   // .tip-skip é um <span>, não um <button> nativo — precisa do próprio
   // handler de teclado pra responder a Enter/Espaço como um botão de
   // verdade responderia sozinho (ver auditoria de foco: role="button"+
@@ -88,7 +88,7 @@ function buildDom() {
   skipEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      finish();
+      finish(true);
     }
   });
   root.querySelector(".tip-next-btn").addEventListener("click", () => advance());
@@ -143,7 +143,7 @@ function onKeydown(e) {
     // também um modal que esteja por baixo (modal-escape.js).
     e.preventDefault();
     e.stopPropagation();
-    finish();
+    finish(true);
     return;
   }
 
@@ -264,7 +264,8 @@ function renderStep() {
   const isLast = index === total - 1;
   const isInteract = step.advanceOn === "interact";
 
-  root.querySelector(".tip-step-label").textContent = `${index + 1} / ${total}`;
+  const { rotulo } = active;
+  root.querySelector(".tip-step-label").textContent = `${rotulo ? `${rotulo} · ` : ""}${index + 1} / ${total}`;
   root.querySelector(".tip-text").textContent = step.text;
 
   step.onEnter?.();
@@ -289,7 +290,7 @@ function renderStep() {
   // anuncia o passo inteiro de uma vez (o foco vai pro botão, que sozinho
   // não leria o texto da dica)
   root.querySelector('[role="status"]').textContent =
-    `passo ${index + 1} de ${total}. ${step.text}` +
+    `${rotulo ? `${rotulo}. ` : ""}passo ${index + 1} de ${total}. ${step.text}` +
     (isInteract ? (keyboardTarget ? " Ative o elemento em destaque para continuar." : "") : "");
 
   positionAll();
@@ -298,6 +299,8 @@ function renderStep() {
   // renderStep() já cuidou do passo novo; não continua usando as
   // variáveis (step/isInteract) desse passo que não existe mais.
   if (!active || active.index !== index) return;
+  // MAN-05: só conta como vista a dica que chegou a aparecer
+  if (step.id && !active.mostrados.includes(step.id)) active.mostrados.push(step.id);
 
   if (isInteract) {
     const target = active.currentTarget;
@@ -333,9 +336,15 @@ function advance() {
   }
 }
 
-function finish() {
+/**
+ * `pulou` = "pular tudo"/Esc: os passos que ainda não apareceram vão em
+ * `pulados` (a pessoa escolheu não ver). Fim normal ou cancelamento
+ * (troca de tela) devolvem só os `mostrados`.
+ */
+function finish(pulou = false) {
   if (!active) return;
-  const { root, onFinish, rafId, opener } = active;
+  const { root, onFinish, rafId, opener, steps, mostrados } = active;
+  const pulados = pulou ? steps.map((s) => s.id).filter((id) => id && !mostrados.includes(id)) : [];
   active.interactCleanup?.();
   cancelAnimationFrame(rafId);
   document.removeEventListener("keydown", onKeydown, true);
@@ -348,7 +357,7 @@ function finish() {
   if (focusIsOurs && opener && document.contains(opener) && typeof opener.focus === "function") {
     opener.focus({ preventScroll: true });
   }
-  onFinish?.();
+  onFinish?.({ mostrados: [...mostrados], pulados });
 }
 
 /**
@@ -356,13 +365,19 @@ function finish() {
  * existem no DOM agora — se nenhum existir, chama onFinish() direto
  * sem mostrar nada (ex: usuário mexeu no grid antes de a sequência
  * rodar e removeu todos os widgets alvo).
+ *
+ * MAN-05: cada passo pode ter um `id`; onFinish recebe
+ * `{ mostrados, pulados }` (ids) pra quem guarda o "visto" por dica
+ * (components/dicas-novas.js). `rotulo` vai antes do "1 / 3"
+ * ("novidade · 1 / 3"). Devolve false se outra sequência já estava na
+ * tela — nesse caso onFinish NÃO é chamado.
  */
-export function startTipSequence(steps, { onFinish } = {}) {
-  if (active) return; // já tem uma sequência rodando — não empilha
+export function startTipSequence(steps, { onFinish, rotulo = null } = {}) {
+  if (active) return false; // já tem uma sequência rodando — não empilha
   const resolved = steps.filter((s) => document.querySelector(s.selector));
   if (resolved.length === 0) {
-    onFinish?.();
-    return;
+    onFinish?.({ mostrados: [], pulados: [] });
+    return true;
   }
 
   const prev = document.activeElement;
@@ -379,6 +394,8 @@ export function startTipSequence(steps, { onFinish } = {}) {
     interactCleanup: null,
     keyboardTarget: false,
     opener,
+    rotulo,
+    mostrados: [],
   };
 
   // capture: pega Tab/Esc/Enter antes dos handlers da página por baixo
@@ -390,6 +407,7 @@ export function startTipSequence(steps, { onFinish } = {}) {
   // scroll não borbulha até window) e reflow assíncrono do conteúdo dos
   // widgets, sem precisar decidir de antemão qual causa vai acontecer
   active.rafId = requestAnimationFrame(tick);
+  return true;
 }
 
 /** Encerra a sequência ativa imediatamente, se houver uma — usado por segurança em unmount() de página. */

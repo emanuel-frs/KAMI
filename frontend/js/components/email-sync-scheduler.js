@@ -31,7 +31,7 @@ import { sendNativeNotification } from "./native-notify.js";
  * Cada sync daqui passa `automatic: true` pra
  * api/organizacao.js:syncEmailAccount() — o backend usa essa flag pra
  * NÃO creditar XP nem gravar action_log (ver sync_email_account em
- * routers/organizacao.py): um tick a cada 5min o dia inteiro não é
+ * routers/organizacao/emails.py): um tick a cada 5min o dia inteiro não é
  * uma ação do usuário, e inflava tanto o nível quanto o "log recente"
  * (widgets/log.js) com dezenas de "sincronizou e-mail" repetidos. Sync
  * manual (organização, aba chaves de configurações) continua sem essa
