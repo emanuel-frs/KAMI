@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal genérico de confirmação — substitui confirm(...) nos fluxos de
@@ -64,7 +65,7 @@ function settle(result) {
 export function showConfirmModal(message, opts = {}) {
   const { title = "confirmar", confirmText = "confirmar", cancelText = "cancelar", danger = false } = opts;
 
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
 
   // se já tinha uma confirmação pendente (não deveria acontecer no uso
   // normal, já que as ações que chamam isso ficam bloqueadas até

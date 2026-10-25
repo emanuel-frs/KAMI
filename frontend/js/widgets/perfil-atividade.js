@@ -1,6 +1,6 @@
 // js/widgets/perfil-atividade.js
 import { getLog } from "../api/nucleo.js";
-import { escapeHtml, localDateKey, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, localDateKey, mesesCurtos } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 
 /**
@@ -54,7 +54,6 @@ function levelFor(count) {
   return 4;
 }
 
-const MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export async function render(el, widget) {
   el.innerHTML = '<div class="empty-state">carregando atividade…</div>';
@@ -81,7 +80,7 @@ export async function render(el, widget) {
     .map((week) => {
       const first = week[0];
       const m = first.getMonth();
-      const label = m !== lastMonth ? MONTH_ABBR[m] : "";
+      const label = m !== lastMonth ? mesesCurtos()[m] : "";
       lastMonth = m;
       return `<span class="pa-month">${label}</span>`;
     })

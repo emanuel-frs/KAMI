@@ -4,6 +4,7 @@ import { showConfirmModal } from "./confirm-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "novo evento" / "editar evento" — único tipo do calendário com
@@ -164,7 +165,7 @@ function wireModal(wrap) {
  *   `date` — pré-preenche a data em modo criação (ex: dia selecionado no calendário).
  */
 export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted, inicial = null } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   onDeletedCb = onDeleted;
   editingEvent = event || null;

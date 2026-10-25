@@ -6,6 +6,7 @@ import { openPayIncomeModal } from "../modals/pay-income-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { icon } from "../components/icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget "renda recorrente" (financas_renda) — v2: fecha o item 2 do
@@ -28,7 +29,7 @@ function brl(v) {
   return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatDate(iso) {
-  if (!iso) return "sem data";
+  if (!iso) return t("renda.sem_data");
   return fmtData(iso); // ORG-07: formatador único
 }
 function currentMonthStr() {
@@ -37,7 +38,7 @@ function currentMonthStr() {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando renda…</div>';
+  el.innerHTML = `<div class="empty-state">${t("renda.carregando")}</div>`;
   const month = currentMonthStr();
   let sources = [];
   let entries = [];
@@ -55,7 +56,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar renda: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("renda.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -74,9 +75,9 @@ export async function render(el, widget) {
           <div class="renda-row inactive" data-fonte-id="${source.id}">
             <div class="renda-top">
               <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="${t("renda.remover")}" aria-label="${t("renda.remover")}">${icon("x", { size: 11 })}</span>
             </div>
-            <div class="renda-meta"><span class="cf-inactive-tag">inativa</span></div>
+            <div class="renda-meta"><span class="cf-inactive-tag">${t("renda.inativa")}</span></div>
           </div>`;
       }
       if (!sourceEntries.length) {
@@ -84,28 +85,28 @@ export async function render(el, widget) {
           <div class="renda-row" data-fonte-id="${source.id}">
             <div class="renda-top">
               <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="${t("renda.remover")}" aria-label="${t("renda.remover")}">${icon("x", { size: 11 })}</span>
             </div>
-            <div class="renda-meta"><span class="renda-data">sem ocorrência este mês</span></div>
+            <div class="renda-meta"><span class="renda-data">${t("renda.sem_ocorrencia")}</span></div>
           </div>`;
       }
       return sourceEntries.map((e) => {
         const pago = e.status === "pago";
         const tooltip = source.conta_id
-          ? "tem conta vinculada — credita saldo real ao marcar como paga"
-          : "lembrete — sem conta vinculada, não afeta saldo";
+          ? t("renda.com_conta")
+          : t("renda.sem_conta");
         return `
           <div class="renda-row${pago ? " pago" : ""}" data-renda-id="${e.id}" data-fonte-id="${source.id}">
             <div class="renda-top">
               <span class="renda-label" data-edit-source="${source.id}" data-tooltip="${escapeHtml(source.nome)}">${escapeHtml(source.nome)}</span>
               <span class="renda-valor">${brl(e.amount)}</span>
-              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="remover fonte de renda" aria-label="remover fonte de renda">${icon("x", { size: 11 })}</span>
+              <span class="cf-remove" data-remove-source="${source.id}" data-tooltip="${t("renda.remover")}" aria-label="${t("renda.remover")}">${icon("x", { size: 11 })}</span>
             </div>
             <div class="renda-meta">
-              <span class="renda-data">${pago ? formatDate(e.paid_date) : `previsto ${formatDate(e.expected_date)}`}</span>
-              ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="gerou uma transação real, creditada na conta">R$</span>` : ""}
+              <span class="renda-data">${pago ? formatDate(e.paid_date) : t("renda.previsto", { data: formatDate(e.expected_date) })}</span>
+              ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("renda.gerou_tx")}">R$</span>` : ""}
               <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}" aria-label="${tooltip}">
-                ${pago ? "pago" : "marcar paga"}
+                ${pago ? t("renda.pago") : t("renda.marcar_paga")}
               </button>
             </div>
           </div>`;
@@ -114,10 +115,10 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-source">+ fonte de renda</button>
+        <button type="button" class="btn sm" data-action="add-source">${t("renda.nova")}</button>
       </div>
       <div class="renda-list">
-        ${sources.length ? rowsHtml : `<div class="wallet-empty">nenhuma fonte de renda cadastrada.</div>`}
+        ${sources.length ? rowsHtml : `<div class="wallet-empty">${t("renda.vazio")}</div>`}
       </div>
     `;
 
@@ -131,11 +132,11 @@ export async function render(el, widget) {
 
     el.querySelectorAll("[data-remove-source]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover essa fonte de renda?", { title: "remover fonte de renda", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("renda.remover_confirma"), { title: t("renda.remover"), confirmText: t("geral.remover"), danger: true }))) return;
         try {
           await financasApi.deleteIncomeSource(btn.getAttribute("data-remove-source"));
         } catch (err) {
-          showErrorModal(err.message, "erro ao remover fonte de renda");
+          showErrorModal(err.message, t("renda.erro_remover"));
           return;
         }
         await reload();
@@ -148,11 +149,11 @@ export async function render(el, widget) {
         const entry = entries.find((e) => e.id === entryId);
         const isPago = btn.classList.contains("pago");
         if (isPago) {
-          if (!(await showConfirmModal("desfazer o pagamento dessa renda?", { title: "desfazer pagamento", confirmText: "desfazer" }))) return;
+          if (!(await showConfirmModal(t("renda.desfazer_confirma"), { title: t("renda.desfazer_titulo"), confirmText: t("geral.desfazer") }))) return;
           try {
             await financasApi.unpayIncomeEntry(entryId);
           } catch (err) {
-            showErrorModal(err.message, "erro ao desfazer pagamento");
+            showErrorModal(err.message, t("renda.erro_desfazer"));
             return;
           }
         } else {
@@ -168,7 +169,7 @@ export async function render(el, widget) {
           try {
             await financasApi.payIncomeEntry(entryId, payload);
           } catch (err) {
-            showErrorModal(err.message, "erro ao marcar como paga");
+            showErrorModal(err.message, t("renda.erro_pagar"));
             return;
           }
         }

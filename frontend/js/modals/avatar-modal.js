@@ -2,6 +2,7 @@ import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../compo
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "avatar pessoal" (decisão 18 — modais são o padrão de
@@ -210,7 +211,7 @@ function wireModal(wrap) {
  */
 export function openAvatarModal({ currentAscii, onSave, onClose } = {}) {
   try {
-    modalEl = modalEl || buildModal();
+    modalEl = noIdiomaAtual(modalEl, buildModal);
     onSaveCb = onSave;
     onCloseCb = onClose ?? null;
 

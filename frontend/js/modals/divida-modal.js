@@ -2,6 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova dívida" / "editar dívida" — mesmo padrão dual singleton de
@@ -22,24 +23,24 @@ function buildModal() {
   wrap.id = "debt-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova dívida</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("divida.nova_divida")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="dm-desc">descrição</label><input type="text" id="dm-desc" placeholder="ex: empréstimo, parcelamento..."></div>
-        <div class="field"><label for="dm-counterparty">credor (opcional)</label><input type="text" id="dm-counterparty" placeholder="ex: banco x, fulano..."></div>
+        <div class="field"><label for="dm-desc">${t("divida.descricao")}</label><input type="text" id="dm-desc" placeholder="${t("divida.ex_emprestimo_parcelamento")}"></div>
+        <div class="field"><label for="dm-counterparty">${t("divida.credor_opcional")}</label><input type="text" id="dm-counterparty" placeholder="${t("divida.ex_banco_x_fulano")}"></div>
         <div class="field-row">
-          <div class="field"><label for="dm-amount">valor</label><input type="number" id="dm-amount" placeholder="0.00"></div>
-          <div class="field"><label for="dm-due">vencimento (opcional)</label><input type="date" id="dm-due"></div>
+          <div class="field"><label for="dm-amount">${t("divida.valor")}</label><input type="number" id="dm-amount" placeholder="0.00"></div>
+          <div class="field"><label for="dm-due">${t("divida.vencimento_opcional")}</label><input type="date" id="dm-due"></div>
         </div>
         <div class="field">
-          <label for="dm-status">status</label>
+          <label for="dm-status">${t("divida.status")}</label>
           <select id="dm-status">
-            <option value="aberta">aberta</option>
-            <option value="paga">paga</option>
+            <option value="aberta">${t("divida.aberta")}</option>
+            <option value="paga">${t("divida.paga")}</option>
           </select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("divida.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -53,7 +54,7 @@ function buildModal() {
 async function submitDebt(wrap) {
   const description = wrap.querySelector("#dm-desc").value.trim();
   const amount = Number(wrap.querySelector("#dm-amount").value);
-  if (!description || !amount) { showErrorModal("preenche descrição e valor.", "atenção"); return; }
+  if (!description || !amount) { showErrorModal(t("divida.preenche_descricao_e_valor"), t("geral.atencao")); return; }
 
   const payload = {
     description,
@@ -70,7 +71,7 @@ async function submitDebt(wrap) {
       await financasApi.createDebt(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingDebt ? "erro ao salvar dívida" : "erro ao criar dívida");
+    showErrorModal(err.message, editingDebt ? t("divida.erro_ao_salvar_divida") : t("divida.erro_ao_criar_divida"));
     return;
   }
   closeDividaModal();
@@ -89,14 +90,14 @@ function wireModal(wrap) {
  *   POST) pré-preenchido com os dados da dívida.
  */
 export function openDividaModal({ debt = null, onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingDebt = debt || null;
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingDebt ? "editar dívida" : "nova dívida";
-  saveBtn.textContent = editingDebt ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingDebt ? t("divida.editar_divida") : t("divida.nova_divida");
+  saveBtn.textContent = editingDebt ? t("divida.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#dm-desc").value = editingDebt?.description || "";
   modalEl.querySelector("#dm-counterparty").value = editingDebt?.counterparty || "";

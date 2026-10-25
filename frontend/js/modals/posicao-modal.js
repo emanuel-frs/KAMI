@@ -2,6 +2,7 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "nova posição" / "editar posição" — mesmo padrão dual singleton
@@ -106,7 +107,7 @@ function wireModal(wrap) {
  *   de POST) pré-preenchido com os dados da posição.
  */
 export function openPosicaoModal({ position = null, onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingPosition = position || null;
 

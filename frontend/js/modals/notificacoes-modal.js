@@ -13,6 +13,7 @@ import { listEntrada } from "../api/entrada.js";
 import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
 import { noSino, marcarAvisada, estadoAtualizacao, atualizarAgora, verNovidades, pularVersao, comoAtualiza } from "../components/atualizacao.js";
 import { ADIAMENTOS, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal unificado de notificações (notificações v2.1) — substitui DOIS
@@ -386,7 +387,7 @@ export function closeNotificacoesModal() {
 }
 
 export async function openNotificacoesModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   emailsExpanded = false;
   modalEl.classList.add("open");
 

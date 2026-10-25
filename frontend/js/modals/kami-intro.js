@@ -5,6 +5,7 @@ import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-
 import { icon } from "../components/icons.js";
 import { prefersReducedMotion } from "../components/a11y.js";
 import { playSound } from "../components/sound.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Diálogo de boas-vindas + criação de personagem (etapas 2 e 3
@@ -555,7 +556,7 @@ function closeOverlay() {
  */
 export function openKamiIntro(onDone) {
   onDoneCb = onDone ?? null;
-  overlayEl = overlayEl || buildOverlay();
+  overlayEl = noIdiomaAtual(overlayEl, buildOverlay);
   currentImg = null;
   draft.display_name = "";
   draft.accent_color = "#8fbf8f";

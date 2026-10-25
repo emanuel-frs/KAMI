@@ -2,6 +2,7 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "novo registro salarial" / "editar registro" (Parte 4, seção 5
@@ -118,7 +119,7 @@ function wireModal(wrap) {
  *   POST) pré-preenchido com os dados do registro.
  */
 export async function openSalarioModal({ record = null, onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingRecord = record || null;
 

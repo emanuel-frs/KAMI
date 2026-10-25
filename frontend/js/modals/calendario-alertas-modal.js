@@ -1,6 +1,7 @@
 import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { TYPE_META } from "../components/event-types.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /** Modal "vencendo em breve" do Calendário — mesmo padrão singleton de
  * debt-modal.js/subscription-modal.js, só que read-only (sem form): lista
@@ -42,7 +43,7 @@ export function closeCalendarioAlertasModal() {
 
 /** @param {{ alerts: Array, todayStr: string, onSelect: (info: {module: string, type: string, recordId: string}) => void }} opts */
 export function openCalendarioAlertasModal({ alerts, todayStr, onSelect } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSelectCb = onSelect;
 
   const listEl = modalEl.querySelector("#cal-alerts-modal-list");

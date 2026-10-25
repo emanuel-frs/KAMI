@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal genérico de prompt de valor único — substitui prompt(...) no
@@ -71,7 +72,7 @@ function settle(result) {
 export function showPromptModal(label, opts = {}) {
   const { title = "informar valor", placeholder = "", inputType = "text", confirmText = "confirmar", cancelText = "cancelar", defaultValue = "" } = opts;
 
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
 
   // mesma regra do confirm-modal.js: só um prompt pendente por vez —
   // resolve o anterior como cancelado antes de abrir o novo.

@@ -1,6 +1,7 @@
 import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { getShortcuts, comboParts, registerGlobalShortcuts } from "../components/shortcuts.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Lista de atalhos de teclado — globais + da tela atual.
@@ -129,7 +130,7 @@ function buildModal() {
 }
 
 export function openShortcutsHelp() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   const bodyEl = modalEl.querySelector("#shortcuts-help-body");
   const { html, hasScreen } = renderBody();
   bodyEl.innerHTML = html;

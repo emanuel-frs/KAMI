@@ -2,6 +2,7 @@ import { createCustomAchievement } from "../api/nucleo.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "./err-modal.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "nova conquista" (GAM-14) — o usuário cria a própria regra:
@@ -85,7 +86,7 @@ async function submit(wrap) {
 
 /** @param {{ onSaved?: (achievement) => void }} opts */
 export function openConquistaModal({ onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   modalEl.querySelector("#cqm-title").value = "";
   modalEl.querySelector("#cqm-count").value = "10";

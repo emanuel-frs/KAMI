@@ -8,6 +8,7 @@ import { openPayPeriodModal } from "../modals/pay-period-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 import { icon } from "../components/icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget "contas fixas". Cadastro (nome/valor/dia/conta/categoria)
@@ -33,7 +34,7 @@ function brl(v) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando contas fixas…</div>';
+  el.innerHTML = `<div class="empty-state">${t("contas.carregando")}</div>`;
   const month = currentMonthStr();
   let bills = [];
   let periods = [];
@@ -51,7 +52,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar contas fixas: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("contas.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -64,7 +65,7 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-bill">+ conta fixa</button>
+        <button type="button" class="btn sm" data-action="add-bill">${t("contas.nova")}</button>
       </div>
       <div class="contas-fixas-list">
         ${bills.length ? bills.map((b) => {
@@ -74,28 +75,28 @@ export async function render(el, widget) {
           const paga = period ? period.paga : false;
           const valor = period && period.valor_pago != null ? period.valor_pago : b.amount;
           const tooltip = b.conta_id
-            ? "tem conta vinculada — pode gerar uma transação real ao confirmar"
-            : "lembrete — sem conta vinculada, não afeta saldo/fatura";
+            ? t("contas.com_conta")
+            : t("contas.sem_conta");
           return `
             <div class="conta-fixa-row${b.active ? (paga ? " paga" : "") : " inactive"}" data-conta-fixa-id="${b.id}">
               <div class="cf-top">
                 <span class="cf-name" data-edit-bill="${b.id}" data-tooltip="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
-                <span class="cf-remove cf-lembrar" data-lembrar-bill="${b.id}" data-tooltip="lembrar desta conta" aria-label="lembrar desta conta">${icon("bell-ring", { size: 11 })}</span>
-                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="remover conta fixa" aria-label="remover conta fixa">${icon("x", { size: 11 })}</span>
+                <span class="cf-remove cf-lembrar" data-lembrar-bill="${b.id}" data-tooltip="${t("contas.lembrar")}" aria-label="${t("contas.lembrar")}">${icon("bell-ring", { size: 11 })}</span>
+                <span class="cf-remove" data-remove-bill="${b.id}" data-tooltip="${t("contas.remover")}" aria-label="${t("contas.remover")}">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cf-meta">
                 <span class="cf-valor">${brl(valor)}</span>
                 <span class="cf-dia">dia ${b.due_day}</span>
-                ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="gerou uma transação real, descontada da conta">R$</span>` : ""}
+                ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
                 ${b.active
                   ? `<button class="cf-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-bill-id="${b.id}"
                       data-tooltip="${tooltip}" aria-label="${tooltip}">
-                      ${paga ? "paga" : "marcar paga"}
+                      ${paga ? t("contas.paga") : t("contas.marcar_paga")}
                     </button>`
                   : `<span class="cf-inactive-tag">inativa</span>`}
               </div>
             </div>`;
-        }).join("") : `<div class="wallet-empty">nenhuma conta fixa cadastrada.</div>`}
+        }).join("") : `<div class="wallet-empty">${t("contas.vazio")}</div>`}
       </div>
     `;
 
@@ -123,9 +124,9 @@ export async function render(el, widget) {
             payload = await openPayPeriodModal({ nome: bill.name, valorEsperado: bill.amount, conta });
             if (payload === null) return; // cancelado
           } else {
-            const valorStr = await showPromptModal("valor pago", {
-              title: "marcar como paga",
-              placeholder: "deixe em branco pra usar o valor esperado",
+            const valorStr = await showPromptModal(t("contas.valor_pago"), {
+              title: t("contas.marcar_titulo"),
+              placeholder: t("contas.valor_placeholder"),
               inputType: "number",
             });
             if (valorStr === null) return; // cancelado
@@ -134,7 +135,7 @@ export async function render(el, widget) {
           try {
             await financasApi.payFixedBillPeriod(periodId, payload);
           } catch (err) {
-            showErrorModal(err.message, "erro ao marcar como paga");
+            showErrorModal(err.message, t("contas.erro_pagar"));
             return;
           }
         }
@@ -148,13 +149,13 @@ export async function render(el, widget) {
         const bill = bills.find((x) => x.id === btn.getAttribute("data-lembrar-bill"));
         if (!bill) return;
         const { openLembreteModal } = await import("../modals/lembrete-modal.js");
-        openLembreteModal({ vinculo: { tipo: "conta_fixa", id: bill.id, nome: bill.name }, inicial: { titulo: `pagar ${bill.name}` } });
+        openLembreteModal({ vinculo: { tipo: "conta_fixa", id: bill.id, nome: bill.name }, inicial: { titulo: t("contas.lembrete_titulo", { nome: bill.name }) } });
       });
     });
 
     el.querySelectorAll("[data-remove-bill]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover essa conta fixa?", { title: "remover conta fixa", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("contas.remover_confirma"), { title: t("contas.remover"), confirmText: t("geral.remover"), danger: true }))) return;
         await financasApi.deleteFixedBill(btn.getAttribute("data-remove-bill"));
         await reload();
       });

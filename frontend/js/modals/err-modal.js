@@ -1,6 +1,7 @@
 import { playSound } from "../components/sound.js";
 import { icon } from "../components/icons.js";
 import { recentlyNotified } from "../components/error-notice.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal genérico de erro — substitui alert(err.message) nos catches de
@@ -37,7 +38,7 @@ export function showErrorModal(message, title = "erro") {
   // CONF-01: erro inesperado da API já virou toast vermelho com o mesmo
   // texto (e o código do log) — não abre um modal repetindo por cima
   if (recentlyNotified(message)) return;
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   modalEl.querySelector("#em-title").textContent = title;
   modalEl.querySelector("#em-message").textContent = message;
   modalEl.classList.add("open");

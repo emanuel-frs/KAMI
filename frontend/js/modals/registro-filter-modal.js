@@ -1,5 +1,6 @@
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "filtrar registros" — mesmo padrão singleton dos outros modais
@@ -18,28 +19,28 @@ function buildModal() {
   wrap.id = "registro-filter-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">filtrar registros <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head">${t("registro_filter.filtrar_registros")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
-          <label for="rfm-conta">conta</label>
-          <select id="rfm-conta"><option value="">— todas —</option></select>
+          <label for="rfm-conta">${t("registro_filter.conta")}</label>
+          <select id="rfm-conta"><option value="">${t("registro_filter.todas")}</option></select>
         </div>
         <div class="field">
-          <label for="rfm-categoria">categoria</label>
-          <select id="rfm-categoria"><option value="">— todas —</option></select>
+          <label for="rfm-categoria">${t("registro_filter.categoria")}</label>
+          <select id="rfm-categoria"><option value="">${t("registro_filter.todas")}</option></select>
         </div>
         <div class="field">
-          <label for="rfm-tipo">tipo</label>
+          <label for="rfm-tipo">${t("registro_filter.tipo")}</label>
           <select id="rfm-tipo">
-            <option value="">— todos —</option>
-            <option value="entrada">entrada</option>
-            <option value="saida">saída</option>
-            <option value="transferencia">transferência</option>
+            <option value="">${t("registro_filter.todos")}</option>
+            <option value="entrada">${t("registro_filter.entrada")}</option>
+            <option value="saida">${t("registro_filter.saida")}</option>
+            <option value="transferencia">${t("registro_filter.transferencia")}</option>
           </select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="clear">limpar filtro</button>
-          <button class="btn sm primary" data-action="apply">aplicar</button>
+          <button class="btn sm" data-action="clear">${t("registro_filter.limpar_filtro")}</button>
+          <button class="btn sm primary" data-action="apply">${t("registro_filter.aplicar")}</button>
         </div>
       </div>
     </div>
@@ -79,15 +80,15 @@ function wireModal(wrap) {
  *   — filtro já aplicado, pra reabrir o modal com os campos preenchidos.
  */
 export function openRegistroFilterModal({ accounts, categories, current, onApply } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onApplyCb = onApply;
 
   const contaSel = modalEl.querySelector("#rfm-conta");
-  contaSel.innerHTML = `<option value="">— todas —</option>` +
+  contaSel.innerHTML = `<option value="">${t("registro_filter.todas")}</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
 
   const catSel = modalEl.querySelector("#rfm-categoria");
-  catSel.innerHTML = `<option value="">— todas —</option>` +
+  catSel.innerHTML = `<option value="">${t("registro_filter.todas")}</option>` +
     (categories || []).map((c) => `<option value="${c}">${c}</option>`).join("");
 
   contaSel.value = current?.contaId || "";

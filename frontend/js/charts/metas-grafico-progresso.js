@@ -17,6 +17,7 @@
 import { fmtDataCurta, localDateKey } from "../components/format.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
+import { t } from "../i18n.js";
 
 function fmtDateShort(iso) {
   const d = new Date(iso);
@@ -41,7 +42,7 @@ const WINDOW = 6; // últimas N contribuições — gráfico simples, não o his
 
 export function renderProgressChart(el, goal, contributions) {
   if (!contributions.length) {
-    el.innerHTML = `<div class="goal-progress-empty">sem contribuições ainda — o gráfico aparece após a primeira.</div>`;
+    el.innerHTML = `<div class="goal-progress-empty">${t("graf.meta_vazio")}</div>`;
     return;
   }
 
@@ -61,7 +62,7 @@ export function renderProgressChart(el, goal, contributions) {
     : goal.target_value;
 
   const points = [
-    { label: "início", remaining: startRemaining },
+    { label: t("graf.inicio"), remaining: startRemaining },
     ...windowed.map((p) => ({ label: fmtDateShort(p.date), remaining: p.remaining })),
   ];
 
@@ -75,7 +76,7 @@ export function renderProgressChart(el, goal, contributions) {
   const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H} L0,${H} Z`;
 
   const dots = coords.map(([x, y], i) => {
-    const tip = escapeAttr(`${points[i].label}: falta ${fmtRemaining(points[i].remaining, goal.unit)}`);
+    const tip = escapeAttr(t("graf.tip_falta", { data: points[i].label, valor: fmtRemaining(points[i].remaining, goal.unit) }));
     // círculo invisível maior por cima, mesmo esquema dos gráficos de
     // Finanças (chart-tooltip.js) — o raio de 2.5 do ponto visível é
     // pequeno demais pra acertar o mouse com o card estreito.
@@ -94,8 +95,8 @@ export function renderProgressChart(el, goal, contributions) {
       </svg>
       <div class="chart-fluxo-labels" aria-hidden="true">${labelsHtml}</div>
       ${buildTextAltTable({
-        caption: `Progresso de "${goal.title || "meta"}" nas últimas contribuições`,
-        headers: ["Data", "Falta"],
+        caption: t("graf.meta_caption", { meta: goal.title || t("graf.meta_padrao") }),
+        headers: [t("graf.data"), t("graf.falta")],
         rows: points.map((p) => [p.label, fmtRemaining(p.remaining, goal.unit)]),
       })}
     </div>

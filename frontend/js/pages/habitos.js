@@ -1,5 +1,5 @@
 import { listHabitos, updateHabito, deleteHabito, marcarHabito, desmarcarHabito } from "../api/habitos.js";
-import { escapeHtml, localDateKey, fmtDataCurta } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, localDateKey, mesesCurtos } from "../components/format.js";
 import { diasCurtos, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -31,7 +31,6 @@ import { registerScreenShortcuts, clearScreenShortcuts } from "../components/sho
  */
 
 const DIAS_PARA_TRAS = 2;
-const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const GLIFO = { feito: "■", faltou: "□", livre: "·", fora: "·", hoje: "◇", futuro: " " };
 const ESTADO_FALADO = {
   feito: "feito",
@@ -75,7 +74,7 @@ function gradeHtml(h) {
   let ultimoMes = null;
   for (let w = 0; w < semanas; w++) {
     const mes = diaDaGrade(h, w * 7 + 6).getMonth();
-    meses += `<span class="hb-mes">${mes !== ultimoMes ? MESES[mes] : ""}</span>`;
+    meses += `<span class="hb-mes">${mes !== ultimoMes ? mesesCurtos()[mes] : ""}</span>`;
     ultimoMes = mes;
   }
 

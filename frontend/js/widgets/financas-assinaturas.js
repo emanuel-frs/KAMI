@@ -8,6 +8,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 import { icon } from "../components/icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget "assinaturas". Marcar como paga pode gerar uma transação real
@@ -32,7 +33,7 @@ function brl(v) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando assinaturas…</div>';
+  el.innerHTML = `<div class="empty-state">${t("assinaturas.carregando")}</div>`;
   const month = currentMonthStr();
   let subscriptions = [];
   let periods = [];
@@ -54,7 +55,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar assinaturas: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("assinaturas.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -81,8 +82,8 @@ export async function render(el, widget) {
 
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">filtro${hasActiveFilter() ? ` <span class="filter-dot"></span>` : ""}</button>
-        <button type="button" class="btn sm" data-action="add-sub">+ assinatura</button>
+        <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">${t("registros.filtro")}${hasActiveFilter() ? ` <span class="filter-dot"></span>` : ""}</button>
+        <button type="button" class="btn sm" data-action="add-sub">${t("assinaturas.nova")}</button>
       </div>
       <div class="subs-list">
         ${visible.length ? visible.map((s) => {
@@ -90,27 +91,27 @@ export async function render(el, widget) {
           const paga = period ? period.paga : false;
           const valor = period && period.valor_pago != null ? period.valor_pago : s.valor_esperado;
           const tooltip = s.conta_id
-            ? "tem conta vinculada — pode gerar uma transação real ao confirmar"
-            : "lembrete — sem conta vinculada, não afeta saldo/fatura";
+            ? t("contas.com_conta")
+            : t("contas.sem_conta");
           return `
             <div class="sub-row${s.active ? (paga ? " paga" : "") : " inactive"}" data-assinatura-id="${s.id}">
               <div class="sub-top">
                 <span class="sub-name" data-edit-sub="${s.id}" data-tooltip="${escapeHtml(s.nome)}">${escapeHtml(s.nome)}</span>
-                <span class="sub-remove" data-remove-sub="${s.id}" data-tooltip="remover assinatura" aria-label="remover assinatura">${icon("x", { size: 11 })}</span>
+                <span class="sub-remove" data-remove-sub="${s.id}" data-tooltip="${t("assinaturas.remover")}" aria-label="${t("assinaturas.remover")}">${icon("x", { size: 11 })}</span>
               </div>
               <div class="sub-meta">
                 <span class="sub-valor">${brl(valor)}</span>
                 <span class="sub-dia">dia ${s.dia_cobranca}</span>
-                ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="gerou uma transação real, descontada da conta">R$</span>` : ""}
+                ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
                 ${s.active
                   ? `<button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"
                       data-tooltip="${tooltip}" aria-label="${tooltip}">
-                      ${paga ? "pago" : "marcar pago"}
+                      ${paga ? t("assinaturas.pago") : t("assinaturas.marcar_pago")}
                     </button>`
                   : `<span class="cf-inactive-tag">inativa</span>`}
               </div>
             </div>`;
-        }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? "nenhuma assinatura bate com o filtro." : "nenhuma assinatura cadastrada."}</div>`}
+        }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? t("assinaturas.vazio_filtro") : t("assinaturas.vazio")}</div>`}
       </div>
     `;
 
@@ -124,7 +125,7 @@ export async function render(el, widget) {
 
     el.querySelectorAll("[data-remove-sub]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover essa assinatura?", { title: "remover assinatura", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("assinaturas.remover_confirma"), { title: t("assinaturas.remover"), confirmText: t("geral.remover"), danger: true }))) return;
         await carteiraApi.deleteSubscription(btn.getAttribute("data-remove-sub"));
         await reload();
       });
@@ -147,9 +148,9 @@ export async function render(el, widget) {
             payload = await openPayPeriodModal({ nome: sub.nome, valorEsperado: sub.valor_esperado, conta });
             if (payload === null) return; // cancelado
           } else {
-            const valorStr = await showPromptModal("valor pago", {
-              title: "marcar como pago",
-              placeholder: "deixe em branco pra usar o valor esperado",
+            const valorStr = await showPromptModal(t("contas.valor_pago"), {
+              title: t("assinaturas.marcar_titulo"),
+              placeholder: t("contas.valor_placeholder"),
               inputType: "number",
             });
             if (valorStr === null) return; // cancelado
@@ -158,7 +159,7 @@ export async function render(el, widget) {
           try {
             await carteiraApi.paySubscriptionPeriod(periodId, payload);
           } catch (err) {
-            showErrorModal(err.message, "erro ao marcar como pago");
+            showErrorModal(err.message, t("assinaturas.erro_pagar"));
             return;
           }
         }

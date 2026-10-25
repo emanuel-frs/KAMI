@@ -19,6 +19,7 @@
  */
 import { icon } from "./icons.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 const LIMIT_DAYS = 14;
 let dismissedThisSession = false;
@@ -83,7 +84,7 @@ export function hideBackupReminder() {
 export function maybeShowBackupReminder(profile) {
   if (!shouldShowBackupReminder(profile)) return;
 
-  toastEl = toastEl || buildToast();
+  toastEl = noIdiomaAtual(toastEl, buildToast);
   // requestAnimationFrame pra garantir que o navegador já processou o
   // elemento sem a classe "open" antes de adicioná-la — senão a
   // transição de entrada (opacity/transform em base.css) não roda.

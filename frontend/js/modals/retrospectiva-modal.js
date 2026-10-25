@@ -4,6 +4,7 @@ import { escapeHtml, fmtDataCurta } from "../components/format.js";
 import { fxAllows } from "../components/fx.js";
 import { showToast } from "../components/toast.js";
 import { textoDoRegistro, tituloConquista } from "../components/textos-sistema.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Retrospectiva mensal (GAM-12) — o mês que acabou em uma tela ASCII:
@@ -221,7 +222,7 @@ async function show(i) {
 
 /** Abre na retrospectiva mais nova (ou num aviso, se ainda não há nenhuma). */
 export async function openRetrospectivaModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   try {
     months = await listRetrospectivas();
   } catch (err) {

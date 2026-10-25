@@ -151,3 +151,6 @@ export function escapeHtml(str) {
     "'": "&#39;",
   })[char]);
 }
+
+/** ["jan", "fev", …, "dez"] no idioma atual (nome curto do mês, minúsculo). */
+export const mesesCurtos = () => Array.from({ length: 12 }, (_, i) => t(`meses.curto.${i}`));

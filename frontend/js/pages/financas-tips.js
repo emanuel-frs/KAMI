@@ -1,6 +1,7 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais de Finanças (etapa 5,
@@ -24,36 +25,36 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  */
 const SCREEN = "financas";
 
-const WIDGET_TEXTS = {
-  carteira: "seus bancos e contas — saldo, cartão de crédito, o que cada um tiver.",
-  financas_resumo: "visão rápida: quanto você tem versus quanto ainda precisa pagar.",
-  financas_renda: "suas fontes de renda cadastradas — marque como paga quando cair na conta.",
-  financas_registros: "todo lançamento do mês, com filtro por conta e por status.",
-  financas_assinaturas: "suas assinaturas recorrentes e quanto elas somam no mês.",
-  dividas: "dívidas em aberto — status editável direto aqui, sem abrir nada.",
-  contas_fixas: "contas fixas do mês — aluguel, internet, esse tipo de coisa. o sino de cada uma cria um lembrete pra pagar.",
-  compras_parceladas: "compras parceladas e em que parcela cada uma está.",
-  financas_grafico_fluxo: "entradas contra saídas, mês a mês.",
-  financas_grafico_categorias: "pra onde seu dinheiro tá indo, por categoria.",
-  financas_grafico_evolucao: "como seu saldo mudou ao longo do tempo.",
-  financas_grafico_limites: "quanto do limite do cartão já foi usado.",
-};
+const widgetTexts = () => ({
+  carteira: t("financas_tips.seus_bancos_e_contas_saldo"),
+  financas_resumo: t("financas_tips.visao_rapida_quanto_voce_tem"),
+  financas_renda: t("financas_tips.suas_fontes_de_renda_cadastradas"),
+  financas_registros: t("financas_tips.todo_lancamento_do_mes_com"),
+  financas_assinaturas: t("financas_tips.suas_assinaturas_recorrentes_e_quanto"),
+  dividas: t("financas_tips.dividas_em_aberto_status_editavel"),
+  contas_fixas: t("financas_tips.contas_fixas_do_mes_aluguel"),
+  compras_parceladas: t("financas_tips.compras_parceladas_e_em_que"),
+  financas_grafico_fluxo: t("financas_tips.entradas_contra_saidas_mes_a"),
+  financas_grafico_categorias: t("financas_tips.pra_onde_seu_dinheiro_ta"),
+  financas_grafico_evolucao: t("financas_tips.como_seu_saldo_mudou_ao"),
+  financas_grafico_limites: t("financas_tips.quanto_do_limite_do_cartao"),
+});
 
 // financas não tem nenhum widget removable:false (diferente do profile
 // em perfil) — então este passo cobre o caso em que o grid chega vazio
 // (comportamento padrão pra quem nunca configurou nada aqui, ver
 // comentário acima) e também reforça, pra quem já montou algo, que dá
 // pra continuar adicionando.
-const ADD_WIDGET_STEP = {
+const addWidgetStep = () => ({
   id: "adicionar-widget",
   selector: "#financas-add-widget",
-  text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
+  text: t("financas_tips.esse_painel_e_seu_toque"),
   advanceOn: "interact",
-};
+});
 
 function buildSteps(container) {
   // MAN-05: contas_fixas ganhou o sino na 1.13 — texto reescrito, aparece de novo
-  return [...buildWidgetSteps(container, WIDGET_TEXTS, { contas_fixas: 2 }), ADD_WIDGET_STEP];
+  return [...buildWidgetSteps(container, widgetTexts(), { contas_fixas: 2 }), addWidgetStep()];
 }
 
 let running = false;

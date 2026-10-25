@@ -3,6 +3,7 @@ import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { accentLabel } from "../components/accent-colors.js";
 import { store } from "../state/store.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal de onboarding (item 15.6, decisão 25 — REVISADA; texto
@@ -359,7 +360,7 @@ async function markSeen() {
  * Sempre começa do passo 0 (tanto no boot automático quanto no reabrir manual).
  */
 export function openOnboardingModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   currentStep = 0;
   renderStep(0);
   modalEl.classList.add("open");

@@ -112,6 +112,20 @@ export function tOu(chave, reserva, vars = {}) {
   return t(chave, vars);
 }
 
+/**
+ * Pra elemento montado uma vez e reaproveitado (modais, avisos): devolve o
+ * mesmo `el` se foi montado no idioma atual; senão tira o velho e monta de
+ * novo com `construir()` — assim um modal aberto antes da troca de idioma
+ * não fica no idioma antigo.
+ */
+export function noIdiomaAtual(el, construir) {
+  if (el?.isConnected && el.dataset.idioma === atual) return el;
+  el?.remove();
+  const novo = construir();
+  novo.dataset.idioma = atual;
+  return novo;
+}
+
 /** Troca os textos fixos marcados com data-i18n / data-i18n-attr. */
 export function aplicarNoDocumento(raiz = document) {
   raiz.querySelectorAll("[data-i18n]").forEach((el) => {

@@ -2,6 +2,7 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual } from "../i18n.js";
 
 /**
  * Modal "nova formação" / "editar formação" — mesmo padrão dual
@@ -119,7 +120,7 @@ function wireModal(wrap) {
  *   de POST) pré-preenchido com os dados da formação.
  */
 export function openFormacaoModal({ education = null, onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingEducation = education || null;
 
