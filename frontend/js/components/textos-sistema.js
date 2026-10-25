@@ -71,3 +71,8 @@ export function textoDoRegistro({ description, description_key: chave, descripti
 
 /** Nome do atributo na tela ("financas" → "finanças"); atributo desconhecido sai como veio. */
 export const nomeAtributo = (nome) => tOu(nome && `atributo.${nome}`, nome);
+
+// tipo de contrato da posição: o valor gravado é "estágio"/"outro" (CLT, PJ e
+// freelancer não se traduzem)
+const CONTRATOS = { "estágio": "estagio", outro: "outro" };
+export const rotuloContrato = (v) => tOu(CONTRATOS[v] && `posicao.tipo.${CONTRATOS[v]}`, v);

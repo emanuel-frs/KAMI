@@ -93,7 +93,7 @@ export async function render(el, widget) {
                       data-tooltip="${tooltip}" aria-label="${tooltip}">
                       ${paga ? t("contas.paga") : t("contas.marcar_paga")}
                     </button>`
-                  : `<span class="cf-inactive-tag">inativa</span>`}
+                  : `<span class="cf-inactive-tag">${t("renda.inativa")}</span>`}
               </div>
             </div>`;
         }).join("") : `<div class="wallet-empty">${t("contas.vazio")}</div>`}

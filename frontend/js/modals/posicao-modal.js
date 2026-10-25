@@ -2,7 +2,9 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { escapeHtml } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
+import { rotuloContrato } from "../components/textos-sistema.js";
 
 /**
  * Modal "nova posição" / "editar posição" — mesmo padrão dual singleton
@@ -17,6 +19,7 @@ let modalEl = null;
 let onSavedCb = null;
 let editingPosition = null;
 
+// o valor é o que fica gravado (em português); só o rótulo muda com o idioma
 const EMPLOYMENT_TYPES = ["CLT", "PJ", "freelancer", "estágio", "outro"];
 
 function buildModal() {
@@ -25,32 +28,32 @@ function buildModal() {
   wrap.id = "position-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova posição</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("posicao.nova_posicao")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label for="pm-company">empresa</label><input type="text" id="pm-company" placeholder="ex: acme ltda"></div>
-          <div class="field"><label for="pm-role">cargo</label><input type="text" id="pm-role" placeholder="ex: dev backend pleno"></div>
+          <div class="field"><label for="pm-company">${t("posicao.empresa")}</label><input type="text" id="pm-company" placeholder="${t("posicao.ex_acme_ltda")}"></div>
+          <div class="field"><label for="pm-role">${t("posicao.cargo")}</label><input type="text" id="pm-role" placeholder="${t("posicao.ex_dev_backend_pleno")}"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="pm-area">área (opcional)</label><input type="text" id="pm-area" placeholder="ex: engenharia"></div>
+          <div class="field"><label for="pm-area">${t("posicao.area_opcional")}</label><input type="text" id="pm-area" placeholder="${t("posicao.ex_engenharia")}"></div>
           <div class="field">
-            <label for="pm-employment-type">tipo de vínculo</label>
+            <label for="pm-employment-type">${t("posicao.tipo_de_vinculo")}</label>
             <select id="pm-employment-type">
-              ${EMPLOYMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
+              ${EMPLOYMENT_TYPES.map((v) => `<option value="${v}">${escapeHtml(rotuloContrato(v))}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="pm-start">início</label><input type="date" id="pm-start"></div>
-          <div class="field"><label for="pm-end">fim (opcional — em branco = atual)</label><input type="date" id="pm-end"></div>
+          <div class="field"><label for="pm-start">${t("posicao.inicio")}</label><input type="date" id="pm-start"></div>
+          <div class="field"><label for="pm-end">${t("posicao.fim_opcional_em_branco_atual")}</label><input type="date" id="pm-end"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="pm-contract-end">fim de contrato previsto (opcional)</label><input type="date" id="pm-contract-end"></div>
-          <div class="field"><label for="pm-salary-review">próxima revisão salarial prevista (opcional)</label><input type="date" id="pm-salary-review"></div>
+          <div class="field"><label for="pm-contract-end">${t("posicao.fim_de_contrato_previsto_opcional")}</label><input type="date" id="pm-contract-end"></div>
+          <div class="field"><label for="pm-salary-review">${t("posicao.proxima_revisao_salarial_prevista_opcional")}</label><input type="date" id="pm-salary-review"></div>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("posicao.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -66,7 +69,7 @@ async function submitPosition(wrap) {
   const role = wrap.querySelector("#pm-role").value.trim();
   const start_date = wrap.querySelector("#pm-start").value.trim();
   if (!company || !role || !start_date) {
-    showErrorModal("preenche empresa, cargo e início.", "atenção");
+    showErrorModal(t("posicao.preenche_empresa_cargo_e_inicio"), t("geral.atencao"));
     return;
   }
 
@@ -88,7 +91,7 @@ async function submitPosition(wrap) {
       await carreiraApi.createCareerPosition(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingPosition ? "erro ao salvar posição" : "erro ao criar posição");
+    showErrorModal(err.message, editingPosition ? t("posicao.erro_ao_salvar_posicao") : t("posicao.erro_ao_criar_posicao"));
     return;
   }
   closePosicaoModal();
@@ -113,8 +116,8 @@ export function openPosicaoModal({ position = null, onSaved } = {}) {
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingPosition ? "editar posição" : "nova posição";
-  saveBtn.textContent = editingPosition ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingPosition ? t("posicao.editar_posicao") : t("posicao.nova_posicao");
+  saveBtn.textContent = editingPosition ? t("posicao.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#pm-company").value = editingPosition?.company || "";
   modalEl.querySelector("#pm-role").value = editingPosition?.role || "";

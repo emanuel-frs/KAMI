@@ -108,7 +108,7 @@ export async function render(el, widget) {
                       data-tooltip="${tooltip}" aria-label="${tooltip}">
                       ${paga ? t("assinaturas.pago") : t("assinaturas.marcar_pago")}
                     </button>`
-                  : `<span class="cf-inactive-tag">inativa</span>`}
+                  : `<span class="cf-inactive-tag">${t("renda.inativa")}</span>`}
               </div>
             </div>`;
         }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? t("assinaturas.vazio_filtro") : t("assinaturas.vazio")}</div>`}

@@ -2,7 +2,7 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "novo registro salarial" / "editar registro" (Parte 4, seção 5
@@ -26,16 +26,16 @@ function buildModal() {
   wrap.id = "salary-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">novo registro salarial</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("salario.novo_registro_salarial")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label for="sm-amount">valor</label><input type="text" id="sm-amount" placeholder="ex: 8500.00"></div>
-          <div class="field"><label for="sm-currency">moeda</label><input type="text" id="sm-currency" placeholder="BRL"></div>
+          <div class="field"><label for="sm-amount">${t("salario.valor")}</label><input type="text" id="sm-amount" placeholder="${t("salario.ex_8500_00")}"></div>
+          <div class="field"><label for="sm-currency">${t("salario.moeda")}</label><input type="text" id="sm-currency" placeholder="${t("salario.brl")}"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="sm-date">data</label><input type="date" id="sm-date"></div>
+          <div class="field"><label for="sm-date">${t("salario.data")}</label><input type="date" id="sm-date"></div>
           <div class="field">
-            <label for="sm-employment-type">tipo de vínculo (opcional)</label>
+            <label for="sm-employment-type">${t("salario.tipo_de_vinculo_opcional")}</label>
             <select id="sm-employment-type">
               <option value="">—</option>
               ${EMPLOYMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
@@ -43,12 +43,12 @@ function buildModal() {
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="sm-position">posição vinculada (opcional)</label><select id="sm-position"><option value="">nenhuma</option></select></div>
-          <div class="field"><label for="sm-reason">motivo (opcional)</label><input type="text" id="sm-reason" placeholder="ex: reajuste anual"></div>
+          <div class="field"><label for="sm-position">${t("salario.posicao_vinculada_opcional")}</label><select id="sm-position"><option value="">${t("salario.nenhuma")}</option></select></div>
+          <div class="field"><label for="sm-reason">${t("salario.motivo_opcional")}</label><input type="text" id="sm-reason" placeholder="${t("salario.ex_reajuste_anual")}"></div>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("salario.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -70,7 +70,7 @@ async function loadPositionOptions(wrap, selectedId) {
     // por conta de um erro ao carregar a lista de posições
   }
   select.innerHTML =
-    `<option value="">nenhuma</option>` +
+    `<option value="">${t("salario.nenhuma")}</option>` +
     positions.map((p) => `<option value="${p.id}">${p.role} — ${p.company}</option>`).join("");
   select.value = selectedId || "";
   refreshCustomSelect(select);
@@ -80,7 +80,7 @@ async function submitSalaryRecord(wrap) {
   const amount = parseFloat(wrap.querySelector("#sm-amount").value.trim().replace(",", "."));
   const dateVal = wrap.querySelector("#sm-date").value.trim();
   if (!amount || amount <= 0 || !dateVal) {
-    showErrorModal("preenche valor (maior que zero) e data.", "atenção");
+    showErrorModal(t("salario.preenche_valor_maior_que_zero"), t("geral.atencao"));
     return;
   }
 
@@ -100,7 +100,7 @@ async function submitSalaryRecord(wrap) {
       await carreiraApi.createCareerSalaryRecord(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingRecord ? "erro ao salvar registro" : "erro ao criar registro");
+    showErrorModal(err.message, editingRecord ? t("salario.erro_ao_salvar_registro") : t("salario.erro_ao_criar_registro"));
     return;
   }
   closeSalarioModal();
@@ -125,8 +125,8 @@ export async function openSalarioModal({ record = null, onSaved } = {}) {
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingRecord ? "editar registro salarial" : "novo registro salarial";
-  saveBtn.textContent = editingRecord ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingRecord ? t("salario.editar_registro_salarial") : t("salario.novo_registro_salarial");
+  saveBtn.textContent = editingRecord ? t("salario.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#sm-amount").value = editingRecord?.amount ?? "";
   modalEl.querySelector("#sm-currency").value = editingRecord?.currency || "BRL";
