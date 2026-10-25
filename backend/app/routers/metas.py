@@ -67,6 +67,7 @@ from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.finance_utils import create_saida_transaction
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -274,7 +275,7 @@ def sync_learning_goals(db, track_id: str) -> None:
     for goal in newly_completed:
         register_action(
             db,
-            description=f'concluiu a meta "{goal["title"]}" (trilha, xp bônus)',
+            description=Texto("log.meta.concluida_trilha", 'concluiu a meta "{meta}" (trilha, xp bônus)', meta=goal["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
@@ -324,7 +325,7 @@ def sync_academic_goals(db, education_id: str) -> None:
     for goal in newly_completed:
         register_action(
             db,
-            description=f'concluiu a meta "{goal["title"]}" (formação, xp bônus)',
+            description=Texto("log.meta.concluida_formacao", 'concluiu a meta "{meta}" (formação, xp bônus)', meta=goal["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
@@ -597,7 +598,7 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
             transaction_id = create_saida_transaction(
                 db, conta, payload.amount,
                 category="metas",
-                description=f'meta: {row["title"]}',
+                description=Texto("lancamento.meta", "meta: {meta}", meta=row["title"]),
                 forma_pagamento="saldo",
                 formas_permitidas=("saldo",),
             )
@@ -623,7 +624,7 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
     if completes_now:
         register_action(
             db,
-            description=f'concluiu a meta "{row["title"]}" (xp bônus)',
+            description=Texto("log.meta.concluida", 'concluiu a meta "{meta}" (xp bônus)', meta=row["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, row["weight"]),
             impact=5,
@@ -634,7 +635,7 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
     elif not has_action(db, "meta_contribuicao", goal_id, only_today=True):
         register_action(
             db,
-            description=f'contribuiu para "{row["title"]}"',
+            description=Texto("log.meta.contribuiu", 'contribuiu para "{meta}"', meta=row["title"]),
             categories=["metas"],
             xp=_xp_for(XP_PER_CONTRIBUTION, row["weight"]),
             impact=2,

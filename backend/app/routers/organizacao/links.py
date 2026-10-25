@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db, new_id
 from app.actions import register_action, revert_actions
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -62,7 +63,7 @@ def create_link(payload: LinkIn, db=Depends(get_db)):
 
     register_action(
         db,
-        description=f"adicionou link: {payload.title}",
+        description=Texto("log.link.adicionou", "adicionou link: {titulo}", titulo=payload.title),
         categories=["organizacao"],
         xp=XP_LINK_ADD,
         impact=1,

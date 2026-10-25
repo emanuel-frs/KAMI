@@ -171,6 +171,8 @@ from app.migracoes import (
     _migrate_user_profile_notif_fora,
     _migrate_user_profile_atualizacao,
     _migrate_user_profile_idioma,
+    _migrate_textos_sistema,
+    _migrate_textos_antigos,
     _migrate_user_profile_som,
     _migrate_missoes_widget,
     migrate_timestamps_to_local,
@@ -318,6 +320,9 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)
+    # I18N: por último — dependem das colunas das migrações acima
+    _migrate_textos_sistema(conn)
+    _migrate_textos_antigos(conn)
     conn.commit()
 
     _seed_defaults(conn)

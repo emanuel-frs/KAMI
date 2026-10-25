@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Modal de instruções dos atalhos de teclado do grid de widgets
@@ -28,55 +29,52 @@ function buildModal() {
   wrap.innerHTML = `
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-head-title">atalhos de teclado — grid de widgets</span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <span class="modal-head-title">${t("atalhos_grid.titulo")}</span>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <p class="em-message wg-shortcuts-intro">
-          além de arrastar com o mouse, dá pra reordenar os widgets todo
-          por teclado. pressione <kbd>Ctrl</kbd> + <kbd>D</kbd> para entrar
-          no modo de seleção e use:
+          ${t("atalhos_grid.intro")}
         </p>
         <dl class="wg-shortcuts-list">
           <div class="wg-shortcuts-row">
             <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
-            <dd>troca o widget pré-selecionado sem mover nada</dd>
+            <dd>${t("atalhos_grid.trocar")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Enter</kbd></dt>
-            <dd>seleciona o widget pré-selecionado para mover</dd>
+            <dd>${t("atalhos_grid.selecionar")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
-            <dd>move o widget selecionado</dd>
+            <dd>${t("atalhos_grid.mover")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Shift</kbd> + <kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt>
-            <dd>diminui ou aumenta a largura do widget</dd>
+            <dd>${t("atalhos_grid.largura")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Shift</kbd> + <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
-            <dd>diminui ou aumenta a altura do widget</dd>
+            <dd>${t("atalhos_grid.altura")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Enter</kbd></dt>
-            <dd>salva a posição e o tamanho ajustados</dd>
+            <dd>${t("atalhos_grid.salvar")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>Esc</kbd></dt>
-            <dd>sai do modo de seleção (e cancela uma movimentação em andamento)</dd>
+            <dd>${t("atalhos_grid.sair")}</dd>
           </div>
           <div class="wg-shortcuts-row">
             <dt><kbd>?</kbd></dt>
-            <dd>abre esta janela (com o foco em qualquer ponto do grid)</dd>
+            <dd>${t("atalhos_grid.abrir")}</dd>
           </div>
         </dl>
         <p class="em-message wg-shortcuts-note">
-          o drag-and-drop com mouse continua funcionando normalmente — isso
-          é só uma alternativa completa por teclado.
+          ${t("atalhos_grid.nota")}
         </p>
         <div class="form-actions">
-          <button class="btn sm primary" data-action="close">entendi</button>
+          <button class="btn sm primary" data-action="close">${t("geral.entendi")}</button>
         </div>
       </div>
     </div>
@@ -98,6 +96,8 @@ function close() {
 }
 
 export function openWidgetShortcutsModal() {
-  modalEl = modalEl || buildModal();
+  // refeito a cada abertura: sai no idioma atual
+  modalEl?.remove();
+  modalEl = buildModal();
   modalEl.classList.add("open");
 }

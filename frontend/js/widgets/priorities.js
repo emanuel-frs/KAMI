@@ -3,17 +3,19 @@ import { getAttributes } from "../api/nucleo.js";
 import { listGoals } from "../api/metas.js";
 import { escapeHtml, fmtData } from "../components/format.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { nomeAtributo } from "../components/textos-sistema.js";
+import { t } from "../i18n.js";
 
 /** "Atenção agora": atributo mais atrasado + meta com prazo mais próximo. */
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando prioridades…</div>';
+  el.innerHTML = `<div class="empty-state">${t("prioridades.carregando")}</div>`;
 
   async function load() {
     let attributes, goals;
     try {
       [attributes, goals] = await Promise.all([getAttributes(), listGoals()]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar prioridades: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("prioridades.erro", { erro: err.message }))}</div>`;
       return;
     }
 
@@ -25,8 +27,8 @@ export async function render(el, widget) {
     if (lowest) {
       rows.push(`
         <div class="log-item">
-          <span class="desc">atributo mais atrasado: <b style="color:var(--amber);">${escapeHtml(lowest.name)}</b> (lvl ${lowest.current_level})</span>
-          ${behind ? '<span class="meta">ações aqui rendem 2×</span>' : ""}
+          <span class="desc">${t("prioridades.atrasado")} <b style="color:var(--amber);">${escapeHtml(nomeAtributo(lowest.name))}</b> (lvl ${lowest.current_level})</span>
+          ${behind ? `<span class="meta">${t("prioridades.rendem")}</span>` : ""}
         </div>`);
     }
 
@@ -37,7 +39,7 @@ export async function render(el, widget) {
       const g = upcoming[0];
       rows.push(`
         <div class="log-item">
-          <span class="desc">meta mais próxima do prazo: <b style="color:var(--accent);">${escapeHtml(g.title)}</b></span>
+          <span class="desc">${t("prioridades.meta_proxima")} <b style="color:var(--accent);">${escapeHtml(g.title)}</b></span>
           <span class="meta">${fmtData(g.deadline)}</span>
         </div>`);
     }

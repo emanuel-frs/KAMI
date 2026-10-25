@@ -15,6 +15,7 @@
  */
 import { WIDGET_CATALOG, widgetsForScreen } from "./registry.js";
 import { icon } from "../components/icons.js";
+import { escapeHtml } from "../components/format.js";
 import { colsForWidth, packLayout } from "./grid-pack.js";
 import {
   widgetsInDomOrder,
@@ -23,6 +24,7 @@ import {
   mountKeyboardHelpButton,
 } from "./grid-teclado.js";
 import { attachResizeHandle, attachDragHandle } from "./grid-arrastar.js";
+import { t } from "../i18n.js";
 
 const WG_UNITS  = 6;   // "sextos" — mesmo valor do protótipo
 const WG_ROW    = 4;   // grid-auto-rows em px   (grid.css)
@@ -465,7 +467,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.style.gridRowEnd = `span ${gridRowsForHeight(WG_MIN_H)}`;
 
     const removeBtn = def.removable !== false
-      ? `<button type="button" class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="remover widget" aria-label="remover widget ${def.label}">${icon("x", { size: 11 })}</button>`
+      ? `<button type="button" class="widget-remove-btn push" data-remove="${widget.widget_type}" data-tooltip="${t("grid.remover")}" aria-label="${escapeHtml(t("grid.remover_aria", { widget: def.label }))}">${icon("x", { size: 11 })}</button>`
       : "";
 
     card.innerHTML = `
@@ -473,7 +475,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
         ${def.label}${removeBtn}
       </div>
       <div class="card-body">
-        <span style="color:var(--text-faint);font-size:10px;">carregando…</span>
+        <span style="color:var(--text-faint);font-size:10px;">${t("geral.carregando")}</span>
       </div>
     `;
 
@@ -495,7 +497,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
         console.error(`erro ao carregar widget '${widget.widget_type}':`, err);
         card.querySelector(".card-body").innerHTML = `
           <span style="color:var(--text-faint);font-size:10px;">
-            widget '${widget.widget_type}' — a implementar
+            ${t("grid.erro_widget", { tipo: widget.widget_type })}
           </span>`;
         requestAnimationFrame(() => placeCard(card, currentCols(container)));
       });
@@ -586,7 +588,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
       refocus.focus({ preventScroll: true });
     }
     kw.refreshAllLabels(); // a posição "X de N" de todo mundo muda quando N diminui
-    announceToScreenReader(`${label} removido.`);
+    announceToScreenReader(t("grid.removido", { widget: label }));
     onLayoutChange?.(widgets);
   });
 

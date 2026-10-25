@@ -2,6 +2,8 @@
 import { getAttributes } from "../api/nucleo.js";
 import { escapeHtml } from "../components/format.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { nomeAtributo } from "../components/textos-sistema.js";
+import { t } from "../i18n.js";
 
 /**
  * Radar pentagonal (SVG pontilhado) — substitui as antigas barras de
@@ -119,12 +121,12 @@ function labelStyle(i) {
 
 /** Radar pentagonal — clicar num vértice filtra o widget log.js (evento global). */
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando atributos…</div>';
+  el.innerHTML = `<div class="empty-state">${t("atributos.carregando")}</div>`;
   let attributes;
   try {
     attributes = await getAttributes();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar atributos: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("atributos.erro", { erro: err.message }))}</div>`;
     return;
   }
 
@@ -156,11 +158,12 @@ export async function render(el, widget) {
     const labels = vertices
       .map((a, i) => {
         const cls = LABEL_CLASS[i] || "";
-        const sigla = a.name.slice(0, 3).toUpperCase();
+        const nome = nomeAtributo(a.name);
+        const sigla = [...nome].slice(0, 3).join("").toUpperCase();
         const idle = a.forgotten
-          ? ` · sem atividade há ${a.days_inactive} ${a.days_inactive === 1 ? "dia" : "dias"}`
+          ? t("atributos.sem_atividade", { n: a.days_inactive })
           : "";
-        const tip = `${a.name} — nível ${a.current_level} · faltam ${100 - a.pct}% pro próximo nível${idle}`;
+        const tip = t("atributos.dica", { nome, nivel: a.current_level, pct: 100 - a.pct, parado: idle });
         const on = activeFilter === a.name ? " on" : "";
         const off = a.forgotten ? " forgotten" : "";
         return `<span class="pg-label ${cls}${on}${off}" style="${labelStyle(i)}" data-filter="${escapeHtml(

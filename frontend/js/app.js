@@ -135,6 +135,8 @@ async function reloadCurrentPage() {
   await showPage(name);
 }
 
+let navegacao = 0;
+
 async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
 
@@ -148,7 +150,12 @@ async function showPage(name, opts) {
     return;
   }
 
+  // cliques rápidos (ou a troca de idioma) podem começar outra navegação
+  // enquanto esta ainda carrega o módulo: só a mais recente monta a tela
+  const minha = ++navegacao;
   currentPageModule?.unmount?.();
+  currentPageModule = null;
+  currentPageName = null;
 
   document.querySelectorAll(".nav-link").forEach((el) => {
     const isActive = el.dataset.page === name;
@@ -163,11 +170,20 @@ async function showPage(name, opts) {
   });
 
   const mod = await PAGES[name]();
+  if (minha !== navegacao) return;
   currentPageModule = mod;
   currentPageName = name;
   setTelaAtual(name); // CONF-01: entra no "copiar detalhes" e no log de erro da tela
   novaVisitaDeTela(); // MAN-05: dicas novas só ao abrir a tela, uma vez por visita
-  await mod.mount(pageRoot, opts);
+  try {
+    await mod.mount(pageRoot, opts);
+  } catch (err) {
+    // a tela foi trocada no meio da montagem: o que ela ainda tentou
+    // desenhar já não existe — erro dela não é erro da tela aberta agora
+    if (minha !== navegacao) return;
+    throw err;
+  }
+  if (minha !== navegacao) return;
   playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
   // (só com efeitos "completo" e sem reduced-motion — ver components/fx.js)

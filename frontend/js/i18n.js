@@ -100,6 +100,18 @@ export function t(chave, vars = {}) {
   return interpolar(entrada, vars);
 }
 
+/**
+ * Pra texto que vem pronto do backend com uma chave (conquistas, missões,
+ * registro de atividade): o texto de `chave` se ela existe no dicionário,
+ * senão a `reserva` (o português que o backend mandou) — sem aviso, porque
+ * chave nenhuma (conquista criada pela pessoa) ou desconhecida (banco mais
+ * novo que o app) é o caso normal aqui.
+ */
+export function tOu(chave, reserva, vars = {}) {
+  if (!chave || (dicionario[chave] ?? fonte[chave]) === undefined) return reserva;
+  return t(chave, vars);
+}
+
 /** Troca os textos fixos marcados com data-i18n / data-i18n-attr. */
 export function aplicarNoDocumento(raiz = document) {
   raiz.querySelectorAll("[data-i18n]").forEach((el) => {

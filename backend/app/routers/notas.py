@@ -53,6 +53,7 @@ from app.actions import register_action, revert_actions, today_prefix
 from app.crypto import decrypt_password, encrypt_password
 from app.database import get_db, new_id, now_iso
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -403,7 +404,10 @@ def criar_nota(payload: NotaIn, db=Depends(get_db)):
     if hoje < NOTAS_XP_POR_DIA:
         register_action(
             db,
-            description=f"criou nota: {payload.titulo.strip() or '(sem título)'}",
+            description=(
+                Texto("log.nota.criada", "criou nota: {titulo}", titulo=payload.titulo.strip()) if payload.titulo.strip()
+                else Texto("log.nota.criada_sem_titulo", "criou nota: (sem título)")
+            ),
             categories=["organizacao"],
             xp=XP_NOTA,
             impact=1,

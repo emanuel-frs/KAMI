@@ -17,6 +17,7 @@ from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_entrada_transaction, revert_entrada_transaction
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import Texto
 from app.routers.financas.comum import (
     XP_PAGAMENTO_RECORRENTE,
     _revert_period_xp,
@@ -278,14 +279,14 @@ def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db
         transaction_id = create_entrada_transaction(
             db, conta, amount,
             category=source["categoria"] or DEFAULT_INCOME_CATEGORY,
-            description=f"renda: {source['nome']}",
+            description=Texto("lancamento.renda", "renda: {nome}", nome=source["nome"]),
             date=paid_date,
         )
         # marcar de novo uma entrada já paga não credita outra vez
         if not has_action(db, "renda_entrada", entry_id):
             register_action(
                 db,
-                description=f"recebeu renda: {source['nome']}",
+                description=Texto("log.renda.recebida", "recebeu renda: {nome}", nome=source["nome"]),
                 categories=["financas"],
                 xp=XP_PAGAMENTO_RECORRENTE,
                 impact=2,

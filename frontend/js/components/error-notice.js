@@ -50,6 +50,9 @@ export function setTelaAtual(name) {
   telaAtual = name || "";
 }
 
+/** A tela aberta agora — pra quem espera algo assíncrono conferir que ainda está nela. */
+export const getTelaAtual = () => telaAtual;
+
 /**
  * Pra err-modal.js: o toast de erro já mostrou exatamente esta mensagem
  * agora há pouco? (aí o modal não abre por cima com o mesmo texto)

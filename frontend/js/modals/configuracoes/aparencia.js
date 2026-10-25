@@ -15,6 +15,7 @@ import { estado } from "./estado.js";
 import { IDIOMAS, carregarIdioma, idiomaAtual, t } from "../../i18n.js";
 import { enhanceSelect, refreshCustomSelect } from "../../components/custom-select.js";
 import { openExternal } from "../../components/open-external.js";
+import { descricaoTema, rotuloTema, rotuloTitulo } from "../../components/textos-sistema.js";
 
 // I18N-01 (P-84): onde mandar uma correção de tradução
 const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
@@ -310,10 +311,12 @@ export async function renderRewards(wrap, profile) {
   wrap.querySelector("#cfg-rewards-desc").textContent =
     `títulos e temas de terminal liberados conforme seu nível geral sobe — você está no nível ${data.level}.`;
   const auto = { key: "auto", label: "automático", description: "o título mais alto que você já liberou", unlocked: true };
-  wrap.querySelector("#cfg-titles").innerHTML = [auto, ...data.titulos]
+  const titulos = data.titulos.map((t) => ({ ...t, label: rotuloTitulo(t.key, t.label) }));
+  wrap.querySelector("#cfg-titles").innerHTML = [auto, ...titulos]
     .map((t) => rewardOption("cfg-title", t, (profile.titulo ?? "auto") === t.key))
     .join("");
   wrap.querySelector("#cfg-themes").innerHTML = data.temas
+    .map((t) => ({ ...t, label: rotuloTema(t.key, t.label), description: descricaoTema(t.key, t.description) }))
     .map((t) => rewardOption("cfg-theme", t, (profile.tema ?? "padrao") === t.key))
     .join("");
 }

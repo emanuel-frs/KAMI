@@ -23,6 +23,7 @@ from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -439,7 +440,7 @@ def sync_email_account(
     if not automatic and not has_action(db, "email_sync", account["username"], only_today=True):
         register_action(
             db,
-            description=f"sincronizou e-mail: {account['label']}",
+            description=Texto("log.email.sincronizou", "sincronizou e-mail: {conta}", conta=account["label"]),
             categories=["organizacao"],
             xp=XP_EMAIL_SYNC,
             impact=1,

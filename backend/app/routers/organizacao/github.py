@@ -18,6 +18,7 @@ from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -185,7 +186,7 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
     if status:
         register_action(
             db,
-            description=f"conectou repositório: {payload.repo_full_name}",
+            description=Texto("log.github.conectou", "conectou repositório: {repo}", repo=payload.repo_full_name),
             categories=["organizacao"],
             xp=XP_GITHUB_SYNC,
             impact=1,
@@ -214,7 +215,7 @@ def sync_github_repo(repo_id: str, db=Depends(get_db)):
         if not has_action(db, "github_sync", row["repo_full_name"], only_today=True):
             register_action(
                 db,
-                description=f"sincronizou repositório: {row['repo_full_name']}",
+                description=Texto("log.github.sincronizou", "sincronizou repositório: {repo}", repo=row["repo_full_name"]),
                 categories=["organizacao"],
                 xp=XP_GITHUB_SYNC,
                 impact=1,
@@ -357,7 +358,10 @@ def _auto_import_repos(db, token: str) -> dict:
     if imported_count:
         register_action(
             db,
-            description=f"importou {imported_count} repositório(s) automaticamente do github ({owner_login})",
+            description=Texto(
+                "log.github.importou", "importou {n} repositório(s) automaticamente do github ({conta})",
+                n=imported_count, conta=owner_login,
+            ),
             categories=["organizacao"],
             xp=XP_GITHUB_SYNC,
             impact=1,

@@ -11,6 +11,7 @@ sempre na hora da chamada — por isso `from app import database` e não
 `from app.database import …` (seria import circular).
 """
 import datetime
+import json
 import re
 import sqlite3
 
@@ -543,6 +544,144 @@ def _migrate_user_profile_idioma(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE user_profile ADD COLUMN idioma TEXT")
         conn.execute("UPDATE user_profile SET idioma = 'pt'")
     conn.commit()
+
+
+def _migrate_textos_sistema(conn: sqlite3.Connection) -> None:
+    """
+    I18N: o registro de atividade e os lançamentos que o sistema cria
+    passam a guardar a chave do texto + as variáveis (app/mensagens.py::Texto),
+    pro frontend mostrar no idioma da pessoa. Só as colunas; linhas antigas
+    ficam com NULL e aparecem como foram gravadas.
+    """
+    for tabela in ("action_logs", "transactions"):
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({tabela})").fetchall()}
+        for col in ("descricao_chave", "descricao_vars"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {col} TEXT")
+    conn.commit()
+
+
+# I18N: formatos antigos do registro de atividade e dos lançamentos
+# automáticos, na ordem em que são tentados (o mais específico antes). O
+# português é o mesmo dos Texto do backend — tests/test_migracoes_textos.py
+# confere contra o pt.json. Lançamentos só são convertidos quando a origem
+# confirma que foram criados pelo sistema (_TEXTOS_ANTIGOS_LANCAMENTO).
+TEXTOS_ANTIGOS_LOG = (
+    ("log.posicao.primeira", "primeira posição registrada: {cargo} na {empresa}"),
+    ("log.posicao.nova", "novo cargo: {cargo} na {empresa}"),
+    ("log.posicao.retroativa", "registrou posição retroativa: {cargo} na {empresa}"),
+    ("log.formacao.concluida", "concluiu formação: {curso} ({instituicao})"),
+    ("log.salario.primeiro", "registrou o primeiro salário (baseline da evolução salarial)"),
+    ("log.salario.reajuste", "novo reajuste salarial ({pct}%)"),
+    ("log.salario.retroativo", "registrou salário retroativo (histórico)"),
+    ("log.meta.concluida_trilha", 'concluiu a meta "{meta}" (trilha, xp bônus)'),
+    ("log.meta.concluida_formacao", 'concluiu a meta "{meta}" (formação, xp bônus)'),
+    ("log.meta.concluida", 'concluiu a meta "{meta}" (xp bônus)'),
+    ("log.meta.contribuiu", 'contribuiu para "{meta}"'),
+    ("log.marco.concluido", "concluiu marco: {marco}"),
+    ("log.missao.concluida", "missão concluída: {missao}"),
+    ("log.assinatura.paga", "pagou assinatura: {nome}"),
+    ("log.conta_fixa.paga", "pagou conta fixa: {nome}"),
+    ("log.divida.quitada", "quitou a dívida: {descricao}"),
+    ("log.renda.recebida", "recebeu renda: {nome}"),
+    ("log.lancamento.entrada", "lançou entrada: {descricao}"),
+    ("log.lancamento.saida", "lançou saida: {descricao}"),
+    ("log.lancamento.transferencia", "lançou transferencia: {descricao}"),
+    ("log.habito.outro_dia", "hábito: {nome} ({dia})"),
+    ("log.habito", "hábito: {nome}"),
+    ("log.nota.criada_sem_titulo", "criou nota: (sem título)"),
+    ("log.nota.criada", "criou nota: {titulo}"),
+    ("log.github.importou", "importou {n} repositório(s) automaticamente do github ({conta})"),
+    ("log.github.conectou", "conectou repositório: {repo}"),
+    ("log.github.sincronizou", "sincronizou repositório: {repo}"),
+    ("log.email.sincronizou", "sincronizou e-mail: {conta}"),
+    ("log.link.adicionou", "adicionou link: {titulo}"),
+    ("log.bonus.primeira", "bônus · primeira ação do dia"),
+    ("log.bonus.sequencia", "bônus · sequência de {dias} dias {mult}×"),
+    ("log.bonus.atrasado", "bônus · atributo atrasado 2×"),
+)
+# (chave, texto, tabela e coluna que provam que o lançamento veio do sistema)
+_TEXTOS_ANTIGOS_LANCAMENTO = (
+    ("lancamento.conta_fixa", "conta fixa: {nome}", "fixed_bill_periods", "transaction_id"),
+    ("lancamento.assinatura", "assinatura: {nome}", "wallet_subscription_periods", "transaction_id"),
+    ("lancamento.renda", "renda: {nome}", "income_entries", "transaction_id"),
+    ("lancamento.meta", "meta: {meta}", "goal_contributions", "transaction_id"),
+    ("lancamento.divida", "quitação de dívida: {descricao}", "debts", "transacao_id"),
+)
+TEXTOS_ANTIGOS_LANCAMENTO = tuple((c, t) for c, t, _, _ in _TEXTOS_ANTIGOS_LANCAMENTO)
+
+# variáveis com forma conhecida; o resto (nomes da pessoa) é "qualquer coisa"
+_FORMA_DA_VARIAVEL = {"dia": r"\d{2}/\d{2}", "n": r"\d+", "dias": r"\d+", "pct": r"[+-]\d+\.\d", "mult": r"\d+,\d"}
+
+
+def _regex_do_texto(texto: str) -> "re.Pattern":
+    partes = re.split(r"\{(\w+)\}", texto)  # [literal, var, literal, var, ...]
+    padrao = "".join(
+        re.escape(p) if i % 2 == 0 else f"(?P<{p}>{_FORMA_DA_VARIAVEL.get(p, '.+')})" for i, p in enumerate(partes)
+    )
+    return re.compile(f"^{padrao}$", re.DOTALL)
+
+
+def reconhecer_texto_antigo(descricao: str, formatos=TEXTOS_ANTIGOS_LOG):
+    """(chave, vars) do primeiro formato que casa com `descricao` inteira, ou None."""
+    for chave, texto in formatos:
+        m = _regex_do_texto(texto).match(descricao or "")
+        if m:
+            vars_ = m.groupdict()
+            if "n" in vars_:
+                vars_["n"] = int(vars_["n"])
+            if "dias" in vars_:
+                vars_["dias"] = int(vars_["dias"])
+            return chave, vars_
+    return None
+
+
+def _migrate_textos_antigos(conn: sqlite3.Connection) -> None:
+    """
+    I18N: o registro de atividade e os lançamentos automáticos gravados
+    ANTES da tradução só tinham o texto em português. Aqui cada um que casa
+    com um formato conhecido ganha a chave + variáveis (os nomes saem do
+    próprio texto) — o que não casa fica como está. Ação manual do Núcleo
+    (source 'form') é texto da pessoa e nunca é tocada; lançamento só
+    quando a origem confirma que foi o sistema que criou. Idempotente: só
+    olha linhas ainda sem chave.
+    """
+    logs = conn.execute(
+        "SELECT id, description, referencia_tipo, referencia_id FROM action_logs "
+        "WHERE descricao_chave IS NULL AND source != 'form'"
+    ).fetchall()
+    for log in logs:
+        achado = reconhecer_texto_antigo(log["description"])
+        if not achado:
+            continue
+        chave, vars_ = achado
+        if chave == "log.missao.concluida" and log["referencia_tipo"] == "missao":
+            # o título da missão também vai pro idioma: precisa do tipo dela
+            m = conn.execute("SELECT periodo, tipo FROM missoes WHERE id = ?", (log["referencia_id"],)).fetchone()
+            if m:
+                vars_.update(periodo=m["periodo"], tipo=m["tipo"], nome=_nome_entre_aspas(vars_["missao"]) if m["periodo"] == "dia" else None)
+        conn.execute(
+            "UPDATE action_logs SET descricao_chave = ?, descricao_vars = ? WHERE id = ?",
+            (chave, json.dumps(vars_, ensure_ascii=False) if vars_ else None, log["id"]),
+        )
+    for chave, texto, tabela, coluna in _TEXTOS_ANTIGOS_LANCAMENTO:
+        rows = conn.execute(
+            f"SELECT t.id, t.description FROM transactions t "
+            f"WHERE t.descricao_chave IS NULL AND t.id IN (SELECT {coluna} FROM {tabela} WHERE {coluna} IS NOT NULL)"
+        ).fetchall()
+        for t in rows:
+            achado = reconhecer_texto_antigo(t["description"], ((chave, texto),))
+            if achado:
+                conn.execute(
+                    "UPDATE transactions SET descricao_chave = ?, descricao_vars = ? WHERE id = ?",
+                    (achado[0], json.dumps(achado[1], ensure_ascii=False), t["id"]),
+                )
+    conn.commit()
+
+
+def _nome_entre_aspas(titulo: str):
+    inicio, fim = titulo.find('"'), titulo.rfind('"')
+    return titulo[inicio + 1:fim] if 0 <= inicio < fim else None
 
 
 def _migrate_user_profile_som(conn: sqlite3.Connection) -> None:

@@ -4,7 +4,7 @@ import { showConfirmModal } from "./confirm-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml, localDateKey } from "../components/format.js";
-import { DIAS_CURTOS } from "../components/habito-linha.js";
+import { diasCurtos } from "../components/habito-linha.js";
 
 /**
  * Modal "novo lembrete" / "editar lembrete" (ORG-05) — singleton, mesmo
@@ -68,7 +68,7 @@ function buildModal() {
         <div class="field" id="lbm-dias-campo" hidden>
           <span class="field-label" id="lbm-dias-label">dias</span>
           <div class="hb-dias" role="group" aria-labelledby="lbm-dias-label">
-            ${DIAS_CURTOS.map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
+            ${diasCurtos().map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
           </div>
         </div>
         <div class="lbm-vinculo" id="lbm-vinculo" hidden></div>

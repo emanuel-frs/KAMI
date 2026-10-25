@@ -19,6 +19,7 @@ from typing import Iterable, List, Optional, Union
 from fastapi import HTTPException
 
 from app.database import new_id, now_iso
+from app.mensagens import colunas_do_texto
 from app.xp import level_from_xp
 from app.achievements import check_achievements, relock_unmet_achievements
 from app.missoes import REF_MISSAO, avaliar_missoes, garantir_missoes
@@ -76,11 +77,13 @@ def register_action(
 
     log_id = new_id()
     created_at = now_iso()
+    chave, vars_json = colunas_do_texto(description)  # I18N: Texto grava a chave junto
     db.execute(
         "INSERT INTO action_logs "
-        "(id, description, xp_gained, impact_note, source, created_at, referencia_tipo, referencia_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (log_id, description, xp, impact, source, created_at, referencia_tipo, referencia_id),
+        "(id, description, xp_gained, impact_note, source, created_at, referencia_tipo, referencia_id, "
+        "descricao_chave, descricao_vars) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (log_id, str(description), xp, impact, source, created_at, referencia_tipo, referencia_id, chave, vars_json),
     )
 
     for cat, row in attr_rows.items():
@@ -108,7 +111,9 @@ def register_action(
 
     return {
         "id": log_id,
-        "description": description,
+        "description": str(description),
+        "description_key": chave,
+        "description_vars": getattr(description, "vars", {}),
         "xp_gained": xp,
         "impact_note": impact,
         "categories": categories,

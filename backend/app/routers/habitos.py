@@ -30,6 +30,7 @@ from app.actions import register_action, revert_actions
 from app.database import get_db, new_id, now_iso
 from app.habitos import DIAS_PARA_TRAS, FREQUENCIAS, STATUS, Habito, carregar, dias_da_semana
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -263,7 +264,10 @@ def marcar(habito_id: str, payload: MarcarIn, db=Depends(get_db)):
     if db.execute("SELECT 1 FROM habitos_marcas WHERE id = ?", (marca_id,)).fetchone():
         register_action(
             db,
-            description=f"hábito: {h.row['nome']}" + ("" if dia == hoje else f" ({dia.strftime('%d/%m')})"),
+            description=(
+                Texto("log.habito", "hábito: {nome}", nome=h.row["nome"]) if dia == hoje
+                else Texto("log.habito.outro_dia", "hábito: {nome} ({dia})", nome=h.row["nome"], dia=dia.strftime("%d/%m"))
+            ),
             categories=[h.row["atributo"]],
             xp=XP_HABITO,
             source="habitos",

@@ -8,6 +8,7 @@ import { escapeHtml } from "./format.js";
 import { effectsMode } from "./visual-effects.js";
 import { showLevelUp } from "./level-up.js";
 import { estaNoDocumento } from "./no-documento.js";
+import { descricaoConquista, rotuloTema, rotuloTitulo, textoDoRegistro, tituloConquista, tituloMissao } from "./textos-sistema.js";
 
 /**
  * Feedback de progresso — iniciado uma vez em app.js (boot()), igual
@@ -123,8 +124,8 @@ async function celebrateLevel(previousLevel, player) {
     const rewards = await getRecompensas();
     const fresh = (item) => item.level > previousLevel && item.level <= player.level;
     unlocked = [
-      ...rewards.titulos.filter(fresh).map((t) => `título "${t.label}"`),
-      ...rewards.temas.filter(fresh).map((t) => `tema ${t.label}`),
+      ...rewards.titulos.filter(fresh).map((t) => `título "${rotuloTitulo(t.key, t.label)}"`),
+      ...rewards.temas.filter(fresh).map((t) => `tema ${rotuloTema(t.key, t.label)}`),
     ];
   } catch {
     // sem catálogo: comemora sem a linha de recompensas
@@ -180,7 +181,8 @@ function diffAndCelebrate(before, after) {
   if (sound && !(after.player.level > before.player.level)) playSound(sound);
 
   for (const b of [...newBonus].reverse()) {
-    showFeedLine(`+${b.xp_gained} xp`, b.description.replace(/^bônus · /, ""), false, "bonus");
+    // o "bônus · " do começo sai (a linha já é do bônus) — em qualquer idioma
+    showFeedLine(`+${b.xp_gained} xp`, textoDoRegistro(b).replace(/^[^·]+· /, ""), false, "bonus");
   }
 
   if (after.player.level > before.player.level) {
@@ -193,8 +195,8 @@ function diffAndCelebrate(before, after) {
     // GAM-15: aviso "estilo Steam" (vira toast comum com efeitos desligados)
     showAchievementPopup({
       label: "conquista desbloqueada",
-      title: ach.title,
-      detail: ach.description ?? "",
+      title: tituloConquista(ach),
+      detail: descricaoConquista(ach),
       iconName: ICON_BY_CATEGORY[ach.category] ?? "star",
       onClick: () => navigateTo("perfil"),
     });
@@ -203,7 +205,7 @@ function diffAndCelebrate(before, after) {
   for (const [id, ach] of before.unlocked) {
     if (after.unlocked.has(id)) continue;
     changed = true;
-    showFeedLine("conquista bloqueada", ach.title, true);
+    showFeedLine("conquista bloqueada", tituloConquista(ach), true);
   }
 
   // GAM-07: o bônus já entrou no "+xp" do atributo acima; o toast diz de onde veio
@@ -212,7 +214,7 @@ function diffAndCelebrate(before, after) {
     changed = true;
     showAchievementPopup({
       label: "missão concluída",
-      title: m.titulo,
+      title: tituloMissao(m),
       detail: `+${m.xp_bonus} xp`,
       iconName: "target",
       small: true,
@@ -224,7 +226,7 @@ function diffAndCelebrate(before, after) {
   for (const [id, m] of before.missionsDone) {
     if (after.missionsDone.has(id)) continue;
     changed = true;
-    showFeedLine("missão desfeita", m.titulo, true);
+    showFeedLine("missão desfeita", tituloMissao(m), true);
   }
 
   return changed;

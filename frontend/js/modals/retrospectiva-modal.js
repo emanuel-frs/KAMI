@@ -3,6 +3,7 @@ import { icon } from "../components/icons.js";
 import { escapeHtml, fmtDataCurta } from "../components/format.js";
 import { fxAllows } from "../components/fx.js";
 import { showToast } from "../components/toast.js";
+import { textoDoRegistro, tituloConquista } from "../components/textos-sistema.js";
 
 /**
  * Retrospectiva mensal (GAM-12) — o mês que acabou em uma tela ASCII:
@@ -62,6 +63,12 @@ function row(label, value, note = "", noteSuffix = "") {
   return parts;
 }
 
+// I18N: retrospectiva gravada antes da tradução guarda só o título (string)
+const tituloDaRetrospectiva = (c) =>
+  typeof c === "string" ? c : tituloConquista({ key: c.chave, title: c.titulo });
+
+const textoDaAcao = (a) => textoDoRegistro({ description: a.descricao, description_key: a.chave, description_vars: a.vars });
+
 function bar(pct, cells = 20) {
   const filled = Math.max(0, Math.min(cells, Math.round((pct / 100) * cells)));
   return [["[", "dim"], ["#".repeat(filled), "bar-on"], ["-".repeat(cells - filled), "bar-off"], ["]", "dim"]];
@@ -93,11 +100,11 @@ export function retroLines(r) {
     lines.push([[" "], [(ATTRIBUTE_LABELS[name] ?? name).padEnd(13), "label"], [" "], ...bar((xp / max) * 100), [` ${fmt(xp).padStart(6)}`, "value"]]);
   }
   lines.push([], [[` CONQUISTAS DO MÊS (${r.conquistas.length})`, "section"]]);
-  if (r.conquistas.length) r.conquistas.forEach((t) => lines.push([["  * ", "bullet"], [t, "item"]]));
+  if (r.conquistas.length) r.conquistas.forEach((c) => lines.push([["  * ", "bullet"], [tituloDaRetrospectiva(c), "item"]]));
   else lines.push([["  nenhuma neste mês", "dim"]]);
   lines.push([], [[" AÇÃO DO MÊS", "section"]]);
   if (r.acao_do_mes) {
-    lines.push([["  "], [r.acao_do_mes.descricao, "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${fmtDataCurta(r.acao_do_mes.dia)}`, "meta"]]);
+    lines.push([["  "], [textoDaAcao(r.acao_do_mes), "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${fmtDataCurta(r.acao_do_mes.dia)}`, "meta"]]);
   } else {
     lines.push([["  —", "dim"]]);
   }

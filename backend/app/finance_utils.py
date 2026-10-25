@@ -28,6 +28,7 @@ import datetime
 from fastapi import HTTPException
 
 from app.database import new_id
+from app.mensagens import colunas_do_texto
 
 
 def create_saida_transaction(db, conta, amount: float, category: str, description: str,
@@ -89,9 +90,11 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
     tx_id = new_id()
     db.execute(
         "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, 'saida', ?, ?, ?, NULL, NULL, ?)",
-        (tx_id, description, amount, category, conta["id"], forma_pagamento, date or datetime.date.today().isoformat()),
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date, "
+        "descricao_chave, descricao_vars) "
+        "VALUES (?, ?, ?, 'saida', ?, ?, ?, NULL, NULL, ?, ?, ?)",
+        (tx_id, str(description), amount, category, conta["id"], forma_pagamento, date or datetime.date.today().isoformat(),
+         *colunas_do_texto(description)),
     )
     return tx_id
 
@@ -114,9 +117,11 @@ def create_entrada_transaction(db, conta, amount: float, category: str, descript
     tx_id = new_id()
     db.execute(
         "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, 'entrada', ?, ?, NULL, NULL, NULL, ?)",
-        (tx_id, description, amount, category, conta["id"], date or datetime.date.today().isoformat()),
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date, "
+        "descricao_chave, descricao_vars) "
+        "VALUES (?, ?, ?, 'entrada', ?, ?, NULL, NULL, NULL, ?, ?, ?)",
+        (tx_id, str(description), amount, category, conta["id"], date or datetime.date.today().isoformat(),
+         *colunas_do_texto(description)),
     )
     return tx_id
 

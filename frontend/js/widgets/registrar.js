@@ -2,6 +2,8 @@ import { getAttributes, registerAction } from "../api/nucleo.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
+import { nomeAtributo } from "../components/textos-sistema.js";
+import { t } from "../i18n.js";
 
 /** Form pra registrar uma ação — credita xp num atributo (ver app/actions.py). */
 export async function render(el, widget) {
@@ -9,21 +11,21 @@ export async function render(el, widget) {
   try {
     attributes = await getAttributes();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("registrar.erro_categorias", { erro: err.message }))}</div>`;
     return;
   }
   const active = attributes.filter((a) => a.is_active);
 
   el.innerHTML = `
     <div class="field">
-      <label for="reg-desc">descrição</label>
-      <input type="text" class="reg-desc" id="reg-desc" placeholder="o que você fez?">
+      <label for="reg-desc">${t("registrar.descricao")}</label>
+      <input type="text" class="reg-desc" id="reg-desc" placeholder="${t("registrar.placeholder")}">
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="reg-cat">categoria</label>
+        <label for="reg-cat">${t("registrar.categoria")}</label>
         <select class="reg-cat" id="reg-cat">
-          ${active.map((a) => `<option value="${a.name}">${a.name}</option>`).join("")}
+          ${active.map((a) => `<option value="${a.name}">${escapeHtml(nomeAtributo(a.name))}</option>`).join("")}
         </select>
       </div>
       <div class="field">
@@ -31,12 +33,12 @@ export async function render(el, widget) {
         <input type="number" class="reg-xp" id="reg-xp" value="10" min="1" max="50">
       </div>
       <div class="field">
-        <label for="reg-impact">impacto (1-5)</label>
+        <label for="reg-impact">${t("registrar.impacto")}</label>
         <input type="number" class="reg-impact" id="reg-impact" value="3" min="1" max="5">
       </div>
     </div>
-    <button class="btn primary reg-submit wg-anchor-bottom">registrar ação</button>
-    <div class="reg-msg" style="display:none; color:var(--accent); font-size:10.5px; margin-top:6px;">registrado ${icon("check", { size: 10 })}</div>
+    <button class="btn primary reg-submit wg-anchor-bottom">${t("registrar.botao")}</button>
+    <div class="reg-msg" style="display:none; color:var(--accent); font-size:10.5px; margin-top:6px;">${t("registrar.feito")} ${icon("check", { size: 10 })}</div>
     <div class="reg-error" style="display:none; color:var(--red); font-size:10.5px; margin-top:6px;"></div>
   `;
 
@@ -63,7 +65,7 @@ export async function render(el, widget) {
         impact: parseInt(impactEl.value, 10) || 3,
       });
     } catch (err) {
-      errorEl.textContent = `erro ao registrar: ${err.message}`;
+      errorEl.textContent = t("registrar.erro", { erro: err.message });
       errorEl.style.display = "block";
       submitBtn.disabled = false;
       return;

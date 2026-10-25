@@ -13,7 +13,8 @@ import { announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { listLembretes } from "../api/lembretes.js";
 import { openLembreteModal, REPETICOES, VINCULO_ROTULO } from "../modals/lembrete-modal.js";
-import { DIAS_CURTOS } from "../components/habito-linha.js";
+import { diasCurtos } from "../components/habito-linha.js";
+import { textoDoRegistro } from "../components/textos-sistema.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -49,6 +50,9 @@ function milestoneName(e) {
 function isEventoEvent(e) {
   return e.type === "evento";
 }
+
+// I18N: ação do núcleo gravada pelo sistema vem com a chave do texto
+const tituloDoEvento = (e) => (e.type === "acao" ? textoDoRegistro({ ...e, description: e.title }) : e.title);
 
 function eventoRecordId(e) {
   return e.id.split(":")[1] || "";
@@ -172,7 +176,7 @@ function handleEditEventoClick(evtRow) {
 
 // ─── ORG-05: lembretes (aba do painel + criar/editar) ─────────────────────
 function rotuloRepeticao(l) {
-  if (l.repeticao === "dias") return l.dias_semana.map((d) => DIAS_CURTOS[d]).join(", ");
+  if (l.repeticao === "dias") return l.dias_semana.map((d) => diasCurtos()[d]).join(", ");
   return REPETICOES.find(([v]) => v === l.repeticao)?.[1] ?? l.repeticao;
 }
 
@@ -284,7 +288,7 @@ function renderGrid() {
     const chips = [...grouped.entries()]
       .map(([type, evts]) => {
         const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
-        const tip = evts.length > 1 ? `${meta.label} (${evts.length})` : `${meta.label}: ${evts[0].title}`;
+        const tip = evts.length > 1 ? `${meta.label} (${evts.length})` : `${meta.label}: ${tituloDoEvento(evts[0])}`;
         return `<span class="cal-chip" style="--type-color:${meta.color}" data-tooltip="${escapeHtml(tip)}">${icon(meta.icon, { size: 14 })}</span>`;
       })
       .join("")
@@ -521,7 +525,7 @@ function renderDayPanel() {
     .map((e) => {
       const milestone = isMilestoneEvent(e);
       const meta = milestone ? MILESTONE_META : (TYPE_META[e.type] || { ...FALLBACK_META, label: e.type });
-      const title = milestone ? milestoneName(e) : e.title;
+      const title = milestone ? milestoneName(e) : tituloDoEvento(e);
       const statusHtml = e.status
         ? `<span class="cal-event-status">${escapeHtml(STATUS_LABELS[e.status] || e.status)}</span>`
         : "";

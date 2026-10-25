@@ -1,6 +1,6 @@
 import { listHabitos, updateHabito, deleteHabito, marcarHabito, desmarcarHabito } from "../api/habitos.js";
 import { escapeHtml, localDateKey, fmtDataCurta } from "../components/format.js";
-import { DIAS_CURTOS, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
+import { diasCurtos, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -58,7 +58,7 @@ function diaDaGrade(h, i) {
 
 function hojeLegivel() {
   const d = new Date();
-  return `${DIAS_CURTOS[(d.getDay() + 6) % 7]} ${fmtDataCurta(localDateKey(d))}`;
+  return `${diasCurtos()[(d.getDay() + 6) % 7]} ${fmtDataCurta(localDateKey(d))}`;
 }
 
 // ---------------------------------------------------------------- grade
@@ -81,7 +81,7 @@ function gradeHtml(h) {
 
   let linhas = "";
   for (let d = 0; d < 7; d++) {
-    linhas += `<span class="hb-dia-sem">${DIAS_CURTOS[d]}</span>`;
+    linhas += `<span class="hb-dia-sem">${diasCurtos()[d]}</span>`;
     for (let w = 0; w < semanas; w++) {
       const i = w * 7 + d;
       const estado = h.grade.estados[i];
@@ -90,7 +90,7 @@ function gradeHtml(h) {
       const glifo = GLIFO[estado] ?? " ";
       if (marcavel) {
         const feito = estado === "feito";
-        const quando = `${DIAS_CURTOS[d]} ${fmtDataCurta(localDateKey(dia))}`;
+        const quando = `${diasCurtos()[d]} ${fmtDataCurta(localDateKey(dia))}`;
         linhas += `<button type="button" class="hb-cel hb-e-${estado} hb-marcavel" data-dia="${localDateKey(dia)}" aria-pressed="${feito}"
           aria-label="${escapeHtml(`${h.nome}, ${quando}: ${ESTADO_FALADO[estado]} — ${feito ? "desmarcar" : "marcar"}`)}"
           data-tooltip="${quando}: ${feito ? "desmarcar" : "marcar"}">${glifo}</button>`;

@@ -19,6 +19,7 @@ import {
   maxScaled,
   placeCard,
 } from "./grid.js";
+import { t } from "../i18n.js";
 
 /** Agrupa os cards de um grid por linha visual, comparando offsetTop. */
 function rowsOf(container) {
@@ -213,7 +214,7 @@ export function createKeyboardReorder(container, getCommit) {
     const { index, total } = positionOf(card);
     handle.setAttribute(
       "aria-label",
-      `arrastar ${widgetLabel(card)}, posição ${index + 1} de ${total}.`
+      t("grid.arrastar_aria", { widget: widgetLabel(card), pos: index + 1, total })
     );
     handle.setAttribute("aria-pressed", "false");
   }
@@ -231,7 +232,7 @@ export function createKeyboardReorder(container, getCommit) {
       preselected.classList.add("kw-preselected");
       focusCard(preselected);
       const { index, total } = positionOf(preselected);
-      announceToScreenReader(`${widgetLabel(preselected)} pré-selecionado, posição ${index + 1} de ${total}.`);
+      announceToScreenReader(t("grid.pre_selecionado", { widget: widgetLabel(preselected), pos: index + 1, total }));
     }
   }
 
@@ -253,7 +254,7 @@ export function createKeyboardReorder(container, getCommit) {
     mode = true;
     container.classList.add("wg-keyboard-mode");
     setPreselected(first);
-    announceToScreenReader("Modo de seleção de widgets ativado. Use as setas para escolher um widget.");
+    announceToScreenReader(t("grid.modo_ativado"));
   }
 
   function exitMode({ restore = false, silent = false } = {}) {
@@ -270,7 +271,7 @@ export function createKeyboardReorder(container, getCommit) {
     preselected = null;
     mode = false;
     container.classList.remove("wg-keyboard-mode");
-    if (!silent) announceToScreenReader("Modo de seleção de widgets encerrado.");
+    if (!silent) announceToScreenReader(t("grid.modo_encerrado"));
   }
 
   function cancelIfActive({ silent = false } = {}) {
@@ -284,7 +285,7 @@ export function createKeyboardReorder(container, getCommit) {
       selected = null;
       setPreselected(card);
       getCommit(true)();
-      announceToScreenReader(`${widgetLabel(card)} posição e tamanho salvos. Use as setas para escolher outro widget ou escape para sair.`);
+      announceToScreenReader(t("grid.salvo", { widget: widgetLabel(card) }));
       return;
     }
     if (preselected) {
@@ -299,7 +300,7 @@ export function createKeyboardReorder(container, getCommit) {
       };
       selected.card.classList.remove("kw-preselected");
       selected.card.classList.add("kw-grabbed");
-      announceToScreenReader(`${widgetLabel(selected.card)} selecionado para mover. Use as setas e enter para confirmar.`);
+      announceToScreenReader(t("grid.selecionado", { widget: widgetLabel(selected.card) }));
     }
   }
 
@@ -374,7 +375,7 @@ export function createKeyboardReorder(container, getCommit) {
       if (e.shiftKey) {
         if (resizeSelected(e.key)) {
           focusCard(selected.card);
-          announceToScreenReader(`${widgetLabel(selected.card)} redimensionado. Pressione Enter para salvar.`);
+          announceToScreenReader(t("grid.redimensionado", { widget: widgetLabel(selected.card) }));
         }
         return;
       }
@@ -441,9 +442,9 @@ export function mountKeyboardHelpButton(container) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "wg-kw-help-btn";
-  btn.dataset.tooltip = "atalhos de teclado (?)";
-  btn.setAttribute("aria-label", "ver atalhos de teclado do grid de widgets");
-  btn.innerHTML = icon("circle-help", { size: 13, title: "atalhos de teclado" });
+  btn.dataset.tooltip = t("grid.atalhos_dica");
+  btn.setAttribute("aria-label", t("grid.atalhos_aria"));
+  btn.innerHTML = icon("circle-help", { size: 13, title: t("grid.atalhos") });
   btn.addEventListener("click", () => openWidgetShortcutsModal());
 
   const toolbar = container.previousElementSibling?.classList.contains("wg-toolbar")

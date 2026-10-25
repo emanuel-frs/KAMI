@@ -53,6 +53,7 @@ from app.actions import debit_xp, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.routers.metas import sync_learning_goals
 from app.limites import Entrada
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -438,7 +439,7 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
         # do app), nunca na hora certa.
         register_action(
             db,
-            description=f"concluiu marco: {row['title']}",
+            description=Texto("log.marco.concluido", "concluiu marco: {marco}", marco=row["title"]),
             categories=["aprendizado"],
             xp=XP_PER_MILESTONE,
             impact=3,

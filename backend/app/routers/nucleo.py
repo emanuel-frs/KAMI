@@ -34,7 +34,8 @@ from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 from app.bonus import atributo_atrasado
 from app.retrospectiva import garantir_retrospectiva
-from app.recompensas import catalogo as recompensas_catalogo, titulo_atual
+from app.mensagens import texto_da_linha
+from app.recompensas import catalogo as recompensas_catalogo, chave_titulo_atual, titulo_atual
 from app.limites import Entrada
 
 router = APIRouter()
@@ -47,6 +48,7 @@ MAX_MANUAL_XP = 50
 # GAM-09: dias sem ação até o vértice do atributo apagar no radar
 FORGOTTEN_DAYS = 14
 
+# I18N: o frontend mostra `conquista.secreta.titulo`/`.descricao` do dicionário
 SECRET_TITLE = "???"
 SECRET_DESCRIPTION = "conquista secreta"
 
@@ -100,6 +102,9 @@ class LogEntryOut(BaseModel):
     categories: List[str]
     source: str
     created_at: str
+    # I18N: texto gravado pelo sistema — o frontend traduz pela chave
+    description_key: Optional[str] = None
+    description_vars: dict = {}
 
 
 class CustomAchievementIn(Entrada):
@@ -140,7 +145,9 @@ class PlayerOut(BaseModel):
     streak_next_protection_in: int
     streak_saved_days: List[str]
     player_class: Optional[str] = None  # GAM-11: ver _player_class
+    player_class_key: Optional[str] = None  # I18N: o frontend traduz por `classe.<chave>`
     player_title: str = "iniciante"     # GAM-10: título exibido (app/recompensas.py)
+    player_title_key: str = "iniciante"  # I18N: o frontend traduz o título por esta chave
     achievements_unlocked: int
     achievements_total: int
 
@@ -268,6 +275,7 @@ def get_log(
         {
             "id": r["id"],
             "description": r["description"],
+            **texto_da_linha(r),
             "xp_gained": r["xp_gained"],
             "impact_note": r["impact_note"],
             "categories": _categories_for_log(db, r["id"]),
@@ -341,14 +349,20 @@ POLYMATH_CLASS = "polímata"
 POLYMATH_MARGIN = 0.15
 
 
-def _player_class(db) -> Optional[str]:
+def _chave_da_classe(db) -> Optional[str]:
+    """I18N: o atributo da classe ou "polimata" (o frontend mostra `classe.<chave>`)."""
     rows = db.execute("SELECT name, current_xp FROM attributes ORDER BY current_xp DESC, name LIMIT 2").fetchall()
     if not rows or rows[0]["current_xp"] <= 0:
         return None
     top = rows[0]
     if len(rows) > 1 and top["current_xp"] - rows[1]["current_xp"] < POLYMATH_MARGIN * top["current_xp"]:
-        return POLYMATH_CLASS
-    return CLASS_BY_ATTRIBUTE.get(top["name"], POLYMATH_CLASS)
+        return "polimata"
+    return top["name"] if top["name"] in CLASS_BY_ATTRIBUTE else "polimata"
+
+
+def _player_class(db) -> Optional[str]:
+    chave = _chave_da_classe(db)
+    return None if chave is None else CLASS_BY_ATTRIBUTE.get(chave, POLYMATH_CLASS)
 
 
 @router.post("/achievements/custom", response_model=AchievementOut, status_code=201)
@@ -417,6 +431,7 @@ def get_player(db=Depends(get_db)):
     ach = db.execute(
         "SELECT COUNT(*) AS total, COUNT(unlocked_at) AS unlocked FROM achievements"
     ).fetchone()
+    escolhido = db.execute("SELECT titulo FROM user_profile LIMIT 1").fetchone()["titulo"]
     return {
         "level": lv["level"],
         "total_xp": total_xp,
@@ -432,9 +447,9 @@ def get_player(db=Depends(get_db)):
         "streak_next_protection_in": streak["next_protection_in"],
         "streak_saved_days": streak["saved_unseen"],
         "player_class": _player_class(db),
-        "player_title": titulo_atual(
-            db.execute("SELECT titulo FROM user_profile LIMIT 1").fetchone()["titulo"], lv["level"]
-        ),
+        "player_class_key": _chave_da_classe(db),
+        "player_title": titulo_atual(escolhido, lv["level"]),
+        "player_title_key": chave_titulo_atual(escolhido, lv["level"]),
         "achievements_unlocked": ach["unlocked"],
         "achievements_total": ach["total"],
     }

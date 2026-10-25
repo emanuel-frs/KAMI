@@ -41,6 +41,7 @@ from app.database import get_db, new_id, now_iso
 from app.business_days import months_between
 from app.limites import Entrada
 from app.lembretes import ocorrencias as ocorrencias_lembrete
+from app.mensagens import texto_da_linha
 
 router = APIRouter()
 
@@ -73,6 +74,9 @@ class CalendarEvent(BaseModel):
     recurrence_end: Optional[str] = None
     reminder_minutes_before: Optional[int] = None
     color: Optional[str] = None
+    # I18N: ação do núcleo com texto do sistema — o frontend traduz o título
+    description_key: Optional[str] = None
+    description_vars: Optional[dict] = None
 
 
 class EventoIn(Entrada):
@@ -124,6 +128,7 @@ def _acao_events(db, month_str: str) -> List[dict]:
             "date": r["created_at"][:10],
             "type": "acao",
             "title": r["description"],
+            **texto_da_linha(r),  # I18N: o frontend traduz pela chave
             "module": "nucleo",
             "amount": None,
             "status": None,

@@ -2,7 +2,8 @@ import { createHabito, updateHabito } from "../api/habitos.js";
 import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { ATRIBUTOS, DIAS_CURTOS } from "../components/habito-linha.js";
+import { ATRIBUTOS, diasCurtos } from "../components/habito-linha.js";
+import { nomeAtributo } from "../components/textos-sistema.js";
 
 /**
  * Modal "novo hábito" / "editar hábito" (ORG-04) — mesmo padrão singleton
@@ -38,13 +39,13 @@ function buildModal() {
           </div>
           <div class="field">
             <label for="hbm-attr">atributo (onde cai o xp)</label>
-            <select id="hbm-attr">${ATRIBUTOS.map(([v, r]) => `<option value="${v}">${r}</option>`).join("")}</select>
+            <select id="hbm-attr">${ATRIBUTOS.map((v) => `<option value="${v}">${nomeAtributo(v)}</option>`).join("")}</select>
           </div>
         </div>
         <div class="field" id="hbm-dias-campo" hidden>
           <span class="field-label" id="hbm-dias-label">dias</span>
           <div class="hb-dias" role="group" aria-labelledby="hbm-dias-label">
-            ${DIAS_CURTOS.map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
+            ${diasCurtos().map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
           </div>
         </div>
         <div class="field" id="hbm-vezes-campo" hidden>

@@ -1,6 +1,7 @@
 import { store } from "../state/store.js";
 import { getDicasVistas, marcarDicasVistas } from "../api/perfil.js";
 import { startTipSequence } from "./tip-sequence.js";
+import { getTelaAtual } from "./error-notice.js";
 
 /**
  * Dicas que a pessoa ainda não viu, uma a uma (MAN-05).
@@ -73,6 +74,13 @@ export async function mostrarDicasNovas({ tela, passos, ate112 = [], antes, depo
   } catch (err) {
     // não trava nada — tenta de novo na próxima visita
     console.error(`erro ao checar as dicas já vistas (${tela}):`, err);
+    avaliadas.delete(tela);
+    return;
+  }
+
+  // saiu da tela enquanto esperava o backend: os passos dependem do DOM
+  // dela, que já foi desmontado — fica pra próxima visita
+  if (getTelaAtual() !== tela) {
     avaliadas.delete(tela);
     return;
   }

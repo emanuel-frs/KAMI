@@ -65,6 +65,7 @@ from app.business_days import months_between
 from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -472,13 +473,13 @@ def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
         transaction_id = create_saida_transaction(
             db, conta, amount,
             category=sub["categoria"] or DEFAULT_SUBSCRIPTION_CATEGORY,
-            description=f"assinatura: {sub['nome']}",
+            description=Texto("lancamento.assinatura", "assinatura: {nome}", nome=sub["nome"]),
             forma_pagamento=payload.forma_pagamento,
         )
         if not has_action(db, "assinatura_periodo", period_id):
             register_action(
                 db,
-                description=f"pagou assinatura: {sub['nome']}",
+                description=Texto("log.assinatura.paga", "pagou assinatura: {nome}", nome=sub["nome"]),
                 categories=["financas"],
                 xp=XP_ASSINATURA_PAGA,
                 impact=2,

@@ -1,5 +1,5 @@
 /** Portado de kami_telas_final.html (fmtRelDate/fmtDateBR/fmtMoney). */
-import { localeAtual } from "../i18n.js";
+import { localeAtual, t } from "../i18n.js";
 
 /**
  * "YYYY-MM-DD" de um Date no fuso LOCAL de quem usa. Substitui o
@@ -24,8 +24,8 @@ export function fmtRelDate(iso) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   if (diffDays <= 0) return `${hh}:${mm}`;
-  if (diffDays === 1) return "ontem";
-  return `${diffDays}d atrás`;
+  if (diffDays === 1) return t("data.ontem");
+  return t("data.dias_atras", { n: diffDays });
 }
 
 // ── datas (ORG-07, P-53) ───────────────────────────────────────────────

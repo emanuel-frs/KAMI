@@ -15,6 +15,7 @@ from app.actions import register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_saida_transaction, create_entrada_transaction
 from app.limites import Entrada
+from app.mensagens import Texto, texto_da_linha
 from app.routers.financas.comum import (
     CategoryTotal,
     XP_TRANSACAO,
@@ -53,6 +54,10 @@ class TransactionOut(BaseModel):
     # CONF-07: de onde veio (None = lançamento avulso). Lançamento que veio
     # de outro módulo só se desfaz por lá — ver _origem_transacao.
     origem: Optional[str] = None
+    # I18N: descrição criada pelo sistema ("conta fixa: aluguel") — o
+    # frontend traduz pela chave; None = escrita pela pessoa
+    description_key: Optional[str] = None
+    description_vars: dict = {}
 
 
 class SummaryOut(BaseModel):
@@ -74,7 +79,7 @@ def list_transactions(month: str, db=Depends(get_db)):
         "SELECT * FROM transactions WHERE substr(date,1,7) = ? ORDER BY date DESC",
         (month,),
     ).fetchall()
-    return [dict(r) | {"origem": _origem_transacao(db, r["id"])} for r in rows]
+    return [dict(r) | texto_da_linha(r) | {"origem": _origem_transacao(db, r["id"])} for r in rows]
 
 
 def _apply_transaction(db, payload: TransactionIn) -> dict:
@@ -242,10 +247,20 @@ def _undo_transaction(db, tx) -> None:
     db.execute("DELETE FROM transactions WHERE id = ?", (tx["id"],))
 
 
+def _texto_lancou(tipo: str, descricao: str) -> Texto:
+    # o português segue o de sempre ("lançou saida: …", sem acento): a
+    # migração de vínculo (CONF-07) e a revisão de xp casam por esse texto
+    if tipo == "entrada":
+        return Texto("log.lancamento.entrada", "lançou entrada: {descricao}", descricao=descricao)
+    if tipo == "saida":
+        return Texto("log.lancamento.saida", "lançou saida: {descricao}", descricao=descricao)
+    return Texto("log.lancamento.transferencia", "lançou transferencia: {descricao}", descricao=descricao)
+
+
 def _credit_transaction_xp(db, out: dict) -> None:
     register_action(
         db,
-        description=f"lançou {out['type']}: {out['description']}",
+        description=_texto_lancou(out["type"], out["description"]),
         categories=["financas"],
         xp=XP_TRANSACAO,
         impact=2,

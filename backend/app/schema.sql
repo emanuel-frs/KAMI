@@ -105,7 +105,11 @@ CREATE TABLE IF NOT EXISTS action_logs (
     -- exatamente este log e o xp dele. NULL = ação manual do Núcleo ou
     -- log anterior à migração. Ver app/actions.py::revert_actions.
     referencia_tipo TEXT,
-    referencia_id   TEXT
+    referencia_id   TEXT,
+    -- I18N: texto gravado pelo sistema (app/mensagens.py::Texto) — chave do
+    -- dicionário + variáveis em JSON; NULL = texto da pessoa (Núcleo)
+    descricao_chave TEXT,
+    descricao_vars  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS action_log_attributes (
@@ -354,7 +358,11 @@ CREATE TABLE IF NOT EXISTS transactions (
     forma_pagamento   TEXT,            -- 'saldo' | 'credito' — só quando a conta tem os dois (tipo 'saida')
     conta_destino_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- só transferência interna
     destino_externo   TEXT,            -- só transferência externa (texto livre)
-    date              TEXT NOT NULL
+    date              TEXT NOT NULL,
+    -- I18N: descrição criada pelo sistema ("conta fixa: aluguel"), ver
+    -- app/mensagens.py::Texto; editar a descrição à mão zera a chave
+    descricao_chave   TEXT,
+    descricao_vars    TEXT
 );
 
 -- ---------------- APRENDIZADO ----------------

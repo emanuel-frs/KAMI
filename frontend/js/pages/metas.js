@@ -51,6 +51,9 @@ function xpBonusFor(weight) {
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
+// sobe a cada mount/unmount: o que estava carregando quando a tela saiu (ou
+// foi remontada, ex.: troca de idioma) vê o número mudado e não desenha
+let montagem = 0;
 let shortcutsToken = null;
 let goals = [];
 // ids de metas com o painel de gráfico de progresso aberto — precisa
@@ -695,15 +698,21 @@ function wireCardActions(scopeEl) {
 }
 
 async function refreshGoals() {
+  if (!containerEl) return;
+  const minha = montagem;
   const activeEl = containerEl.querySelector("#goals-grid-active");
   const doneEl = containerEl.querySelector("#goals-grid-done");
+  let dados;
   try {
-    [goals, notasPorMeta] = await Promise.all([listGoals(), contarNotas("meta")]);
+    dados = await Promise.all([listGoals(), contarNotas("meta")]);
   } catch (err) {
+    if (montagem !== minha) return;
     activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${escapeHtml(err.message)}</div>`;
     doneEl.innerHTML = "";
     return;
   }
+  if (montagem !== minha) return; // saiu da tela (ou foi remontada) enquanto a lista chegava
+  [goals, notasPorMeta] = dados;
   render();
 }
 
@@ -715,6 +724,7 @@ export function preload() {
 
 export async function mount(container) {
   containerEl = container;
+  const minha = ++montagem;
 
   // "N" de "novo", mesma tecla de "nova trilha"/"novo widget"/"novo
   // evento" nas outras telas (aprendizado.js, dashboard.js, calendario.js).
@@ -738,6 +748,7 @@ export async function mount(container) {
   container.querySelector("#goals-add-btn").addEventListener("click", openCreateGoalModal);
 
   await refreshGoals();
+  if (montagem !== minha) return; // desmontada durante a carga
 
   maybeStartMetasTips();
   unsubscribeProfile = store.subscribe("profile", () => maybeStartMetasTips());
@@ -757,6 +768,7 @@ export function unmount() {
   currentReplayFn = null;
   closeGoalModal();
   closeContributeModal();
+  montagem++;
   containerEl = null;
   goals = [];
   openProgressGoalIds = new Set();

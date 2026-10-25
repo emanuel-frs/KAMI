@@ -9,6 +9,7 @@ import { listenWhileConnected } from "../components/window-listener.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { consumePendingFocus } from "../components/pending-focus.js";
+import { textoDoRegistro } from "../components/textos-sistema.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -104,7 +105,7 @@ export async function render(el, widget) {
           return `
             <div class="registro-row">
               <div class="r-top">
-                <div class="registro-desc" data-tooltip="${escapeHtml(t.description)}">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
+                <div class="registro-desc" data-tooltip="${escapeHtml(textoDoRegistro(t))}">${escapeHtml(textoDoRegistro(t))}<span class="r-category">${escapeHtml(t.category)}</span></div>
                 <div class="registro-valor ${t.type}">${sinal} ${brl(t.amount)}</div>
               </div>
               <div class="r-meta">
@@ -151,7 +152,7 @@ export async function render(el, widget) {
         const t = transactions.find((x) => x.id === btn.dataset.deleteTx);
         if (!t) return;
         const ok = await showConfirmModal(
-          `apagar "${t.description}" (${brl(t.amount)})? o valor volta pra conta e o xp do lançamento sai.`,
+          `apagar "${textoDoRegistro(t)}" (${brl(t.amount)})? o valor volta pra conta e o xp do lançamento sai.`,
           { title: "apagar lançamento", confirmText: "apagar", danger: true },
         );
         if (!ok) return;

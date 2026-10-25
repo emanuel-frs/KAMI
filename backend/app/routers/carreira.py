@@ -43,6 +43,7 @@ from app.achievements import relock_unmet_achievements
 from app.database import get_db, new_id, now_iso
 from app.routers.metas import sync_academic_goals
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import Texto
 
 router = APIRouter()
 
@@ -216,13 +217,13 @@ def create_position(payload: PositionIn, db=Depends(get_db)):
 
     if is_first:
         xp = XP_CAREER_FIRST_POSITION
-        description = f"primeira posição registrada: {role} na {company}"
+        description = Texto("log.posicao.primeira", "primeira posição registrada: {cargo} na {empresa}", cargo=role, empresa=company)
     elif payload.start_date == date.today().isoformat():
         xp = XP_CAREER_POSITION_REALTIME
-        description = f"novo cargo: {role} na {company}"
+        description = Texto("log.posicao.nova", "novo cargo: {cargo} na {empresa}", cargo=role, empresa=company)
     else:
         xp = XP_CAREER_POSITION_RETROACTIVE
-        description = f"registrou posição retroativa: {role} na {company}"
+        description = Texto("log.posicao.retroativa", "registrou posição retroativa: {cargo} na {empresa}", cargo=role, empresa=company)
 
     register_action(
         db, description=description, categories=["carreira"], xp=xp, impact=2, source="carreira",
@@ -383,7 +384,7 @@ def create_education(payload: EducationIn, db=Depends(get_db)):
         # cursada
         register_action(
             db,
-            description=f"concluiu formação: {curso} ({instituicao})",
+            description=Texto("log.formacao.concluida", "concluiu formação: {curso} ({instituicao})", curso=curso, instituicao=instituicao),
             categories=["carreira"],
             xp=xp_awarded,
             impact=3,
@@ -454,7 +455,7 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
         # tabela precisa já ver status='concluido' nesse momento
         register_action(
             db,
-            description=f"concluiu formação: {curso} ({instituicao})",
+            description=Texto("log.formacao.concluida", "concluiu formação: {curso} ({instituicao})", curso=curso, instituicao=instituicao),
             categories=["carreira"],
             xp=xp_awarded,
             impact=3,
@@ -531,15 +532,15 @@ def _salary_xp(previous, amount: float, is_realtime: bool) -> tuple[int, str]:
     lançado (None = primeiro registro, a baseline).
     """
     if previous is None:
-        return SALARY_XP_BASELINE_OR_RETROACTIVE, "registrou o primeiro salário (baseline da evolução salarial)"
+        return SALARY_XP_BASELINE_OR_RETROACTIVE, Texto("log.salario.primeiro", "registrou o primeiro salário (baseline da evolução salarial)")
     if is_realtime:
         salto_pct = _pct_change(previous["amount"], amount) or 0.0
         xp = min(
             SALARY_XP_REALTIME_MAX,
             round(SALARY_XP_REALTIME_BASE + max(salto_pct, 0) * SALARY_XP_REALTIME_PER_PCT),
         )
-        return xp, f"novo reajuste salarial ({salto_pct:+.1f}%)"
-    return SALARY_XP_BASELINE_OR_RETROACTIVE, "registrou salário retroativo (histórico)"
+        return xp, Texto("log.salario.reajuste", "novo reajuste salarial ({pct}%)", pct=f"{salto_pct:+.1f}")
+    return SALARY_XP_BASELINE_OR_RETROACTIVE, Texto("log.salario.retroativo", "registrou salário retroativo (histórico)")
 
 
 class SalaryRecordIn(Entrada):

@@ -15,6 +15,7 @@ from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_saida_transaction, revert_saida_transaction
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import Texto
 from app.routers.financas.comum import (
     XP_PAGAMENTO_RECORRENTE,
     _revert_period_xp,
@@ -201,7 +202,7 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
         transaction_id = create_saida_transaction(
             db, conta, amount,
             category=bill["categoria"] or DEFAULT_FIXED_BILL_CATEGORY,
-            description=f"conta fixa: {bill['name']}",
+            description=Texto("lancamento.conta_fixa", "conta fixa: {nome}", nome=bill["name"]),
             forma_pagamento=payload.forma_pagamento,
         )
 
@@ -216,7 +217,7 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
     if transaction_id and not has_action(db, "conta_fixa_periodo", period_id):
         register_action(
             db,
-            description=f"pagou conta fixa: {bill['name']}",
+            description=Texto("log.conta_fixa.paga", "pagou conta fixa: {nome}", nome=bill["name"]),
             categories=["financas"],
             xp=XP_PAGAMENTO_RECORRENTE,
             impact=2,
@@ -277,14 +278,14 @@ def _pay_debt(db, debt, conta_id: Optional[str], forma_pagamento: Optional[str])
         transacao_id = create_saida_transaction(
             db, conta, debt["amount"],
             category=DEFAULT_DEBT_CATEGORY,
-            description=f"quitação de dívida: {debt['description']}",
+            description=Texto("lancamento.divida", "quitação de dívida: {descricao}", descricao=debt["description"]),
             forma_pagamento=forma_pagamento,
         )
     db.execute("UPDATE debts SET status = 'paga', transacao_id = ? WHERE id = ?", (transacao_id, debt["id"]))
     if not has_action(db, REF_DIVIDA, debt["id"]):
         register_action(
             db,
-            description=f"quitou a dívida: {debt['description']}",
+            description=Texto("log.divida.quitada", "quitou a dívida: {descricao}", descricao=debt["description"]),
             categories=["financas"],
             xp=XP_PAGAMENTO_RECORRENTE,
             impact=3,
