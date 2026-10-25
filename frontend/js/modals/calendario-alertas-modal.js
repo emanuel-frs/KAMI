@@ -1,7 +1,7 @@
 import { escapeHtml, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
-import { TYPE_META } from "../components/event-types.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { typeMeta } from "../components/event-types.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /** Modal "vencendo em breve" do Calendário — mesmo padrão singleton de
  * debt-modal.js/subscription-modal.js, só que read-only (sem form): lista
@@ -25,7 +25,7 @@ function buildModal() {
   wrap.id = "cal-alerts-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;vencendo em breve <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;${t("calendario_alertas.vencendo")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="cal-alerts-list" id="cal-alerts-modal-list"></div>
       </div>
@@ -49,19 +49,19 @@ export function openCalendarioAlertasModal({ alerts, todayStr, onSelect } = {}) 
   const listEl = modalEl.querySelector("#cal-alerts-modal-list");
 
   if (!alerts?.length) {
-    listEl.innerHTML = `<div class="empty-state">nada vencendo nos próximos dias.</div>`;
+    listEl.innerHTML = `<div class="empty-state">${t("calendario_alertas.nada_vencendo_nos_proximos_dias")}</div>`;
   } else {
     listEl.innerHTML = alerts
       .map((e) => {
-        const meta = TYPE_META[e.type] || { ...FALLBACK_META, label: e.type };
+        const meta = typeMeta()[e.type] || { ...FALLBACK_META, label: e.type };
         const diff = daysDiff(e.date, todayStr);
         const dueLabel = diff < 0
           ? `atrasado (${Math.abs(diff)}d)`
           : diff === 0
-          ? "vence hoje"
+          ? t("calendario_alertas.vence_hoje")
           : diff === 1
-          ? "vence amanhã"
-          : `vence em ${diff}d`;
+          ? t("calendario_alertas.vence_amanha")
+          : t("calendario_alertas.vence_em", { n: diff });
         const amountHtml = e.amount != null ? `<span class="cal-alert-amount">${fmtMoney(e.amount)}</span>` : "";
         const recordId = e.id.split(":")[1] || "";
         return `

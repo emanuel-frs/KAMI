@@ -1,5 +1,6 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais do Calendário (etapa 5).
@@ -29,24 +30,24 @@ import { mostrarDicasNovas } from "../components/dicas-novas.js";
  */
 const SCREEN = "calendario";
 
-const STEPS = [
+const steps = () => [
   {
     // informar — visão geral da tela antes de entrar em detalhe
     id: "grade-2",
     selector: "#cal-grid",
-    text: "aqui ficam todos os seus compromissos do mês: contas, dívidas, assinaturas, parcelas, metas, ações, eventos e lembretes, tudo num só lugar.",
+    text: t("calendario_tips.aqui_ficam_todos_os_seus"),
   },
   {
     // informar — navegação entre meses
     id: "navegar",
     selector: ".cal-nav",
-    text: "navegue entre os meses por aqui, ou use \"hoje\" pra voltar direto pro mês atual.",
+    text: t("calendario_tips.navegue_entre_os_meses_por"),
   },
   {
     // informar — o que os selinhos coloridos no dia significam
     id: "selos",
     selector: "#cal-grid .cal-day.has-events",
-    text: "os selinhos em cada dia mostram os tipos de evento presentes — a legenda no rodapé explica cada cor e ícone.",
+    text: t("calendario_tips.os_selinhos_em_cada_dia"),
   },
   {
     // ensinar a usar — clicar num dia abre o painel de detalhes; o dia
@@ -54,38 +55,38 @@ const STEPS = [
     // sempre existe, mesmo em mês vazio
     id: "abrir-dia",
     selector: "#cal-grid .cal-day.today",
-    text: "toque em um dia pra ver os detalhes dele aqui do lado.",
+    text: t("calendario_tips.toque_em_um_dia_pra"),
     advanceOn: "interact",
   },
   {
     // informar — só existe quando o dia selecionado tem mais de um tipo de evento
     id: "filtro",
     selector: ".cal-filter-btn",
-    text: "quando o dia tem vários tipos de evento, filtre por aqui pra ver só o que interessa.",
+    text: t("calendario_tips.quando_o_dia_tem_varios"),
   },
   {
     // informar — clicar numa linha de evento leva pro módulo de origem
     id: "evento",
     selector: ".cal-event-row",
-    text: "cada evento leva direto pro registro de origem — exceto eventos manuais, que abrem pra edição.",
+    text: t("calendario_tips.cada_evento_leva_direto_pro"),
   },
   {
     // informar — eventos manuais podem ser arrastados pra outro dia
     id: "arrastar-evento",
     selector: ".cal-event-row-evento",
-    text: "eventos manuais também podem ser arrastados pra outro dia direto na grade, pra reagendar rápido.",
+    text: t("calendario_tips.eventos_manuais_tambem_podem_ser"),
   },
   {
     // ORG-05: a aba "lembretes" do painel da direita
     id: "aba-lembretes",
     selector: '.cal-painel-abas [data-painel="lembretes"]',
-    text: "a aba lembretes lista todos os seus lembretes, com a próxima vez que cada um avisa — toque num pra editar ou apagar.",
+    text: t("calendario_tips.a_aba_lembretes_lista_todos"),
   },
   {
     // ORG-05: só informa (abre modal — mesma ressalva do passo abaixo)
     id: "novo-lembrete",
     selector: "#cal-new-lembrete-btn",
-    text: "lembrete avisa na hora (dentro do kami e pelo sistema) e pode repetir: todo dia, em dias da semana, todo mês ou todo ano. também dá pra criar com alt+q (\"@ amanhã 9h …\") ou pelo sino \"lembrar\" de notas, contas, metas e hábitos.",
+    text: t("calendario_tips.lembrete_avisa_na_hora_dentro"),
   },
   {
     // informar — fecha explicando o cadastro manual (não força clique
@@ -93,7 +94,7 @@ const STEPS = [
     // metas-tips.js sobre advanceOn:"interact" + modal)
     id: "novo-evento",
     selector: "#cal-new-event-btn",
-    text: "pra cadastrar um evento manual (que não vem de nenhum outro módulo), use este botão.",
+    text: t("calendario_tips.pra_cadastrar_um_evento_manual"),
   },
 ];
 
@@ -108,7 +109,7 @@ let running = false;
 export function replayCalendarioTips() {
   if (running) return;
   running = true;
-  startTipSequence(STEPS, {
+  startTipSequence(steps(), {
     onFinish: () => {
       running = false;
     },
@@ -127,5 +128,5 @@ const ATE_1_12 = ["navegar", "selos", "abrir-dia", "filtro", "evento", "arrastar
  * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
 export function maybeStartCalendarioTips() {
-  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => steps(), ate112: ATE_1_12 });
 }

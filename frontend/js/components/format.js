@@ -154,3 +154,17 @@ export function escapeHtml(str) {
 
 /** ["jan", "fev", …, "dez"] no idioma atual (nome curto do mês, minúsculo). */
 export const mesesCurtos = () => Array.from({ length: 12 }, (_, i) => t(`meses.curto.${i}`));
+
+// nomes por extenso pelo Intl, no idioma do app e em minúscula como o resto
+// da interface (menos alemão, P-98: substantivo com maiúscula)
+const minuscula = (s) => (localeAtual().startsWith("de") ? s : s.toLocaleLowerCase(localeAtual()));
+
+/** "domingo", "segunda-feira", … (0 = domingo, como Date.getDay). */
+export function nomeDiaSemana(i) {
+  return minuscula(new Intl.DateTimeFormat(localeAtual(), { weekday: "long" }).format(new Date(2026, 0, 4 + i)));
+}
+
+/** "janeiro", … (0 = janeiro). */
+export function nomeMes(i) {
+  return minuscula(new Intl.DateTimeFormat(localeAtual(), { month: "long" }).format(new Date(2026, i, 1)));
+}

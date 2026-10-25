@@ -2,7 +2,7 @@ import { createCustomAchievement } from "../api/nucleo.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "./err-modal.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova conquista" (GAM-14) — o usuário cria a própria regra:
@@ -17,13 +17,13 @@ import { noIdiomaAtual } from "../i18n.js";
 let modalEl = null;
 let onSavedCb = null;
 
-const AREAS = [
-  { value: "", label: "qualquer área" },
-  { value: "aprendizado", label: "aprendizado" },
-  { value: "carreira", label: "carreira" },
-  { value: "financas", label: "finanças" },
-  { value: "metas", label: "metas" },
-  { value: "organizacao", label: "organização" },
+const areas = () => [
+  { value: "", label: t("conquista.qualquer_area") },
+  { value: "aprendizado", label: t("conquista.aprendizado") },
+  { value: "carreira", label: t("conquista.carreira") },
+  { value: "financas", label: t("conquista.financas") },
+  { value: "metas", label: t("conquista.metas") },
+  { value: "organizacao", label: t("conquista.organizacao") },
 ];
 
 function buildModal() {
@@ -32,21 +32,21 @@ function buildModal() {
   wrap.id = "conquista-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conquista</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("conquista.nova_conquista")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <p class="settings-desc" style="margin-top:0;">crie a sua regra: quando você fizer X ações (numa área, com uma palavra na descrição, se quiser), ela desbloqueia. ações manuais do núcleo não contam.</p>
-        <div class="field"><label for="cqm-title">nome</label><input type="text" id="cqm-title" maxlength="60" placeholder="ex: poliglota"></div>
+        <p class="settings-desc" style="margin-top:0;">${t("conquista.crie_a_sua_regra_quando")}</p>
+        <div class="field"><label for="cqm-title">${t("conquista.nome")}</label><input type="text" id="cqm-title" maxlength="60" placeholder="${t("conquista.ex_poliglota")}"></div>
         <div class="field-row">
           <div class="field">
-            <label for="cqm-area">área</label>
-            <select id="cqm-area">${AREAS.map((a) => `<option value="${a.value}">${a.label}</option>`).join("")}</select>
+            <label for="cqm-area">${t("conquista.area")}</label>
+            <select id="cqm-area">${areas().map((a) => `<option value="${a.value}">${a.label}</option>`).join("")}</select>
           </div>
-          <div class="field"><label for="cqm-count">quantas ações</label><input type="number" id="cqm-count" min="1" max="10000" value="10"></div>
+          <div class="field"><label for="cqm-count">${t("conquista.quantas_acoes")}</label><input type="number" id="cqm-count" min="1" max="10000" value="10"></div>
         </div>
-        <div class="field"><label for="cqm-keyword">palavra-chave (opcional)</label><input type="text" id="cqm-keyword" maxlength="40" placeholder="ex: inglês — tem que aparecer na descrição da ação"></div>
+        <div class="field"><label for="cqm-keyword">${t("conquista.palavra_chave_opcional")}</label><input type="text" id="cqm-keyword" maxlength="40" placeholder="${t("conquista.ex_ingles_tem_que_aparecer")}"></div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ criar conquista</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("conquista.criar_conquista")}</button>
         </div>
       </div>
     </div>
@@ -65,7 +65,7 @@ async function submit(wrap) {
   const title = wrap.querySelector("#cqm-title").value.trim();
   const count = Number(wrap.querySelector("#cqm-count").value);
   if (!title || !Number.isInteger(count) || count < 1) {
-    showErrorModal("dê um nome e diga quantas ações (1 ou mais).", "atenção");
+    showErrorModal(t("conquista.de_um_nome_e_diga"), t("geral.atencao"));
     return;
   }
   let created;
@@ -77,7 +77,7 @@ async function submit(wrap) {
       keyword: wrap.querySelector("#cqm-keyword").value.trim() || null,
     });
   } catch (err) {
-    showErrorModal(err.message, "erro ao criar conquista");
+    showErrorModal(err.message, t("conquista.erro_ao_criar_conquista"));
     return;
   }
   closeConquistaModal();

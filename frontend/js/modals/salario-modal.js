@@ -3,6 +3,8 @@ import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { noIdiomaAtual, t } from "../i18n.js";
+import { escapeHtml } from "../components/format.js";
+import { rotuloContrato } from "../components/textos-sistema.js";
 
 /**
  * Modal "novo registro salarial" / "editar registro" (Parte 4, seção 5
@@ -38,7 +40,7 @@ function buildModal() {
             <label for="sm-employment-type">${t("salario.tipo_de_vinculo_opcional")}</label>
             <select id="sm-employment-type">
               <option value="">—</option>
-              ${EMPLOYMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
+              ${EMPLOYMENT_TYPES.map((v) => `<option value="${v}">${escapeHtml(rotuloContrato(v))}</option>`).join("")}
             </select>
           </div>
         </div>

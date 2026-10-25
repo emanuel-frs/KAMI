@@ -1,6 +1,6 @@
 import { escapeHtml, fmtMoney, fmtRelDate, fmtDataCompacta } from "../components/format.js";
 import { icon } from "../components/icons.js";
-import { TYPE_META } from "../components/event-types.js";
+import { typeMeta } from "../components/event-types.js";
 import { fetchPendingAlerts, todayStr } from "../components/calendar-alerts.js";
 import { listEmailCache, listEmailAccounts, markEmailRead, muteAccount } from "../api/organizacao.js";
 import { refreshMutedAccounts } from "../pages/organizacao.js";
@@ -12,7 +12,7 @@ import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
 import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
 import { noSino, marcarAvisada, estadoAtualizacao, atualizarAgora, verNovidades, pularVersao, comoAtualiza } from "../components/atualizacao.js";
-import { ADIAMENTOS, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
+import { adiamentos, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
 import { noIdiomaAtual } from "../i18n.js";
 
 /**
@@ -103,7 +103,7 @@ function renderAlerts() {
 
   listEl.innerHTML = alerts
     .map((e) => {
-      const meta = TYPE_META[e.type] || { ...FALLBACK_META, label: e.type };
+      const meta = typeMeta()[e.type] || { ...FALLBACK_META, label: e.type };
       const diff = daysDiff(e.date, today);
       const dueLabel = diff < 0
         ? `atrasado (${Math.abs(diff)}d)`
@@ -315,7 +315,7 @@ async function renderLembretes() {
           <span class="notif-lembrete-quando">${escapeHtml(quandoLembrete(l))}${l.atrasado ? ' · <span class="notif-lembrete-passou">passou com o kami fechado</span>' : ""}${l.vinculo ? ` · ${escapeHtml(l.vinculo.nome)}` : ""}</span>
         </div>
         <div class="notif-lembrete-acoes">
-          ${ADIAMENTOS.map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="adiar ${a.rotulo}: ${escapeHtml(l.titulo)}">adiar ${a.rotulo}</button>`).join("")}
+          ${adiamentos().map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="adiar ${a.rotulo}: ${escapeHtml(l.titulo)}">adiar ${a.rotulo}</button>`).join("")}
           <button type="button" class="btn sm" data-dispensar aria-label="ok, dispensar: ${escapeHtml(l.titulo)}">ok</button>
         </div>
       </div>`,
@@ -329,7 +329,7 @@ async function onLembreteClick(e) {
   const id = linha.dataset.lembreteId;
   const adiar = e.target.closest("[data-adiar]");
   try {
-    if (adiar) await adiarLembrete(id, ADIAMENTOS[Number(adiar.dataset.adiar)].quanto);
+    if (adiar) await adiarLembrete(id, adiamentos()[Number(adiar.dataset.adiar)].quanto);
     else if (e.target.closest("[data-dispensar]")) await dispensarLembrete(id);
     else return;
   } catch {

@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 // js/components/event-types.js
 //
 // Metadados (label + cor) por tipo de registro — espelha
@@ -7,24 +8,24 @@
 // seja sempre a mesma em qualquer lugar do app que ela apareça.
 // Antes essa tabela só existia dentro de pages/calendario.js.
 
-export const TYPE_META = {
-  conta_fixa: { label: "conta fixa", color: "var(--text-dim)", icon: "receipt" },
-  divida: { label: "dívida", color: "var(--red)", icon: "trending-down" },
-  assinatura: { label: "assinatura", color: "var(--amber)", icon: "repeat" },
-  parcela: { label: "parcela", color: "var(--text-faint)", icon: "credit-card" },
-  meta: { label: "meta", color: "var(--accent)", icon: "target" },
-  acao: { label: "ação", color: "var(--accent-dim)", icon: "zap" },
+export const typeMeta = () => ({
+  conta_fixa: { label: t("event_types.conta_fixa"), color: "var(--text-dim)", icon: "receipt" },
+  divida: { label: t("event_types.divida"), color: "var(--red)", icon: "trending-down" },
+  assinatura: { label: t("event_types.assinatura"), color: "var(--amber)", icon: "repeat" },
+  parcela: { label: t("event_types.parcela"), color: "var(--text-faint)", icon: "credit-card" },
+  meta: { label: t("event_types.meta"), color: "var(--accent)", icon: "target" },
+  acao: { label: t("event_types.acao"), color: "var(--accent-dim)", icon: "zap" },
   // único tipo com CRUD próprio (calendar_events) — cor default abaixo,
   // mas cada evento pode sobrescrever via campo `color` (ver
   // modals/calendario-evento-modal.js); a grade/legenda usam o default.
-  evento: { label: "evento", color: "#7fa8d9", icon: "calendar-days" },
-  contrato_fim: { label: "fim de contrato", color: "var(--red)", icon: "clock" },
-  revisao_salarial: { label: "revisão salarial", color: "var(--amber)", icon: "trending-up" },
-  lembrete: { label: "lembrete", color: "#c9a0dc", icon: "bell-ring" }, // ORG-05
-};
+  evento: { label: t("event_types.evento"), color: "#7fa8d9", icon: "calendar-days" },
+  contrato_fim: { label: t("event_types.fim_de_contrato"), color: "var(--red)", icon: "clock" },
+  revisao_salarial: { label: t("event_types.revisao_salarial"), color: "var(--amber)", icon: "trending-up" },
+  lembrete: { label: t("event_types.lembrete"), color: "#c9a0dc", icon: "bell-ring" }, // ORG-05
+});
 
 export function typeColor(type) {
-  return TYPE_META[type]?.color || "var(--accent)";
+  return typeMeta()[type]?.color || "var(--accent)";
 }
 
 // ─── alertas "vencendo em breve" ────────────────────────────────────────

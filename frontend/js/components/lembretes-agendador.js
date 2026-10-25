@@ -2,6 +2,7 @@ import { dispararLembretes, adiarLembrete, dispensarLembrete } from "../api/lemb
 import { showToast } from "./toast.js";
 import { notificarFora } from "./native-notify.js";
 import { store } from "../state/store.js";
+import { t } from "../i18n.js";
 
 /**
  * components/lembretes-agendador.js — dispara os lembretes (ORG-05).
@@ -38,14 +39,14 @@ function avisarMudou() {
 
 function quandoTexto(l) {
   const [, hora] = (l.pendente_quando || "").split("T");
-  return hora ? `às ${hora}` : "";
+  return hora ? t("lembretes_agendador.as", { hora }) : "";
 }
 
 /** As ações do aviso — também usadas pelo sino (notificacoes-modal.js). */
-export const ADIAMENTOS = [
+export const adiamentos = () => [
   { rotulo: "10 min", quanto: { minutos: 10 } },
   { rotulo: "1 h", quanto: { minutos: 60 } },
-  { rotulo: "amanhã", quanto: { amanha: true } },
+  { rotulo: t("lembretes_agendador.amanha"), quanto: { amanha: true } },
 ];
 
 // devolve true: o toast fecha (ver toast.js — ação só fecha se pedir)
@@ -66,7 +67,7 @@ function avisoNaHora(l) {
     iconName: "bell-ring",
     duration: 0, // fica até a pessoa responder; fechar no ✕ deixa no sino
     actions: [
-      ...ADIAMENTOS.map((a) => ({ label: `adiar ${a.rotulo}`, onClick: () => adiar(l.id, a.quanto) })),
+      ...adiamentos().map((a) => ({ label: `adiar ${a.rotulo}`, onClick: () => adiar(l.id, a.quanto) })),
       {
         label: "ok",
         onClick: async () => {
@@ -91,10 +92,10 @@ export async function checarLembretes() {
     const passaram = disparados.filter((l) => l.atrasado);
     naHora.forEach(avisoNaHora);
     if (passaram.length) {
-      const titulo = passaram.length === 1 ? "1 lembrete passou" : `${passaram.length} lembretes passaram`;
+      const titulo = passaram.length === 1 ? t("lembretes_agendador.1_lembrete_passou") : t("lembretes_agendador.passaram", { n: passaram.length });
       showToast({
         title: titulo,
-        message: passaram.length === 1 ? passaram[0].titulo : "enquanto o kami estava fechado — estão no sino",
+        message: passaram.length === 1 ? passaram[0].titulo : t("lembretes_agendador.enquanto_o_kami_estava_fechado"),
         iconName: "bell-ring",
         duration: 10000,
         onClick: async () => (await import("../modals/notificacoes-modal.js")).openNotificacoesModal(),
