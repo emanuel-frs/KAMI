@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 /**
  * Modal de configurações — aberto pelo ícone de engrenagem no rodapé
  * da sidebar (fora de qualquer tela, ver alinhamento de UX geral). Mesmo padrão singleton dos outros modais (ver
@@ -14,7 +15,7 @@
  * (quadrado, sem cantos arredondados). Continua sendo um modal (não
  * uma tela/rota própria) — só o conteúdo interno que ganhou abas.
  *
- * 5 abas no v1 (ver TABS abaixo). "Aparência", "perfil", "notificações",
+ * 5 abas no v1 (ver tabs() abaixo). "Aparência", "perfil", "notificações",
  * "backup e dados" e "chaves" têm implementação real. "Backup e Dados" é a mesma funcionalidade que já existia no
  * modal antigo (export/import/reset) — só mudou de lugar, sem
  * mudança de comportamento nenhuma:
@@ -119,14 +120,14 @@ import { buildSobrePanel, wireSobreTab } from "./configuracoes/sobre.js";
 import { carregarCopias } from "./configuracoes/copias.js";
 import { estado } from "./configuracoes/estado.js";
 
-const TABS = [
-  { id: "aparencia", label: "aparência", iconName: "palette" },
-  { id: "perfil", label: "perfil", iconName: "user" },
-  { id: "notificacoes", label: "notificações", iconName: "bell" },
-  { id: "chaves", label: "chaves", iconName: "key" },
-  { id: "seguranca", label: "segurança", iconName: "shield" },
-  { id: "backup", label: "backup e dados", iconName: "download" },
-  { id: "sobre", label: "sobre", iconName: "circle-help" },
+const tabs = () => [
+  { id: "aparencia", label: t("configuracoes.aparencia"), iconName: "palette" },
+  { id: "perfil", label: t("configuracoes.perfil"), iconName: "user" },
+  { id: "notificacoes", label: t("configuracoes.notificacoes"), iconName: "bell" },
+  { id: "chaves", label: t("configuracoes.chaves"), iconName: "key" },
+  { id: "seguranca", label: t("configuracoes.seguranca"), iconName: "shield" },
+  { id: "backup", label: t("configuracoes.backup_e_dados"), iconName: "download" },
+  { id: "sobre", label: t("configuracoes.sobre"), iconName: "circle-help" },
 ];
 
 // abas ainda sem conteúdo funcional — mostram um placeholder em vez
@@ -136,7 +137,7 @@ const TABS = [
 const PLACEHOLDER_COPY = {};
 
 function buildTabsHtml() {
-  return TABS.map(
+  return tabs().map(
     (t, i) => `
       <button type="button" class="cfg-tab${i === 0 ? " on" : ""}" data-tab="${t.id}">
         ${icon(t.iconName, { size: 13 })}
@@ -161,7 +162,7 @@ function buildModal() {
   wrap.id = "settings-modal";
   wrap.innerHTML = `
     <div class="modal cfg-modal">
-      <div class="modal-head">configurações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head">${t("configuracoes.configuracoes")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body cfg-shell">
         <nav class="cfg-sidebar">${buildTabsHtml()}</nav>
         <div class="cfg-content">
@@ -230,14 +231,14 @@ function wireModal(wrap) {
 }
 
 /**
- * @param {string} [tabId] - aba pra abrir já selecionada (ver TABS).
+ * @param {string} [tabId] - aba pra abrir já selecionada (ver tabs()).
  *   Default "aparencia" (primeira aba). backup-reminder.js passa
  *   "backup" explicitamente pra levar direto à seção de export.
  */
 export async function openConfiguracoesModal(tabId = "aparencia") {
   estado.modalEl = estado.modalEl || buildModal();
 
-  switchTab(estado.modalEl, TABS.some((t) => t.id === tabId) ? tabId : "aparencia");
+  switchTab(estado.modalEl, tabs().some((t) => t.id === tabId) ? tabId : "aparencia");
 
   const confirmInput = estado.modalEl.querySelector("#sm-reset-confirm");
   const resetBtn = estado.modalEl.querySelector("#sm-reset-btn");
@@ -305,7 +306,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     // fora deste modal (notification-bell.js, notifications-modal.js).
     store.set("profile", profile);
   } catch (err) {
-    showErrorModal(err.message, "erro ao carregar dados de perfil");
+    showErrorModal(err.message, t("configuracoes.erro_ao_carregar_dados_de"));
   }
 
   // idem pro status das duas credenciais com badge (token do github e
@@ -317,7 +318,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     renderGithubBadge(estado.modalEl, ghStatus.configured);
     renderSearchBadge(estado.modalEl, searchStatus.configured);
   } catch (err) {
-    showErrorModal(err.message, "erro ao carregar status das credenciais");
+    showErrorModal(err.message, t("configuracoes.erro_ao_carregar_status_das"));
   }
   await loadChavesAccounts(estado.modalEl);
 }

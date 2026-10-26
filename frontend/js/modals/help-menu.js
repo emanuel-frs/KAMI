@@ -2,6 +2,7 @@ import { icon } from "../components/icons.js";
 import { openOnboardingModal } from "./onboarding-modal.js";
 import { getScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { openShortcutsHelp } from "./shortcuts-help-modal.js";
+import { t } from "../i18n.js";
 
 /**
  * Botão de ajuda (etapa 6, seção 7) — ícone de
@@ -33,13 +34,13 @@ function buildPop() {
   el.id = "help-menu-pop";
   el.innerHTML = `
     <button type="button" class="help-menu-item" data-action="tour">
-      ${icon("undo", { size: 12 })} rever tour geral
+      ${icon("undo", { size: 12 })} ${t("help_menu.rever_tour_geral")}
     </button>
     <button type="button" class="help-menu-item" data-action="screen-tips">
-      ${icon("circle-help", { size: 12 })} rever dicas desta tela
+      ${icon("circle-help", { size: 12 })} ${t("help_menu.rever_dicas_desta_tela")}
     </button>
     <button type="button" class="help-menu-item" data-action="shortcuts">
-      ${icon("key", { size: 12 })} atalhos de teclado (Alt+H)
+      ${icon("key", { size: 12 })} ${t("help_menu.atalhos_de_teclado_alt_h")}
     </button>
   `;
   el.querySelector('[data-action="tour"]').addEventListener("click", () => {
@@ -64,7 +65,7 @@ function syncScreenTipsAvailability() {
   if (!btn) return;
   const available = Boolean(getScreenTipsReplay());
   btn.disabled = !available;
-  btn.title = available ? "" : "esta tela ainda não tem dicas contextuais";
+  btn.title = available ? "" : t("help_menu.esta_tela_ainda_nao_tem");
 }
 
 function openPop() {

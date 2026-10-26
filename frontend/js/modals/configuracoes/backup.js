@@ -14,6 +14,7 @@ import { icon } from "../../components/icons.js";
 import { copiasSectionHtml, wireCopias } from "./copias.js";
 import { removerSectionHtml, wireRemover } from "./remover.js";
 import { estado } from "./estado.js";
+import { t } from "../../i18n.js";
 
 const RESET_WORD = "excluir";
 const SENHA_BACKUP_MIN = 8; // = SENHA_MIN em app/backup_cifrado.py
@@ -25,63 +26,63 @@ export function buildBackupPanel() {
   return `
     <div class="cfg-panel" data-panel="backup">
       <div class="settings-section" style="padding-top:0;">
-        <h4>exportar dados</h4>
-        <p class="settings-desc">baixa um arquivo .json com todos os seus dados (perfil, núcleo, finanças, aprendizado, organização, metas) — útil como backup antes de trocar de máquina ou reinstalar.</p>
+        <h4>${t("backup.exportar_dados")}</h4>
+        <p class="settings-desc">${t("backup.baixa_um_arquivo_json_com")}</p>
         <label class="cfg-toggle">
           <input type="checkbox" id="sm-export-protect" checked>
-          <span>proteger com senha<small>o arquivo só abre com a senha, e leva junto as senhas salvas (e-mail, github, busca) — funciona em outro computador</small></span>
+          <span>${t("backup.proteger_com_senha")}<small>${t("backup.o_arquivo_so_abre_com")}</small></span>
         </label>
         <div id="sm-export-protect-fields">
-          <div class="field"><label for="sm-export-senha">senha (mínimo ${SENHA_BACKUP_MIN} caracteres)</label><input type="password" id="sm-export-senha" autocomplete="new-password" maxlength="200"></div>
-          <div class="field"><label for="sm-export-senha2">repita a senha</label><input type="password" id="sm-export-senha2" autocomplete="new-password" maxlength="200"></div>
-          <p class="settings-note">sem a senha o arquivo não abre — nem o kami consegue recuperar. guarde a senha num lugar seguro.</p>
+          <div class="field"><label for="sm-export-senha">${t("backup.senha_minimo", { n: SENHA_BACKUP_MIN })}</label><input type="password" id="sm-export-senha" autocomplete="new-password" maxlength="200"></div>
+          <div class="field"><label for="sm-export-senha2">${t("backup.repita_a_senha")}</label><input type="password" id="sm-export-senha2" autocomplete="new-password" maxlength="200"></div>
+          <p class="settings-note">${t("backup.sem_a_senha_o_arquivo")}</p>
         </div>
-        <p class="settings-note cfg-export-aviso" id="sm-export-unprotected-note" hidden>sem senha, qualquer pessoa com o arquivo lê todos os seus dados (finanças, e-mails, anotações) — e as senhas salvas não funcionam em outro computador.</p>
+        <p class="settings-note cfg-export-aviso" id="sm-export-unprotected-note" hidden>${t("backup.sem_senha_qualquer_pessoa_com")}</p>
         <div class="form-actions">
-          <button class="btn sm" id="sm-export-btn" data-action="export">baixar backup (.json)</button>
+          <button class="btn sm" id="sm-export-btn" data-action="export">${t("backup.baixar_backup_json")}</button>
         </div>
         <p class="settings-status" id="sm-export-status"></p>
       </div>
       ${copiasSectionHtml()}
       <div class="settings-section">
-        <h4>revisar xp</h4>
-        <p class="settings-desc">corrige o xp gravado antes das regras atuais: registros que sobraram de ações desfeitas (pagamento desmarcado, item apagado, marco reaberto), repetições no mesmo dia do que hoje só rende xp 1x por dia e ações manuais acima de 50 xp. primeiro mostra o que mudaria — nada é gravado até você confirmar.</p>
-        <p class="settings-note">antes de aplicar, uma cópia completa do banco é guardada na pasta de dados do kami.</p>
+        <h4>${t("backup.revisar_xp")}</h4>
+        <p class="settings-desc">${t("backup.corrige_o_xp_gravado_antes")}</p>
+        <p class="settings-note">${t("backup.antes_de_aplicar_uma_copia")}</p>
         <div class="form-actions">
-          <button class="btn sm" id="sm-xpreview-btn" data-action="xp-review-preview">simular revisão</button>
+          <button class="btn sm" id="sm-xpreview-btn" data-action="xp-review-preview">${t("backup.simular_revisao")}</button>
         </div>
         <div class="xp-review-report" id="sm-xpreview-report" hidden></div>
       </div>
       <div class="settings-section settings-warning">
-        <h4>importar dados</h4>
-        <p class="settings-desc">restaura um backup .json exportado anteriormente. isso <strong>sobrescreve</strong> todas as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas). o estado de agora fica guardado nas cópias automáticas, acima, caso precise voltar.</p>
-        <p class="settings-note">backup <strong>com senha</strong> traz também as senhas salvas (e-mail, github, busca), em qualquer computador. backup <strong>sem senha</strong> de outra máquina restaura o resto, mas essas senhas precisam ser cadastradas de novo em configurações › chaves.</p>
+        <h4>${t("backup.importar_dados")}</h4>
+        <p class="settings-desc">${t("backup.import_desc")}</p>
+        <p class="settings-note">${t("backup.import_nota")}</p>
         <div class="field">
-          <label for="sm-import-file">arquivo de backup (.json)</label>
+          <label for="sm-import-file">${t("backup.arquivo_de_backup_json")}</label>
           <input type="file" id="sm-import-file" accept="application/json,.json">
         </div>
         <div class="field" id="sm-import-senha-field" hidden>
-          <label for="sm-import-senha">${icon("shield", { size: 12 })} backup protegido — senha</label>
+          <label for="sm-import-senha">${icon("shield", { size: 12 })} ${t("backup.backup_protegido_senha")}</label>
           <input type="password" id="sm-import-senha" autocomplete="current-password" maxlength="200">
         </div>
         <div class="field">
-          <label for="sm-import-confirm">digite <strong>${IMPORT_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="sm-import-confirm">${t("geral.digite_pra_habilitar", { palavra: `<strong>${IMPORT_WORD}</strong>` })}</label>
           <input type="text" id="sm-import-confirm" placeholder="${IMPORT_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
-          <button class="btn sm warn" id="sm-import-btn" data-action="import" disabled>importar e sobrescrever</button>
+          <button class="btn sm warn" id="sm-import-btn" data-action="import" disabled>${t("backup.importar_e_sobrescrever")}</button>
         </div>
         <p class="settings-status" id="sm-import-status"></p>
       </div>
       <div class="settings-section settings-danger">
-        <h4>zona de perigo</h4>
-        <p class="settings-desc">apaga TODOS os seus dados e devolve o Kami ao estado de instalação nova. antes, o kami guarda uma cópia nas cópias automáticas (acima) — é o único jeito de voltar.</p>
+        <h4>${t("backup.zona_de_perigo")}</h4>
+        <p class="settings-desc">${t("backup.apaga_todos_os_seus_dados")}</p>
         <div class="field">
-          <label for="sm-reset-confirm">digite <strong>${RESET_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="sm-reset-confirm">${t("geral.digite_pra_habilitar", { palavra: `<strong>${RESET_WORD}</strong>` })}</label>
           <input type="text" id="sm-reset-confirm" placeholder="${RESET_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
-          <button class="btn sm danger" id="sm-reset-btn" data-action="reset" disabled>limpar todos os dados</button>
+          <button class="btn sm danger" id="sm-reset-btn" data-action="reset" disabled>${t("backup.limpar_todos_os_dados")}</button>
         </div>
       </div>${removerSectionHtml()}
     </div>`;
@@ -146,7 +147,7 @@ async function handleExport(wrap) {
   const originalLabel = btn.textContent;
   estado.busy = true;
   btn.disabled = true;
-  btn.textContent = "gerando...";
+  btn.textContent = t("backup.gerando");
   statusEl.textContent = "";
   statusEl.classList.remove("settings-status--visible");
 
@@ -154,8 +155,8 @@ async function handleExport(wrap) {
   const senhaInput = wrap.querySelector("#sm-export-senha");
   const senha2Input = wrap.querySelector("#sm-export-senha2");
   const senhaErro = protegido && (
-    senhaInput.value.length < SENHA_BACKUP_MIN ? `a senha precisa de pelo menos ${SENHA_BACKUP_MIN} caracteres`
-      : senhaInput.value !== senha2Input.value ? "as duas senhas não são iguais"
+    senhaInput.value.length < SENHA_BACKUP_MIN ? t("backup.senha_curta", { n: SENHA_BACKUP_MIN })
+      : senhaInput.value !== senha2Input.value ? t("backup.as_duas_senhas_nao_sao")
         : ""
   );
   if (senhaErro) {
@@ -192,8 +193,8 @@ async function handleExport(wrap) {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusEl.innerHTML = `${icon("check", { size: 12 })} salvo como ${filename} (confira sua pasta de downloads)` +
-      (fora ? ` — ${fora === 1 ? "1 senha salva não pôde ser lida e ficou" : `${fora} senhas salvas não puderam ser lidas e ficaram`} de fora (veja configurações › segurança)` : "");
+    statusEl.innerHTML = `${icon("check", { size: 12 })} ${escapeHtml(t("backup.salvo_como", { arquivo: filename }))}` +
+      (fora ? escapeHtml(t("backup.senhas_fora", { n: fora })) : "");
     statusEl.classList.add("settings-status--visible");
 
     // confirmação visível mesmo se o usuário já tiver trocado de aba/fechado
@@ -203,12 +204,12 @@ async function handleExport(wrap) {
     // (só existe o plugin de abrir URL externa, ver open-external.js), então
     // o toast simples resolve — o navegador/webview decide onde salvar.
     showToast({
-      title: "backup salvo",
-      message: `${filename} — confira sua pasta de downloads`,
+      title: t("backup.backup_salvo"),
+      message: t("backup.confira_downloads", { arquivo: filename }),
       iconName: "check",
     });
   } catch (err) {
-    showErrorModal(err.message, "erro ao exportar dados");
+    showErrorModal(err.message, t("backup.erro_ao_exportar_dados"));
   } finally {
     estado.busy = false;
     btn.disabled = false;
@@ -224,25 +225,25 @@ function renderXpReviewReport(report) {
     !report.removidos.length && !report.limitados.length && !changedAttrs.length && !report.vinculados &&
     !report.conquistas_rebloqueadas.length && !report.conquistas_desbloqueadas.length;
   if (nothing) {
-    return '<p class="settings-desc">nada a corrigir — seu xp já está consistente.</p>';
+    return `<p class="settings-desc">${t("backup.nada_a_corrigir_seu_xp")}</p>`;
   }
 
   const lines = [];
   lines.push(
-    `<p class="settings-desc">${report.removidos.length} registro(s) removido(s) · ${report.vinculados} vinculado(s) ao item de origem · ${report.limitados.length} ação(ões) manual(is) limitada(s) a 50 xp</p>`
+    `<p class="settings-desc">${t("backup.revisao_resumo", { removidos: report.removidos.length, vinculados: report.vinculados, limitados: report.limitados.length })}</p>`
   );
   if (changedAttrs.length) {
     lines.push(
       `<ul class="xp-review-list">${changedAttrs
-        .map((a) => `<li><span>${escapeHtml(a.nome)}</span><span>${a.xp_antes} → ${a.xp_depois} xp</span></li>`)
+        .map((a) => `<li><span>${escapeHtml(a.nome)}</span><span>${a.xp_antes} → ${a.xp_depois} ${t("backup.xp")}</span></li>`)
         .join("")}</ul>`
     );
   }
   if (report.conquistas_rebloqueadas.length) {
-    lines.push(`<p class="settings-note">voltam a ficar bloqueadas: ${report.conquistas_rebloqueadas.map(escapeHtml).join(", ")}</p>`);
+    lines.push(`<p class="settings-note">${t("backup.rebloqueadas", { lista: report.conquistas_rebloqueadas.map(escapeHtml).join(", ") })}</p>`);
   }
   if (report.conquistas_desbloqueadas.length) {
-    lines.push(`<p class="settings-note">serão desbloqueadas: ${report.conquistas_desbloqueadas.map(escapeHtml).join(", ")}</p>`);
+    lines.push(`<p class="settings-note">${t("backup.desbloqueadas", { lista: report.conquistas_desbloqueadas.map(escapeHtml).join(", ") })}</p>`);
   }
   if (report.removidos.length) {
     const shown = report.removidos.slice(0, XP_REVIEW_LIST_LIMIT);
@@ -250,12 +251,12 @@ function renderXpReviewReport(report) {
     lines.push(
       `<ul class="xp-review-list xp-review-list--removed">${shown
         .map((r) => `<li><span>${escapeHtml(r.description)}</span><span>−${r.xp} xp · ${escapeHtml(r.motivo)}</span></li>`)
-        .join("")}${rest > 0 ? `<li class="xp-review-more">+${rest} outro(s)</li>` : ""}</ul>`
+        .join("")}${rest > 0 ? `<li class="xp-review-more">+${rest} ${t("backup.outro_s")}</li>` : ""}</ul>`
     );
   }
   lines.push(`
     <div class="form-actions">
-      <button class="btn sm warn" id="sm-xpreview-apply" data-action="xp-review-apply">aplicar revisão</button>
+      <button class="btn sm warn" id="sm-xpreview-apply" data-action="xp-review-apply">${t("backup.aplicar_revisao")}</button>
     </div>`);
   return lines.join("");
 }
@@ -266,38 +267,38 @@ async function handleXpReviewPreview(wrap) {
   const reportEl = wrap.querySelector("#sm-xpreview-report");
   estado.busy = true;
   btn.disabled = true;
-  btn.textContent = "simulando...";
+  btn.textContent = t("backup.simulando");
   try {
     const report = await previewXpReview();
     reportEl.innerHTML = renderXpReviewReport(report);
     reportEl.hidden = false;
     reportEl.querySelector("#sm-xpreview-apply")?.addEventListener("click", () => handleXpReviewApply(wrap));
   } catch (err) {
-    showErrorModal(err.message, "erro ao simular a revisão de xp");
+    showErrorModal(err.message, t("backup.erro_ao_simular_a_revisao"));
   } finally {
     estado.busy = false;
     btn.disabled = false;
-    btn.textContent = "simular revisão";
+    btn.textContent = t("backup.simular_revisao");
   }
 }
 
 async function handleXpReviewApply(wrap) {
   if (estado.busy) return;
   const reallySure = await showConfirmModal(
-    "isso remove os registros listados e recalcula o xp de cada atributo a partir do log. uma cópia do banco é guardada antes, na pasta de dados do kami. continuar?",
-    { title: "aplicar revisão de xp", confirmText: "sim, revisar" }
+    t("backup.isso_remove_os_registros_listados"),
+    { title: t("backup.aplicar_revisao_de_xp"), confirmText: t("backup.sim_revisar") }
   );
   if (!reallySure) return;
 
   const applyBtn = wrap.querySelector("#sm-xpreview-apply");
   estado.busy = true;
   applyBtn.disabled = true;
-  applyBtn.textContent = "aplicando...";
+  applyBtn.textContent = t("backup.aplicando");
   try {
     const report = await applyXpReview();
     showToast({
-      title: "xp revisado",
-      message: `cópia do banco anterior: ${report.backup}`,
+      title: t("backup.xp_revisado"),
+      message: t("backup.copia_anterior", { arquivo: report.backup }),
       iconName: "check",
       duration: 12000,
     });
@@ -305,10 +306,10 @@ async function handleXpReviewApply(wrap) {
     // telas de uma vez — recarregar é mais seguro que atualizar cada widget
     setTimeout(() => window.location.reload(), 1500);
   } catch (err) {
-    showErrorModal(err.message, "erro ao aplicar a revisão de xp");
+    showErrorModal(err.message, t("backup.erro_ao_aplicar_a_revisao"));
     estado.busy = false;
     applyBtn.disabled = false;
-    applyBtn.textContent = "aplicar revisão";
+    applyBtn.textContent = t("backup.aplicar_revisao");
   }
 }
 
@@ -319,10 +320,10 @@ function readFileAsJson(file) {
       try {
         resolve(JSON.parse(reader.result));
       } catch {
-        reject(new Error("o arquivo selecionado não é um .json válido"));
+        reject(new Error(t("backup.json_invalido")));
       }
     };
-    reader.onerror = () => reject(new Error("não foi possível ler o arquivo selecionado"));
+    reader.onerror = () => reject(new Error(t("backup.ler_arquivo")));
     reader.readAsText(file);
   });
 }
@@ -344,19 +345,19 @@ async function handleImport(wrap) {
   try {
     parsed = importParsed ?? (await readFileAsJson(file));
   } catch (err) {
-    showErrorModal(err.message, "erro ao importar dados");
+    showErrorModal(err.message, t("backup.erro_ao_importar_dados"));
     return;
   }
   const protegido = Boolean(parsed?.kami_backup_cifrado);
   const senhaInput = wrap.querySelector("#sm-import-senha");
   if (!protegido && (!parsed || typeof parsed !== "object" || !parsed.tables || typeof parsed.tables !== "object")) {
-    showErrorModal("o arquivo selecionado não parece ser um backup válido do Kami (formato inesperado).", "erro ao importar dados");
+    showErrorModal(t("backup.o_arquivo_selecionado_nao_parece"), t("backup.erro_ao_importar_dados"));
     return;
   }
 
   const reallySure = await showConfirmModal(
-    "isso sobrescreve TODAS as suas configurações e dados atuais (perfil, núcleo, finanças, aprendizado, organização, metas) com o conteúdo desse arquivo, e não tem como desfazer. tem certeza?",
-    { title: "confirmar importação", confirmText: "sim, sobrescrever tudo", danger: true }
+    t("backup.isso_sobrescreve_todas_as_suas"),
+    { title: t("backup.confirmar_importacao"), confirmText: t("backup.sim_sobrescrever_tudo"), danger: true }
   );
   if (!reallySure) return;
 
@@ -365,7 +366,7 @@ async function handleImport(wrap) {
   confirmInput.disabled = true;
   senhaInput.disabled = true;
   importBtn.disabled = true;
-  importBtn.textContent = "importando...";
+  importBtn.textContent = t("backup.importando");
 
   try {
     if (protegido) await importProtegido(confirmation, parsed, senhaInput.value);
@@ -376,13 +377,13 @@ async function handleImport(wrap) {
     // dados importados.
     window.location.reload();
   } catch (err) {
-    showErrorModal(err.message, "erro ao importar dados");
+    showErrorModal(err.message, t("backup.erro_ao_importar_dados"));
     estado.busy = false;
     fileInput.disabled = false;
     confirmInput.disabled = false;
     senhaInput.disabled = false;
     importBtn.disabled = false;
-    importBtn.textContent = "importar e sobrescrever";
+    importBtn.textContent = t("backup.importar_e_sobrescrever");
   }
 }
 
@@ -394,15 +395,15 @@ async function handleReset(wrap) {
   if (confirmation !== RESET_WORD) return; // botão já deveria estar disabled, defesa extra
 
   const reallySure = await showConfirmModal(
-    "isso apaga TODOS os seus dados (perfil, núcleo, finanças, aprendizado, organização, metas) e não tem como desfazer. tem certeza?",
-    { title: "confirmar reset completo", confirmText: "sim, apagar tudo", danger: true }
+    t("backup.isso_apaga_todos_os_seus"),
+    { title: t("backup.confirmar_reset_completo"), confirmText: t("backup.sim_apagar_tudo"), danger: true }
   );
   if (!reallySure) return;
 
   estado.busy = true;
   confirmInput.disabled = true;
   resetBtn.disabled = true;
-  resetBtn.textContent = "limpando...";
+  resetBtn.textContent = t("backup.limpando");
 
   try {
     await resetData(confirmation);
@@ -411,10 +412,10 @@ async function handleReset(wrap) {
     // etc.) — garante que tudo volte a buscar do backend já limpo.
     window.location.reload();
   } catch (err) {
-    showErrorModal(err.message, "erro ao limpar dados");
+    showErrorModal(err.message, t("backup.erro_ao_limpar_dados"));
     estado.busy = false;
     confirmInput.disabled = false;
     resetBtn.disabled = false;
-    resetBtn.textContent = "limpar todos os dados";
+    resetBtn.textContent = t("backup.limpar_todos_os_dados");
   }
 }

@@ -2,7 +2,7 @@ import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../compo
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "avatar pessoal" (decisão 18 — modais são o padrão de
@@ -37,12 +37,12 @@ function buildModal() {
   wrap.innerHTML = `
     <div class="modal wide">
       <div class="modal-head">
-        avatar pessoal
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        ${t("avatar.avatar_pessoal")}
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-tabs">
-        <div class="modal-tab" data-tab="ver">ver</div>
-        <div class="modal-tab" data-tab="editar">editar</div>
+        <div class="modal-tab" data-tab="ver">${t("avatar.ver")}</div>
+        <div class="modal-tab" data-tab="editar">${t("geral.editar")}</div>
       </div>
       <div class="modal-body">
         <div class="modal-tab-panel" data-panel="ver">
@@ -53,39 +53,35 @@ function buildModal() {
             <div>
               <div class="al-drop" id="av-drop">
                 <div class="field">
-                  <label for="av-file">foto (não é salva — só o resultado em texto)</label>
+                  <label for="av-file">${t("avatar.foto_nao_e_salva_so")}</label>
                   <input type="file" id="av-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp">
                 </div>
                 <div class="field">
-                  <label for="av-cols">largura (colunas): <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
+                  <label for="av-cols">${t("avatar.largura_colunas")} <b id="av-cols-val" style="color:var(--text-bright);">70</b></label>
                   <input type="range" id="av-cols" min="30" max="120" value="70" style="accent-color:var(--accent); width:100%;">
                 </div>
                 <div class="field">
-                  <label for="av-ramp">rampa de caracteres</label>
+                  <label for="av-ramp">${t("avatar.rampa_de_caracteres")}</label>
                   <select id="av-ramp">
-                    <option value="detalhada">detalhada</option>
-                    <option value="simples">simples</option>
-                    <option value="blocos" selected>blocos</option>
-                    <option value="alto_contraste">alto contraste</option>
+                    <option value="detalhada">${t("avatar.detalhada")}</option>
+                    <option value="simples">${t("avatar.simples")}</option>
+                    <option value="blocos" selected>${t("avatar.blocos")}</option>
+                    <option value="alto_contraste">${t("avatar.alto_contraste")}</option>
                   </select>
                 </div>
                 <label class="field" style="flex-direction:row; align-items:center; gap:8px;">
-                  <input type="checkbox" id="av-invert" style="accent-color:var(--accent);"><span>inverter tons</span>
+                  <input type="checkbox" id="av-invert" style="accent-color:var(--accent);"><span>${t("avatar.inverter_tons")}</span>
                 </label>
-                <p class="al-hint">arraste uma imagem sobre este painel ou use o campo acima. tudo roda local, via &lt;canvas&gt; — nada sai da máquina.</p>
-                <button type="button" class="btn" style="margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;" data-action="save">${icon("check", { size: 13 })} salvar como meu avatar</button>
+                <p class="al-hint">${t("avatar.arraste_uma_imagem_sobre_este")}</p>
+                <button type="button" class="btn" style="margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;" data-action="save">${icon("check", { size: 13 })} ${t("avatar.salvar_como_meu_avatar")}</button>
               </div>
             </div>
             <div>
               <div class="card-head" style="border:1px solid var(--border-soft); border-bottom:none;">
-                preview ao vivo <span id="av-dims" class="push" style="color:var(--text-faint);"></span>
+                ${t("avatar.preview_ao_vivo")} <span id="av-dims" class="push" style="color:var(--text-faint);"></span>
               </div>
               <div class="ascii-output-wrap">
-                <pre id="av-output" class="ascii-output">nenhuma imagem carregada ainda.
-
-selecione um arquivo ou arraste
-uma foto pra ver a conversão em
-tempo real.</pre>
+                <pre id="av-output" class="ascii-output">${t("avatar.nenhuma_imagem_carregada_ainda_selecione")}</pre>
               </div>
             </div>
           </div>
@@ -137,7 +133,7 @@ function wireModal(wrap) {
         currentImg = img;
         render();
       },
-      onInvalid: () => showErrorModal("não consegui abrir esse arquivo como imagem — tente outro.", "atenção"),
+      onInvalid: () => showErrorModal(t("avatar.nao_consegui_abrir_esse_arquivo"), t("geral.atencao")),
     });
   }
 
@@ -173,13 +169,13 @@ function wireModal(wrap) {
   wrap.querySelector('[data-action="close"]').addEventListener("click", () => closeAvatarModal());
   wrap.querySelector('[data-action="save"]').addEventListener("click", async () => {
     if (!lastAscii) {
-      showErrorModal("gere uma conversão antes de salvar (escolha uma imagem).", "atenção");
+      showErrorModal(t("avatar.gere_uma_conversao_antes_de"), t("geral.atencao"));
       return;
     }
     try {
       await onSaveCb?.(lastAscii);
     } catch (err) {
-      showErrorModal(err.message, "erro ao salvar avatar");
+      showErrorModal(err.message, t("avatar.erro_ao_salvar_avatar"));
       return;
     }
     savedPreview.textContent = lastAscii;
@@ -235,7 +231,7 @@ export function openAvatarModal({ currentAscii, onSave, onClose } = {}) {
         ...VER_TAB_FIT,
       });
     } else {
-      savedPreview.textContent = 'nenhum avatar salvo ainda — vá em "editar" pra gerar um a partir de uma foto.';
+      savedPreview.textContent = t("avatar.nenhum_avatar_salvo_ainda_va");
       savedPreview.style.fontSize = "";
       savedPreview.style.lineHeight = "";
     }

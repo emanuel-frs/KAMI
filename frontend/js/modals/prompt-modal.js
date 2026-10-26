@@ -1,5 +1,5 @@
 import { icon } from "../components/icons.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal genérico de prompt de valor único — substitui prompt(...) no
@@ -31,15 +31,15 @@ function buildModal() {
   wrap.id = "prompt-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="pm-title">informar valor</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span id="pm-title">${t("prompt.informar_valor")}</span> <button type="button" class="close" data-action="cancel" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
           <label id="pm-label" for="pm-input"></label>
           <input type="text" id="pm-input">
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="cancel">cancelar</button>
-          <button class="btn sm primary" data-action="confirm">confirmar</button>
+          <button class="btn sm" data-action="cancel">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="confirm">${t("geral.confirmar")}</button>
         </div>
       </div>
     </div>
@@ -70,7 +70,7 @@ function settle(result) {
  * @returns {Promise<string|null>} string digitada (pode ser vazia), ou null se cancelado
  */
 export function showPromptModal(label, opts = {}) {
-  const { title = "informar valor", placeholder = "", inputType = "text", confirmText = "confirmar", cancelText = "cancelar", defaultValue = "" } = opts;
+  const { title = t("prompt.informar_valor"), placeholder = "", inputType = "text", confirmText = t("geral.confirmar"), cancelText = t("geral.cancelar"), defaultValue = "" } = opts;
 
   modalEl = noIdiomaAtual(modalEl, buildModal);
 

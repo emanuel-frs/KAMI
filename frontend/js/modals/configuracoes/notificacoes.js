@@ -8,67 +8,68 @@ import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
 import { store } from "../../state/store.js";
 import { estado } from "./estado.js";
+import { t } from "../../i18n.js";
 
 export function buildNotificacoesPanel() {
   return `
     <div class="cfg-panel" data-panel="notificacoes">
       <div class="settings-section" style="padding-top:0;">
-        <h4>tipos de notificação</h4>
-        <p class="settings-desc">escolha o que aparece no sino de notificações (rodapé da sidebar). desmarcar um tipo some com ele por completo ali, incluindo do contador do sino.</p>
+        <h4>${t("notificacoes.tipos_de_notificacao")}</h4>
+        <p class="settings-desc">${t("notificacoes.escolha_o_que_aparece_no")}</p>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-notif-alerts" checked>
           ${icon("calendar-days", { size: 12 })}
-          <span>vencendo em breve <small>contas fixas, dívidas, assinaturas e metas perto do prazo</small></span>
+          <span>${t("notificacoes.vencendo_em_breve")} <small>${t("notificacoes.contas_fixas_dividas_assinaturas_e")}</small></span>
         </label>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-notif-email" checked>
           ${icon("mail", { size: 12 })}
-          <span>e-mails <small>mensagens não lidas das contas conectadas em organização</small></span>
+          <span>${t("notificacoes.e_mails")} <small>${t("notificacoes.mensagens_nao_lidas_das_contas")}</small></span>
         </label>
         <p class="settings-status" id="cfg-notif-status"></p>
       </div>
       <div class="settings-section">
-        <h4>fora do kami</h4>
-        <p class="settings-desc">o que também vira notificação do sistema (aquela que aparece no canto da tela mesmo com o kami em segundo plano). dentro do kami — aviso e sino — tudo continua aparecendo.</p>
+        <h4>${t("notificacoes.fora_do_kami")}</h4>
+        <p class="settings-desc">${t("notificacoes.o_que_tambem_vira_notificacao")}</p>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-fora-lembretes" checked>
           ${icon("bell-ring", { size: 12 })}
-          <span>lembretes <small>os que você criou (calendário, captura "@", botão "lembrar")</small></span>
+          <span>${t("notificacoes.lembretes")} <small>${t("notificacoes.os_que_voce_criou_calendario")}</small></span>
         </label>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-fora-vencimentos" checked>
           ${icon("receipt", { size: 12 })}
-          <span>vencimentos <small>um aviso por dia com o que vence hoje e amanhã</small></span>
+          <span>${t("notificacoes.vencimentos")} <small>${t("notificacoes.um_aviso_por_dia_com")}</small></span>
         </label>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-fora-eventos" checked>
           ${icon("calendar-days", { size: 12 })}
-          <span>eventos do calendário <small>o aviso "X min antes" de cada evento</small></span>
+          <span>${t("notificacoes.eventos_do_calendario")} <small>${t("notificacoes.o_aviso_x_min_antes")}</small></span>
         </label>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-ocultar-texto">
           ${icon("lock", { size: 12 })}
-          <span>esconder o texto <small>a notificação diz só "abra o kami pra ver" — ela aparece até na tela de bloqueio. liga sozinho quando o PIN é ativado.</small></span>
+          <span>${t("notificacoes.esconder_o_texto")} <small>${t("notificacoes.a_notificacao_diz_so_abra")}</small></span>
         </label>
         <div class="cfg-linha-hora">
-          <label for="cfg-avisos-hora">hora dos avisos de vencimento</label>
+          <label for="cfg-avisos-hora">${t("notificacoes.hora_dos_avisos_de_vencimento")}</label>
           <input type="time" id="cfg-avisos-hora" value="09:00">
         </div>
-        <p class="settings-desc">lembretes e avisos só tocam com o kami aberto — ou na bandeja, se ligar abaixo.</p>
+        <p class="settings-desc">${t("notificacoes.lembretes_e_avisos_so_tocam")}</p>
       </div>
       <div class="settings-section" id="cfg-janela-section" hidden>
-        <h4>bandeja e início</h4>
+        <h4>${t("notificacoes.bandeja_e_inicio")}</h4>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-bandeja">
           ${icon("download", { size: 12 })}
-          <span>manter na bandeja ao fechar <small>o ✕ esconde o kami em vez de sair; ele continua avisando. pra sair de vez: menu da bandeja › sair.</small></span>
+          <span>${t("notificacoes.manter_na_bandeja_ao_fechar")} <small>${t("notificacoes.o_esconde_o_kami_em")}</small></span>
         </label>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-iniciar">
           ${icon("zap", { size: 12 })}
-          <span>iniciar com o sistema <small>com a bandeja ligada, começa escondido nela; sem ela, abre a janela.</small></span>
+          <span>${t("notificacoes.iniciar_com_o_sistema")} <small>${t("notificacoes.com_a_bandeja_ligada_comeca")}</small></span>
         </label>
-        <p class="settings-desc" id="cfg-janela-gnome" hidden>no GNOME (Fedora, Ubuntu…) o ícone da bandeja só aparece com a extensão "AppIndicator and KStatusNotifierItem Support". sem ela o kami continua rodando escondido — abrir o kami de novo traz a janela de volta.</p>
+        <p class="settings-desc" id="cfg-janela-gnome" hidden>${t("notificacoes.no_gnome_fedora_ubuntu_o")}</p>
         <p class="settings-status" id="cfg-janela-status"></p>
       </div>
     </div>`;
@@ -131,7 +132,7 @@ export function wireNotificacoesTab(wrap) {
       await updateProfile({ [field]: value });
     } catch (err) {
       checkbox.checked = !value; // desfaz o toggle otimista — a chamada falhou
-      showErrorModal(err.message, "erro ao salvar preferências de notificação");
+      showErrorModal(err.message, t("notificacoes.erro_ao_salvar_preferencias_de"));
       return;
     }
 
@@ -158,7 +159,7 @@ export function wireNotificacoesTab(wrap) {
     try {
       await updateProfile({ avisos_hora: valor });
     } catch (err) {
-      showErrorModal(err.message, "erro ao salvar a hora dos avisos");
+      showErrorModal(err.message, t("notificacoes.erro_ao_salvar_a_hora"));
       return;
     }
     store.set("profile", { ...store.get("profile"), avisos_hora: valor });
@@ -174,7 +175,7 @@ export function wireNotificacoesTab(wrap) {
       await invoke("janela_definir", { campo, valor: checkbox.checked });
     } catch (err) {
       checkbox.checked = !checkbox.checked;
-      showErrorModal(String(err), "erro ao salvar");
+      showErrorModal(String(err), t("notificacoes.erro_ao_salvar"));
       return;
     }
     janelaStatus.innerHTML = `${icon("check", { size: 12 })} salvo`;

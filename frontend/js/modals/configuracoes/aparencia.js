@@ -23,24 +23,24 @@ const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
 // GAM-04 — ver components/visual-effects.js
 // ORG-07 (P-53): formato das datas — o exemplo é preenchido ao abrir
 // (o de "sistema" depende do idioma da máquina)
-const FORMATO_DATA_OPCOES = [
-  { value: "sistema", label: "seguir o idioma", desc: "" },
-  { value: "dma", label: "dd/mm/aaaa", desc: "" },
-  { value: "mda", label: "mm/dd/aaaa", desc: "" },
-  { value: "iso", label: "aaaa-mm-dd", desc: "" },
+const formatoDataOpcoes = () => [
+  { value: "sistema", label: t("aparencia.seguir_o_idioma"), desc: "" },
+  { value: "dma", label: t("aparencia.dd_mm_aaaa"), desc: "" },
+  { value: "mda", label: t("aparencia.mm_dd_aaaa"), desc: "" },
+  { value: "iso", label: t("aparencia.aaaa_mm_dd"), desc: "" },
 ];
 
-const EFFECT_OPTIONS = [
-  { value: "completo", label: "completo", desc: "tela de subida de nível, linhas de +xp e avisos" },
-  { value: "sutil", label: "sutil", desc: "linhas de +xp e avisos, sem a tela cheia" },
-  { value: "desligado", label: "desligado", desc: "só os avisos, sem nada animado" },
+const effectOptions = () => [
+  { value: "completo", label: t("aparencia.completo"), desc: t("aparencia.tela_de_subida_de_nivel") },
+  { value: "sutil", label: t("aparencia.sutil"), desc: t("aparencia.linhas_de_xp_e_avisos") },
+  { value: "desligado", label: t("aparencia.desligado"), desc: t("aparencia.so_os_avisos_sem_nada") },
 ];
 
 // GAM-13: grupos de som (components/sound.js) — coluna do perfil, rótulo, descrição
-const SOUND_GROUPS = [
-  { field: "som_progresso", label: "progresso", desc: "+xp, nível, LEVEL UP, conquista, missão e sequência salva" },
-  { field: "som_interface", label: "interface", desc: "todo botão (com som próprio pra confirmar, apagar, abas e opções), abrir e fechar janelas, trocar de tela, a voz da kami e a abertura do app" },
-  { field: "som_avisos", label: "avisos", desc: "notificações, erros, confirmações e arquivos baixados" },
+const soundGroups = () => [
+  { field: "som_progresso", label: t("aparencia.progresso"), desc: t("aparencia.xp_nivel_level_up_conquista") },
+  { field: "som_interface", label: t("aparencia.interface"), desc: t("aparencia.todo_botao_com_som_proprio") },
+  { field: "som_avisos", label: t("aparencia.avisos"), desc: t("aparencia.notificacoes_erros_confirmacoes_e_arquivos") },
 ];
 
 export function buildAparenciaPanel() {
@@ -58,20 +58,20 @@ export function buildAparenciaPanel() {
         <p class="settings-status" id="cfg-idioma-status"></p>
       </div>
       <div class="settings-section">
-        <h4>cor de destaque</h4>
-        <p class="settings-desc">usada em botões, ícones ativos, gráficos e bordas em todo o app.</p>
+        <h4>${t("aparencia.cor_de_destaque")}</h4>
+        <p class="settings-desc">${t("aparencia.usada_em_botoes_icones_ativos")}</p>
         <div class="ki-swatches" id="cfg-accent-swatches"></div>
         <p class="settings-status" id="cfg-accent-status"></p>
         <label class="cfg-toggle" id="cfg-icone-tema-wrap" hidden>
           <input type="checkbox" id="cfg-icone-tema">
-          <span>ícone do app na cor de destaque<small>a janela e a barra de tarefas mudam na hora; o atalho do menu iniciar (windows) e o lançador (linux) na próxima vez que o kami abrir.</small></span>
+          <span>${t("aparencia.icone_do_app_na_cor")}<small>${t("aparencia.a_janela_e_a_barra")}</small></span>
         </label>
       </div>
       <div class="settings-section">
-        <h4>efeitos visuais</h4>
-        <p class="settings-desc">como o kami comemora seu progresso. com o sistema em "reduzir movimento", nada se mexe em nenhuma opção.</p>
-        <div role="radiogroup" aria-label="efeitos visuais" id="cfg-effects">
-          ${EFFECT_OPTIONS.map((o) => `
+        <h4>${t("aparencia.efeitos_visuais")}</h4>
+        <p class="settings-desc">${t("aparencia.como_o_kami_comemora_seu")}</p>
+        <div role="radiogroup" aria-label="${t("aparencia.efeitos_visuais")}" id="cfg-effects">
+          ${effectOptions().map((o) => `
           <label class="cfg-toggle">
             <input type="radio" name="cfg-effects" value="${o.value}">
             <span>${o.label}<small>${o.desc}</small></span>
@@ -80,10 +80,10 @@ export function buildAparenciaPanel() {
         <p class="settings-status" id="cfg-effects-status"></p>
       </div>
       <div class="settings-section">
-        <h4>formato das datas</h4>
-        <p class="settings-desc">como as datas aparecem nas telas. "seguir o idioma" usa a ordem do idioma do kami; os campos de data dos formulários seguem sempre o idioma do sistema.</p>
-        <div role="radiogroup" aria-label="formato das datas" id="cfg-formato-data">
-          ${FORMATO_DATA_OPCOES.map((o) => `
+        <h4>${t("aparencia.formato_das_datas")}</h4>
+        <p class="settings-desc">${t("aparencia.como_as_datas_aparecem_nas")}</p>
+        <div role="radiogroup" aria-label="${t("aparencia.formato_das_datas")}" id="cfg-formato-data">
+          ${formatoDataOpcoes().map((o) => `
           <label class="cfg-toggle">
             <input type="radio" name="cfg-formato-data" value="${o.value}">
             <span>${o.label}<small data-formato-exemplo="${o.value}">${o.desc}</small></span>
@@ -92,20 +92,20 @@ export function buildAparenciaPanel() {
         <p class="settings-status" id="cfg-formato-data-status"></p>
       </div>
       <div class="settings-section">
-        <h4>sons</h4>
-        <p class="settings-desc">bipes 8-bit gerados na hora, no estilo terminal. cada grupo liga e desliga sozinho.</p>
+        <h4>${t("aparencia.sons")}</h4>
+        <p class="settings-desc">${t("aparencia.bipes_8_bit_gerados_na")}</p>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-sound-on">
-          <span>som ligado<small>liga e desliga todos os sons de uma vez</small></span>
+          <span>${t("aparencia.som_ligado")}<small>${t("aparencia.liga_e_desliga_todos_os")}</small></span>
         </label>
         <div class="cfg-sound-volume">
-          <label for="cfg-sound-volume">volume</label>
+          <label for="cfg-sound-volume">${t("aparencia.volume")}</label>
           <input type="range" id="cfg-sound-volume" min="0" max="100" step="5">
           <span id="cfg-sound-volume-value" aria-hidden="true"></span>
-          <button type="button" class="btn sm" id="cfg-sound-test">ouvir</button>
+          <button type="button" class="btn sm" id="cfg-sound-test">${t("aparencia.ouvir")}</button>
         </div>
         <div id="cfg-sound-groups">
-          ${SOUND_GROUPS.map((g) => `
+          ${soundGroups().map((g) => `
           <label class="cfg-toggle">
             <input type="checkbox" data-sound-group="${g.field}">
             <span>${g.label}<small>${g.desc}</small></span>
@@ -114,12 +114,12 @@ export function buildAparenciaPanel() {
         <p class="settings-status" id="cfg-sound-status"></p>
       </div>
       <div class="settings-section">
-        <h4>recompensas do nível</h4>
-        <p class="settings-desc" id="cfg-rewards-desc">títulos e temas de terminal liberados conforme seu nível geral sobe.</p>
-        <p class="cfg-subhead">título <small>(aparece sob o seu nome no perfil)</small></p>
-        <div role="radiogroup" aria-label="título" id="cfg-titles"></div>
-        <p class="cfg-subhead">tema de terminal <small>(por cima da cor de destaque)</small></p>
-        <div role="radiogroup" aria-label="tema de terminal" id="cfg-themes"></div>
+        <h4>${t("aparencia.recompensas_do_nivel")}</h4>
+        <p class="settings-desc" id="cfg-rewards-desc">${t("aparencia.titulos_e_temas_de_terminal")}</p>
+        <p class="cfg-subhead">${t("aparencia.titulo")} <small>${t("aparencia.aparece_sob_o_seu_nome")}</small></p>
+        <div role="radiogroup" aria-label="${t("aparencia.titulo")}" id="cfg-titles"></div>
+        <p class="cfg-subhead">${t("aparencia.tema_de_terminal")} <small>${t("aparencia.por_cima_da_cor_de")}</small></p>
+        <div role="radiogroup" aria-label="${t("aparencia.tema_de_terminal")}" id="cfg-themes"></div>
         <p class="settings-status" id="cfg-rewards-status"></p>
       </div>
     </div>`;
@@ -159,11 +159,11 @@ export function renderIconeTema(wrap, profile) {
       await updateProfile({ icone_tema: input.checked });
     } catch (err) {
       input.checked = !input.checked;
-      showErrorModal(err.message, "erro ao salvar o ícone do app");
+      showErrorModal(err.message, t("aparencia.erro_ao_salvar_o_icone"));
       return;
     }
     store.set("profile", { ...store.get("profile"), icone_tema: input.checked });
-    statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? "ícone na cor de destaque" : "ícone padrão de volta"}`;
+    statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? t("aparencia.icone_na_cor_de_destaque") : t("aparencia.icone_padrao_de_volta")}`;
     statusEl.classList.add("settings-status--visible");
   });
 }
@@ -189,7 +189,7 @@ export function wireIdioma(wrap) {
     } catch (err) {
       select.value = idiomaAtual();
       refreshCustomSelect(select);
-      showErrorModal(err.message, "erro ao salvar o idioma");
+      showErrorModal(err.message, t("aparencia.erro_ao_salvar_o_idioma"));
       return;
     }
     await carregarIdioma(idioma);
@@ -218,7 +218,7 @@ export async function selectFormatoData(wrap, value) {
   try {
     await updateProfile({ formato_data: value });
   } catch (err) {
-    showErrorModal(err.message, "erro ao salvar o formato das datas");
+    showErrorModal(err.message, t("aparencia.erro_ao_salvar_o_formato"));
     renderFormatoData(wrap, store.get("profile")?.formato_data);
     return;
   }
@@ -240,7 +240,7 @@ export async function selectEffectsMode(wrap, value) {
   try {
     await updateProfile({ efeitos_visuais: value });
   } catch (err) {
-    showErrorModal(err.message, "erro ao salvar efeitos visuais");
+    showErrorModal(err.message, t("aparencia.erro_ao_salvar_efeitos_visuais"));
     renderEffectsOptions(wrap, store.get("profile")?.efeitos_visuais);
     return;
   }
@@ -274,7 +274,7 @@ export async function saveSound(wrap, change) {
   try {
     saved = await updateProfile(change);
   } catch (err) {
-    showErrorModal(err.message, "erro ao salvar sons");
+    showErrorModal(err.message, t("aparencia.erro_ao_salvar_sons"));
     renderSoundOptions(wrap, store.get("profile") ?? {});
     return;
   }
@@ -291,7 +291,7 @@ export async function saveSound(wrap, change) {
 // backend/app/recompensas.py). O que ainda não foi liberado aparece
 // desabilitado com "nível N" — dá pra ver o que vem pela frente.
 function rewardOption(name, item, checked) {
-  const lock = item.unlocked ? "" : ` · liberado no nível ${item.level}`;
+  const lock = item.unlocked ? "" : t("aparencia.liberado_nivel", { nivel: item.level });
   const desc = item.description ? `${item.description}${lock}` : lock.replace(/^ · /, "");
   return `
     <label class="cfg-toggle${item.unlocked ? "" : " cfg-toggle--locked"}">
@@ -305,12 +305,12 @@ export async function renderRewards(wrap, profile) {
   try {
     data = await getRecompensas();
   } catch {
-    wrap.querySelector("#cfg-rewards-desc").textContent = "não deu pra carregar as recompensas agora.";
+    wrap.querySelector("#cfg-rewards-desc").textContent = t("aparencia.nao_deu_pra_carregar_as");
     return;
   }
   wrap.querySelector("#cfg-rewards-desc").textContent =
-    `títulos e temas de terminal liberados conforme seu nível geral sobe — você está no nível ${data.level}.`;
-  const auto = { key: "auto", label: "automático", description: "o título mais alto que você já liberou", unlocked: true };
+    t("aparencia.recompensas_desc", { nivel: data.level });
+  const auto = { key: "auto", label: t("aparencia.automatico"), description: t("aparencia.o_titulo_mais_alto_que"), unlocked: true };
   const titulos = data.titulos.map((t) => ({ ...t, label: rotuloTitulo(t.key, t.label) }));
   wrap.querySelector("#cfg-titles").innerHTML = [auto, ...titulos]
     .map((t) => rewardOption("cfg-title", t, (profile.titulo ?? "auto") === t.key))
@@ -328,7 +328,7 @@ export async function selectReward(wrap, field, value) {
   try {
     saved = await updateProfile({ [field]: value });
   } catch (err) {
-    showErrorModal(err.message, "erro ao salvar recompensa");
+    showErrorModal(err.message, t("aparencia.erro_ao_salvar_recompensa"));
     renderRewards(wrap, store.get("profile") ?? {});
     return;
   }
@@ -355,7 +355,7 @@ async function selectAccentColor(wrap, btn) {
   try {
     await updateProfile({ accent_color: color });
   } catch (err) {
-    showErrorModal(err.message, "erro ao salvar cor de destaque");
+    showErrorModal(err.message, t("aparencia.erro_ao_salvar_cor_de"));
     return;
   }
 

@@ -17,6 +17,7 @@ import { escapeHtml } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
 import { store } from "../../state/store.js";
+import { t } from "../../i18n.js";
 
 const REDEFINIR_WORD = "redefinir";
 
@@ -29,27 +30,27 @@ export function buildSegurancaPanel() {
   return `
     <div class="cfg-panel" data-panel="seguranca">
       <div class="settings-section" style="padding-top:0;">
-        <h4>PIN pra abrir o app</h4>
-        <p class="settings-desc">com o PIN ligado, o kami pede um código de 4 a 8 dígitos sempre que abre — e nenhum dado sai do app antes disso.</p>
-        <p class="settings-note">o PIN protege a <strong>abertura do app</strong>: não cifra o arquivo do banco e não protege contra um programa rodando no seu usuário.</p>
-        <div id="cfg-pin">verificando…</div>
+        <h4>${t("seguranca.pin_pra_abrir_o_app")}</h4>
+        <p class="settings-desc">${t("seguranca.com_o_pin_ligado_o")}</p>
+        <p class="settings-note">${t("seguranca.nota_pin")}</p>
+        <div id="cfg-pin">${t("seguranca.verificando")}</div>
       </div>
       <div class="settings-section">
-        <h4>senhas salvas</h4>
-        <p class="settings-desc">a senha de app do e-mail, o token do github e a chave da busca ficam cifrados no banco. a chave que abre esses dados fica:</p>
-        <p class="cfg-seg-chave" id="cfg-seg-chave">verificando…</p>
+        <h4>${t("seguranca.senhas_salvas")}</h4>
+        <p class="settings-desc">${t("seguranca.a_senha_de_app_do")}</p>
+        <p class="cfg-seg-chave" id="cfg-seg-chave">${t("seguranca.verificando")}</p>
         <p class="settings-status" id="cfg-seg-status"></p>
-        <p class="settings-note">a chave não vai junto quando a pasta de dados é copiada pra outro computador — lá, essas senhas precisam ser informadas de novo. pra levar tudo, use o backup <strong>com senha</strong> (backup e dados).</p>
+        <p class="settings-note">${t("seguranca.nota_chave")}</p>
       </div>
       <div class="settings-section settings-danger" id="cfg-seg-redefinir" hidden>
-        <h4>redefinir a chave</h4>
+        <h4>${t("seguranca.redefinir_a_chave")}</h4>
         <p class="settings-desc" id="cfg-seg-redefinir-desc"></p>
         <div class="field">
-          <label for="cfg-seg-confirm">digite <strong>${REDEFINIR_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="cfg-seg-confirm">${t("geral.digite_pra_habilitar", { palavra: `<strong>${REDEFINIR_WORD}</strong>` })}</label>
           <input type="text" id="cfg-seg-confirm" placeholder="${REDEFINIR_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
-          <button class="btn sm danger" id="cfg-seg-redefinir-btn" disabled>redefinir chave</button>
+          <button class="btn sm danger" id="cfg-seg-redefinir-btn" disabled>${t("seguranca.redefinir_chave")}</button>
         </div>
       </div>
     </div>`;
@@ -61,34 +62,34 @@ const PIN_INPUT = (id, label) =>
 
 function pinDesligadoHtml() {
   return `
-    ${PIN_INPUT("cfg-pin-novo", "PIN (4 a 8 dígitos)")}
-    ${PIN_INPUT("cfg-pin-novo2", "repita o PIN")}
-    <div class="form-actions"><button class="btn sm" data-pin-acao="ligar">ligar PIN</button></div>
+    ${PIN_INPUT("cfg-pin-novo", t("seguranca.pin_4_a_8_digitos"))}
+    ${PIN_INPUT("cfg-pin-novo2", t("seguranca.repita_o_pin"))}
+    <div class="form-actions"><button class="btn sm" data-pin-acao="ligar">${t("seguranca.ligar_pin")}</button></div>
     <p class="settings-status" id="cfg-pin-status"></p>`;
 }
 
 function pinLigadoHtml(estado) {
   const opcoes = [[null, "desligado"], [5, "5 min"], [15, "15 min"], [30, "30 min"]];
   return `
-    <p class="cfg-seg-chave" data-local="cofre">${icon("check", { size: 12 })} ligado — o kami pede o PIN ao abrir.</p>
+    <p class="cfg-seg-chave" data-local="cofre">${icon("check", { size: 12 })} ${t("seguranca.ligado_o_kami_pede_o")}</p>
     <div class="field">
-      <span class="cfg-pin-label" id="cfg-pin-inat-label">bloquear de novo depois de um tempo sem uso</span>
+      <span class="cfg-pin-label" id="cfg-pin-inat-label">${t("seguranca.bloquear_de_novo_depois_de")}</span>
       <div class="cfg-pin-inat" role="group" aria-labelledby="cfg-pin-inat-label">
         ${opcoes.map(([v, t]) => `<button type="button" class="btn sm" data-inat="${v ?? ""}" aria-pressed="${(estado.inatividade_min ?? null) === v}">${t}</button>`).join("")}
       </div>
     </div>
-    <div class="form-actions"><button class="btn sm" data-pin-acao="bloquear">bloquear agora</button></div>
+    <div class="form-actions"><button class="btn sm" data-pin-acao="bloquear">${t("seguranca.bloquear_agora")}</button></div>
     <details class="cfg-pin-mais">
-      <summary>trocar o PIN</summary>
-      ${PIN_INPUT("cfg-pin-atual", "PIN atual")}
-      ${PIN_INPUT("cfg-pin-troca", "PIN novo")}
-      ${PIN_INPUT("cfg-pin-troca2", "repita o PIN novo")}
-      <div class="form-actions"><button class="btn sm" data-pin-acao="trocar">trocar PIN</button></div>
+      <summary>${t("seguranca.trocar_o_pin")}</summary>
+      ${PIN_INPUT("cfg-pin-atual", t("seguranca.pin_atual"))}
+      ${PIN_INPUT("cfg-pin-troca", t("seguranca.pin_novo"))}
+      ${PIN_INPUT("cfg-pin-troca2", t("seguranca.repita_o_pin_novo"))}
+      <div class="form-actions"><button class="btn sm" data-pin-acao="trocar">${t("seguranca.trocar_pin")}</button></div>
     </details>
     <details class="cfg-pin-mais">
-      <summary>desligar o PIN</summary>
-      ${PIN_INPUT("cfg-pin-atual-off", "PIN atual")}
-      <div class="form-actions"><button class="btn sm danger" data-pin-acao="desligar">desligar PIN</button></div>
+      <summary>${t("seguranca.desligar_o_pin")}</summary>
+      ${PIN_INPUT("cfg-pin-atual-off", t("seguranca.pin_atual"))}
+      <div class="form-actions"><button class="btn sm danger" data-pin-acao="desligar">${t("seguranca.desligar_pin")}</button></div>
     </details>
     <p class="settings-status" id="cfg-pin-status"></p>`;
 }
@@ -106,8 +107,8 @@ function pinStatus(box, html, erro = false) {
 }
 
 function validarPinNovo(a, b) {
-  if (!/^[0-9]{4,8}$/.test(a)) return "o PIN tem de 4 a 8 dígitos (só números)";
-  if (a !== b) return "os dois PINs não são iguais";
+  if (!/^[0-9]{4,8}$/.test(a)) return t("seguranca.o_pin_tem_de_4");
+  if (a !== b) return t("seguranca.os_dois_pins_nao_sao");
   return "";
 }
 
@@ -129,7 +130,7 @@ function renderPin(wrap, estado) {
       if (ocultar) ocultar.checked = true;
       // o código aparece UMA vez — só sai daqui com o "guardei"
       box.innerHTML = `${codigoRecuperacaoHtml(res.codigo_recuperacao)}
-        <div class="form-actions"><button class="btn sm" data-pin-acao="guardei">guardei o código</button></div>`;
+        <div class="form-actions"><button class="btn sm" data-pin-acao="guardei">${t("seguranca.guardei_o_codigo")}</button></div>`;
       wireCodigoRecuperacao(box);
       box.querySelector('[data-pin-acao="guardei"]').addEventListener("click", () => renderPin(wrap, res));
     } catch (err) {
@@ -143,7 +144,7 @@ function renderPin(wrap, estado) {
         const res = await definirInatividade(btn.dataset.inat ? Number(btn.dataset.inat) : null);
         avisarPinConfig(res);
         renderPin(wrap, res);
-        pinStatus(box, `${icon("check", { size: 12 })} ${res.inatividade_min ? `bloqueia depois de ${res.inatividade_min} min sem uso` : "sem bloqueio por inatividade"}`);
+        pinStatus(box, `${icon("check", { size: 12 })} ${res.inatividade_min ? t("seguranca.bloqueia_depois", { n: res.inatividade_min }) : t("seguranca.sem_bloqueio_por_inatividade")}`);
       } catch (err) {
         falhou(err);
       }
@@ -164,7 +165,7 @@ function renderPin(wrap, estado) {
     try {
       const res = await trocarPin(val("cfg-pin-atual"), val("cfg-pin-troca"));
       renderPin(wrap, res);
-      pinStatus(box, `${icon("check", { size: 12 })} PIN trocado — o código de recuperação continua o mesmo`);
+      pinStatus(box, `${icon("check", { size: 12 })} ${t("seguranca.pin_trocado")}`);
     } catch (err) {
       falhou(err);
     }
@@ -175,7 +176,7 @@ function renderPin(wrap, estado) {
       const res = await desativarPin(val("cfg-pin-atual-off"));
       avisarPinConfig(res);
       renderPin(wrap, res);
-      pinStatus(box, `${icon("check", { size: 12 })} PIN desligado — o kami abre direto`);
+      pinStatus(box, `${icon("check", { size: 12 })} ${t("seguranca.pin_desligado")}`);
     } catch (err) {
       falhou(err);
     }
@@ -186,18 +187,18 @@ async function loadPin(wrap) {
   try {
     renderPin(wrap, await getPin());
   } catch (err) {
-    wrap.querySelector("#cfg-pin").textContent = `não deu pra verificar: ${err.message}`;
+    wrap.querySelector("#cfg-pin").textContent = t("seguranca.erro_verificar", { erro: err.message });
   }
 }
 
 function describeChave(estado) {
   if (estado.local === "cofre") {
-    return `${icon("check", { size: 12 })} no cofre do sistema (${escapeHtml(estado.cofre)}) — quem copiar a pasta de dados não leva a chave junto.`;
+    return `${icon("check", { size: 12 })} ${escapeHtml(t("seguranca.no_cofre", { cofre: estado.cofre }))}`;
   }
   if (estado.local === "arquivo") {
-    return `<span class="cfg-seg-warn">[!]</span> num arquivo na pasta de dados — ${escapeHtml(estado.motivo || "o sistema não tem cofre")}. funciona, mas quem copiar a pasta leva a chave junto.`;
+    return `<span class="cfg-seg-warn">[!]</span> num arquivo na pasta de dados — ${escapeHtml(estado.motivo || t("seguranca.o_sistema_nao_tem_cofre"))}. funciona, mas quem copiar a pasta leva a chave junto.`;
   }
-  return `<span class="cfg-seg-warn">[!]</span> indisponível — ${escapeHtml(estado.motivo || "o cofre não entregou a chave")}. as senhas salvas não podem ser lidas até a chave voltar.`;
+  return `<span class="cfg-seg-warn">[!]</span> indisponível — ${escapeHtml(estado.motivo || t("seguranca.o_cofre_nao_entregou_a"))}. as senhas salvas não podem ser lidas até a chave voltar.`;
 }
 
 async function loadSeguranca(wrap) {
@@ -211,12 +212,12 @@ async function loadSeguranca(wrap) {
     const n = estado.segredos_salvos;
     const perda =
       n === 0
-        ? "não há senha salva agora, então nada é apagado."
-        : `${n === 1 ? "a senha salva é apagada" : `as ${n} senhas salvas são apagadas`} e precisa${n === 1 ? "" : "m"} ser informada${n === 1 ? "" : "s"} de novo em configurações › chaves.`;
+        ? t("seguranca.nao_ha_senha_salva_agora")
+        : t("seguranca.senhas_apagadas", { n });
     wrap.querySelector("#cfg-seg-redefinir-desc").textContent =
-      `se o cofre não vai mais devolver a chave (outro computador, outro ambiente gráfico, cofre apagado), dá pra criar uma chave nova. ${perda} o resto dos dados não muda.`;
+      t("seguranca.redefinir_desc", { perda });
   } catch (err) {
-    el.textContent = `não deu pra verificar: ${err.message}`;
+    el.textContent = t("seguranca.erro_verificar", { erro: err.message });
   }
 }
 
@@ -236,11 +237,11 @@ export function wireSegurancaTab(wrap) {
     try {
       const res = await redefinirChave(input.value.trim().toLowerCase());
       input.value = "";
-      status.innerHTML = `${icon("check", { size: 12 })} chave nova criada${res.segredos_apagados ? ` — informe de novo em configurações › chaves ${res.segredos_apagados === 1 ? "a senha apagada" : `as ${res.segredos_apagados} senhas apagadas`}` : ""}.`;
+      status.innerHTML = `${icon("check", { size: 12 })} ${escapeHtml(res.segredos_apagados ? t("seguranca.chave_nova_senhas", { n: res.segredos_apagados }) : t("seguranca.chave_nova"))}`;
       status.classList.add("settings-status--visible");
       await loadSeguranca(wrap);
     } catch (err) {
-      showErrorModal(err.message, "não deu pra redefinir a chave");
+      showErrorModal(err.message, t("seguranca.nao_deu_pra_redefinir_a"));
       btn.disabled = false;
     }
   });

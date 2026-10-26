@@ -2,6 +2,7 @@
 import { getLog } from "../api/nucleo.js";
 import { escapeHtml, fmtData, localDateKey, mesesCurtos } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
+import { t } from "../i18n.js";
 
 /**
  * Contribution graph — atividade dos últimos ~PERIOD_DAYS dias,
@@ -56,13 +57,13 @@ function levelFor(count) {
 
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando atividade…</div>';
+  el.innerHTML = `<div class="empty-state">${t("perfil_atividade.carregando_atividade")}</div>`;
 
   let entries;
   try {
     entries = await getLog({ period_days: PERIOD_DAYS + 7, limit: LIMIT });
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar atividade: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_atividade", { erro: err.message }))}</div>`;
     return;
   }
 
@@ -101,8 +102,8 @@ export async function render(el, widget) {
           const lvl = levelFor(count);
           const isToday = key === todayKey;
           const dataStr = fmtData(key);
-          const tip = count === 0 ? `${dataStr} — sem ações` : `${dataStr} — ${count} ${count === 1 ? "ação" : "ações"}`;
-          altRows.push([dataStr, count === 0 ? "sem ações" : `${count} ${count === 1 ? "ação" : "ações"}`]);
+          const tip = t("perfil_atividade.dia_acoes", { data: dataStr, n: count });
+          altRows.push([dataStr, t("perfil_atividade.acoes_n", { n: count })]);
           return `<span class="pa-cell pa-lvl${lvl}${isToday ? " pa-today" : ""}" data-tooltip="${escapeHtml(tip)}"></span>`;
         })
         .join("")
@@ -116,17 +117,17 @@ export async function render(el, widget) {
       <div class="pa-months" aria-hidden="true">${monthLabels}</div>
       <div class="pa-grid" aria-hidden="true" style="grid-template-columns: repeat(${weeks.length}, 1fr);">${cells}</div>
       <div class="pa-legend" aria-hidden="true">
-        <span>${totalActions} ações nos últimos ${PERIOD_DAYS} dias</span>
+        <span>${t("perfil_atividade.total", { n: totalActions, dias: PERIOD_DAYS })}</span>
         <span class="pa-scale">
-          menos
+          ${t("perfil_atividade.menos")}
           <i class="pa-swatch pa-lvl0"></i><i class="pa-swatch pa-lvl1"></i><i class="pa-swatch pa-lvl2"></i><i class="pa-swatch pa-lvl3"></i><i class="pa-swatch pa-lvl4"></i>
-          mais
+          ${t("perfil_atividade.mais")}
         </span>
       </div>
-      <p class="sr-only">${totalActions} ações nos últimos ${PERIOD_DAYS} dias.</p>
+      <p class="sr-only">${t("perfil_atividade.total", { n: totalActions, dias: PERIOD_DAYS })}</p>
       ${buildTextAltTable({
-        caption: `Atividade diária dos últimos ${PERIOD_DAYS} dias`,
-        headers: ["Data", "Ações"],
+        caption: t("perfil_atividade.caption", { dias: PERIOD_DAYS }),
+        headers: [t("perfil_atividade.col_data"), t("perfil_atividade.acoes_2")],
         rows: altRows,
       })}
     </div>`;

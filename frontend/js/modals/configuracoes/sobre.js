@@ -18,6 +18,7 @@ import {
   comoAtualiza,
 } from "../../components/atualizacao.js";
 import { store } from "../../state/store.js";
+import { t } from "../../i18n.js";
 
 // CONF-06: relato de problema (templates em .github/ISSUE_TEMPLATE)
 const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
@@ -32,34 +33,34 @@ export function buildSobrePanel() {
   return `
     <div class="cfg-panel" data-panel="sobre">
       <div class="settings-section" style="padding-top:0;">
-        <h4>kami</h4>
-        <p class="settings-desc" id="cfg-sobre-versao">versão —</p>
+        <h4>${t("sobre.kami")}</h4>
+        <p class="settings-desc" id="cfg-sobre-versao">${t("sobre.versao")}</p>
       </div>
       <div class="settings-section" id="cfg-atualiza" hidden>
-        <h4>atualizações</h4>
-        <p class="settings-desc">o kami avisa no sino quando sai uma versão nova — nunca baixa nem instala sozinho. pra saber, ele consulta só a lista de versões da página do kami no GitHub (ao abrir e uma vez por dia); nada seu vai junto.</p>
+        <h4>${t("sobre.atualizacoes")}</h4>
+        <p class="settings-desc">${t("sobre.o_kami_avisa_no_sino")}</p>
         <label class="cfg-toggle">
           <input type="checkbox" id="cfg-atualiza-procurar">
-          <span>procurar atualizações<small>desligado, o kami não faz essa consulta nunca — dá pra ver as versões em github.com/emanuel-frs/KAMI/releases.</small></span>
+          <span>${t("sobre.procurar_atualizacoes")}<small>${t("sobre.desligado_o_kami_nao_faz")}</small></span>
         </label>
         <div class="form-actions">
-          <button class="btn sm" id="cfg-atualiza-agora">procurar agora</button>
-          <button class="btn sm primary" id="cfg-atualiza-instalar" hidden>atualizar agora</button>
-          <button class="btn sm" id="cfg-atualiza-novidades" hidden>ver novidades</button>
+          <button class="btn sm" id="cfg-atualiza-agora">${t("sobre.procurar_agora")}</button>
+          <button class="btn sm primary" id="cfg-atualiza-instalar" hidden>${t("sobre.atualizar_agora")}</button>
+          <button class="btn sm" id="cfg-atualiza-novidades" hidden>${t("sobre.ver_novidades")}</button>
         </div>
         <p class="settings-status" id="cfg-atualiza-status" aria-live="polite"></p>
       </div>
       <div class="settings-section">
-        <h4>diagnóstico</h4>
-        <p class="settings-desc">quando algo der errado, o diagnóstico junta a versão, o sistema e o fim do log do kami num texto pronto pra colar num relato de problema. e-mails, chaves, senhas, valores em R$ e o nome da sua pasta pessoal saem antes — confira abaixo o que vai.</p>
+        <h4>${t("sobre.diagnostico")}</h4>
+        <p class="settings-desc">${t("sobre.diag_desc")}</p>
         <div class="form-actions">
-          <button class="btn sm" id="cfg-diag-copy">copiar diagnóstico</button>
-          <button class="btn sm" id="cfg-diag-save">salvar .txt</button>
-          <button class="btn sm" id="cfg-diag-folder" hidden>abrir pasta do log</button>
-          <button class="btn sm" id="cfg-diag-report" data-open-link="${ISSUES_URL}">relatar um problema</button>
+          <button class="btn sm" id="cfg-diag-copy">${t("sobre.copiar_diagnostico")}</button>
+          <button class="btn sm" id="cfg-diag-save">${t("sobre.salvar_txt")}</button>
+          <button class="btn sm" id="cfg-diag-folder" hidden>${t("sobre.abrir_pasta_do_log")}</button>
+          <button class="btn sm" id="cfg-diag-report" data-open-link="${ISSUES_URL}">${t("sobre.relatar_um_problema")}</button>
         </div>
         <p class="settings-status" id="cfg-diag-status"></p>
-        <pre class="cfg-diag-preview" id="cfg-diag-preview" tabindex="0" aria-label="prévia do diagnóstico">carregando…</pre>
+        <pre class="cfg-diag-preview" id="cfg-diag-preview" tabindex="0" aria-label="${t("sobre.previa_do_diagnostico")}">${t("geral.carregando")}</pre>
       </div>
     </div>`;
 }
@@ -75,7 +76,7 @@ async function loadDiagnostico(wrap) {
     pre.textContent = diagText;
   } catch (err) {
     diagText = "";
-    pre.textContent = `não deu pra gerar o diagnóstico: ${err.message}`;
+    pre.textContent = t("sobre.erro_diag", { erro: err.message });
   }
 }
 
@@ -90,16 +91,16 @@ function renderAtualizacao(wrap) {
   const instalar = wrap.querySelector("#cfg-atualiza-instalar");
   instalar.hidden = !disponivel?.instalavel;
   instalar.disabled = instalando;
-  instalar.textContent = instalando ? "atualizando…" : "atualizar agora";
+  instalar.textContent = instalando ? "atualizando…" : t("sobre.atualizar_agora");
   wrap.querySelector("#cfg-atualiza-novidades").hidden = !disponivel;
   const pulada = disponivel && disponivel.versao === store.get("profile")?.atualizacao_pulada;
   const status = wrap.querySelector("#cfg-atualiza-status");
   if (disponivel) {
-    status.textContent = `versão ${disponivel.versao} disponível${pulada ? " (pulada no sino)" : ""} — ${comoAtualiza(disponivel)}.`;
+    status.textContent = t("sobre.versao_disponivel", { versao: disponivel.versao, pulada: pulada ? t("sobre.pulada_no_sino") : "", como: comoAtualiza(disponivel) });
   } else if (ultimaConsulta) {
-    status.textContent = `você está na versão mais recente (conferido às ${String(ultimaConsulta.getHours()).padStart(2, "0")}:${String(ultimaConsulta.getMinutes()).padStart(2, "0")}).`;
+    status.textContent = t("sobre.mais_recente", { hora: `${String(ultimaConsulta.getHours()).padStart(2, "0")}:${String(ultimaConsulta.getMinutes()).padStart(2, "0")}` });
   } else {
-    status.textContent = ligado ? "" : "procura desligada.";
+    status.textContent = ligado ? "" : t("sobre.procura_desligada");
   }
   status.classList.toggle("settings-status--visible", !!status.textContent);
 }
@@ -114,14 +115,14 @@ function wireAtualizacao(wrap) {
       await definirProcurar(e.target.checked);
     } catch (err) {
       e.target.checked = !e.target.checked;
-      showErrorModal(err.message, "erro ao salvar");
+      showErrorModal(err.message, t("sobre.erro_ao_salvar"));
     }
   });
   const agora = wrap.querySelector("#cfg-atualiza-agora");
   agora.addEventListener("click", async () => {
     const status = wrap.querySelector("#cfg-atualiza-status");
     agora.disabled = true;
-    status.textContent = "procurando…";
+    status.textContent = t("sobre.procurando");
     status.classList.add("settings-status--visible");
     try {
       await procurarAgora();
@@ -153,7 +154,7 @@ export function wireSobreTab(wrap) {
   wrap.querySelector("#cfg-diag-copy").addEventListener("click", async () => {
     if (!diagText) await loadDiagnostico(wrap);
     const ok = diagText && (await copyText(diagText));
-    diagStatus(wrap, ok ? `${icon("check", { size: 12 })} diagnóstico copiado` : "não deu pra copiar — selecione o texto abaixo e copie à mão");
+    diagStatus(wrap, ok ? `${icon("check", { size: 12 })} ${t("sobre.diag_copiado")}` : t("sobre.nao_deu_pra_copiar_selecione"));
   });
   wrap.querySelector("#cfg-diag-save").addEventListener("click", async () => {
     if (!diagText) await loadDiagnostico(wrap);
@@ -167,7 +168,7 @@ export function wireSobreTab(wrap) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    diagStatus(wrap, `${icon("check", { size: 12 })} salvo como ${escapeHtml(filename)} (confira sua pasta de downloads)`);
+    diagStatus(wrap, `${icon("check", { size: 12 })} ${escapeHtml(t("sobre.salvo_como", { arquivo: filename }))}`);
   });
   // abrir a pasta é do app instalado (comando do Rust, CONF-02) — no navegador de dev não existe
   const folderBtn = wrap.querySelector("#cfg-diag-folder");
@@ -177,7 +178,7 @@ export function wireSobreTab(wrap) {
       try {
         await window.__TAURI__.core.invoke("open_log_folder");
       } catch (err) {
-        showErrorModal(String(err), "não deu pra abrir a pasta");
+        showErrorModal(String(err), t("sobre.nao_deu_pra_abrir_a"));
       }
     });
   }

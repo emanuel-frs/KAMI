@@ -1,7 +1,7 @@
 import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { getShortcuts, comboParts, registerGlobalShortcuts } from "../components/shortcuts.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Lista de atalhos de teclado — globais + da tela atual.
@@ -21,10 +21,10 @@ let modalEl = null;
 
 // Teclas que já funcionam em qualquer tela por padrão do navegador ou do
 // próprio app — vale listar porque quem usa só teclado precisa saber.
-const GENERAL_HINTS = [
-  { combos: [["Tab"], ["Shift", "Tab"]], label: "avançar / voltar entre os controles" },
-  { combos: [["Enter"], ["Espaço"]], label: "ativar o botão ou item com o foco" },
-  { combos: [["Esc"]], label: "fechar a janela aberta ou encerrar as dicas da tela" },
+const generalHints = () => [
+  { combos: [["Tab"], ["Shift", "Tab"]], label: t("shortcuts_help.avancar_voltar_entre_os_controles") },
+  { combos: [["Enter"], [t("shortcuts_help.espaco")]], label: t("shortcuts_help.ativar_o_botao_ou_item") },
+  { combos: [["Esc"]], label: t("shortcuts_help.fechar_a_janela_aberta_ou") },
 ];
 
 function kbd(parts) {
@@ -49,7 +49,7 @@ function renderBody() {
   // reservar metade do modal pra uma frase) e o modal fica mais estreito.
   let left = "";
   if (hasScreen) {
-    left += `<h3 class="ks-section">nesta tela — ${escapeHtml(screen.name)}</h3><dl class="wg-shortcuts-list">`;
+    left += `<h3 class="ks-section">${escapeHtml(t("atalhos.nesta_tela", { tela: screen.name }))}</h3><dl class="wg-shortcuts-list">`;
     screen.actions.forEach((a) => {
       left += row(kbd(comboParts(a)), a.label);
     });
@@ -70,26 +70,26 @@ function renderBody() {
   const actions = global.filter((a) => a.group !== "nav" && a.group !== "apelido");
   const navShortcuts = global.filter((a) => a.group === "nav");
 
-  let right = `<h3 class="ks-section">em qualquer tela</h3><dl class="wg-shortcuts-list">`;
+  let right = `<h3 class="ks-section">${t("shortcuts_help.em_qualquer_tela")}</h3><dl class="wg-shortcuts-list">`;
   // ORG-03: a paleta não é Alt+tecla (fica fora do registro de shortcuts.js)
-  right += row(kbd(["Ctrl", "K"]), "buscar em tudo e rodar comandos");
+  right += row(kbd(["Ctrl", "K"]), t("shortcuts_help.buscar_em_tudo_e_rodar"));
   actions.forEach((a) => {
     right += row(kbd(comboParts(a)), a.label);
   });
   right += `</dl>`;
 
   if (navShortcuts.length) {
-    right += `<h4 class="ks-subsection">ir para uma tela</h4>`;
+    right += `<h4 class="ks-subsection">${t("shortcuts_help.ir_para_uma_tela")}</h4>`;
     right += `<div class="ks-nav-grid">${navShortcuts.map(navItem).join("")}</div>`;
   }
 
   right += `<dl class="wg-shortcuts-list ks-hints-list">`;
-  GENERAL_HINTS.forEach((h) => {
+  generalHints().forEach((h) => {
     right += row(h.combos.map(kbd).join(" <span class=\"ks-or\">ou</span> "), h.label);
   });
   right += `</dl>`;
 
-  const note = `<p class="em-message wg-shortcuts-note">os atalhos de ação usam Alt + uma tecla (só a busca é Ctrl+K). no teclado ABNT2, use o Alt da esquerda — o AltGr (da direita) continua digitando os caracteres dele.</p>`;
+  const note = `<p class="em-message wg-shortcuts-note">${t("shortcuts_help.os_atalhos_de_acao_usam")}</p>`;
 
   const html = `<div class="ks-cols">${hasScreen ? `<div class="ks-col">${left}</div>` : ""}<div class="ks-col">${right}</div></div>${note}`;
   return { html, hasScreen };
@@ -106,16 +106,16 @@ function buildModal() {
   wrap.innerHTML = `
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-head-title">atalhos de teclado</span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <span class="modal-head-title">${t("shortcuts_help.atalhos_de_teclado")}</span>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <!-- a lista rola sozinha quando a janela é baixa (cabeçalho e botão
              ficam fixos). tabindex=0: nem todo webview deixa quem usa só
              teclado rolar uma área sem foco. -->
-        <div id="shortcuts-help-body" class="ks-scroll" tabindex="0" role="region" aria-label="lista de atalhos"></div>
+        <div id="shortcuts-help-body" class="ks-scroll" tabindex="0" role="region" aria-label="${t("shortcuts_help.lista_de_atalhos")}"></div>
         <div class="form-actions">
-          <button type="button" class="btn sm primary" data-action="close" data-autofocus>entendi</button>
+          <button type="button" class="btn sm primary" data-action="close" data-autofocus>${t("geral.entendi")}</button>
         </div>
       </div>
     </div>
@@ -145,6 +145,6 @@ export function openShortcutsHelp() {
 /** Registra o atalho global Alt+H. Chamar uma vez no boot (app.js). */
 export function wireShortcutsHelp() {
   registerGlobalShortcuts([
-    { code: "KeyH", label: "abrir esta lista de atalhos", run: () => openShortcutsHelp() },
+    { code: "KeyH", label: t("shortcuts_help.abrir_esta_lista_de_atalhos"), run: () => openShortcutsHelp() },
   ]);
 }
