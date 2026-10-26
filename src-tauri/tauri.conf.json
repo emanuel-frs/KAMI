@@ -60,6 +60,20 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       }
+    },
+    "linux": {
+      "deb": {
+        "recommends": [
+          "fonts-noto-cjk",
+          "fonts-noto-core"
+        ]
+      },
+      "rpm": {
+        "recommends": [
+          "google-noto-sans-cjk-fonts",
+          "google-noto-sans-devanagari-fonts"
+        ]
+      }
     }
   },
   "plugins": {

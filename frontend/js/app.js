@@ -44,6 +44,7 @@ import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
 import { definirFormatoData, definirMoeda, formatoData, moeda } from "./components/format.js";
 import { moedaDoPais, paisDoSistema } from "./components/pais.js";
+import { avisarSeFaltarFonte } from "./components/fonte-idioma.js";
 import { wireCamposData } from "./components/campos-data.js";
 import { novaVisitaDeTela } from "./components/dicas-novas.js";
 import { carregarIdioma, idiomaAtual, idiomaDoSistema, idiomaGuardado, t } from "./i18n.js";
@@ -251,7 +252,13 @@ async function aplicarIdiomaDoPerfil(profile) {
     return;
   }
   if (profile.idioma !== idiomaAtual()) await carregarIdioma(profile.idioma);
+  // I18N-04: na abertura, uma vez — trocas depois passam por aoTrocarIdioma
+  if (!fonteConferida) {
+    fonteConferida = true;
+    avisarSeFaltarFonte(idiomaAtual());
+  }
 }
+let fonteConferida = false;
 
 /**
  * I18N-06: moeda e país dos feriados. Banco novo (vazios) escolhe pelo
@@ -276,6 +283,7 @@ async function aplicarMoedaEPais(profile) {
 
 /** Trocou o idioma: textos fixos já foram (i18n.js); falta o resto. */
 function aoTrocarIdioma() {
+  avisarSeFaltarFonte(idiomaAtual());
   applyProfileToSidebar(store.get("profile"));
   enviarTextosDaBandeja();
   if (currentPageName) showPage(currentPageName, { remontar: true });

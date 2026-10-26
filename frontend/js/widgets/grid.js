@@ -472,7 +472,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
 
     card.innerHTML = `
       <div class="card-head">
-        ${def.label}${removeBtn}
+        <span class="card-label">${def.label}</span>${removeBtn}
       </div>
       <div class="card-body">
         <span style="color:var(--text-faint);font-size:10px;">${t("geral.carregando")}</span>

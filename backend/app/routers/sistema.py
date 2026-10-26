@@ -36,6 +36,8 @@ arquivo cifrado e voltam cifrados com a chave de quem importa.
 import logging
 import platform
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
@@ -563,6 +565,28 @@ def _local_da_chave() -> str:
         return f"erro ao consultar ({type(exc).__name__})"
     texto = estado["local"] + (f" ({estado['cofre']})" if estado["cofre"] else "")
     return texto + (f" — {estado['motivo']}" if estado["motivo"] else "")
+
+
+# I18N-04 (P-85): o app usa as fontes do sistema. No Linux uma instalação
+# mínima pode não ter fonte com ideogramas/devanágari (quadradinhos no
+# lugar do texto); o fontconfig responde se há alguma. Windows e macOS
+# trazem as fontes desses idiomas — lá a resposta é sempre "tem".
+_FONTCONFIG_LANG = {"zh": "zh-cn", "ja": "ja", "ko": "ko", "hi": "hi"}
+
+
+@router.get("/fonte/{idioma}")
+def tem_fonte(idioma: str):
+    lang = _FONTCONFIG_LANG.get(idioma)
+    if not lang or platform.system() != "Linux":
+        return {"tem": True}
+    fc_list = shutil.which("fc-list")
+    if not fc_list:
+        return {"tem": None}  # sem como saber: o app não avisa
+    try:
+        saida = subprocess.run([fc_list, f":lang={lang}", "family"], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {"tem": None}
+    return {"tem": bool(saida.strip())}
 
 
 @router.get("/diagnostico")
