@@ -3,7 +3,7 @@ import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { noIdiomaAtual, t } from "../i18n.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, moeda } from "../components/format.js";
 import { rotuloContrato } from "../components/textos-sistema.js";
 
 /**
@@ -32,7 +32,7 @@ function buildModal() {
       <div class="modal-body">
         <div class="field-row">
           <div class="field"><label for="sm-amount">${t("salario.valor")}</label><input type="text" id="sm-amount" placeholder="${t("salario.ex_8500_00")}"></div>
-          <div class="field"><label for="sm-currency">${t("salario.moeda")}</label><input type="text" id="sm-currency" placeholder="${t("salario.brl")}"></div>
+          <div class="field"><label for="sm-currency">${t("salario.moeda")}</label><input type="text" id="sm-currency" placeholder="${moeda()}"></div>
         </div>
         <div class="field-row">
           <div class="field"><label for="sm-date">${t("salario.data")}</label><input type="date" id="sm-date"></div>
@@ -88,7 +88,7 @@ async function submitSalaryRecord(wrap) {
 
   const payload = {
     amount,
-    currency: wrap.querySelector("#sm-currency").value.trim() || "BRL",
+    currency: wrap.querySelector("#sm-currency").value.trim().toUpperCase() || moeda(),
     employment_type: wrap.querySelector("#sm-employment-type").value || null,
     date: dateVal,
     reason: wrap.querySelector("#sm-reason").value.trim() || null,
@@ -131,7 +131,7 @@ export async function openSalarioModal({ record = null, onSaved } = {}) {
   saveBtn.textContent = editingRecord ? t("salario.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#sm-amount").value = editingRecord?.amount ?? "";
-  modalEl.querySelector("#sm-currency").value = editingRecord?.currency || "BRL";
+  modalEl.querySelector("#sm-currency").value = editingRecord?.currency || moeda();
   modalEl.querySelector("#sm-date").value = editingRecord?.date || "";
   modalEl.querySelector("#sm-employment-type").value = editingRecord?.employment_type || "";
   modalEl.querySelector("#sm-reason").value = editingRecord?.reason || "";

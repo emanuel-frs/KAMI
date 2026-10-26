@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoeda, simboloMoeda } from "../components/format.js";
 import { openFonteRendaModal } from "../modals/fonte-renda-modal.js";
 import { openPayIncomeModal } from "../modals/pay-income-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -26,7 +26,7 @@ import { t } from "../i18n.js";
  */
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 function formatDate(iso) {
   if (!iso) return t("renda.sem_data");
@@ -104,7 +104,7 @@ export async function render(el, widget) {
             </div>
             <div class="renda-meta">
               <span class="renda-data">${pago ? formatDate(e.paid_date) : t("renda.previsto", { data: formatDate(e.expected_date) })}</span>
-              ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("renda.gerou_tx")}">R$</span>` : ""}
+              ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("renda.gerou_tx")}">${simboloMoeda()}</span>` : ""}
               <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}" aria-label="${tooltip}">
                 ${pago ? t("renda.pago") : t("renda.marcar_paga")}
               </button>

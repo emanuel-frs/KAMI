@@ -1,5 +1,5 @@
 import * as carreiraApi from "../api/carreira.js";
-import { escapeHtml, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoeda } from "../components/format.js";
 import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
@@ -29,9 +29,8 @@ function formatDate(iso) {
 }
 
 function money(amount, currency) {
-  const n = Number(amount) || 0;
-  if (currency === "BRL") return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${currency} ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // cada registro guarda a moeda em que foi recebido (não converte)
+  return fmtMoeda(amount, { moeda: currency || "BRL" });
 }
 
 function escapeAttr(str) {

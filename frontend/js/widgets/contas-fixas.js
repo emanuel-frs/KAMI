@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, simboloMoeda } from "../components/format.js";
 import { openContaFixaModal } from "../modals/conta-fixa-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
@@ -30,7 +30,7 @@ function currentMonthStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {
@@ -87,7 +87,7 @@ export async function render(el, widget) {
               <div class="cf-meta">
                 <span class="cf-valor">${brl(valor)}</span>
                 <span class="cf-dia">${t("contas.dia_n", { n: b.due_day })}</span>
-                ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
+                ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("contas.gerou_tx")}">${simboloMoeda()}</span>` : ""}
                 ${b.active
                   ? `<button class="cf-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-bill-id="${b.id}"
                       data-tooltip="${tooltip}" aria-label="${tooltip}">

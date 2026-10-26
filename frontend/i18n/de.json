@@ -1171,7 +1171,7 @@
   "metas.modulos": "{atual} / {alvo} Module",
   "metas.erro_salvar": "Fehler beim Speichern: {erro}",
   "metas.contribuir_para": "in „{meta}“ einzahlen",
-  "metas.valor_rs": "Betrag (R$)",
+  "metas.valor_rs": "Betrag ({moeda})",
   "metas.quantidade": "Menge",
   "metas.quantidade_unidade": "Menge ({unidade})",
   "metas.erro_contribuir": "Fehler beim Einzahlen: {erro}",
@@ -2365,5 +2365,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, von {nome}",
   "atualizacao.rpm_como": "Kami lädt das .rpm herunter, fragt nach dem Systempasswort zum Installieren und öffnet neu",
   "atualizacao.rpm_senha": "das System fragt nach deinem Passwort, um das Paket zu installieren.",
-  "notificacoes.atualizando": "wird aktualisiert…"
+  "notificacoes.atualizando": "wird aktualisiert…",
+  "aparencia.moeda.titulo": "Währung",
+  "aparencia.moeda.desc": "Symbol und Format der Beträge in der ganzen App. Ändert nur die Anzeige — kein Betrag wird umgerechnet.",
+  "aparencia.moeda.erro": "Fehler beim Speichern der Währung",
+  "aparencia.pais.titulo": "Land (Feiertage)",
+  "aparencia.pais.desc": "die Feiertage, die bei Werktagen zählen — etwa das Gehalt am „5. Werktag“. Ein Land ohne bekannten Kalender zählt nur Samstag und Sonntag nicht mit.",
+  "aparencia.pais.sem_feriados": "(ohne Feiertage: Montag bis Freitag)",
+  "aparencia.pais.erro": "Fehler beim Speichern des Landes"
 }

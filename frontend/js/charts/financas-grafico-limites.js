@@ -1,10 +1,10 @@
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { t } from "../i18n.js";
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {

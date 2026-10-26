@@ -1,7 +1,7 @@
 import * as financasApi from "../api/financas.js";
 import { listBanks } from "../api/carteira.js";
 import { openQuitarDividaModal } from "../modals/quitar-divida-modal.js";
-import { escapeHtml, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoeda } from "../components/format.js";
 import { openDividaModal } from "../modals/divida-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -21,7 +21,7 @@ import { t } from "../i18n.js";
  */
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 function formatDate(iso) {
   if (!iso) return t("renda.sem_data");

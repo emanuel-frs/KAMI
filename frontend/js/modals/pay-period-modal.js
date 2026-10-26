@@ -2,6 +2,7 @@ import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { noIdiomaAtual, t } from "../i18n.js";
+import { fmtMoeda } from "../components/format.js";
 
 /**
  * Modal "marcar como paga/pago" — usado por widgets/contas-fixas.js e
@@ -24,7 +25,7 @@ let resolveCb = null;
 let currentConta = null;
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 function buildModal() {

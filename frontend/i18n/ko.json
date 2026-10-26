@@ -1159,7 +1159,7 @@
   "metas.modulos": "{atual} / {alvo} 모듈",
   "metas.erro_salvar": "저장하지 못했어요: {erro}",
   "metas.contribuir_para": "\"{meta}\"에 적립",
-  "metas.valor_rs": "금액 (R$)",
+  "metas.valor_rs": "금액 ({moeda})",
   "metas.quantidade": "수량",
   "metas.quantidade_unidade": "수량 ({unidade})",
   "metas.erro_contribuir": "적립하지 못했어요: {erro}",
@@ -2334,5 +2334,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, 보낸 사람 {nome}",
   "atualizacao.rpm_como": "kami가 .rpm을 다운로드하고, 설치를 위해 시스템 비밀번호를 요청한 뒤 다시 엽니다",
   "atualizacao.rpm_senha": "패키지를 설치하려면 시스템이 비밀번호를 요청합니다.",
-  "notificacoes.atualizando": "업데이트 중…"
+  "notificacoes.atualizando": "업데이트 중…",
+  "aparencia.moeda.titulo": "통화",
+  "aparencia.moeda.desc": "앱 전체 금액의 기호와 형식. 표시만 바뀌며 금액은 환산되지 않습니다.",
+  "aparencia.moeda.erro": "통화 저장 오류",
+  "aparencia.pais.titulo": "국가(공휴일)",
+  "aparencia.pais.desc": "영업일 계산에 들어가는 공휴일 — 예를 들어 \"5번째 영업일\" 월급. 알려진 달력이 없는 국가는 토요일과 일요일만 제외합니다.",
+  "aparencia.pais.sem_feriados": "(공휴일 없음: 월요일~금요일)",
+  "aparencia.pais.erro": "국가 저장 오류"
 }

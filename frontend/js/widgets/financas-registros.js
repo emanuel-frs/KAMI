@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml, fmtDataCurta, mesesCurtos } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, fmtMoeda, mesesCurtos, simboloMoeda } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openTransacaoModal } from "../modals/transacao-modal.js";
 import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
@@ -27,7 +27,7 @@ function monthLabel(monthStr) {
   return `${nomes[m - 1]} ${y}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 // de onde veio o lançamento automático (backend: _ORIGENS_TRANSACAO, em português)
 const ORIGENS = { "conta fixa": "conta_fixa", assinatura: "assinatura", renda: "renda", meta: "meta", "dívida": "divida" };
@@ -102,7 +102,7 @@ export async function render(el, widget) {
         ${visible.length ? visible.map((tx) => {
           const found = lookup[tx.conta_id];
           const bankIcon = found
-            ? (found.bank.icon_ascii ? `<pre>${escapeHtml(found.bank.icon_ascii)}</pre>` : `<span class="ph">${found.bank.is_dinheiro ? "R$" : found.bank.nome.slice(0, 2).toUpperCase()}</span>`)
+            ? (found.bank.icon_ascii ? `<pre>${escapeHtml(found.bank.icon_ascii)}</pre>` : `<span class="ph">${found.bank.is_dinheiro ? simboloMoeda() : found.bank.nome.slice(0, 2).toUpperCase()}</span>`)
             : `<span class="ph">—</span>`;
           const bankName = found ? escapeHtml(found.bank.nome) : t("registros.conta_removida");
           const accountName = found ? escapeHtml(found.account.nome) : "";

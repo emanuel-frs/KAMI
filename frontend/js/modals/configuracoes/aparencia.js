@@ -4,15 +4,15 @@
  * MAN-02: saiu de configuracoes-modal.js.
  */
 import { getRecompensas } from "../../api/nucleo.js";
-import { updateProfile } from "../../api/perfil.js";
-import { escapeHtml, fmtDataNoFormato } from "../../components/format.js";
+import { getPaisesFeriados, updateProfile } from "../../api/perfil.js";
+import { escapeHtml, fmtDataNoFormato, fmtMoeda, moeda } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
 import { ACCENT_OPTIONS } from "../../components/accent-colors.js";
 import { store } from "../../state/store.js";
 import { playSound } from "../../components/sound.js";
 import { estado } from "./estado.js";
-import { IDIOMAS, carregarIdioma, idiomaAtual, t } from "../../i18n.js";
+import { IDIOMAS, carregarIdioma, idiomaAtual, localeAtual, t } from "../../i18n.js";
 import { enhanceSelect, refreshCustomSelect } from "../../components/custom-select.js";
 import { openExternal } from "../../components/open-external.js";
 import { descricaoTema, rotuloTema, rotuloTitulo } from "../../components/textos-sistema.js";
@@ -90,6 +90,22 @@ export function buildAparenciaPanel() {
           </label>`).join("")}
         </div>
         <p class="settings-status" id="cfg-formato-data-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>${t("aparencia.moeda.titulo")}</h4>
+        <p class="settings-desc">${t("aparencia.moeda.desc")}</p>
+        <div class="field">
+          <select id="cfg-moeda" aria-label="${t("aparencia.moeda.titulo")}"></select>
+        </div>
+        <p class="settings-status" id="cfg-moeda-status"></p>
+      </div>
+      <div class="settings-section">
+        <h4>${t("aparencia.pais.titulo")}</h4>
+        <p class="settings-desc">${t("aparencia.pais.desc")}</p>
+        <div class="field">
+          <select id="cfg-pais" aria-label="${t("aparencia.pais.titulo")}"></select>
+        </div>
+        <p class="settings-status" id="cfg-pais-status"></p>
       </div>
       <div class="settings-section">
         <h4>${t("aparencia.sons")}</h4>
@@ -198,6 +214,80 @@ export function wireIdioma(wrap) {
     e.preventDefault();
     openExternal(ISSUES_URL);
   });
+}
+
+// ── moeda e país (I18N-06) ──────────────────────────────────────────────
+// Moeda: só o símbolo e o formato, nunca converte. As mais usadas primeiro,
+// depois todas as que o Intl conhece. País: os que têm calendário de
+// feriados (backend); o atual entra mesmo sem calendário (dia útil =
+// segunda a sexta).
+const MOEDAS_COMUNS = ["BRL", "USD", "EUR", "GBP", "JPY", "CNY", "KRW", "INR", "CAD", "AUD", "CHF", "MXN", "ARS", "CLP", "COP", "PEN", "UYU", "SEK", "NOK", "PLN"];
+
+function nomeDe(tipo, codigo) {
+  try {
+    return new Intl.DisplayNames(localeAtual(), { type: tipo }).of(codigo) || codigo;
+  } catch {
+    return codigo;
+  }
+}
+
+function opcoesDeMoeda(atual) {
+  let todas = [];
+  try {
+    todas = Intl.supportedValuesOf("currency");
+  } catch {
+    /* Intl antigo: só as comuns */
+  }
+  const ordem = [...new Set([...MOEDAS_COMUNS, atual, ...todas.filter((c) => !MOEDAS_COMUNS.includes(c))])];
+  return ordem
+    .map((c) => `<option value="${c}">${escapeHtml(`${nomeDe("currency", c)} — ${fmtMoeda(1234.5, { moeda: c })}`)}</option>`)
+    .join("");
+}
+
+export async function renderMoedaEPais(wrap, profile) {
+  const selMoeda = wrap.querySelector("#cfg-moeda");
+  const atualMoeda = profile.moeda || moeda();
+  selMoeda.innerHTML = opcoesDeMoeda(atualMoeda);
+  selMoeda.value = atualMoeda;
+  refreshCustomSelect(selMoeda);
+
+  const selPais = wrap.querySelector("#cfg-pais");
+  let comFeriados = [];
+  try {
+    comFeriados = (await getPaisesFeriados()).paises;
+  } catch {
+    /* sem a lista: fica só o atual */
+  }
+  const atualPais = profile.pais || "BR";
+  const codigos = [...new Set([...comFeriados, atualPais])];
+  selPais.innerHTML = codigos
+    .map((c) => ({ c, nome: nomeDe("region", c) + (comFeriados.includes(c) ? "" : ` ${t("aparencia.pais.sem_feriados")}`) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, localeAtual()))
+    .map(({ c, nome }) => `<option value="${c}">${escapeHtml(nome)}</option>`)
+    .join("");
+  selPais.value = atualPais;
+  refreshCustomSelect(selPais);
+}
+
+export function wireMoedaEPais(wrap) {
+  for (const [id, campo, erro] of [
+    ["#cfg-moeda", "moeda", "aparencia.moeda.erro"],
+    ["#cfg-pais", "pais", "aparencia.pais.erro"],
+  ]) {
+    const select = wrap.querySelector(id);
+    enhanceSelect(select);
+    select.addEventListener("change", async () => {
+      const antes = store.get("profile")?.[campo];
+      try {
+        // a moeda nova vale na hora: o app remonta a tela aberta
+        store.set("profile", await updateProfile({ [campo]: select.value }));
+      } catch (err) {
+        if (antes) select.value = antes;
+        refreshCustomSelect(select);
+        showErrorModal(err.message, t(erro));
+      }
+    });
+  }
 }
 
 export function renderFormatoData(wrap, current) {

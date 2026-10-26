@@ -1159,7 +1159,7 @@
   "metas.modulos": "{atual} / {alvo} モジュール",
   "metas.erro_salvar": "保存できませんでした：{erro}",
   "metas.contribuir_para": "「{meta}」に積み立てる",
-  "metas.valor_rs": "金額（R$）",
+  "metas.valor_rs": "金額（{moeda}）",
   "metas.quantidade": "数量",
   "metas.quantidade_unidade": "数量（{unidade}）",
   "metas.erro_contribuir": "積み立てできませんでした：{erro}",
@@ -2334,5 +2334,12 @@
   "organizacao_email.item_aria": "{estado}：{assunto}、差出人 {nome}",
   "atualizacao.rpm_como": "kami が .rpm をダウンロードし、インストールのためにシステムのパスワードを求めてから再起動します",
   "atualizacao.rpm_senha": "パッケージのインストールにシステムがパスワードを求めます。",
-  "notificacoes.atualizando": "更新中…"
+  "notificacoes.atualizando": "更新中…",
+  "aparencia.moeda.titulo": "通貨",
+  "aparencia.moeda.desc": "アプリ全体の金額の記号と形式。表示が変わるだけで、金額は換算されません。",
+  "aparencia.moeda.erro": "通貨の保存エラー",
+  "aparencia.pais.titulo": "国（祝日）",
+  "aparencia.pais.desc": "営業日の計算に入る祝日 — たとえば「第5営業日」の給料日。既知のカレンダーがない国は土曜と日曜だけを除きます。",
+  "aparencia.pais.sem_feriados": "（祝日なし：月曜〜金曜）",
+  "aparencia.pais.erro": "国の保存エラー"
 }

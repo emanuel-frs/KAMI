@@ -1159,7 +1159,7 @@
   "metas.modulos": "{atual} / {alvo} 个模块",
   "metas.erro_salvar": "保存出错：{erro}",
   "metas.contribuir_para": "为“{meta}”存入",
-  "metas.valor_rs": "金额（R$）",
+  "metas.valor_rs": "金额（{moeda}）",
   "metas.quantidade": "数量",
   "metas.quantidade_unidade": "数量（{unidade}）",
   "metas.erro_contribuir": "存入出错：{erro}",
@@ -2334,5 +2334,12 @@
   "organizacao_email.item_aria": "{estado}：{assunto}，来自 {nome}",
   "atualizacao.rpm_como": "kami 会下载 .rpm，请求系统密码进行安装，然后重新打开",
   "atualizacao.rpm_senha": "系统会要求输入你的密码来安装软件包。",
-  "notificacoes.atualizando": "正在更新…"
+  "notificacoes.atualizando": "正在更新…",
+  "aparencia.moeda.titulo": "货币",
+  "aparencia.moeda.desc": "整个应用中金额的符号和格式。只改变显示方式——不会换算任何金额。",
+  "aparencia.moeda.erro": "保存货币时出错",
+  "aparencia.pais.titulo": "国家（节假日）",
+  "aparencia.pais.desc": "计算工作日时考虑的节假日——例如“第 5 个工作日”发工资。没有已知日历的国家只排除周六和周日。",
+  "aparencia.pais.sem_feriados": "（无节假日：周一至周五）",
+  "aparencia.pais.erro": "保存国家时出错"
 }

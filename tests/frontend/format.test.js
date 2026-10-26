@@ -52,8 +52,9 @@ test("lerMesAno aceita mm/aaaa e aaaa-mm", () => {
 });
 
 test("fmtMoney usa a formatação monetária brasileira", () => {
-  assert.equal(fmtMoney(1234.5), "R$ 1.234,5");
-  assert.equal(fmtMoney(12), "R$ 12");
+  // o Intl separa o símbolo com espaço não separável (não quebra a linha ali)
+  assert.equal(fmtMoney(1234.5), "R$\u00a01.234,5");
+  assert.equal(fmtMoney(12), "R$\u00a012");
 });
 
 // "X minutos atrás", mas sem passar da meia-noite: rodando logo depois

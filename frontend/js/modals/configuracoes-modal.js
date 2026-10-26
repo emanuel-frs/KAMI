@@ -97,6 +97,8 @@ import {
   selectFormatoData,
   renderIdioma,
   wireIdioma,
+  renderMoedaEPais,
+  wireMoedaEPais,
   renderEffectsOptions,
   selectEffectsMode,
   renderSoundOptions,
@@ -207,6 +209,7 @@ function wireModal(wrap) {
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
   wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
   wireIdioma(wrap); // I18N-01
+  wireMoedaEPais(wrap); // I18N-06
   wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
   wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
     saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })
@@ -295,6 +298,7 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
     renderEffectsOptions(estado.modalEl, profile.efeitos_visuais);
     renderFormatoData(estado.modalEl, profile.formato_data);
     renderIdioma(estado.modalEl);
+    renderMoedaEPais(estado.modalEl, profile);
     renderIconeTema(estado.modalEl, profile);
     renderSoundOptions(estado.modalEl, profile);
     renderRewards(estado.modalEl, profile);

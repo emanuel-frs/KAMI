@@ -1171,7 +1171,7 @@
   "metas.modulos": "{atual} / {alvo} moduli",
   "metas.erro_salvar": "errore nel salvataggio: {erro}",
   "metas.contribuir_para": "contribuisci a \"{meta}\"",
-  "metas.valor_rs": "importo (R$)",
+  "metas.valor_rs": "importo ({moeda})",
   "metas.quantidade": "quantità",
   "metas.quantidade_unidade": "quantità ({unidade})",
   "metas.erro_contribuir": "errore nel contribuire: {erro}",
@@ -2365,5 +2365,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, da {nome}",
   "atualizacao.rpm_como": "kami scarica il .rpm, chiede la password di sistema per installarlo e si riapre",
   "atualizacao.rpm_senha": "il sistema chiederà la tua password per installare il pacchetto.",
-  "notificacoes.atualizando": "aggiornamento…"
+  "notificacoes.atualizando": "aggiornamento…",
+  "aparencia.moeda.titulo": "valuta",
+  "aparencia.moeda.desc": "il simbolo e il formato degli importi in tutta l'app. cambia solo come appaiono — nessun importo viene convertito.",
+  "aparencia.moeda.erro": "errore nel salvare la valuta",
+  "aparencia.pais.titulo": "paese (festività)",
+  "aparencia.pais.desc": "le festività che contano per i giorni lavorativi — lo stipendio al \"5° giorno lavorativo\", per esempio. un paese senza calendario noto esclude solo sabato e domenica.",
+  "aparencia.pais.sem_feriados": "(senza festività: da lunedì a venerdì)",
+  "aparencia.pais.erro": "errore nel salvare il paese"
 }

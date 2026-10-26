@@ -1,6 +1,6 @@
 import * as carteiraApi from "../api/carteira.js";
 import { fitAsciiText } from "../components/ascii.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { openContaModal } from "../modals/conta-modal.js";
 import { icon } from "../components/icons.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -9,7 +9,7 @@ import { showErrorModal } from "../modals/err-modal.js";
 import { t } from "../i18n.js";
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 function pctLimite(a) {
   if (!a.limite_total) return 0;

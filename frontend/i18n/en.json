@@ -1171,7 +1171,7 @@
   "metas.modulos": "{atual} / {alvo} modules",
   "metas.erro_salvar": "error saving: {erro}",
   "metas.contribuir_para": "contribute to \"{meta}\"",
-  "metas.valor_rs": "amount (R$)",
+  "metas.valor_rs": "amount ({moeda})",
   "metas.quantidade": "quantity",
   "metas.quantidade_unidade": "quantity ({unidade})",
   "metas.erro_contribuir": "error contributing: {erro}",
@@ -2365,5 +2365,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, from {nome}",
   "atualizacao.rpm_como": "kami downloads the .rpm, asks for your system password to install it and reopens",
   "atualizacao.rpm_senha": "the system will ask for your password to install the package.",
-  "notificacoes.atualizando": "updating…"
+  "notificacoes.atualizando": "updating…",
+  "aparencia.moeda.titulo": "currency",
+  "aparencia.moeda.desc": "the symbol and format of amounts across the app. it only changes how they look — no amount is converted.",
+  "aparencia.moeda.erro": "error saving the currency",
+  "aparencia.pais.titulo": "country (holidays)",
+  "aparencia.pais.desc": "the holidays that count for business days — a paycheck on the \"5th business day\", for example. a country without a known calendar only skips saturday and sunday.",
+  "aparencia.pais.sem_feriados": "(no holidays: monday to friday)",
+  "aparencia.pais.erro": "error saving the country"
 }

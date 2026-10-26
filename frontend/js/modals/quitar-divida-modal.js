@@ -1,6 +1,6 @@
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { estaNoDocumento } from "../components/no-documento.js";
 import { t } from "../i18n.js";
 
@@ -23,7 +23,7 @@ let resolveCb = null;
 let accountsFlat = [];
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 function buildModal() {

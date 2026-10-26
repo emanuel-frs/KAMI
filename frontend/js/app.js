@@ -42,7 +42,8 @@ import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
 import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
-import { definirFormatoData, formatoData } from "./components/format.js";
+import { definirFormatoData, definirMoeda, formatoData, moeda } from "./components/format.js";
+import { moedaDoPais, paisDoSistema } from "./components/pais.js";
 import { wireCamposData } from "./components/campos-data.js";
 import { novaVisitaDeTela } from "./components/dicas-novas.js";
 import { carregarIdioma, idiomaAtual, idiomaDoSistema, idiomaGuardado, t } from "./i18n.js";
@@ -252,6 +253,27 @@ async function aplicarIdiomaDoPerfil(profile) {
   if (profile.idioma !== idiomaAtual()) await carregarIdioma(profile.idioma);
 }
 
+/**
+ * I18N-06: moeda e país dos feriados. Banco novo (vazios) escolhe pelo
+ * sistema e grava; trocar a moeda remonta a tela atual (os valores já
+ * desenhados levavam o símbolo antigo).
+ */
+async function aplicarMoedaEPais(profile) {
+  if (!profile) return;
+  if (!profile.moeda || !profile.pais) {
+    const pais = profile.pais || paisDoSistema();
+    try {
+      store.set("profile", await updateProfile({ pais, moeda: profile.moeda || moedaDoPais(pais) }));
+    } catch {
+      /* fica pra próxima abertura */
+    }
+    return;
+  }
+  const antes = moeda();
+  definirMoeda(profile.moeda);
+  if (moeda() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
+}
+
 /** Trocou o idioma: textos fixos já foram (i18n.js); falta o resto. */
 function aoTrocarIdioma() {
   applyProfileToSidebar(store.get("profile"));
@@ -367,6 +389,7 @@ async function boot() {
   store.subscribe("profile", applyProfileToSidebar);
   store.subscribe("profile", aplicarFormatoData); // ORG-07
   store.subscribe("profile", aplicarIdiomaDoPerfil); // I18N-01
+  store.subscribe("profile", aplicarMoedaEPais); // I18N-06
   wireCamposData(); // ORG-07: campo de data vazio parece vazio (WebKitGTK)
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo

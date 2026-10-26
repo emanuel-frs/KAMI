@@ -14,7 +14,7 @@
 // fica em cima (y=0) — a linha "cai" da base até o topo conforme a meta
 // avança, ilustrando literalmente a queda de "quanto falta".
 
-import { fmtDataCurta, localDateKey } from "../components/format.js";
+import { fmtDataCurta, fmtMoeda, localDateKey } from "../components/format.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { t } from "../i18n.js";
@@ -26,7 +26,7 @@ function fmtDateShort(iso) {
 
 function fmtRemaining(v, unit) {
   if (unit === "money") {
-    return "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return fmtMoeda(v);
   }
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }

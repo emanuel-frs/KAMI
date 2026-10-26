@@ -137,8 +137,64 @@ export function fmtDataHora(iso) {
   return `${fmtData(localDateKey(d))} ${hh}:${mm}`;
 }
 
+// ── moeda (I18N-06, P-94) ──────────────────────────────────────────────
+// Só o símbolo e o formato — o valor nunca é convertido. O jeito de escrever
+// o número (separadores) segue o idioma do app; o símbolo, a moeda do perfil.
+let moedaAtual = "BRL";
+const formatadores = new Map();
+
+/** @param {string} codigo ISO 4217 ("BRL", "USD"…); inválido fica como está. */
+export function definirMoeda(codigo) {
+  if (moedaValida(codigo)) moedaAtual = codigo;
+}
+
+export const moeda = () => moedaAtual;
+
+export function moedaValida(codigo) {
+  if (!/^[A-Z]{3}$/.test(codigo || "")) return false;
+  try {
+    new Intl.NumberFormat("en", { style: "currency", currency: codigo });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatador(codigo, inteiro, casasFixas) {
+  const chave = `${localeAtual()}|${codigo}|${inteiro}|${casasFixas}`;
+  if (!formatadores.has(chave)) {
+    const casas = new Intl.NumberFormat("en", { style: "currency", currency: codigo }).resolvedOptions().maximumFractionDigits;
+    formatadores.set(
+      chave,
+      new Intl.NumberFormat(localeAtual(), {
+        style: "currency",
+        currency: codigo,
+        minimumFractionDigits: inteiro ? 0 : casasFixas ? casas : 0,
+        maximumFractionDigits: inteiro ? 0 : casas,
+      })
+    );
+  }
+  return formatadores.get(chave);
+}
+
+/**
+ * Valor na moeda do perfil: "R$ 1.234,56", "$1,234.56", "￥1,235".
+ * `casas: true` (padrão) mostra sempre os centavos; `inteiro` sem centavos
+ * (eixos de gráfico); `moeda` usa outra (o salário guarda a sua).
+ */
+export function fmtMoeda(v, { inteiro = false, casas = true, moeda: codigo = moedaAtual } = {}) {
+  const c = moedaValida(codigo) ? codigo : moedaAtual;
+  return formatador(c, inteiro, casas).format(Number(v) || 0);
+}
+
+/** Como fmtMoeda, mas sem ",00" em valor redondo (textos corridos). */
 export function fmtMoney(v) {
-  return "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return fmtMoeda(v, { casas: false });
+}
+
+/** "R$", "US$", "€"… no idioma do app (as etiquetas de lançamento gerado). */
+export function simboloMoeda(codigo = moedaAtual) {
+  return formatador(codigo, true, false).formatToParts(0).find((p) => p.type === "currency")?.value || codigo;
 }
 
 /** Escapa texto livre (descrições, títulos) antes de inserir via innerHTML. */

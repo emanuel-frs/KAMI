@@ -1,5 +1,5 @@
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml, mesesCurtos } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -43,7 +43,7 @@ function monthLabel(monthStr) {
 }
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {

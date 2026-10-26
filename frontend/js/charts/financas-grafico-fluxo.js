@@ -2,7 +2,7 @@ import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { listenWhileConnected } from "../components/window-listener.js";
-import { escapeHtml, mesesCurtos } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
 import { t } from "../i18n.js";
 
 function currentMonthStr() {
@@ -19,7 +19,7 @@ function monthAbbrev(monthStr) {
   return mesesCurtos()[m - 1];
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return fmtMoeda(v, { inteiro: true });
 }
 function escapeAttr(str) {
   return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");

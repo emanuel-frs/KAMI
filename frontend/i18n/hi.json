@@ -1171,7 +1171,7 @@
   "metas.modulos": "{atual} / {alvo} मॉड्यूल",
   "metas.erro_salvar": "सहेजने में गड़बड़ी: {erro}",
   "metas.contribuir_para": "\"{meta}\" में योगदान दें",
-  "metas.valor_rs": "रक़म (R$)",
+  "metas.valor_rs": "रक़म ({moeda})",
   "metas.quantidade": "मात्रा",
   "metas.quantidade_unidade": "मात्रा ({unidade})",
   "metas.erro_contribuir": "योगदान में गड़बड़ी: {erro}",
@@ -2365,5 +2365,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, {nome} से",
   "atualizacao.rpm_como": "kami .rpm डाउनलोड करता है, इंस्टॉल के लिए सिस्टम पासवर्ड माँगता है और फिर खुलता है",
   "atualizacao.rpm_senha": "पैकेज इंस्टॉल करने के लिए सिस्टम आपका पासवर्ड माँगेगा।",
-  "notificacoes.atualizando": "अपडेट हो रहा है…"
+  "notificacoes.atualizando": "अपडेट हो रहा है…",
+  "aparencia.moeda.titulo": "मुद्रा",
+  "aparencia.moeda.desc": "पूरे ऐप में रकम का चिह्न और प्रारूप। सिर्फ़ दिखावट बदलती है — कोई रकम बदली नहीं जाती।",
+  "aparencia.moeda.erro": "मुद्रा सहेजने में त्रुटि",
+  "aparencia.pais.titulo": "देश (छुट्टियाँ)",
+  "aparencia.pais.desc": "कार्यदिवस गिनने में मानी जाने वाली छुट्टियाँ — जैसे \"5वें कार्यदिवस\" पर वेतन। जिस देश का कैलेंडर ज्ञात नहीं, वहाँ सिर्फ़ शनिवार और रविवार छूटते हैं।",
+  "aparencia.pais.sem_feriados": "(कोई छुट्टी नहीं: सोमवार से शुक्रवार)",
+  "aparencia.pais.erro": "देश सहेजने में त्रुटि"
 }

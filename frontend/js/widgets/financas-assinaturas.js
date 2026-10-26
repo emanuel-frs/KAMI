@@ -1,5 +1,5 @@
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, simboloMoeda } from "../components/format.js";
 import { openAssinaturaModal } from "../modals/assinatura-modal.js";
 import { openAssinaturaFilterModal } from "../modals/assinatura-filter-modal.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
@@ -29,7 +29,7 @@ function currentMonthStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {
@@ -102,7 +102,7 @@ export async function render(el, widget) {
               <div class="sub-meta">
                 <span class="sub-valor">${brl(valor)}</span>
                 <span class="sub-dia">${t("contas.dia_n", { n: s.dia_cobranca })}</span>
-                ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
+                ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="${t("contas.gerou_tx")}">${simboloMoeda()}</span>` : ""}
                 ${s.active
                   ? `<button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"
                       data-tooltip="${tooltip}" aria-label="${tooltip}">

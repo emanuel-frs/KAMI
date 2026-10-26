@@ -1,5 +1,5 @@
 import { updateOnboarding } from "../api/perfil.js";
-import { escapeHtml, fmtDataCurta } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { accentLabel } from "../components/accent-colors.js";
 import { nomeAtributo } from "../components/textos-sistema.js";
@@ -145,16 +145,16 @@ const STEPS = [
       <div class="ob-illus ob-illus--financas">
         <div class="ob-fin-row">
           <span class="ob-fin-label">${t("onboarding.entradas")}</span>
-          <span class="ob-fin-val ob-fin-pos">+ R$ 3.100</span>
+          <span class="ob-fin-val ob-fin-pos">+ ${fmtMoney(3100)}</span>
         </div>
         <div class="ob-fin-row">
           <span class="ob-fin-label">${t("onboarding.saidas")}</span>
-          <span class="ob-fin-val ob-fin-neg">− R$ 1.840</span>
+          <span class="ob-fin-val ob-fin-neg">− ${fmtMoney(1840)}</span>
         </div>
         <div class="ob-fin-divider"></div>
         <div class="ob-fin-row">
           <span class="ob-fin-label">${t("onboarding.saldo")}</span>
-          <span class="ob-fin-val ob-fin-pos">R$ 1.260</span>
+          <span class="ob-fin-val ob-fin-pos">${fmtMoney(1260)}</span>
         </div>
         <div class="ob-fin-next">${t("onboarding.prox_salario")} <span class="ob-fin-date">${fmtDataCurta("2000-08-05")}</span></div>
       </div>`,
@@ -207,7 +207,7 @@ const STEPS = [
         <div class="ob-meta-card">
           <span class="ob-meta-title">${t("onboarding.viagem_para_o_japao")}</span>
           <div class="ob-meta-bar"><span class="ob-meta-fill" style="width:43%"></span></div>
-          <span class="ob-meta-sub">R$ 4.300 / R$ 10.000 · ${t("onboarding.vence_em_dez")}</span>
+          <span class="ob-meta-sub">${fmtMoney(4300)} / ${fmtMoney(10000)} · ${t("onboarding.vence_em_dez")}</span>
         </div>
         <div class="ob-meta-card">
           <span class="ob-meta-title">${t("onboarding.dominar_python")}</span>
@@ -252,7 +252,7 @@ const STEPS = [
         </div>
         <div class="ob-illus-row ob-attr-row">
           <span class="ob-attr">${icon("trending-up", { size: 9 })} ${t("onboarding.evolucao_salarial")}</span>
-          <span class="ob-attr-xp">R$ 6.200</span>
+          <span class="ob-attr-xp">${fmtMoney(6200)}</span>
         </div>
       </div>`,
   },

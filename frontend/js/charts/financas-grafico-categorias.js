@@ -1,5 +1,5 @@
 import * as financasApi from "../api/financas.js";
-import { escapeHtml, mesesCurtos } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { t } from "../i18n.js";
@@ -19,7 +19,7 @@ function monthLabel(monthStr) {
   return `${nomes[m - 1]} ${y}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {

@@ -9,7 +9,7 @@ import {
 import { listBanks } from "../api/carteira.js";
 import { listTracks } from "../api/aprendizado.js";
 import { listCareerEducations } from "../api/carreira.js";
-import { escapeHtml, fmtMoney, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoney, simboloMoeda } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -453,7 +453,7 @@ async function openContributeModal(goalId) {
   const wrap = contributeModalEl;
   wrap.querySelector("#goal-contribute-title").textContent = t("metas.contribuir_para", { meta: goal.title });
   wrap.querySelector("#goal-contribute-amount-label").textContent =
-    goal.unit === "money" ? t("metas.valor_rs") : goal.unit_label ? t("metas.quantidade_unidade", { unidade: goal.unit_label }) : t("metas.quantidade");
+    goal.unit === "money" ? t("metas.valor_rs", { moeda: simboloMoeda() }) : goal.unit_label ? t("metas.quantidade_unidade", { unidade: goal.unit_label }) : t("metas.quantidade");
   wrap.querySelector("#goal-contribute-amount").value = "";
   wrap.querySelector("#goal-contribute-note").value = "";
   wrap.querySelector("#goal-contribute-origem-input").value = "conta";

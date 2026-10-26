@@ -1171,7 +1171,7 @@
   "metas.modulos": "{atual} / {alvo} módulos",
   "metas.erro_salvar": "error al guardar: {erro}",
   "metas.contribuir_para": "aportar a \"{meta}\"",
-  "metas.valor_rs": "monto (R$)",
+  "metas.valor_rs": "monto ({moeda})",
   "metas.quantidade": "cantidad",
   "metas.quantidade_unidade": "cantidad ({unidade})",
   "metas.erro_contribuir": "error al aportar: {erro}",
@@ -2365,5 +2365,12 @@
   "organizacao_email.item_aria": "{estado}: {assunto}, de {nome}",
   "atualizacao.rpm_como": "kami descarga el .rpm, pide la contraseña del sistema para instalarlo y vuelve a abrir",
   "atualizacao.rpm_senha": "el sistema te pedirá la contraseña para instalar el paquete.",
-  "notificacoes.atualizando": "actualizando…"
+  "notificacoes.atualizando": "actualizando…",
+  "aparencia.moeda.titulo": "moneda",
+  "aparencia.moeda.desc": "el símbolo y el formato de los importes en toda la app. solo cambia cómo se ven — ningún importe se convierte.",
+  "aparencia.moeda.erro": "error al guardar la moneda",
+  "aparencia.pais.titulo": "país (feriados)",
+  "aparencia.pais.desc": "los feriados que cuentan para los días hábiles — el sueldo en el \"5.º día hábil\", por ejemplo. un país sin calendario conocido solo descuenta sábado y domingo.",
+  "aparencia.pais.sem_feriados": "(sin feriados: lunes a viernes)",
+  "aparencia.pais.erro": "error al guardar el país"
 }
