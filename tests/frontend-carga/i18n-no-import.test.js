@@ -3,6 +3,10 @@
 // chave crua, e trocar o idioma não muda nada. Aqui todo módulo do frontend
 // é importado sem dicionário: qualquer t() durante o import é um desses.
 // Correção: transformar a constante em função (ex.: `const passos = () => [...]`).
+//
+// Fica fora de tests/frontend/ de propósito: importar TODOS os módulos
+// derrubaria a cobertura do test:coverage (o Node conta todo arquivo
+// importado), então ele roda à parte nos dois scripts do package.json.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
