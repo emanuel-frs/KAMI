@@ -6,7 +6,23 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [1.15.0] - em desenvolvimento
 
-_Sprint 7 da evolução — idioma (I18N-01 a I18N-06): o Kami em 10 idiomas (português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi), fontes para todas as escritas, moeda e país (feriados) escolhidos pela pessoa. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+_O Kami em 10 idiomas, com a moeda e o país dos feriados escolhidos por você._
+
+### Adicionado
+- 10 idiomas: português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi. Na primeira abertura o Kami segue o idioma do sistema (fora desses 10, português); dá para trocar em configurações › aparência, e tudo muda na hora, sem reabrir — telas, avisos, mensagens de erro, conquistas, missões, o registro de atividade e até os registros antigos. Quem já usava continua em português. As traduções foram feitas com ajuda de IA: o link "sugerir correção" ao lado do idioma abre uma issue
+- moeda (configurações › aparência): o símbolo e o formato dos valores em todo o app — só a aparência, nenhum valor é convertido. Quem já usava continua em real
+- país dos feriados (configurações › aparência): o "5º dia útil" do salário e os vencimentos contam os feriados do país escolhido (76 países; os outros contam só sábado e domingo). Quem já usava continua no Brasil, que ganhou o 20 de novembro (Consciência Negra, feriado nacional desde 2024)
+- a captura rápida (`Alt+Q`) entende datas e horas no idioma do app: "tomorrow 9am", "mañana 9h", "morgen 9 Uhr", "明天9点", "내일 9시"…
+- no Linux, se faltar a fonte do chinês, japonês, coreano ou hindi, o Kami avisa com o pacote para instalar; os pacotes `.deb` e `.rpm` já recomendam as fontes
+- "atualizar agora" também para quem instalou pelo `.rpm` (o sistema pede a senha para instalar)
+- README e guia de instalação em inglês; a página de download fala o idioma do navegador
+
+### Modificado
+- títulos de widget longos quebram a linha em vez de serem cortados, e o botão "marcar como pago" desce de linha quando não cabe
+- as listas de opções (moeda, país, idioma) aceitam digitar a letra para pular até a opção
+
+### Corrigido
+- a página de download não oferecia o instalador do Windows no Firefox
 
 ## [1.14.0] - 2026-10-23
 
