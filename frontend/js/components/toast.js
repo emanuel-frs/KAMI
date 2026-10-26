@@ -3,6 +3,7 @@ import { escapeHtml } from "./format.js";
 import { fxAllows, typeText } from "./fx.js";
 import { playSound } from "./sound.js";
 import { estaNoDocumento } from "./no-documento.js";
+import { t } from "../i18n.js";
 
 /**
  * Toast empilhável (diferente do singleton de backup-reminder.js — aqui
@@ -103,7 +104,7 @@ export function showToast({
         .map((a, i) => `<button type="button" class="btn sm" data-toast-action="${i}">${escapeHtml(a.label)}</button>`)
         .join("")}</div>` : ""}
     </div>
-    <button type="button" class="toast-close" aria-label="dispensar">${icon("x", { size: 11 })}</button>
+    <button type="button" class="toast-close" aria-label="${t("geral.dispensar")}">${icon("x", { size: 11 })}</button>
   `;
   el.querySelectorAll("[data-toast-action]").forEach((btn) => {
     btn.addEventListener("click", (e) => {

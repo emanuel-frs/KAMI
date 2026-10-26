@@ -70,7 +70,7 @@ function buildDom() {
       <div class="tip-balloon-foot">
         <span class="tip-interact-hint">${t("tip_sequence.toque_ou_enter_com_o")}</span>
         <button type="button" class="btn sm primary tip-next-btn">
-          próximo ${icon("arrow-right", { size: 12 })}
+          ${t("tip_sequence.proximo")} ${icon("arrow-right", { size: 12 })}
         </button>
       </div>
     </div>

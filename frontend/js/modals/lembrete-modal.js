@@ -22,7 +22,7 @@ export const repeticoes = () => [
   ["mensal", t("lembrete.todo_mes")],
   ["anual", t("lembrete.todo_ano")],
 ];
-export const vinculoRotulo = () => ({ nota: "nota", conta_fixa: t("lembrete.conta_fixa"), meta: "meta", habito: t("lembrete.habito"), evento: "evento" });
+export const vinculoRotulo = () => ({ nota: t("captura.nota"), conta_fixa: t("lembrete.conta_fixa"), meta: t("captura.meta"), habito: t("lembrete.habito"), evento: t("captura.evento") });
 
 let modalEl = null;
 let onSavedCb = null;
@@ -110,7 +110,7 @@ function mostrarVinculo() {
   const el = modalEl.querySelector("#lbm-vinculo");
   el.hidden = !vinculo;
   el.innerHTML = vinculo
-    ? `${icon("link", { size: 11 })} ligado a ${vinculoRotulo()[vinculo.tipo] || vinculo.tipo} «${escapeHtml(vinculo.nome || "")}»
+    ? `${icon("link", { size: 11 })} ${t("lembrete.ligado_a", { tipo: vinculoRotulo()[vinculo.tipo] || vinculo.tipo, nome: escapeHtml(vinculo.nome || "") })}
        <button type="button" class="lbm-tirar" data-action="tirar-vinculo" aria-label="${t("lembrete.tirar_o_vinculo")}">${icon("x", { size: 10 })}</button>
        ${vinculo.tipo === "habito" ? `<div class="lbm-vinculo-dica">${t("lembrete.nao_avisa_se_o_habito")}</div>` : ""}`
     : "";

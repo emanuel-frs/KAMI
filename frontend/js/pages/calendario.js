@@ -14,7 +14,7 @@ import { registerScreenShortcuts, clearScreenShortcuts } from "../components/sho
 import { listLembretes } from "../api/lembretes.js";
 import { openLembreteModal, repeticoes, vinculoRotulo } from "../modals/lembrete-modal.js";
 import { diasCurtos } from "../components/habito-linha.js";
-import { textoDoRegistro } from "../components/textos-sistema.js";
+import { nomeAtributo, textoDoRegistro } from "../components/textos-sistema.js";
 import { t } from "../i18n.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
@@ -304,9 +304,9 @@ function renderGrid() {
     const isWeekend = dow === 0 || dow === 6;
 
     const dow2 = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
-    const ariaLabel = `${weekdayLongLabels()[dow2]}, ${day} de ${monthLabels()[viewMonth - 1]}` +
-      (isToday ? " — hoje" : "") +
-      (dayEvents.length ? `, ${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : t("calendario.sem_eventos"));
+    const ariaLabel = t("calendario.dia_aria", { semana: weekdayLongLabels()[dow2], dia: day, mes: monthLabels()[viewMonth - 1] }) +
+      (isToday ? ` — ${t("calendario.hoje")}` : "") +
+      (dayEvents.length ? t("calendario.n_eventos", { n: dayEvents.length }) : t("calendario.sem_eventos"));
     html += `
       <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateStr}"
         role="button" tabindex="-1" aria-label="${escapeHtml(ariaLabel)}"${isToday ? ' aria-current="date"' : ""}>
@@ -445,7 +445,7 @@ function onGridKeydown(e) {
 // ─── render: painel do dia selecionado ──────────────────────────────────
 function fmtSelectedDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return `${d} de ${monthLabels()[m - 1]}`;
+  return t("calendario.data_label", { dia: d, mes: monthLabels()[m - 1] });
 }
 
 function renderDayPanel() {
@@ -532,7 +532,7 @@ function renderDayPanel() {
       const amountHtml = e.amount != null ? `<span class="cal-event-amount">${fmtMoney(e.amount)}</span>` : "";
       const xpHtml = e.xp != null ? `<span class="cal-event-xp">+${e.xp} xp</span>` : "";
       const categoriesHtml = e.categories?.length
-        ? `<div class="cal-event-categories">${e.categories.map((c) => `<span class="cal-event-category-tag">${escapeHtml(c)}</span>`).join("")}</div>`
+        ? `<div class="cal-event-categories">${e.categories.map((c) => `<span class="cal-event-category-tag">${escapeHtml(nomeAtributo(c))}</span>`).join("")}</div>`
         : "";
       const recordId = e.id.split(":")[1] || "";
       const draggableAttr = isEventoEvent(e) ? ` draggable="true" data-evento-id="${escapeHtml(recordId)}"` : "";

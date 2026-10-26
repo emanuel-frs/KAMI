@@ -2335,5 +2335,32 @@
   "kami_intro.cor_selecionada": "{cor} चुना गया। आगे बढ़ने के लिए \"जारी रखें\" इस्तेमाल करें।",
   "notas.tirar_tag": "टैग {tag} हटाएँ",
   "email.conta_tooltip": "खाता: {conta}",
-  "sobre.versao_n": "संस्करण {versao}"
+  "sobre.versao_n": "संस्करण {versao}",
+  "geral.dispensar": "हटाएँ",
+  "lembrete.ligado_a": "{tipo} «{nome}» से जुड़ा",
+  "notificacoes.adiar": "{quando} टालें",
+  "notificacoes.adiar_aria": "{quando} टालें: {titulo}",
+  "notificacoes.dispensar_aria": "ठीक है, हटाएँ: {titulo}",
+  "notificacoes.abrir": "खोलें",
+  "metas.prazo_em": "समय-सीमा: {data}",
+  "metas.sincronizado_trilha": "ट्रैक «{nome}» से सिंक",
+  "metas.sincronizado_formacao": "शिक्षा «{nome}» से सिंक",
+  "metas.concluida_em": "{data} को पूरा",
+  "metas.xp_bonus": "+{xp} बोनस xp",
+  "metas.meta_concluida": "लक्ष्य पूरा",
+  "metas.ver_trilha": "ट्रैक देखें",
+  "metas.ver_formacao": "शिक्षा देखें",
+  "contas.dia_n": "तारीख {n}",
+  "calendario.dia_aria": "{semana}, {dia} {mes}",
+  "calendario.n_eventos": {
+    "one": ", {n} इवेंट",
+    "other": ", {n} इवेंट"
+  },
+  "calendario.data_label": "{dia} {mes}",
+  "organizacao_email.n_novos": {
+    "one": "{n} नया ईमेल",
+    "other": "{n} नए ईमेल"
+  },
+  "organizacao_email.lido": "पढ़ा हुआ",
+  "organizacao_email.item_aria": "{estado}: {assunto}, {nome} से"
 }

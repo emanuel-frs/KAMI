@@ -2335,5 +2335,32 @@
   "kami_intro.cor_selecionada": "{cor} selected. use \"continue\" to move on.",
   "notas.tirar_tag": "remove the tag {tag}",
   "email.conta_tooltip": "account: {conta}",
-  "sobre.versao_n": "version {versao}"
+  "sobre.versao_n": "version {versao}",
+  "geral.dispensar": "dismiss",
+  "lembrete.ligado_a": "linked to {tipo} «{nome}»",
+  "notificacoes.adiar": "snooze {quando}",
+  "notificacoes.adiar_aria": "snooze {quando}: {titulo}",
+  "notificacoes.dispensar_aria": "ok, dismiss: {titulo}",
+  "notificacoes.abrir": "open",
+  "metas.prazo_em": "deadline: {data}",
+  "metas.sincronizado_trilha": "synced with the track «{nome}»",
+  "metas.sincronizado_formacao": "synced with the degree «{nome}»",
+  "metas.concluida_em": "completed on {data}",
+  "metas.xp_bonus": "+{xp} bonus xp",
+  "metas.meta_concluida": "goal completed",
+  "metas.ver_trilha": "view track",
+  "metas.ver_formacao": "view degree",
+  "contas.dia_n": "day {n}",
+  "calendario.dia_aria": "{semana}, {mes} {dia}",
+  "calendario.n_eventos": {
+    "one": ", {n} event",
+    "other": ", {n} events"
+  },
+  "calendario.data_label": "{mes} {dia}",
+  "organizacao_email.n_novos": {
+    "one": "{n} new e-mail",
+    "other": "{n} new e-mails"
+  },
+  "organizacao_email.lido": "read",
+  "organizacao_email.item_aria": "{estado}: {assunto}, from {nome}"
 }

@@ -560,23 +560,23 @@ function goalCardHtml(goal) {
           <span>${goalValuesText(goal)}</span>
           <span>${pct}%</span>
         </div>
-        ${goal.deadline ? `<div class="goal-meta">prazo: ${fmtDeadline(goal.deadline)}</div>` : ""}
+        ${goal.deadline ? `<div class="goal-meta">${t("metas.prazo_em", { data: fmtDeadline(goal.deadline) })}</div>` : ""}
         <div class="goal-meta">${linkNotasHtml("meta", goal.id, goal.title, notasPorMeta[goal.id] || 0)}</div>
         ${isLearning && goal.linked_track_name
-          ? `<div class="goal-meta">sincronizado com a trilha «${escapeHtml(goal.linked_track_name)}»</div>`
+          ? `<div class="goal-meta">${t("metas.sincronizado_trilha", { nome: escapeHtml(goal.linked_track_name) })}</div>`
           : ""
         }
         ${isAcademic && goal.linked_education_name
-          ? `<div class="goal-meta">sincronizado com a formação «${escapeHtml(goal.linked_education_name)}»</div>`
+          ? `<div class="goal-meta">${t("metas.sincronizado_formacao", { nome: escapeHtml(goal.linked_education_name) })}</div>`
           : ""
         }
         ${isDone
-          ? `<div class="goal-meta">concluída${goal.completed_at ? " em " + fmtDeadline(goal.completed_at) : ""} · +${xpBonusFor(goal.weight)} xp bônus</div>
-             <button type="button" class="btn sm" disabled>meta concluída ${icon("check", { size: 12 })}</button>`
+          ? `<div class="goal-meta">${goal.completed_at ? t("metas.concluida_em", { data: fmtDeadline(goal.completed_at) }) : t("metas.concluida")} · ${t("metas.xp_bonus", { xp: xpBonusFor(goal.weight) })}</div>
+             <button type="button" class="btn sm" disabled>${t("metas.meta_concluida")} ${icon("check", { size: 12 })}</button>`
           : isLearning
-            ? `<button type="button" class="btn sm" data-action="ver-trilha">ver trilha ${icon("arrow-right", { size: 11 })}</button>`
+            ? `<button type="button" class="btn sm" data-action="ver-trilha">${t("metas.ver_trilha")} ${icon("arrow-right", { size: 11 })}</button>`
             : isAcademic
-              ? `<button type="button" class="btn sm" data-action="ver-formacao">ver formação ${icon("arrow-right", { size: 11 })}</button>`
+              ? `<button type="button" class="btn sm" data-action="ver-formacao">${t("metas.ver_formacao")} ${icon("arrow-right", { size: 11 })}</button>`
               : `<button type="button" class="btn sm primary" data-action="contribute-goal">${t("metas.contribuir_2")}</button>`
         }
         ${isAutoSynced ? "" : `

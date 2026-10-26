@@ -2306,5 +2306,30 @@
   "kami_intro.cor_selecionada": "{cor}を選択しました。「続ける」で進みます。",
   "notas.tirar_tag": "タグ {tag} を外す",
   "email.conta_tooltip": "アカウント：{conta}",
-  "sobre.versao_n": "バージョン {versao}"
+  "sobre.versao_n": "バージョン {versao}",
+  "geral.dispensar": "閉じる",
+  "lembrete.ligado_a": "{tipo}「{nome}」にリンク",
+  "notificacoes.adiar": "再通知：{quando}",
+  "notificacoes.adiar_aria": "再通知（{quando}）：{titulo}",
+  "notificacoes.dispensar_aria": "OK、閉じる：{titulo}",
+  "notificacoes.abrir": "開く",
+  "metas.prazo_em": "期限：{data}",
+  "metas.sincronizado_trilha": "学習トラック「{nome}」と同期",
+  "metas.sincronizado_formacao": "学歴「{nome}」と同期",
+  "metas.concluida_em": "{data} に完了",
+  "metas.xp_bonus": "+{xp} ボーナス xp",
+  "metas.meta_concluida": "目標達成",
+  "metas.ver_trilha": "トラックを見る",
+  "metas.ver_formacao": "学歴を見る",
+  "contas.dia_n": "毎月 {n} 日",
+  "calendario.dia_aria": "{mes}{dia}日 {semana}",
+  "calendario.n_eventos": {
+    "other": "、予定 {n} 件"
+  },
+  "calendario.data_label": "{mes}{dia}日",
+  "organizacao_email.n_novos": {
+    "other": "新着メール {n} 件"
+  },
+  "organizacao_email.lido": "既読",
+  "organizacao_email.item_aria": "{estado}：{assunto}、差出人 {nome}"
 }

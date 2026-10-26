@@ -207,7 +207,7 @@ const STEPS = [
         <div class="ob-meta-card">
           <span class="ob-meta-title">${t("onboarding.viagem_para_o_japao")}</span>
           <div class="ob-meta-bar"><span class="ob-meta-fill" style="width:43%"></span></div>
-          <span class="ob-meta-sub">R$ 4.300 / R$ 10.000 · vence em dez</span>
+          <span class="ob-meta-sub">R$ 4.300 / R$ 10.000 · ${t("onboarding.vence_em_dez")}</span>
         </div>
         <div class="ob-meta-card">
           <span class="ob-meta-title">${t("onboarding.dominar_python")}</span>
@@ -231,7 +231,7 @@ const STEPS = [
           <span class="ob-attr-xp">${t("onboarding.vence_em_dez")}</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("star", { size: 9 })} concluiu "fundamentos de python"</span>
+          <span class="ob-attr">${icon("star", { size: 9 })} ${t("onboarding.concluiu", { nome: t("onboarding.fundamentos_de_python") })}</span>
           <span class="ob-attr-xp">${t("onboarding.ha_2_dias")}</span>
         </div>
       </div>`,

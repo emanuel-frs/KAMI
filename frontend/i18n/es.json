@@ -2335,5 +2335,32 @@
   "kami_intro.cor_selecionada": "{cor} seleccionado. usa \"continuar\" para seguir.",
   "notas.tirar_tag": "quitar la etiqueta {tag}",
   "email.conta_tooltip": "cuenta: {conta}",
-  "sobre.versao_n": "versión {versao}"
+  "sobre.versao_n": "versión {versao}",
+  "geral.dispensar": "descartar",
+  "lembrete.ligado_a": "vinculado a {tipo} «{nome}»",
+  "notificacoes.adiar": "posponer {quando}",
+  "notificacoes.adiar_aria": "posponer {quando}: {titulo}",
+  "notificacoes.dispensar_aria": "ok, descartar: {titulo}",
+  "notificacoes.abrir": "abrir",
+  "metas.prazo_em": "plazo: {data}",
+  "metas.sincronizado_trilha": "sincronizada con la ruta «{nome}»",
+  "metas.sincronizado_formacao": "sincronizada con la formación «{nome}»",
+  "metas.concluida_em": "completada el {data}",
+  "metas.xp_bonus": "+{xp} xp de bonificación",
+  "metas.meta_concluida": "meta completada",
+  "metas.ver_trilha": "ver ruta",
+  "metas.ver_formacao": "ver formación",
+  "contas.dia_n": "día {n}",
+  "calendario.dia_aria": "{semana}, {dia} de {mes}",
+  "calendario.n_eventos": {
+    "one": ", {n} evento",
+    "other": ", {n} eventos"
+  },
+  "calendario.data_label": "{dia} de {mes}",
+  "organizacao_email.n_novos": {
+    "one": "{n} correo nuevo",
+    "other": "{n} correos nuevos"
+  },
+  "organizacao_email.lido": "leído",
+  "organizacao_email.item_aria": "{estado}: {assunto}, de {nome}"
 }

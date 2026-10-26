@@ -67,7 +67,7 @@ function avisoNaHora(l) {
     iconName: "bell-ring",
     duration: 0, // fica até a pessoa responder; fechar no ✕ deixa no sino
     actions: [
-      ...adiamentos().map((a) => ({ label: `adiar ${a.rotulo}`, onClick: () => adiar(l.id, a.quanto) })),
+      ...adiamentos().map((a) => ({ label: t("notificacoes.adiar", { quando: a.rotulo }), onClick: () => adiar(l.id, a.quanto) })),
       {
         label: "ok",
         onClick: async () => {

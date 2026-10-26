@@ -315,8 +315,8 @@ async function renderLembretes() {
           <span class="notif-lembrete-quando">${escapeHtml(quandoLembrete(l))}${l.atrasado ? ` · <span class="notif-lembrete-passou">${t("notificacoes.passou_com_o_kami_fechado")}</span>` : ""}${l.vinculo ? ` · ${escapeHtml(l.vinculo.nome)}` : ""}</span>
         </div>
         <div class="notif-lembrete-acoes">
-          ${adiamentos().map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="adiar ${a.rotulo}: ${escapeHtml(l.titulo)}">adiar ${a.rotulo}</button>`).join("")}
-          <button type="button" class="btn sm" data-dispensar aria-label="ok, dispensar: ${escapeHtml(l.titulo)}">${t("notificacoes.ok")}</button>
+          ${adiamentos().map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="${t("notificacoes.adiar_aria", { quando: a.rotulo, titulo: escapeHtml(l.titulo) })}">${t("notificacoes.adiar", { quando: a.rotulo })}</button>`).join("")}
+          <button type="button" class="btn sm" data-dispensar aria-label="${t("notificacoes.dispensar_aria", { titulo: escapeHtml(l.titulo) })}">${t("notificacoes.ok")}</button>
         </div>
       </div>`,
       )
@@ -423,7 +423,7 @@ export async function openNotificacoesModal() {
       entradaEl.innerHTML = `
         <div class="notif-email-summary" data-action="abrir-entrada">
           <span class="notif-email-summary-label">${icon("download", { size: 13 })} ${itens.length} ${itens.length === 1 ? "item" : "itens"} ${t("notificacoes.na_caixa_de_entrada")}</span>
-          <span class="notif-entrada-ir">abrir ${icon("arrow-right", { size: 11 })}</span>
+          <span class="notif-entrada-ir">${t("notificacoes.abrir")} ${icon("arrow-right", { size: 11 })}</span>
         </div>`;
       entradaEl.querySelector("[data-action=abrir-entrada]").addEventListener("click", () => {
         closeNotificacoesModal();

@@ -81,8 +81,20 @@ export function hideBackupReminder() {
   ocuparCanto(0);
 }
 
+// aberto durante a troca de idioma: refaz no idioma novo
+let ouvindoIdioma = false;
+function refazerNoIdioma() {
+  if (!toastEl?.classList.contains("open")) return;
+  toastEl = noIdiomaAtual(toastEl, buildToast);
+  toastEl.classList.add("open");
+}
+
 export function maybeShowBackupReminder(profile) {
   if (!shouldShowBackupReminder(profile)) return;
+  if (!ouvindoIdioma) {
+    ouvindoIdioma = true;
+    window.addEventListener("kami:idioma", refazerNoIdioma);
+  }
 
   toastEl = noIdiomaAtual(toastEl, buildToast);
   // requestAnimationFrame pra garantir que o navegador já processou o

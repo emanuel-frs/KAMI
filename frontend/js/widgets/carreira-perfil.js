@@ -45,7 +45,7 @@ export async function render(el, widget) {
           <div class="vm-row"><span class="k">${t("carreira_perfil.area_atual")}</span><span class="v">${profile.area_atual ? escapeHtml(profile.area_atual) : "—"}</span></div>
           <div class="vm-row"><span class="k">${t("carreira_perfil.area_meta")}</span><span class="v">${profile.area_meta ? escapeHtml(profile.area_meta) : "—"}</span></div>
         </div>
-        <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar</button>
+        <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} ${t("geral.editar")}</button>
       </div>
       <div class="edit-mode">
         <div style="flex:1 1 100%; display:flex; flex-direction:column; gap:12px;">

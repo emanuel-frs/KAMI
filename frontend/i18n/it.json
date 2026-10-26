@@ -2335,5 +2335,32 @@
   "kami_intro.cor_selecionada": "{cor} selezionato. usa \"continua\" per proseguire.",
   "notas.tirar_tag": "rimuovi il tag {tag}",
   "email.conta_tooltip": "account: {conta}",
-  "sobre.versao_n": "versione {versao}"
+  "sobre.versao_n": "versione {versao}",
+  "geral.dispensar": "ignora",
+  "lembrete.ligado_a": "collegato a {tipo} «{nome}»",
+  "notificacoes.adiar": "posticipa {quando}",
+  "notificacoes.adiar_aria": "posticipa {quando}: {titulo}",
+  "notificacoes.dispensar_aria": "ok, ignora: {titulo}",
+  "notificacoes.abrir": "apri",
+  "metas.prazo_em": "scadenza: {data}",
+  "metas.sincronizado_trilha": "sincronizzato con il percorso «{nome}»",
+  "metas.sincronizado_formacao": "sincronizzato con la formazione «{nome}»",
+  "metas.concluida_em": "completato il {data}",
+  "metas.xp_bonus": "+{xp} xp bonus",
+  "metas.meta_concluida": "obiettivo completato",
+  "metas.ver_trilha": "vedi percorso",
+  "metas.ver_formacao": "vedi formazione",
+  "contas.dia_n": "giorno {n}",
+  "calendario.dia_aria": "{semana} {dia} {mes}",
+  "calendario.n_eventos": {
+    "one": ", {n} evento",
+    "other": ", {n} eventi"
+  },
+  "calendario.data_label": "{dia} {mes}",
+  "organizacao_email.n_novos": {
+    "one": "{n} nuova e-mail",
+    "other": "{n} nuove e-mail"
+  },
+  "organizacao_email.lido": "letto",
+  "organizacao_email.item_aria": "{estado}: {assunto}, da {nome}"
 }

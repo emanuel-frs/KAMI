@@ -101,7 +101,7 @@ export async function render(el, widget) {
               </div>
               <div class="sub-meta">
                 <span class="sub-valor">${brl(valor)}</span>
-                <span class="sub-dia">dia ${s.dia_cobranca}</span>
+                <span class="sub-dia">${t("contas.dia_n", { n: s.dia_cobranca })}</span>
                 ${period && period.gerou_transacao ? `<span class="sub-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
                 ${s.active
                   ? `<button class="sub-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-sub-id="${s.id}"

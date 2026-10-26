@@ -1378,7 +1378,7 @@
   "organizacao_email.nenhum_e_mail_corresponde_a": "keine E-Mail passt zur aktuellen Suche/zum Filter.",
   "organizacao_email.nao_lido": "ungelesen",
   "organizacao_email.sem_assunto": "(kein Betreff)",
-  "organizacao_email.silenciado": "stummgeschaltet",
+  "organizacao_email.silenciado": "stumm",
   "organizacao_entrada.virar": "umwandeln in:",
   "organizacao_entrada.descartar": "verwerfen",
   "organizacao_entrada.caixa_de_entrada": "Eingang",
@@ -2335,5 +2335,32 @@
   "kami_intro.cor_selecionada": "{cor} ausgewählt. Nutze „weiter“, um fortzufahren.",
   "notas.tirar_tag": "Tag {tag} entfernen",
   "email.conta_tooltip": "Konto: {conta}",
-  "sobre.versao_n": "Version {versao}"
+  "sobre.versao_n": "Version {versao}",
+  "geral.dispensar": "ausblenden",
+  "lembrete.ligado_a": "verknüpft mit {tipo} „{nome}“",
+  "notificacoes.adiar": "{quando} verschieben",
+  "notificacoes.adiar_aria": "{quando} verschieben: {titulo}",
+  "notificacoes.dispensar_aria": "ok, ausblenden: {titulo}",
+  "notificacoes.abrir": "öffnen",
+  "metas.prazo_em": "Frist: {data}",
+  "metas.sincronizado_trilha": "synchronisiert mit dem Lernpfad „{nome}“",
+  "metas.sincronizado_formacao": "synchronisiert mit der Ausbildung „{nome}“",
+  "metas.concluida_em": "abgeschlossen am {data}",
+  "metas.xp_bonus": "+{xp} Bonus-XP",
+  "metas.meta_concluida": "Ziel erreicht",
+  "metas.ver_trilha": "Lernpfad ansehen",
+  "metas.ver_formacao": "Ausbildung ansehen",
+  "contas.dia_n": "Tag {n}",
+  "calendario.dia_aria": "{semana}, {dia}. {mes}",
+  "calendario.n_eventos": {
+    "one": ", {n} Termin",
+    "other": ", {n} Termine"
+  },
+  "calendario.data_label": "{dia}. {mes}",
+  "organizacao_email.n_novos": {
+    "one": "{n} neue E-Mail",
+    "other": "{n} neue E-Mails"
+  },
+  "organizacao_email.lido": "gelesen",
+  "organizacao_email.item_aria": "{estado}: {assunto}, von {nome}"
 }

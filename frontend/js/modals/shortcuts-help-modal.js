@@ -145,6 +145,13 @@ export function openShortcutsHelp() {
 /** Registra o atalho global Alt+H. Chamar uma vez no boot (app.js). */
 export function wireShortcutsHelp() {
   registerGlobalShortcuts([
-    { code: "KeyH", label: t("shortcuts_help.abrir_esta_lista_de_atalhos"), run: () => openShortcutsHelp() },
+    {
+      code: "KeyH",
+      // getter: registrado uma vez no boot, lido no idioma atual
+      get label() {
+        return t("shortcuts_help.abrir_esta_lista_de_atalhos");
+      },
+      run: () => openShortcutsHelp(),
+    },
   ]);
 }

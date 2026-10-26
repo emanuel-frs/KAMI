@@ -64,5 +64,6 @@ export function startSidebarLevel() {
       </div>
     </div>`;
   window.addEventListener("kami:action-registered", refresh);
+  window.addEventListener("kami:idioma", refresh); // dicas e rótulos no idioma novo
   refresh();
 }

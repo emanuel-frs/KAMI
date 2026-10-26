@@ -1366,7 +1366,7 @@
   "organizacao_email.nenhum_e_mail_corresponde_a": "지금 검색/필터에 맞는 이메일이 없어요.",
   "organizacao_email.nao_lido": "읽지 않음",
   "organizacao_email.sem_assunto": "(제목 없음)",
-  "organizacao_email.silenciado": "알림 끔",
+  "organizacao_email.silenciado": "무음",
   "organizacao_entrada.virar": "바꾸기:",
   "organizacao_entrada.descartar": "버리기",
   "organizacao_entrada.caixa_de_entrada": "받은 편지함",
@@ -2306,5 +2306,30 @@
   "kami_intro.cor_selecionada": "{cor} 선택됨. \"계속\"으로 넘어가세요.",
   "notas.tirar_tag": "태그 {tag} 제거",
   "email.conta_tooltip": "계정: {conta}",
-  "sobre.versao_n": "버전 {versao}"
+  "sobre.versao_n": "버전 {versao}",
+  "geral.dispensar": "닫기",
+  "lembrete.ligado_a": "{tipo} «{nome}»에 연결됨",
+  "notificacoes.adiar": "다시 알림: {quando}",
+  "notificacoes.adiar_aria": "다시 알림({quando}): {titulo}",
+  "notificacoes.dispensar_aria": "확인, 닫기: {titulo}",
+  "notificacoes.abrir": "열기",
+  "metas.prazo_em": "기한: {data}",
+  "metas.sincronizado_trilha": "학습 트랙 «{nome}»과 동기화됨",
+  "metas.sincronizado_formacao": "학력 «{nome}»과 동기화됨",
+  "metas.concluida_em": "{data}에 완료",
+  "metas.xp_bonus": "+{xp} 보너스 xp",
+  "metas.meta_concluida": "목표 달성",
+  "metas.ver_trilha": "트랙 보기",
+  "metas.ver_formacao": "학력 보기",
+  "contas.dia_n": "매월 {n}일",
+  "calendario.dia_aria": "{mes} {dia}일 {semana}",
+  "calendario.n_eventos": {
+    "other": ", 일정 {n}개"
+  },
+  "calendario.data_label": "{mes} {dia}일",
+  "organizacao_email.n_novos": {
+    "other": "새 이메일 {n}개"
+  },
+  "organizacao_email.lido": "읽음",
+  "organizacao_email.item_aria": "{estado}: {assunto}, 보낸 사람 {nome}"
 }

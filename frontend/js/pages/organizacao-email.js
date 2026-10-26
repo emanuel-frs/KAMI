@@ -235,7 +235,7 @@ export async function handleSyncSelectedAccounts() {
     title: falhas ? t("organizacao_email.contas_falharam", { n: falhas }) : t("organizacao_email.sincronizacao_concluida"),
     message: falhas
       ? t("organizacao_email.veja_o_aviso_no_topo")
-      : n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : t("organizacao_email.nenhum_e_mail_novo"),
+      : n > 0 ? t("organizacao_email.n_novos", { n }) : t("organizacao_email.nenhum_e_mail_novo"),
     iconName: falhas ? "triangle-alert" : "refresh-cw",
     variant: falhas ? "erro" : undefined,
   });
@@ -362,7 +362,7 @@ export async function handleSyncAccount(accountId) {
   const n = result?.new_messages ?? 0;
   showToast({
     title: t("organizacao_email.sincronizacao_concluida"),
-    message: n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : t("organizacao_email.nenhum_e_mail_novo"),
+    message: n > 0 ? t("organizacao_email.n_novos", { n }) : t("organizacao_email.nenhum_e_mail_novo"),
     iconName: "refresh-cw",
   });
   refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
@@ -474,9 +474,9 @@ function emailItemHtml(e, agora) {
   const color = emailAccountColor(e.account_id);
   const nome = e.sender_name || e.sender || "?";
   const endereco = e.sender_email && e.sender_email !== nome ? e.sender_email : "";
-  const estado = e.is_muted ? "silenciado" : e.is_read ? "lido" : t("organizacao_email.nao_lido");
+  const estado = e.is_muted ? t("organizacao_email.silenciado") : e.is_read ? t("organizacao_email.lido") : t("organizacao_email.nao_lido");
   return `
-      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(`${estado}: ${e.subject || t("organizacao_email.sem_assunto")}, de ${nome}`)}">
+      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(t("organizacao_email.item_aria", { estado, assunto: e.subject || t("organizacao_email.sem_assunto"), nome }))}">
         <span class="email-dot" aria-hidden="true"></span>
         <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(t("email.conta_tooltip", { conta: accountLabel(e.account_id) }))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
         <div class="email-main">

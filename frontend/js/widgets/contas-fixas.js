@@ -86,7 +86,7 @@ export async function render(el, widget) {
               </div>
               <div class="cf-meta">
                 <span class="cf-valor">${brl(valor)}</span>
-                <span class="cf-dia">dia ${b.due_day}</span>
+                <span class="cf-dia">${t("contas.dia_n", { n: b.due_day })}</span>
                 ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("contas.gerou_tx")}">R$</span>` : ""}
                 ${b.active
                   ? `<button class="cf-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-bill-id="${b.id}"

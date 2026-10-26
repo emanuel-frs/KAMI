@@ -2306,5 +2306,30 @@
   "kami_intro.cor_selecionada": "已选择{cor}。使用“继续”前进。",
   "notas.tirar_tag": "移除标签 {tag}",
   "email.conta_tooltip": "账号：{conta}",
-  "sobre.versao_n": "版本 {versao}"
+  "sobre.versao_n": "版本 {versao}",
+  "geral.dispensar": "忽略",
+  "lembrete.ligado_a": "关联到{tipo}「{nome}」",
+  "notificacoes.adiar": "稍后提醒：{quando}",
+  "notificacoes.adiar_aria": "稍后提醒（{quando}）：{titulo}",
+  "notificacoes.dispensar_aria": "好的，忽略：{titulo}",
+  "notificacoes.abrir": "打开",
+  "metas.prazo_em": "期限：{data}",
+  "metas.sincronizado_trilha": "已与学习路线「{nome}」同步",
+  "metas.sincronizado_formacao": "已与学历「{nome}」同步",
+  "metas.concluida_em": "完成于 {data}",
+  "metas.xp_bonus": "+{xp} 奖励 xp",
+  "metas.meta_concluida": "目标已完成",
+  "metas.ver_trilha": "查看路线",
+  "metas.ver_formacao": "查看学历",
+  "contas.dia_n": "每月 {n} 日",
+  "calendario.dia_aria": "{mes}{dia}日 {semana}",
+  "calendario.n_eventos": {
+    "other": "，{n} 个事件"
+  },
+  "calendario.data_label": "{mes}{dia}日",
+  "organizacao_email.n_novos": {
+    "other": "{n} 封新邮件"
+  },
+  "organizacao_email.lido": "已读",
+  "organizacao_email.item_aria": "{estado}：{assunto}，来自 {nome}"
 }
