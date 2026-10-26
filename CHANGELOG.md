@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.16.0] - em desenvolvimento
+
+_Sprint 8 da evolução — IA base (IA-01 a IA-04, SEG-07): assistente opcional e desligado por padrão, conectado ao provedor que a pessoa escolher (Gemini, Groq, OpenAI, Anthropic, OpenRouter ou local com Ollama/LM Studio), chat no visual de terminal, escopo e proteção contra injeção, e tutoriais de conexão. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.15.0] - 2026-10-26
 
 _O Kami em 10 idiomas, com a moeda e o país dos feriados escolhidos por você._
