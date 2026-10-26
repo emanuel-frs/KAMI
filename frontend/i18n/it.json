@@ -2276,7 +2276,7 @@
   "captura.previa.lembrete": "promemoria: {titulo} · {quando} — controlla e conferma",
   "captura.previa.entrada": "va nella posta in arrivo — decidi dopo cosa diventa",
   "captura.quando": "{dia} alle {hora}",
-  "captura.rodape": "<kbd>$</kbd> 25 pranzo = spesa · <kbd>#</kbd> idea = nota · <kbd>!</kbd> domani 9 dentista = evento · <kbd>@</kbd> 18 medicina = promemoria · invio salva · esc chiude",
+  "captura.rodape": "<kbd>$</kbd> 25 pranzo = spesa · <kbd>#</kbd> idea = nota · <kbd>!</kbd> domani alle 9 dentista = evento · <kbd>@</kbd> alle 18 medicina = promemoria · invio salva · esc chiude",
   "atualizacao.confirmar": "kami conserverà una copia del database, scaricherà la versione {versao}, la installerà e si riaprirà.",
   "atualizacao.atualizar_para": "aggiorna alla {versao}",
   "atualizacao.baixando": "download della versione {versao}…",
