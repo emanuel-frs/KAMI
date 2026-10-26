@@ -4,7 +4,7 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [1.15.0] - em desenvolvimento
+## [1.15.0] - 2026-10-26
 
 _O Kami em 10 idiomas, com a moeda e o país dos feriados escolhidos por você._
 
