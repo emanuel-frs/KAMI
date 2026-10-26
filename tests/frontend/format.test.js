@@ -4,6 +4,7 @@ import {
   definirFormatoData, escapeHtml, fmtData, fmtDataCompacta, fmtDataCurta, fmtDataHora, fmtDataNoFormato,
   fmtMesAno, fmtMoney, fmtRelDate, lerMesAno, localDateKey,
 } from "../../frontend/js/components/format.js";
+import { localeAtual } from "../../frontend/js/i18n.js";
 
 // ORG-07 (P-53): um formatador só, no formato escolhido em configurações
 test("fmtData segue o formato escolhido e trata valor vazio", (t) => {
@@ -26,8 +27,9 @@ test("fmtData segue o formato escolhido e trata valor vazio", (t) => {
 });
 
 test("o formato do sistema vem da ordem das partes do idioma", () => {
-  // o Node daqui tem algum idioma; o que importa é a ordem bater com o Intl
-  const esperado = new Intl.DateTimeFormat(navigator.language, { day: "2-digit", month: "2-digit", year: "numeric" })
+  // desde o I18N-01 "sistema" segue o idioma do APP (localeAtual), não o
+  // do sistema operacional — o runner en-US do CI tem outra ordem
+  const esperado = new Intl.DateTimeFormat(localeAtual(), { day: "2-digit", month: "2-digit", year: "numeric" })
     .formatToParts(new Date(2026, 9, 21)).filter((p) => p.type !== "literal").map((p) => p.type[0]).join("");
   const mapa = { dmy: "21/10/2026", mdy: "10/21/2026", ymd: "2026-10-21" };
   assert.equal(fmtDataNoFormato("2026-10-21", "sistema"), mapa[esperado]);
