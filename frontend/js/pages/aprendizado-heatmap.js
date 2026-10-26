@@ -4,15 +4,13 @@
  * (lista de trilhas, atalhos, montar/desmontar); o estado compartilhado
  * mora em aprendizado-estado.js.
  */
-import { escapeHtml, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, mesesCurtos } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { getLog } from "../api/nucleo.js";
 import { estado } from "./aprendizado-estado.js";
 import { t } from "../i18n.js";
 
 let heatmapYear = new Date().getFullYear();
-
-const MONTH_NAMES_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
 async function loadHeatmapEntries() {
   try {
@@ -144,7 +142,7 @@ export async function renderAprHeatmap() {
     if (marker) {
       const month = marker.getUTCMonth();
       if (month !== lastMonth) {
-        monthsHtml += `<span style="grid-column:${idx + 1};">${MONTH_NAMES_PT[month]}</span>`;
+        monthsHtml += `<span style="grid-column:${idx + 1};">${mesesCurtos()[month]}</span>`;
         lastMonth = month;
       }
     }

@@ -23,7 +23,7 @@
  * cópia no localStorage, pra abertura já sair no idioma certo antes do
  * perfil chegar — a tela de PIN vem antes dele (mesma ideia de
  * restaurarAparencia em components/tema.js). Banco novo começa sem idioma
- * e segue o do sistema (cai pro inglês se não for um dos 10); quem já usava
+ * e segue o do sistema (cai pro português se não for um dos 10); quem já usava
  * o Kami ficou com "pt" na migração (P-96).
  *
  * Trocar o idioma não recarrega o app: dispara `kami:idioma` e o app.js
@@ -44,7 +44,7 @@ export const IDIOMAS = [
 ];
 
 const FONTE = "pt";
-const RESERVA_DO_SISTEMA = "en"; // sistema num idioma fora dos 10 (P-74)
+const RESERVA_DO_SISTEMA = "pt"; // sistema num idioma fora dos 10 (P-74; pt desde 2026-10-26, pedido do Emanuel)
 const CHAVE_LOCAL = "kami:idioma";
 
 let atual = FONTE;

@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import { withDom } from "./helpers/dom.js";
 import { idiomaDoSistema, t, usarDicionarios, localeAtual, aplicarNoDocumento } from "../../frontend/js/i18n.js";
 
-test("idioma do sistema: o primeiro dos 10, senão inglês (P-74)", () => {
+test("idioma do sistema: o primeiro dos 10, senão português (P-74)", () => {
   assert.equal(idiomaDoSistema(["pt-BR", "en-US"]), "pt");
   assert.equal(idiomaDoSistema(["ru-RU", "de-AT", "en"]), "de");
   assert.equal(idiomaDoSistema(["zh-Hant-TW"]), "zh");
-  assert.equal(idiomaDoSistema(["ru", "uk"]), "en");
-  assert.equal(idiomaDoSistema([]), "en");
+  assert.equal(idiomaDoSistema(["ru", "uk"]), "pt", "fora dos 10: português");
+  assert.equal(idiomaDoSistema([]), "pt");
 });
 
 test("t(): variáveis, reserva no português e chave crua só quando falta nos dois", () => {
