@@ -52,42 +52,38 @@ import { navigateTo } from "./navigate.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openNotaRapida } from "../modals/nota-rapida-modal.js";
 import { abrirCaptura } from "./captura.js";
+import { t } from "../i18n.js";
 
-// mesma ordem visual de index.html (#nav-tree).
-const PAGE_ORDER = [
-  { page: "perfil", label: "ir para perfil", shortLabel: "perfil" },
-  { page: "nucleo", label: "ir para núcleo", shortLabel: "núcleo" },
-  { page: "financas", label: "ir para finanças", shortLabel: "finanças" },
-  { page: "carreira", label: "ir para carreira", shortLabel: "carreira" },
-  { page: "aprendizado", label: "ir para aprendizado", shortLabel: "aprendizado" },
-  { page: "organizacao", label: "ir para organização", shortLabel: "organização" },
-  { page: "metas", label: "ir para metas pessoais", shortLabel: "metas pessoais" },
-  { page: "calendario", label: "ir para calendário", shortLabel: "calendário" },
-  // ORG-04 (P-55): por último (Alt+9), pra Alt+1..8 não mudarem de tela
-  { page: "habitos", label: "ir para hábitos", shortLabel: "hábitos" },
-];
+// mesma ordem visual de index.html (#nav-tree). ORG-04 (P-55): hábitos
+// por último (Alt+9), pra Alt+1..8 não mudarem de tela
+const PAGE_ORDER = ["perfil", "nucleo", "financas", "carreira", "aprendizado", "organizacao", "metas", "calendario", "habitos"];
+
+// os atalhos são registrados uma vez no boot e a ajuda lê os rótulos na
+// hora — por getter, pra seguirem o idioma atual
+const comRotulo = (item, chave) =>
+  Object.defineProperty(item, "label", { get: () => t(chave), enumerable: true });
 
 /** Registra os atalhos globais. Chamar uma vez no boot (app.js), junto
  * de wireShortcuts()/wireShortcutsHelp(). */
 export function wireGlobalShortcuts() {
-  const pageShortcuts = PAGE_ORDER.map(({ page, label, shortLabel }, i) => ({
+  const pageShortcuts = PAGE_ORDER.map((page, i) => ({
     code: `Digit${i + 1}`,
-    label,
-    shortLabel,
+    get label() {
+      return t("paleta.ir_para", { tela: t(`nav.${page}`) });
+    },
+    get shortLabel() {
+      return t(`nav.${page}`);
+    },
     group: "nav",
     run: () => navigateTo(page),
   }));
 
   registerGlobalShortcuts([
     ...pageShortcuts,
-    { code: "KeyC", label: "abrir configurações", run: () => openConfiguracoesModal() },
-    { code: "KeyN", shift: true, label: "nova nota rápida", run: () => openNotaRapida() },
-    { code: "KeyQ", label: "captura rápida ($ gasto, # nota, ! evento, @ lembrete)", run: () => abrirCaptura() },
-    { code: "Space", label: "captura rápida", group: "apelido", run: () => abrirCaptura() },
-    {
-      code: "KeyB",
-      label: "focar a busca (tela organização)",
-      run: () => navigateTo("organizacao", { focusSearch: true }),
-    },
+    comRotulo({ code: "KeyC", run: () => openConfiguracoesModal() }, "atalhos.abrir_configuracoes"),
+    comRotulo({ code: "KeyN", shift: true, run: () => openNotaRapida() }, "atalhos.nota_rapida"),
+    comRotulo({ code: "KeyQ", run: () => abrirCaptura() }, "atalhos.captura"),
+    comRotulo({ code: "Space", group: "apelido", run: () => abrirCaptura() }, "atalhos.captura_curta"),
+    comRotulo({ code: "KeyB", run: () => navigateTo("organizacao", { focusSearch: true }) }, "atalhos.focar_busca"),
   ]);
 }

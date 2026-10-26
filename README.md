@@ -10,6 +10,7 @@ Carreira, finanças, estudos e metas num só lugar, com os dados no seu computad
 ![Licença](https://img.shields.io/badge/licença-source--available-lightgrey)
 ![Plataformas](https://img.shields.io/badge/Windows%20%7C%20Linux-suportados-blue)
 
+**[English](./README.en.md)** ·
 **[⬇ Baixar](https://github.com/emanuel-frs/KAMI/releases/latest)** ·
 **[Guia de instalação](./docs/INSTALACAO.md)** ·
 **[Relatar problema ou dar feedback](https://github.com/emanuel-frs/KAMI/issues/new/choose)**
@@ -20,11 +21,8 @@ Carreira, finanças, estudos e metas num só lugar, com os dados no seu computad
 
 </div>
 
-> **English:** Kami is a local-first desktop app (Tauri v2 + FastAPI + SQLite, with a
-> vanilla JavaScript frontend) that tracks career, finances, learning and goals as a game with XP and
-> levels. Your data stays in a local SQLite file; the app only goes online when you enable an
-> integration. Windows and Linux builds are available. The UI is in Brazilian Portuguese.
-> Source-available, not open source (see [LICENSE](./LICENSE)).
+> **English:** Kami is a local-first desktop app that tracks career, finances, learning and goals as a
+> game with XP and levels, in 10 languages. Read the [README in English](./README.en.md).
 
 ---
 
@@ -39,9 +37,10 @@ conquistas.
 O visual é uma homenagem a terminais antigos: preto, branco, cinza e uma única cor de destaque,
 configurável.
 
-**Para quem é:** quem gosta de ferramentas locais, que não exigem conta nem assinatura, e se sente à
-vontade com uma interface em português e feriados do Brasil. **Quem não vai gostar:** quem precisa de
-macOS, de sincronização entre dispositivos ou de aplicativo para celular, que não existem.
+**Para quem é:** quem gosta de ferramentas locais, que não exigem conta nem assinatura. A interface fala
+10 idiomas (português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi).
+**Quem não vai gostar:** quem precisa de macOS, de sincronização entre dispositivos ou de aplicativo para
+celular, que não existem.
 
 Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado como portfólio.
 
@@ -68,7 +67,7 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   brilho de fósforo e cursor em pixel art, além de bipes 8-bit gerados na hora para progresso, cliques
   e avisos. Efeitos (completo, sutil ou desligado) e sons (por grupo, com volume) se ajustam em
   configurações › aparência.
-- **Finanças e Wallet:** renda recorrente com cálculo de dia útil (calendário brasileiro), contas
+- **Finanças e Wallet:** renda recorrente com cálculo de dia útil (feriados do país escolhido), contas
   fixas, dívidas, assinaturas, compras parceladas, cartões de crédito, lançamentos por categoria e
   visão mensal com comparação com o mês anterior. Lançamento digitado errado se corrige ou apaga, e o
   saldo e o XP acompanham; quitar uma dívida pode lançar a saída na conta.
@@ -82,8 +81,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   HTML de terceiros, com link para abrir no webmail) e busca na web opcional.
 - **Captura e busca:** `Alt+Q` anota qualquer coisa de qualquer tela — `$ 32,90 farmácia ontem` vira
   um gasto, `# ideia` uma nota, `! sexta 14h reunião` um evento, `@ amanhã 9h ligar pro banco` um
-  lembrete, e o resto vai para a caixa de entrada; `Ctrl+K` busca em tudo (sem ligar para acento) e
-  roda comandos.
+  lembrete, e o resto vai para a caixa de entrada — datas e horas no idioma do app ("tomorrow 9am",
+  "明天9点"); `Ctrl+K` busca em tudo (sem ligar para acento) e roda comandos.
 - **Hábitos:** tela própria (`Alt+9`) com hábitos diários, em dias fixos ou "x vezes por semana",
   grade das últimas 12 semanas, sequência e recorde por hábito, pausa e arquivo; marcar dá XP e conta
   para as missões e para a sequência geral.
@@ -92,8 +91,11 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   Opcional: manter o Kami na bandeja ao fechar e iniciar com o sistema.
 - **Carreira e Calendário:** linha do tempo de posições, formação e histórico salarial; calendário
   mensal que reúne contas, dívidas, parcelas, metas, eventos próprios e lembretes.
-- **Datas no seu formato:** seguem o idioma do sistema (dd/mm/aaaa no Brasil), ou o formato escolhido
-  em configurações › aparência.
+- **Idioma, moeda e país:** 10 idiomas (o do sistema na primeira abertura, ou o escolhido em
+  configurações › aparência), com a moeda (só o formato, nada é convertido) e o país dos feriados do dia
+  útil escolhidos ali também. Datas no formato do idioma ou no que você preferir. As traduções foram
+  feitas com ajuda de IA e não passaram por falante nativo — correções são bem-vindas
+  ([docs/TRADUCAO.md](./docs/TRADUCAO.md)).
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
@@ -145,8 +147,9 @@ Passo a passo do SmartScreen, do Defender e do Smart App Control em
 [docs/INSTALACAO.md](./docs/INSTALACAO.md#windows-sem-assinatura).
 
 **Outras limitações:** a atualização pelo app (só avisa; instala quando você pede) vale para o
-instalador do Windows e o AppImage — `.deb`, `.rpm` e AUR atualizam pelo gerenciador de pacotes;
-interface só em português e feriados do Brasil.
+instalador do Windows, o AppImage e o `.rpm` (pede a senha do sistema) — `.deb` e AUR atualizam pelo
+gerenciador de pacotes. No Linux, chinês, japonês, coreano e hindi precisam das fontes Noto (os pacotes
+recomendam; o app avisa se faltarem).
 
 ## Privacidade: o que sai da sua máquina
 
@@ -230,7 +233,8 @@ Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades
 - ~~**Base:**~~ feito na 1.14: atualização avisada pelo próprio app (instala só quando você quiser),
   backup automático (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada
   para trás, testes automáticos cobrindo todas as telas e arquivos grandes divididos.
-- **Idiomas:** português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi.
+- ~~**Idiomas:**~~ feito na 1.15: português, inglês, espanhol, francês, italiano, alemão, chinês,
+  japonês, coreano e hindi, com moeda e país dos feriados à escolha.
 - **Assistente de IA (opcional, desligado por padrão):** chat, ações sempre com prévia e confirmação,
   avisos, e IA local rodando no seu computador. Nenhuma chave vem embutida.
 - **Banco cifrado em disco**, opcional.
@@ -376,10 +380,10 @@ Linux, publica os checksums e cria a GitHub Release quando recebe uma tag `v*.*.
 
 ```
 backend/      FastAPI, SQLite, testes e entrypoint do sidecar (run_server.py)
-frontend/     HTML, CSS e JS puro: pages/, widgets/, modals/, api/
+frontend/     HTML, CSS e JS puro: pages/, widgets/, modals/, api/, i18n/ (os 10 dicionários)
 src-tauri/    casca desktop (Rust, Tauri v2)
 scripts/      instalação, versão, seed do modo demo e testes de CI
-docs/         guia de instalação, roadmap e página de download
+docs/         guia de instalação, guia de tradução, roadmap e página de download
 ```
 
 </details>

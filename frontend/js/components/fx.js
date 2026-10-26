@@ -94,7 +94,9 @@ export function typeText(node, text = node.textContent, { level = "completo" } =
 export function typeCardTitles(root) {
   if (!fxAllows("completo")) return;
   root.querySelectorAll(".card-head").forEach((head) => {
-    const node = [...head.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+    // widgets do grid: o título fica num .card-label (I18N-04)
+    const alvo = head.querySelector(":scope > .card-label") || head;
+    const node = [...alvo.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
     if (node) typeText(node, node.textContent);
   });
 }

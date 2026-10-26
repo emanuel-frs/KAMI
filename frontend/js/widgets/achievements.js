@@ -7,18 +7,23 @@ import { escapeHtml, fmtRelDate } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { descricaoConquista, nomeAtributo, tituloConquista } from "../components/textos-sistema.js";
+import { t } from "../i18n.js";
 
 const BAR_CELLS = 10;
 
 // área -> rótulo do filtro + ícone (assets/icons/) do card
+// (rótulo pelo idioma na hora de desenhar: núcleo é área só daqui, o resto
+// são os nomes dos atributos)
 const CATEGORIES = [
-  { id: "nucleo", label: "núcleo", icon: "zap" },
-  { id: "financas", label: "finanças", icon: "credit-card" },
-  { id: "aprendizado", label: "aprendizado", icon: "star" },
-  { id: "carreira", label: "carreira", icon: "trending-up" },
-  { id: "metas", label: "metas", icon: "target" },
-  { id: "organizacao", label: "organização", icon: "calendar-days" },
+  { id: "nucleo", icon: "zap" },
+  { id: "financas", icon: "credit-card" },
+  { id: "aprendizado", icon: "star" },
+  { id: "carreira", icon: "trending-up" },
+  { id: "metas", icon: "target" },
+  { id: "organizacao", icon: "calendar-days" },
 ];
+const rotuloArea = (id) => (id === "nucleo" ? t("conquistas.area.nucleo") : nomeAtributo(id));
 // exportado: o aviso de conquista (components/achievement-popup.js, via
 // progress-watcher) usa o mesmo ícone do card da galeria
 export const ICON_BY_CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.icon]));
@@ -35,9 +40,9 @@ function asciiBar(current, target) {
 
 function lockedStatus(a) {
   // conquista de "tem ou não tem" (alvo 1) não ganha barra — 0/1 não diz nada
-  if (a.progress_target <= 1) return '<div class="a-status">bloqueada</div>';
+  if (a.progress_target <= 1) return `<div class="a-status">${t("conquistas.bloqueada")}</div>`;
   return `
-    <div class="a-status a-progress" aria-label="progresso ${a.progress_current} de ${a.progress_target}">
+    <div class="a-status a-progress" aria-label="${t("conquistas.progresso_aria", { atual: a.progress_current, alvo: a.progress_target })}">
       <span class="a-bar" aria-hidden="true">${asciiBar(a.progress_current, a.progress_target)}</span>
       <span>${a.progress_current}/${a.progress_target}</span>
     </div>`;
@@ -53,7 +58,7 @@ export function sortAchievements(list) {
   return [...list].sort((a, b) => {
     if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
     if (a.unlocked) return (b.unlocked_at ?? "").localeCompare(a.unlocked_at ?? "");
-    return frac(b) - frac(a) || a.title.localeCompare(b.title);
+    return frac(b) - frac(a) || tituloConquista(a).localeCompare(tituloConquista(b));
   });
 }
 
@@ -64,8 +69,8 @@ export function sortAchievements(list) {
  */
 function filterButtons(achievements, selected) {
   const count = (list) => `${list.filter((a) => a.unlocked).length}/${list.length}`;
-  const buttons = [{ id: "all", label: "todas", list: achievements }].concat(
-    CATEGORIES.map((c) => ({ ...c, list: achievements.filter((a) => a.category === c.id) }))
+  const buttons = [{ id: "all", label: t("conquistas.todas"), list: achievements }].concat(
+    CATEGORIES.map((c) => ({ ...c, label: rotuloArea(c.id), list: achievements.filter((a) => a.category === c.id) }))
   );
   return buttons
     .filter((b) => b.list.length)
@@ -87,13 +92,13 @@ export function toggleCategory(selected, id) {
 
 function card(a) {
   const tier = a.tier && TIER_MARK[a.tier]
-    ? `<span class="ach-tier" data-tooltip="${a.tier}" aria-label="nível ${a.tier}">${TIER_MARK[a.tier]}</span>`
+    ? `<span class="ach-tier" data-tooltip="${t(`conquistas.tier.${a.tier}`)}" aria-label="${t("conquistas.nivel_aria", { nivel: t(`conquistas.tier.${a.tier}`) })}">${TIER_MARK[a.tier]}</span>`
     : "";
   // GAM-14: conquista criada pelo usuário — marca "sua" e botão de remover
   const custom = a.rule_type === "custom";
   const mine = custom
-    ? `<span class="ach-mine" data-tooltip="conquista criada por você">sua</span>
-       <button type="button" class="ach-remove" data-remove-custom="${escapeHtml(a.id)}" data-tooltip="remover conquista" aria-label="remover a conquista ${escapeHtml(a.title)}">${icon("x", { size: 10 })}</button>`
+    ? `<span class="ach-mine" data-tooltip="${t("conquistas.sua_dica")}">${t("conquistas.sua")}</span>
+       <button type="button" class="ach-remove" data-remove-custom="${escapeHtml(a.id)}" data-tooltip="${t("conquistas.remover")}" aria-label="${escapeHtml(t("conquistas.remover_aria", { titulo: tituloConquista(a) }))}">${icon("x", { size: 10 })}</button>`
     : "";
   return `
     <div class="ach${a.unlocked ? " unlocked" : ""}${a.secret && !a.unlocked ? " secret" : ""}${custom ? " custom" : ""}" data-ach-id="${escapeHtml(a.id)}">
@@ -103,9 +108,9 @@ function card(a) {
         ${tier}
         ${mine}
       </div>
-      <div class="a-title">${escapeHtml(a.title)}</div>
-      <div class="a-desc">${escapeHtml(a.description ?? "")}</div>
-      ${a.unlocked ? `<div class="a-date">desbloqueada ${fmtRelDate(a.unlocked_at)}</div>` : lockedStatus(a)}
+      <div class="a-title">${escapeHtml(tituloConquista(a))}</div>
+      <div class="a-desc">${escapeHtml(descricaoConquista(a))}</div>
+      ${a.unlocked ? `<div class="a-date">${t("conquistas.desbloqueada", { quando: fmtRelDate(a.unlocked_at) })}</div>` : lockedStatus(a)}
     </div>`;
 }
 
@@ -119,7 +124,7 @@ function card(a) {
  * pelo usuário têm a marca "sua" e podem ser removidas.
  */
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando conquistas…</div>';
+  el.innerHTML = `<div class="empty-state">${t("conquistas.carregando")}</div>`;
   let selected = new Set();
   let achievements = [];
 
@@ -128,9 +133,9 @@ export async function render(el, widget) {
       ? achievements
       : achievements.filter((a) => selected.has(a.category));
     el.innerHTML = `
-      <div class="ach-filters" role="group" aria-label="filtrar conquistas por área (dá pra escolher mais de uma)">
+      <div class="ach-filters" role="group" aria-label="${t("conquistas.filtrar_aria")}">
         ${filterButtons(achievements, selected)}
-        <button type="button" class="ach-create" data-create-custom>+ criar conquista</button>
+        <button type="button" class="ach-create" data-create-custom>${t("conquistas.criar")}</button>
       </div>
       <div class="ach-grid">
         ${sortAchievements(visible).map(card).join("")}
@@ -142,11 +147,11 @@ export async function render(el, widget) {
     try {
       achievements = await getAchievements();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar conquistas: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("conquistas.erro", { erro: err.message }))}</div>`;
       return;
     }
     if (!achievements.length) {
-      el.innerHTML = '<div class="empty-state">nenhuma conquista cadastrada ainda.</div>';
+      el.innerHTML = `<div class="empty-state">${t("conquistas.nenhuma")}</div>`;
       return;
     }
     // área que deixou de existir na lista (ex: banco restaurado) sai da seleção
@@ -162,16 +167,16 @@ export async function render(el, widget) {
     }
     const remove = e.target.closest("[data-remove-custom]");
     if (remove) {
-      const ok = await showConfirmModal("remover esta conquista? ela sai da galeria e não dá pra desfazer.", {
-        title: "remover conquista",
-        confirmText: "remover",
+      const ok = await showConfirmModal(t("conquistas.remover_confirma"), {
+        title: t("conquistas.remover"),
+        confirmText: t("conquistas.remover_botao"),
         danger: true,
       });
       if (!ok) return;
       try {
         await deleteCustomAchievement(remove.dataset.removeCustom);
       } catch (err) {
-        showErrorModal(err.message, "erro ao remover conquista");
+        showErrorModal(err.message, t("conquistas.erro_remover"));
         return;
       }
       await load();

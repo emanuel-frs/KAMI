@@ -26,14 +26,24 @@ import { escapeHtml, fmtMoney, fmtDataCompacta } from "./format.js";
 import { showToast } from "./toast.js";
 import { navigateTo } from "./navigate.js";
 import { getShortcuts } from "./shortcuts.js";
+import { noIdiomaAtual, t } from "../i18n.js";
+
+// rótulo por getter: sai no idioma atual na hora de desenhar
+const conversao = (tipo, icone) => ({
+  tipo,
+  icone,
+  get rotulo() {
+    return t(`captura.${tipo}`);
+  },
+});
 
 export const TIPOS_CONVERSAO = [
-  { tipo: "gasto", rotulo: "gasto", icone: "receipt" },
-  { tipo: "tarefa", rotulo: "tarefa", icone: "check" },
-  { tipo: "nota", rotulo: "nota", icone: "pencil" },
-  { tipo: "meta", rotulo: "meta", icone: "target" },
-  { tipo: "evento", rotulo: "evento", icone: "calendar-days" },
-  { tipo: "lembrete", rotulo: "lembrete", icone: "bell-ring" },
+  conversao("gasto", "receipt"),
+  conversao("tarefa", "check"),
+  conversao("nota", "pencil"),
+  conversao("meta", "target"),
+  conversao("evento", "calendar-days"),
+  conversao("lembrete", "bell-ring"),
 ];
 
 function avisarMudou() {
@@ -92,7 +102,7 @@ export async function converterItem(item, tipo) {
   if (tipo === "tarefa") {
     await api.virarTarefa(item.id);
     avisarMudou();
-    showToast({ title: "virou tarefa", message: 'está na nota "tarefas" (organização › notas)', iconName: "check", duration: 4000, sound: false });
+    showToast({ title: t("captura.virou_tarefa"), message: t("captura.esta_na_nota_tarefas_organizacao"), iconName: "check", duration: 4000, sound: false });
     return;
   }
   if (tipo === "gasto") {
@@ -149,23 +159,24 @@ let el = null;
 let focoAntes = null;
 
 function previa(texto) {
-  const t = texto.trim();
-  if (!t) return "";
-  const r = interpretarCaptura(t);
+  const tx = texto.trim();
+  if (!tx) return "";
+  const r = interpretarCaptura(tx);
+  const dia = r.data ? dataLegivel(r.data) : t("calendario.hoje");
   if (r.tipo === "gasto") {
-    const partes = [r.valor != null ? fmtMoney(r.valor) : "valor a preencher", r.descricao || "sem descrição", r.data ? dataLegivel(r.data) : "hoje"];
-    return `${icon("receipt", { size: 11 })} gasto: ${escapeHtml(partes.join(" · "))} — confira e confirme`;
+    const partes = [r.valor != null ? fmtMoney(r.valor) : t("captura.valor_a_preencher"), r.descricao || t("captura.sem_descricao"), dia];
+    return `${icon("receipt", { size: 11 })} ${t("captura.previa.gasto", { detalhe: escapeHtml(partes.join(" · ")) })}`;
   }
-  if (r.tipo === "nota") return `${icon("pencil", { size: 11 })} nota: ${escapeHtml(r.titulo || "(sem título)")}`;
+  if (r.tipo === "nota") return `${icon("pencil", { size: 11 })} ${t("captura.previa.nota", { titulo: escapeHtml(r.titulo || t("captura.sem_titulo")) })}`;
   if (r.tipo === "evento") {
-    const quando = [r.data ? dataLegivel(r.data) : "hoje", r.hora].filter(Boolean).join(" às ");
-    return `${icon("calendar-days", { size: 11 })} evento: ${escapeHtml(r.titulo || "(sem título)")} · ${escapeHtml(quando)} — confira e confirme`;
+    const quando = r.hora ? t("captura.quando", { dia, hora: r.hora }) : dia;
+    return `${icon("calendar-days", { size: 11 })} ${t("captura.previa.evento", { titulo: escapeHtml(r.titulo || t("captura.sem_titulo")), quando: escapeHtml(quando) })}`;
   }
   if (r.tipo === "lembrete") {
-    const quando = [r.data ? dataLegivel(r.data) : "hoje", r.hora || "(hora a escolher)"].join(" às ");
-    return `${icon("bell-ring", { size: 11 })} lembrete: ${escapeHtml(r.titulo || "(sem texto)")} · ${escapeHtml(quando)} — confira e confirme`;
+    const quando = t("captura.quando", { dia, hora: r.hora || t("captura.hora_a_escolher") });
+    return `${icon("bell-ring", { size: 11 })} ${t("captura.previa.lembrete", { titulo: escapeHtml(r.titulo || t("captura.sem_texto")), quando: escapeHtml(quando) })}`;
   }
-  return `${icon("download", { size: 11 })} vai pra caixa de entrada — decida depois o que vira`;
+  return `${icon("download", { size: 11 })} ${t("captura.previa.entrada")}`;
 }
 
 function montar() {
@@ -174,15 +185,15 @@ function montar() {
   wrap.id = "captura";
   wrap.hidden = true;
   wrap.innerHTML = `
-    <div class="paleta captura" role="dialog" aria-modal="true" aria-label="captura rápida">
+    <div class="paleta captura" role="dialog" aria-modal="true" aria-label="${t("captura.captura_rapida")}">
       <div class="paleta-entrada">
         <span class="paleta-prompt" aria-hidden="true">+</span>
         <input type="text" id="captura-q" autocomplete="off" spellcheck="true" maxlength="2000"
-          placeholder="anote qualquer coisa…" aria-describedby="captura-previa">
+          placeholder="${t("captura.anote_qualquer_coisa")}" aria-describedby="captura-previa">
       </div>
       <div class="captura-previa" id="captura-previa" aria-live="polite"></div>
       <div class="paleta-rodape" aria-hidden="true">
-        <kbd>$</kbd> 25 almoço = gasto · <kbd>#</kbd> ideia = nota · <kbd>!</kbd> amanhã 9h dentista = evento · <kbd>@</kbd> 18h remédio = lembrete · enter guarda · esc fecha
+        ${t("captura.rodape")}
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -207,12 +218,12 @@ function montar() {
 }
 
 async function enviar(texto) {
-  const t = texto.trim();
-  if (!t) return;
-  const r = interpretarCaptura(t);
+  const tx = texto.trim();
+  if (!tx) return;
+  const r = interpretarCaptura(tx);
   let item;
   try {
-    item = await api.guardarEntrada(t);
+    item = await api.guardarEntrada(tx);
   } catch {
     return; // o client já mostrou o erro; o texto continua no campo
   }
@@ -220,12 +231,12 @@ async function enviar(texto) {
   avisarMudou();
   if (r.tipo === "entrada") {
     showToast({
-      title: "guardado na caixa de entrada",
-      message: t.length > 60 ? t.slice(0, 57) + "…" : t,
+      title: t("captura.guardado_na_caixa_de_entrada"),
+      message: tx.length > 60 ? tx.slice(0, 57) + "…" : tx,
       iconName: "download",
       duration: 3500,
       sound: false,
-      actions: [{ label: "ver", onClick: () => navigateTo("organizacao", { tab: "entrada" }) }],
+      actions: [{ label: t("captura.ver"), onClick: () => navigateTo("organizacao", { tab: "entrada" }) }],
     });
     return;
   }
@@ -233,7 +244,7 @@ async function enviar(texto) {
 }
 
 export function abrirCaptura() {
-  el = el && el.isConnected ? el : montar();
+  el = noIdiomaAtual(el, montar);
   if (!el.hidden) {
     el.querySelector("#captura-q").select();
     return;

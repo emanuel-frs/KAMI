@@ -4,6 +4,7 @@ import { openFormacaoModal } from "../modals/formacao-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget "formação acadêmica" (seção 4 do documento de regras de
@@ -17,20 +18,20 @@ import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
  * escalonado por nível entra — ver routers/carreira.py.
  */
 
-const NIVEL_LABELS = {
-  certificacao: "certificação",
-  tecnico: "técnico",
-  pos_graduacao: "pós-graduação",
-  graduacao: "graduação",
+const nivelLabels = () => ({
+  certificacao: t("carreira_formacoes.certificacao"),
+  tecnico: t("carreira_formacoes.tecnico"),
+  pos_graduacao: t("carreira_formacoes.pos_graduacao"),
+  graduacao: t("carreira_formacoes.graduacao"),
   mestrado: "mestrado",
   doutorado: "doutorado",
-};
+});
 
-const STATUS_LABELS = {
-  em_andamento: "em andamento",
-  concluido: "concluído",
+const statusLabels = () => ({
+  em_andamento: t("carreira_formacoes.em_andamento"),
+  concluido: t("carreira_formacoes.concluido"),
   trancado: "trancado",
-};
+});
 
 function formatDate(iso) {
   if (!iso) return null;
@@ -38,14 +39,14 @@ function formatDate(iso) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando formações…</div>';
+  el.innerHTML = `<div class="empty-state">${t("carreira_formacoes.carregando_formacoes")}</div>`;
   let educations = [];
 
   async function reload() {
     try {
       educations = await carreiraApi.listCareerEducations();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar formações: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_formacoes", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -54,21 +55,21 @@ export async function render(el, widget) {
   function draw() {
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-education">+ formação</button>
+        <button type="button" class="btn sm" data-action="add-education">${t("carreira_formacoes.formacao")}</button>
       </div>
       <div class="ce-list">
         ${educations.length ? educations.map((e) => `
           <div class="ce-row status-${e.status}" data-education-id="${e.id}">
             <div class="ce-top">
               <span class="ce-curso" data-edit-education="${e.id}" data-tooltip="${escapeHtml(e.curso)}">${escapeHtml(e.curso)}</span>
-              <span class="ce-status-tag ce-status-${e.status}">${STATUS_LABELS[e.status] || e.status}</span>
-              <span class="ce-remove" data-remove-education="${e.id}" data-tooltip="remover formação" aria-label="remover formação">${icon("x", { size: 11 })}</span>
+              <span class="ce-status-tag ce-status-${e.status}">${statusLabels()[e.status] || e.status}</span>
+              <span class="ce-remove" data-remove-education="${e.id}" data-tooltip="${t("carreira_formacoes.remover_formacao")}" aria-label="${t("carreira_formacoes.remover_formacao")}">${icon("x", { size: 11 })}</span>
             </div>
-            <div class="ce-instituicao">${escapeHtml(e.instituicao)} · ${NIVEL_LABELS[e.nivel] || e.nivel}</div>
+            <div class="ce-instituicao">${escapeHtml(e.instituicao)} · ${nivelLabels()[e.nivel] || e.nivel}</div>
             ${e.previsao_conclusao && e.status === "em_andamento"
-              ? `<div class="ce-previsao">previsão de conclusão: ${formatDate(e.previsao_conclusao)}</div>`
+              ? `<div class="ce-previsao">${t("carreira_formacoes.previsao", { data: formatDate(e.previsao_conclusao) })}</div>`
               : ""}
-          </div>`).join("") : `<div class="wallet-empty">nenhuma formação registrada ainda.</div>`}
+          </div>`).join("") : `<div class="wallet-empty">${t("carreira_formacoes.nenhuma_formacao_registrada_ainda")}</div>`}
       </div>
     `;
 
@@ -82,7 +83,7 @@ export async function render(el, widget) {
 
     el.querySelectorAll("[data-remove-education]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover essa formação?", { title: "remover formação", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("carreira_formacoes.remover_essa_formacao"), { title: t("carreira_formacoes.remover_formacao"), confirmText: "remover", danger: true }))) return;
         await carreiraApi.deleteCareerEducation(btn.getAttribute("data-remove-education"));
         await reload();
       });

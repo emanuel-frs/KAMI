@@ -121,6 +121,11 @@ jobs:
           python -m pip install -r ../backend/requirements.txt pyinstaller
           bash ../scripts/build_sidecar.sh
           cargo tauri build
+          # o .rpm também se atualiza pelo app (plugin do updater + pkexec):
+          # precisa do .sig como o AppImage. Assina se o build não gerou.
+          for rpm in target/release/bundle/rpm/*.rpm; do
+            [ -f "$rpm.sig" ] || cargo tauri signer sign "$rpm"
+          done
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -128,6 +133,7 @@ jobs:
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/rpm/*.rpm.sig
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/appimage/*.AppImage.sig
           if-no-files-found: error
@@ -224,6 +230,7 @@ jobs:
 
           deb="$(find linux-installers -type f -name '*.deb' -print -quit)"
           rpm="$(find linux-installers -type f -name '*.rpm' -print -quit)"
+          test -s "${rpm}.sig" || { echo "Falta a assinatura do .rpm (${rpm}.sig)." >&2; exit 1; }
           appimage="$(find linux-installers -type f -name '*.AppImage' -print -quit)"
           installer="$(find windows-installer -type f -name '*-setup.exe' -print -quit)"
           test -n "$deb" && test -n "$rpm" && test -n "$appimage" && test -n "$installer"
@@ -242,20 +249,24 @@ jobs:
             > "release-assets/kami-${version}-PKGBUILD"
 
           # DIST-01: latest.json, que o app consulta pra avisar de versão
-          # nova (endereço em tauri.conf.json › plugins.updater). Só o
-          # AppImage e o instalador do Windows se atualizam pelo app; quem
-          # instalou .deb/.rpm/AUR só recebe o aviso. A assinatura é a do
+          # nova (endereço em tauri.conf.json › plugins.updater). O AppImage,
+          # o instalador do Windows e o .rpm se atualizam pelo app; quem
+          # instalou .deb/AUR só recebe o aviso. A assinatura é a do
           # arquivo (o nome publicado muda, o conteúdo não).
           python3 scripts/gerar_latest_json.py \
             --versao "$version" \
             --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}" \
             --appimage "kami-${version}-linux-x86_64.AppImage" "${appimage}.sig" \
             --windows "kami-${version}-windows-x64-setup.exe" "${installer}.sig" \
+            --rpm "kami-${version}-linux-x86_64.rpm" "${rpm}.sig" \
             --changelog CHANGELOG.md \
             > release-assets/latest.json
           (
             cd release-assets
-            sha256sum kami-*
+            # latest.json (DIST-01) também: a conferência do fim exige que
+            # TODO arquivo publicado esteja aqui (na 1.14.0 faltou e ela falhou
+            # depois de publicar — os arquivos estavam certos)
+            sha256sum kami-* latest.json
           ) > release-assets/SHA256SUMS
 
       - name: Create release and upload assets

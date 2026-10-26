@@ -94,15 +94,44 @@ pub fn mostrar(app: &AppHandle) {
 }
 
 /// Cria o ícone da bandeja (se ainda não existe).
+/// I18N-01: os textos do menu da bandeja no idioma do app. Quem traduz é o
+/// frontend (os dicionários moram lá) e manda com `janela_textos_bandeja`;
+/// até ele mandar — a bandeja pode nascer antes, com o Kami iniciado
+/// escondido — fica o português.
+pub struct TextosBandeja(pub Mutex<[String; 3]>);
+
+impl Default for TextosBandeja {
+    fn default() -> Self {
+        Self(Mutex::new(["abrir kami".into(), "captura rápida".into(), "sair".into()]))
+    }
+}
+
+fn menu_da_bandeja(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let [abrir, captura, sair] = app.state::<TextosBandeja>().0.lock().unwrap().clone();
+    let abrir = MenuItem::with_id(app, "abrir", abrir, true, None::<&str>)?;
+    let captura = MenuItem::with_id(app, "captura", captura, true, None::<&str>)?;
+    let separador = PredefinedMenuItem::separator(app)?;
+    let sair = MenuItem::with_id(app, "sair", sair, true, None::<&str>)?;
+    Menu::with_items(app, &[&abrir, &captura, &separador, &sair])
+}
+
+#[tauri::command]
+pub fn janela_textos_bandeja(app: AppHandle, abrir: String, captura: String, sair: String) -> Result<(), String> {
+    // texto de menu curto; nada de vir um parágrafo inteiro de fora
+    let curto = |s: String| s.chars().take(60).collect::<String>();
+    *app.state::<TextosBandeja>().0.lock().unwrap() = [curto(abrir), curto(captura), curto(sair)];
+    if let Some(bandeja) = app.tray_by_id(ID_BANDEJA) {
+        let menu = menu_da_bandeja(&app).map_err(|e| e.to_string())?;
+        bandeja.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 pub fn criar_bandeja(app: &AppHandle) -> tauri::Result<()> {
     if app.tray_by_id(ID_BANDEJA).is_some() {
         return Ok(());
     }
-    let abrir = MenuItem::with_id(app, "abrir", "abrir kami", true, None::<&str>)?;
-    let captura = MenuItem::with_id(app, "captura", "captura rápida", true, None::<&str>)?;
-    let separador = PredefinedMenuItem::separator(app)?;
-    let sair = MenuItem::with_id(app, "sair", "sair", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&abrir, &captura, &separador, &sair])?;
+    let menu = menu_da_bandeja(app)?;
 
     let mut builder = TrayIconBuilder::with_id(ID_BANDEJA)
         .tooltip("kami")
@@ -275,10 +304,19 @@ fn autostart_com_tryexec() {
 #[cfg(not(target_os = "linux"))]
 fn autostart_com_tryexec() {}
 
+/// O programa é um build do `cargo` (…/target/debug/kami, …/target/release/kami)?
+#[cfg(target_os = "linux")]
+fn e_build_de_dev(programa: &str) -> bool {
+    programa.contains("/target/debug/") || programa.contains("/target/release/")
+}
+
 /// Na abertura: o autostart aponta pra um programa que não existe mais
 /// (trocou o .deb pelo AppImage, moveu o AppImage) → reescreve pro
 /// executável atual. Só quando o de lá SUMIU: um build de desenvolvimento
-/// aberto não toma o autostart da versão instalada.
+/// aberto não toma o autostart da versão instalada. O contrário vale: a
+/// versão instalada retoma o autostart que aponta pra um build de
+/// desenvolvimento (`target/debug|release`) — ligado num `tauri dev`, ele
+/// abria com o sistema a versão do repositório em vez da instalada.
 pub fn conferir_autostart(app: &AppHandle) {
     #[cfg(target_os = "linux")]
     {
@@ -288,7 +326,8 @@ pub fn conferir_autostart(app: &AppHandle) {
             return; // não é o nosso
         }
         let sumiu = programa_do_exec(&texto).map(|p| !std::path::Path::new(p).exists()).unwrap_or(false);
-        if sumiu && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
+        let de_dev = !cfg!(debug_assertions) && programa_do_exec(&texto).is_some_and(e_build_de_dev);
+        if (sumiu || de_dev) && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
             autostart_com_tryexec();
         }
     }
@@ -308,6 +347,14 @@ pub fn desligar_autostart(app: &AppHandle) {
 #[cfg(all(test, target_os = "linux"))]
 mod testes {
     use super::*;
+
+    #[test]
+    fn build_de_dev_no_autostart() {
+        assert!(e_build_de_dev("/home/x/KAMI/src-tauri/target/debug/kami"));
+        assert!(e_build_de_dev("/home/x/KAMI/src-tauri/target/release/kami"));
+        assert!(!e_build_de_dev("/usr/bin/kami"));
+        assert!(!e_build_de_dev("/opt/kami/Kami.AppImage"));
+    }
 
     #[test]
     fn autostart_ganha_tryexec_uma_vez() {

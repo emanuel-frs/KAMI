@@ -244,7 +244,7 @@ const TOGGLES =
   "input[type='checkbox'], input[type='radio'], [role='switch'], [role='checkbox'], [role='radio'], [aria-pressed]";
 const TABS = "[role='tab'], [data-tab], .cfg-tab, .tab, .modal-tab";
 // fechar/cancelar
-const CLOSERS = "[data-action='close'], .close, [aria-label='fechar']";
+const CLOSERS = "[data-action='close'], .close, #win-close";
 
 function hasPointerCursor(el) {
   // o cursor em pixel art (pixel-cursor.js) deixa o valor como "url(...) x y, pointer"

@@ -8,9 +8,10 @@ a versão, as novidades (a seção desta versão no CHANGELOG.md), a data e, por
 sistema, de onde baixar e a assinatura do pacote (o .sig que o
 `cargo tauri build` gera com a chave do updater).
 
-Só o AppImage (linux-x86_64) e o instalador do Windows (windows-x86_64) se
-atualizam pelo app; .deb/.rpm/AUR recebem só o aviso (a tela não oferece
-"atualizar agora" — src-tauri/src/atualizacao.rs).
+Se atualizam pelo app o AppImage (linux-x86_64), o instalador do Windows
+(windows-x86_64) e o .rpm (linux-x86_64-rpm — o plugin procura primeiro
+`<so>-<arq>-<pacote>`, e o .rpm instala com pkexec); .deb e AUR recebem só
+o aviso (src-tauri/src/atualizacao.rs).
 
 "releases/latest" do GitHub ignora pré-release: quem tem a versão publicada
 não é avisado de um 2.0.0-rc.N.
@@ -19,7 +20,7 @@ Uso:
   gerar_latest_json.py --versao 1.15.0 --base-url https://.../download/v1.15.0 \\
       --appimage <nome publicado> <arquivo .sig> \\
       --windows <nome publicado> <arquivo .sig> \\
-      [--changelog CHANGELOG.md] [--data 2026-11-01T12:00:00Z]
+      [--rpm <nome publicado> <arquivo .sig>] [--changelog CHANGELOG.md] [--data 2026-11-01T12:00:00Z]
 """
 import argparse
 import datetime
@@ -39,10 +40,11 @@ def notas_da_versao(changelog: str, versao: str) -> str:
     return texto.strip()
 
 
-def gerar(versao, base_url, appimage, windows, notas="", data=None) -> dict:
+def gerar(versao, base_url, appimage, windows, notas="", data=None, rpm=None) -> dict:
     base = base_url.rstrip("/")
     plataformas = {}
-    for chave, (nome, sig) in (("linux-x86_64", appimage), ("windows-x86_64", windows)):
+    pacotes = [("linux-x86_64", appimage), ("windows-x86_64", windows)] + ([("linux-x86_64-rpm", rpm)] if rpm else [])
+    for chave, (nome, sig) in pacotes:
         assinatura = Path(sig).read_text(encoding="utf-8").strip()
         if not assinatura:
             raise ValueError(f"assinatura vazia em {sig}")
@@ -57,11 +59,12 @@ def main(argv=None) -> int:
     p.add_argument("--base-url", required=True)
     p.add_argument("--appimage", nargs=2, metavar=("NOME", "SIG"), required=True)
     p.add_argument("--windows", nargs=2, metavar=("NOME", "SIG"), required=True)
+    p.add_argument("--rpm", nargs=2, metavar=("NOME", "SIG"))
     p.add_argument("--changelog", type=Path)
     p.add_argument("--data", help="ISO 8601 em UTC (padrão: agora)")
     args = p.parse_args(argv)
     notas = notas_da_versao(args.changelog.read_text(encoding="utf-8"), args.versao) if args.changelog else ""
-    json.dump(gerar(args.versao, args.base_url, args.appimage, args.windows, notas, args.data), sys.stdout, ensure_ascii=False, indent=2)
+    json.dump(gerar(args.versao, args.base_url, args.appimage, args.windows, notas, args.data, args.rpm), sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0
 

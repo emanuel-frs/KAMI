@@ -1,10 +1,12 @@
 import * as carreiraApi from "../api/carreira.js";
-import { escapeHtml, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoeda } from "../components/format.js";
 import { openSalarioModal } from "../modals/salario-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { attachChartTooltip } from "../charts/chart-tooltip.js";
 import { desenharNaLargura } from "../charts/na-largura.js";
+import { t } from "../i18n.js";
+import { rotuloContrato } from "../components/textos-sistema.js";
 
 /**
  * Widget "evolução salarial" (seção 5 do documento de regras de
@@ -27,9 +29,8 @@ function formatDate(iso) {
 }
 
 function money(amount, currency) {
-  const n = Number(amount) || 0;
-  if (currency === "BRL") return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${currency} ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // cada registro guarda a moeda em que foi recebido (não converte)
+  return fmtMoeda(amount, { moeda: currency || "BRL" });
 }
 
 function escapeAttr(str) {
@@ -86,14 +87,14 @@ function buildSalarySvg(records, width) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando evolução salarial…</div>';
+  el.innerHTML = `<div class="empty-state">${t("carreira_salario.carregando_evolucao_salarial")}</div>`;
   let records = [];
 
   async function reload() {
     try {
       records = await carreiraApi.listCareerSalaryRecords();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar evolução salarial: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_evolucao", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -104,17 +105,17 @@ export async function render(el, widget) {
       <div class="cs-widget">
         ${records.length ? '<div class="cs-chart-wrap"></div>' : ""}
         <div class="widget-inline-toolbar">
-          <button type="button" class="btn sm" data-action="add-salary">+ registro</button>
+          <button type="button" class="btn sm" data-action="add-salary">${t("carreira_salario.registro")}</button>
         </div>
         <div class="cs-list">
           ${records.length ? records.map((r) => `
             <div class="cs-row" data-record-id="${r.id}">
               <div class="cs-top">
                 <span class="cs-amount" data-edit-salary="${r.id}">${money(r.amount, r.currency)}</span>
-                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="remover registro" aria-label="remover registro">${icon("x", { size: 11 })}</span>
+                <span class="cs-remove" data-remove-salary="${r.id}" data-tooltip="${t("carreira_salario.remover_registro")}" aria-label="${t("carreira_salario.remover_registro")}">${icon("x", { size: 11 })}</span>
               </div>
-              <div class="cs-meta">${formatDate(r.date)}${r.employment_type ? ` · ${escapeHtml(r.employment_type)}` : ""}${r.reason ? ` · ${escapeHtml(r.reason)}` : ""}</div>
-            </div>`).join("") : `<div class="wallet-empty">nenhum registro salarial ainda.</div>`}
+              <div class="cs-meta">${formatDate(r.date)}${r.employment_type ? ` · ${escapeHtml(rotuloContrato(r.employment_type))}` : ""}${r.reason ? ` · ${escapeHtml(r.reason)}` : ""}</div>
+            </div>`).join("") : `<div class="wallet-empty">${t("carreira_salario.nenhum_registro_salarial_ainda")}</div>`}
         </div>
       </div>
     `;
@@ -135,7 +136,7 @@ export async function render(el, widget) {
 
     el.querySelectorAll("[data-remove-salary]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover esse registro salarial?", { title: "remover registro", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("carreira_salario.remover_esse_registro_salarial"), { title: t("carreira_salario.remover_registro"), confirmText: "remover", danger: true }))) return;
         await carreiraApi.deleteCareerSalaryRecord(btn.getAttribute("data-remove-salary"));
         await reload();
       });

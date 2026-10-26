@@ -6,6 +6,9 @@ arch=('x86_64')
 url='https://github.com/emanuel-frs/KAMI'
 license=('LicenseRef-Kami-Source-Available')
 depends=('webkit2gtk-4.1' 'gtk3')
+# I18N-04: fontes do sistema pra chinês/japonês/coreano e hindi (sem elas o
+# texto desses idiomas vira quadradinhos; o app avisa)
+optdepends=('noto-fonts-cjk: chinês, japonês e coreano' 'noto-fonts: hindi (devanágari)')
 
 _deb_name="kami-${pkgver}-linux-amd64.deb"
 _release_base="${KAMI_RELEASE_BASE:-https://github.com/emanuel-frs/KAMI/releases/download/v${pkgver}}"

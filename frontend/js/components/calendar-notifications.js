@@ -3,6 +3,7 @@ import { isPendingAlertEvent } from "./event-types.js";
 import { showToast } from "./toast.js";
 import { notificarFora } from "./native-notify.js";
 import { store } from "../state/store.js";
+import { t } from "../i18n.js";
 
 /**
  * Agendador global de notificações do calendário — iniciado uma vez em
@@ -105,21 +106,21 @@ function checkEventoReminders(events, firedSet) {
     if (now < triggerAt || now - triggerAt > FIRE_TOLERANCE_MS) continue;
 
     firedSet.add(key);
-    const dueLabel = e.reminder_minutes_before === 0 ? "agora" : `em ${e.reminder_minutes_before} min`;
+    const dueLabel = e.reminder_minutes_before === 0 ? t("calendar_notifications.agora") : t("calendar_notifications.em_min", { n: e.reminder_minutes_before });
     showToast({
       title: e.title,
-      message: `evento às ${e.time} — ${dueLabel}`,
+      message: t("calendar_notifications.evento_as", { hora: e.time, quando: dueLabel }),
       iconName: "calendar-days",
       onClick: () => navigateToModuleCb?.("calendario"),
     });
-    notificarFora("eventos", { title: `kami — ${e.title}`, body: `evento às ${e.time}` }, store.get("profile"));
+    notificarFora("eventos", { title: `kami — ${e.title}`, body: t("calendar_notifications.evento_as_curto", { hora: e.time }) }, store.get("profile"));
   }
 }
 
 /** "luz, internet" / "luz, internet e mais 3" */
 function nomes(lista) {
   if (lista.length <= 3) return lista.map((e) => e.title).join(", ");
-  return `${lista.slice(0, 2).map((e) => e.title).join(", ")} e mais ${lista.length - 2}`;
+  return t("calendar_notifications.e_mais", { nomes: lista.slice(0, 2).map((e) => e.title).join(", "), n: lista.length - 2 });
 }
 
 /**
@@ -143,10 +144,10 @@ function checkDailyDigest(events) {
   const amanha = vence(addDaysStr(today, 1));
   if (!hoje.length && !amanha.length) return;
 
-  const linhas = [hoje.length && `hoje: ${nomes(hoje)}`, amanha.length && `amanhã: ${nomes(amanha)}`].filter(Boolean);
+  const linhas = [hoje.length && t("calendar_notifications.hoje", { nomes: nomes(hoje) }), amanha.length && t("calendar_notifications.amanha", { nomes: nomes(amanha) })].filter(Boolean);
   const title = hoje.length
-    ? hoje.length === 1 ? "vence hoje" : `${hoje.length} itens vencem hoje`
-    : amanha.length === 1 ? "vence amanhã" : `${amanha.length} itens vencem amanhã`;
+    ? hoje.length === 1 ? t("calendar_notifications.vence_hoje") : t("calendar_notifications.itens_hoje", { n: hoje.length })
+    : amanha.length === 1 ? t("calendar_notifications.vence_amanha") : t("calendar_notifications.itens_amanha", { n: amanha.length });
 
   showToast({
     title,

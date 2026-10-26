@@ -1,5 +1,6 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais de Aprendizado (etapa 5,
@@ -47,19 +48,19 @@ import { mostrarDicasNovas } from "../components/dicas-novas.js";
  */
 const SCREEN = "aprendizado";
 
-const STEPS = [
+const steps = () => [
   // ─── lista de trilhas ──────────────────────────────────────────────
   {
     // informar — visão geral, sempre presente mesmo com a lista vazia
     id: "trilhas",
     selector: "#apr-tracks-list",
-    text: "aqui ficam suas trilhas de aprendizado, cada uma com uma barra mostrando o progresso geral dela.",
+    text: t("aprendizado_tips.aqui_ficam_suas_trilhas_de"),
   },
   {
     // informar — só existe com pelo menos uma trilha criada
     id: "arrastar-trilha",
     selector: ".apr-track-drag-dot",
-    text: "segure aqui pra arrastar e reordenar suas trilhas na lista.",
+    text: t("aprendizado_tips.segure_aqui_pra_arrastar_e"),
   },
   {
     // informar, não ensinar — mount() de aprendizado.js já auto-seleciona
@@ -77,7 +78,7 @@ const STEPS = [
     // heatmap. Por isso este passo só informa, sem exigir o clique.
     id: "abrir-trilha",
     selector: ".apr-track-item",
-    text: "toque numa trilha pra abrir (ou fechar) o mapa dela aqui do lado.",
+    text: t("aprendizado_tips.toque_numa_trilha_pra_abrir"),
   },
 
   // ─── mapa da trilha (modo normal) ──────────────────────────────────
@@ -89,7 +90,7 @@ const STEPS = [
     // passo de #goals-section-active em metas-tips.js.
     id: "mapa",
     selector: "#milestone-list-canvas",
-    text: "aqui fica o mapa da trilha: os módulos aparecem em ordem, ligados numa linha do tempo — o que já foi concluído, o módulo atual em destaque e o que ainda falta.",
+    text: t("aprendizado_tips.aqui_fica_o_mapa_da"),
   },
   {
     // informar — só existe com uma trilha selecionada e pelo menos um
@@ -97,7 +98,7 @@ const STEPS = [
     // clicando numa)
     id: "modulo",
     selector: '#milestone-list .roadmap-title, #milestone-list .roadmap-arrow',
-    text: "cada módulo vira um card na trilha — toque no título ou na seta pra ver descrição e escrever anotações.",
+    text: t("aprendizado_tips.cada_modulo_vira_um_card"),
   },
   {
     // informar, não ensinar — startTipSequence() resolve os passos válidos
@@ -120,7 +121,7 @@ const STEPS = [
     // adicionar/excluir) vai direto no texto deste passo.
     id: "editar-trilha",
     selector: "#btn-edit-track",
-    text: "toque em \"editar\" pra reorganizar a trilha: arrastar módulos pra mudar a ordem, expandir um pra escrever notas, ou adicionar/renomear/excluir.",
+    text: t("aprendizado_tips.toque_em_editar_pra_reorganizar"),
   },
 
   // ─── modo de edição ─────────────────────────────────────────────────
@@ -134,21 +135,21 @@ const STEPS = [
     // informar — só existe no modo de edição
     id: "arrastar-modulo",
     selector: ".roadmap-drag-dot",
-    text: "com a trilha em edição, segure aqui pra arrastar os módulos e mudar a ordem da timeline.",
+    text: t("aprendizado_tips.com_a_trilha_em_edicao"),
   },
   {
     // ensinar a usar — expandir é inline (mostra notas ali embaixo do
     // próprio card), sem modal por baixo pra atrapalhar o passo seguinte
     id: "expandir-modulo",
     selector: "#edit-milestone-list .roadmap-expand-btn",
-    text: "toque na seta pra expandir o módulo e escrever notas direto ali, sem precisar abrir outra tela.",
+    text: t("aprendizado_tips.toque_na_seta_pra_expandir"),
     advanceOn: "interact",
   },
   {
     // informar — abre modal, então não pode ensinar com clique no meio da sequência
     id: "novo-modulo",
     selector: "#btn-add-module",
-    text: "todo módulo novo dessa trilha começa aqui.",
+    text: t("aprendizado_tips.todo_modulo_novo_dessa_trilha"),
   },
 
   // ─── atividade (heatmap) ────────────────────────────────────────────
@@ -156,13 +157,13 @@ const STEPS = [
     // informar — sempre presente (o ano atual sempre entra na lista de abas)
     id: "anos",
     selector: "#apr-heatmap-years",
-    text: "troque de ano aqui pra ver o histórico de atividade de aprendizado registrada antes.",
+    text: t("aprendizado_tips.troque_de_ano_aqui_pra"),
   },
   {
     // informar — quadriculado tipo contribution graph
     id: "mapa-atividade",
     selector: "#apr-heatmap",
-    text: "cada quadradinho é um dia: quanto mais forte a cor, mais registros de aprendizado nele. o contorno dourado marca dias em que você concluiu um módulo.",
+    text: t("aprendizado_tips.cada_quadradinho_e_um_dia"),
   },
 
   // ─── criar trilha ───────────────────────────────────────────────────
@@ -174,7 +175,7 @@ const STEPS = [
     // ÚLTIMO passo da sequência)
     id: "nova-trilha",
     selector: "#apr-add-track",
-    text: "toda trilha nova começa aqui — dá pra criar do zero ou importar de um json pronto.",
+    text: t("aprendizado_tips.toda_trilha_nova_comeca_aqui"),
     advanceOn: "interact",
   },
 ];
@@ -190,7 +191,7 @@ let running = false;
 export function replayAprendizadoTips() {
   if (running) return;
   running = true;
-  startTipSequence(STEPS, {
+  startTipSequence(steps(), {
     onFinish: () => {
       running = false;
     },
@@ -209,5 +210,5 @@ const ATE_1_12 = ["trilhas", "arrastar-trilha", "abrir-trilha", "mapa", "modulo"
  * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
 export function maybeStartAprendizadoTips() {
-  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => steps(), ate112: ATE_1_12 });
 }

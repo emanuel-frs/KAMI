@@ -31,16 +31,17 @@ import { registrarAntesDeFechar } from "../components/antes-de-fechar.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showToast } from "../components/toast.js";
 import { navigateTo } from "../components/navigate.js";
+import { t } from "../i18n.js";
 
 const SALVAR_APOS_MS = 700;
 const TENTAR_DE_NOVO_MS = 5000;
 const RASCUNHO_PREFIXO = "kami-nota-rascunho-v1:";
 
-const VINCULO_TIPOS = [
-  { tipo: "meta", rotulo: "meta", pagina: "metas" },
-  { tipo: "trilha", rotulo: "curso/trilha", pagina: "aprendizado" },
-  { tipo: "evento", rotulo: "evento", pagina: "calendario" },
-  { tipo: "posicao", rotulo: "posição de carreira", pagina: "carreira" },
+const vinculoTipos = () => [
+  { tipo: "meta", rotulo: t("organizacao_notas.meta"), pagina: "metas" },
+  { tipo: "trilha", rotulo: t("organizacao_notas.curso_trilha"), pagina: "aprendizado" },
+  { tipo: "evento", rotulo: t("organizacao_notas.evento"), pagina: "calendario" },
+  { tipo: "posicao", rotulo: t("organizacao_notas.posicao_de_carreira"), pagina: "carreira" },
 ];
 
 
@@ -111,15 +112,15 @@ function apagarRascunho(id) {
 function template() {
   return `
     <div class="notas" data-modo="lista">
-      <aside class="notas-lista" aria-label="lista de notas">
+      <aside class="notas-lista" aria-label="${t("organizacao_notas.lista_de_notas")}">
         <div class="notas-lista-topo">
-          <button type="button" class="btn primary sm notas-nova" data-nt="nova">${icon("plus", { size: 12 })} nova nota</button>
-          <input type="search" id="notas-busca" placeholder="buscar nas notas..." aria-label="buscar nas notas" autocomplete="off">
+          <button type="button" class="btn primary sm notas-nova" data-nt="nova">${icon("plus", { size: 12 })} ${t("organizacao_notas.nova_nota")}</button>
+          <input type="search" id="notas-busca" placeholder="${t("organizacao_notas.buscar_nas_notas")}" aria-label="${t("organizacao_notas.buscar_nas_notas_2")}" autocomplete="off">
           <div class="notas-filtros" id="notas-filtros"></div>
         </div>
         <div class="notas-itens" id="notas-itens" role="list"></div>
       </aside>
-      <section class="notas-painel" id="notas-painel" aria-label="nota aberta"></section>
+      <section class="notas-painel" id="notas-painel" aria-label="${t("organizacao_notas.nota_aberta")}"></section>
     </div>`;
 }
 
@@ -128,9 +129,9 @@ function renderFiltros() {
   if (!el) return;
   const { arquivadas, tag, vinculo } = st.filtro;
   el.innerHTML = `
-    ${vinculo ? `<span class="nota-tag-filtro on" data-nt-sem-vinculo data-tooltip="mostrar todas">${icon("link", { size: 9 })} ${esc(vinculo.nome || "vínculo")} ${icon("x", { size: 9 })}</span>` : ""}
-    <span class="email-filter-opt${arquivadas ? "" : " on"}" data-nt-arquivadas="0">ativas</span>
-    <span class="email-filter-opt${arquivadas ? " on" : ""}" data-nt-arquivadas="1">arquivadas</span>
+    ${vinculo ? `<span class="nota-tag-filtro on" data-nt-sem-vinculo data-tooltip="${t("organizacao_notas.mostrar_todas")}">${icon("link", { size: 9 })} ${esc(vinculo.nome || t("organizacao_notas.vinculo"))} ${icon("x", { size: 9 })}</span>` : ""}
+    <span class="email-filter-opt${arquivadas ? "" : " on"}" data-nt-arquivadas="0">${t("organizacao_notas.ativas")}</span>
+    <span class="email-filter-opt${arquivadas ? " on" : ""}" data-nt-arquivadas="1">${t("organizacao_notas.arquivadas")}</span>
     ${st.tags
       .map(
         (t) =>
@@ -145,12 +146,12 @@ function itemHtml(n) {
   return `
     <div class="nota-item${aberta ? " on" : ""}${n.trancada ? " trancada" : ""}" role="listitem" data-nt-abrir="${n.id}"${cor ? ` style="--nota-cor:${cor}"` : ""}>
       <div class="nota-item-topo">
-        ${n.fixada ? `<span class="nota-item-pin" data-tooltip="fixada">${icon("star", { size: 10, fill: "currentColor" })}</span>` : ""}
-        ${n.trancada ? `<span class="nota-item-lock" data-tooltip="trancada">${icon("lock", { size: 10 })}</span>` : ""}
-        <span class="nota-item-titulo">${esc(n.titulo || "(sem título)")}</span>
+        ${n.fixada ? `<span class="nota-item-pin" data-tooltip="${t("organizacao_notas.fixada")}">${icon("star", { size: 10, fill: "currentColor" })}</span>` : ""}
+        ${n.trancada ? `<span class="nota-item-lock" data-tooltip="${t("organizacao_notas.trancada")}">${icon("lock", { size: 10 })}</span>` : ""}
+        <span class="nota-item-titulo">${esc(n.titulo || t("organizacao_notas.sem_titulo"))}</span>
         <span class="nota-item-data">${dataCurta(n.atualizada_em)}</span>
       </div>
-      ${n.trancada ? '<div class="nota-item-previa">conteúdo trancado</div>' : n.previa ? `<div class="nota-item-previa">${esc(n.previa)}</div>` : ""}
+      ${n.trancada ? `<div class="nota-item-previa">${t("organizacao_notas.conteudo_trancado")}</div>` : n.previa ? `<div class="nota-item-previa">${esc(n.previa)}</div>` : ""}
       ${n.tags.length || n.vinculo ? `<div class="nota-item-rodape">${n.tags.map((t) => `<span>#${esc(t)}</span>`).join("")}${n.vinculo ? `<span class="nota-item-vinculo">${icon("link", { size: 9 })} ${esc(n.vinculo.nome)}</span>` : ""}</div>` : ""}
     </div>`;
 }
@@ -158,13 +159,13 @@ function itemHtml(n) {
 function renderLista() {
   const el = $("#notas-itens");
   if (!el) return;
-  const novaNaLista = st.atual && !st.atual.id ? `<div class="nota-item on nova" role="listitem"><div class="nota-item-topo"><span class="nota-item-titulo">${esc(st.atual.titulo || "nova nota")}</span><span class="nota-item-data">rascunho</span></div></div>` : "";
+  const novaNaLista = st.atual && !st.atual.id ? `<div class="nota-item on nova" role="listitem"><div class="nota-item-topo"><span class="nota-item-titulo">${esc(st.atual.titulo || t("organizacao_notas.nova_nota"))}</span><span class="nota-item-data">${t("organizacao_notas.rascunho")}</span></div></div>` : "";
   if (!st.notas.length && !novaNaLista) {
     const vazio = st.filtro.q || st.filtro.tag || st.filtro.vinculo
-      ? "nenhuma nota encontrada."
+      ? t("organizacao_notas.nenhuma_nota_encontrada")
       : st.filtro.arquivadas
-        ? "nenhuma nota arquivada."
-        : `nenhuma nota ainda — crie a primeira (ou <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> de qualquer tela).`;
+        ? t("organizacao_notas.nenhuma_nota_arquivada")
+        : t("organizacao_notas.vazio", { atalho: "<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>" });
     el.innerHTML = `<div class="empty-state">${vazio}</div>`;
     return;
   }
@@ -220,7 +221,7 @@ function mudou() {
 
 function aoEditar() {
   if (!st.atual) return;
-  setStatus("editando…");
+  setStatus(t("notas.editando"));
   if (!st.atual.trancada) gravarRascunho(st.atual.id, lerTela());
   clearTimeout(st.timer);
   st.timer = setTimeout(() => salvarAgora(), SALVAR_APOS_MS);
@@ -242,13 +243,13 @@ async function salvarAgora({ forcar = false } = {}) {
   if (!dados) return;
   const igual = dados.titulo === st.salvo.titulo && dados.conteudo === st.salvo.conteudo;
   if (nota.id && igual) {
-    if (st.atual === nota) setStatus("salvo ✓", "ok");
+    if (st.atual === nota) setStatus(t("notas.salvo"), "ok");
     return;
   }
   // nova e ainda vazia: não cria nada (a não ser que peçam)
   if (!nota.id && !forcar && !dados.titulo && !dados.conteudo) return;
 
-  setStatus("salvando…");
+  setStatus(t("notas.salvando"));
   st.salvando = (async () => {
     try {
       let salva;
@@ -271,13 +272,13 @@ async function salvarAgora({ forcar = false } = {}) {
         Object.assign(nota, { atualizada_em: salva.atualizada_em, criada_em: salva.criada_em });
         if (!nota.trancada) apagarRascunho(nota.id);
         if (st.raiz && $("#nota-titulo") && mudou()) aoEditar(); // digitou durante o envio
-        else setStatus("salvo ✓", "ok");
+        else setStatus(t("notas.salvo"), "ok");
       }
       atualizarNaLista(salva);
     } catch (err) {
       console.error("notas: falha ao salvar", err);
       if (st.atual === nota) {
-        setStatus(err?.status === 423 ? "a nota foi trancada de novo — reabra com o PIN" : "não salvou — tentando de novo…", "erro");
+        setStatus(err?.status === 423 ? t("organizacao_notas.a_nota_foi_trancada_de") : t("organizacao_notas.nao_salvou_tentando_de_novo"), "erro");
         if (err?.status !== 423) st.timer = setTimeout(() => salvarAgora(), TENTAR_DE_NOVO_MS);
       }
     }
@@ -307,8 +308,8 @@ function renderVazio() {
  | ~~~~~ |
  | ~~~   |
  |_______|</pre>
-      <p>abra uma nota da lista ou crie uma nova.</p>
-      <p class="dica"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> cria uma nota rápida de qualquer tela.</p>
+      <p>${t("organizacao_notas.abra_uma_nota_da_lista")}</p>
+      <p class="dica">${t("organizacao_notas.dica_atalho", { atalho: "<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>" })}</p>
     </div>`;
   $(".notas")?.setAttribute("data-modo", "lista");
 }
@@ -318,33 +319,33 @@ function metaHtml(n) {
   return `
     <div class="nota-meta">
       <div class="nota-tags" id="nota-tags">
-        ${n.tags.map((t) => `<span class="nota-tag">#${esc(t)}<button type="button" data-nt-tirar-tag="${esc(t)}" aria-label="tirar a tag ${esc(t)}">${icon("x", { size: 9 })}</button></span>`).join("")}
-        <input type="text" id="nota-tag-input" placeholder="${n.tags.length ? "+ tag" : "+ tags (Enter)"}" aria-label="adicionar tag" maxlength="40" autocomplete="off">
+        ${n.tags.map((tag) => `<span class="nota-tag">#${esc(tag)}<button type="button" data-nt-tirar-tag="${esc(tag)}" aria-label="${esc(t("notas.tirar_tag", { tag }))}">${icon("x", { size: 9 })}</button></span>`).join("")}
+        <input type="text" id="nota-tag-input" placeholder="${n.tags.length ? "+ tag" : t("organizacao_notas.tags_enter")}" aria-label="${t("organizacao_notas.adicionar_tag")}" maxlength="40" autocomplete="off">
       </div>
       <div class="nota-acoes">
         <span class="nota-cor-wrap">
-          <button type="button" class="nota-acao" data-nt="cor" data-tooltip="cor da nota" aria-label="cor da nota"><span class="nota-cor-ponto"${cor ? ` style="background:${cor}"` : ""}></span></button>
+          <button type="button" class="nota-acao" data-nt="cor" data-tooltip="${t("organizacao_notas.cor_da_nota")}" aria-label="${t("organizacao_notas.cor_da_nota")}"><span class="nota-cor-ponto"${cor ? ` style="background:${cor}"` : ""}></span></button>
           <span class="nota-cores" id="nota-cores" hidden>
-            <button type="button" class="nota-cor-opcao sem" data-nt-cor="" data-tooltip="sem cor" aria-label="sem cor">${icon("x", { size: 10 })}</button>
+            <button type="button" class="nota-cor-opcao sem" data-nt-cor="" data-tooltip="${t("organizacao_notas.sem_cor")}" aria-label="${t("organizacao_notas.sem_cor")}">${icon("x", { size: 10 })}</button>
             ${CORES_NOTA.map((c) => `<button type="button" class="nota-cor-opcao" data-nt-cor="${c.nome}" style="background:${c.hex}" data-tooltip="${esc(c.rotulo)}" aria-label="${esc(c.rotulo)}"></button>`).join("")}
           </span>
         </span>
-        <button type="button" class="nota-acao" data-nt="vinculo" data-tooltip="${n.vinculo ? "vínculo: " + esc(n.vinculo.nome) : "vincular a uma meta, trilha, evento ou posição"}" aria-label="vínculo">${icon("link", { size: 12 })}</button>
-        <button type="button" class="nota-acao${n.fixada ? " on" : ""}" data-nt="fixar" data-tooltip="${n.fixada ? "desafixar" : "fixar no topo (e no widget)"}" aria-label="${n.fixada ? "desafixar" : "fixar"}" aria-pressed="${n.fixada}">${icon("star", { size: 12, fill: n.fixada ? "currentColor" : "none" })}</button>
-        <button type="button" class="nota-acao${n.trancada ? " on" : ""}" data-nt="trancar" data-tooltip="${n.trancada ? "destrancar (pede o PIN)" : "trancar com o PIN"}" aria-label="${n.trancada ? "destrancar" : "trancar"}">${icon(n.trancada ? "lock" : "lock-open", { size: 12 })}</button>
-        <button type="button" class="nota-acao" data-nt="lembrar" data-tooltip="criar um lembrete desta nota" aria-label="lembrar">${icon("bell-ring", { size: 12 })}</button>
+        <button type="button" class="nota-acao" data-nt="vinculo" data-tooltip="${n.vinculo ? t("organizacao_notas.vinculo_2") + esc(n.vinculo.nome) : t("organizacao_notas.vincular_a_uma_meta_trilha")}" aria-label="${t("organizacao_notas.vinculo")}">${icon("link", { size: 12 })}</button>
+        <button type="button" class="nota-acao${n.fixada ? " on" : ""}" data-nt="fixar" data-tooltip="${n.fixada ? "desafixar" : t("organizacao_notas.fixar_no_topo_e_no")}" aria-label="${n.fixada ? "desafixar" : "fixar"}" aria-pressed="${n.fixada}">${icon("star", { size: 12, fill: n.fixada ? "currentColor" : "none" })}</button>
+        <button type="button" class="nota-acao${n.trancada ? " on" : ""}" data-nt="trancar" data-tooltip="${n.trancada ? t("organizacao_notas.destrancar_pede_o_pin") : t("organizacao_notas.trancar_com_o_pin")}" aria-label="${n.trancada ? "destrancar" : "trancar"}">${icon(n.trancada ? "lock" : "lock-open", { size: 12 })}</button>
+        <button type="button" class="nota-acao" data-nt="lembrar" data-tooltip="${t("organizacao_notas.criar_um_lembrete_desta_nota")}" aria-label="${t("organizacao_notas.lembrar")}">${icon("bell-ring", { size: 12 })}</button>
         <button type="button" class="nota-acao" data-nt="arquivar" data-tooltip="${n.arquivada ? "desarquivar" : "arquivar"}" aria-label="${n.arquivada ? "desarquivar" : "arquivar"}">${icon("archive", { size: 12 })}</button>
-        <button type="button" class="nota-acao perigo" data-nt="apagar" data-tooltip="apagar" aria-label="apagar">${icon("x", { size: 12 })}</button>
+        <button type="button" class="nota-acao perigo" data-nt="apagar" data-tooltip="${t("geral.apagar")}" aria-label="${t("geral.apagar")}">${icon("x", { size: 12 })}</button>
       </div>
     </div>
-    ${n.vinculo ? `<div class="nota-vinculo">${icon("link", { size: 10 })} ${esc(VINCULO_TIPOS.find((v) => v.tipo === n.vinculo.tipo)?.rotulo || "")}: <a href="#" data-nt="ir-vinculo">${esc(n.vinculo.nome)}</a> <button type="button" class="nota-vinculo-tirar" data-nt="tirar-vinculo" aria-label="remover vínculo">${icon("x", { size: 9 })}</button></div>` : ""}
+    ${n.vinculo ? `<div class="nota-vinculo">${icon("link", { size: 10 })} ${esc(vinculoTipos().find((v) => v.tipo === n.vinculo.tipo)?.rotulo || "")}: <a href="#" data-nt="ir-vinculo">${esc(n.vinculo.nome)}</a> <button type="button" class="nota-vinculo-tirar" data-nt="tirar-vinculo" aria-label="${t("organizacao_notas.remover_vinculo")}">${icon("x", { size: 9 })}</button></div>` : ""}
     <div class="nota-vinculo-form" id="nota-vinculo-form" hidden>
-      <select id="nota-vinculo-tipo" aria-label="tipo de vínculo">
-        ${VINCULO_TIPOS.map((v) => `<option value="${v.tipo}">${v.rotulo}</option>`).join("")}
+      <select id="nota-vinculo-tipo" aria-label="${t("organizacao_notas.tipo_de_vinculo")}">
+        ${vinculoTipos().map((v) => `<option value="${v.tipo}">${v.rotulo}</option>`).join("")}
       </select>
-      <select id="nota-vinculo-alvo" aria-label="item"></select>
-      <button type="button" class="btn sm" data-nt="vincular">vincular</button>
-      <button type="button" class="btn sm" data-nt="vinculo">cancelar</button>
+      <select id="nota-vinculo-alvo" aria-label="${t("organizacao_notas.item")}"></select>
+      <button type="button" class="btn sm" data-nt="vincular">${t("organizacao_notas.vincular")}</button>
+      <button type="button" class="btn sm" data-nt="vinculo">${t("geral.cancelar")}</button>
     </div>`;
 }
 
@@ -358,8 +359,8 @@ function renderNota() {
   p.innerHTML = `
     <div class="nota-aberta"${cor ? ` style="--nota-cor:${cor}"` : ""}>
       <div class="nota-cab">
-        <button type="button" class="nota-voltar" data-nt="voltar" aria-label="voltar pra lista">${icon("arrow-left", { size: 12 })} notas</button>
-        <input type="text" id="nota-titulo" class="nota-titulo" placeholder="título" value="${esc(n.titulo)}" maxlength="200" aria-label="título da nota" autocomplete="off">
+        <button type="button" class="nota-voltar" data-nt="voltar" aria-label="${t("organizacao_notas.voltar_pra_lista")}">${icon("arrow-left", { size: 12 })} ${t("organizacao_notas.notas")}</button>
+        <input type="text" id="nota-titulo" class="nota-titulo" placeholder="${t("organizacao_notas.titulo")}" value="${esc(n.titulo)}" maxlength="200" aria-label="${t("organizacao_notas.titulo_da_nota")}" autocomplete="off">
         <span class="nota-status" id="nota-status" aria-live="polite">${esc(st.status)}</span>
       </div>
       ${n.trancada && !n.conteudo_disponivel ? "" : metaHtml(n)}
@@ -373,7 +374,7 @@ function renderNota() {
   st.editor = criarEditorNota($("#nota-corpo"), {
     markdown: n.conteudo || "",
     onChange: aoEditar,
-    placeholder: "escreva aqui… (markdown funciona: - lista, # título, [] tarefa)",
+    placeholder: t("organizacao_notas.escreva_aqui_markdown_funciona_lista"),
   });
   $("#nota-titulo").addEventListener("input", aoEditar);
   $("#nota-titulo").addEventListener("keydown", (e) => {
@@ -393,9 +394,9 @@ function renderTrancada() {
  | (_) |
  |  |  |
  '-----'</pre>
-      <p>nota trancada — digite o PIN pra abrir.</p>
-      <input type="password" id="nota-pin" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="PIN">
-      <button type="submit" class="btn primary sm">abrir</button>
+      <p>${t("organizacao_notas.nota_trancada_digite_o_pin")}</p>
+      <input type="password" id="nota-pin" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="${t("organizacao_notas.pin")}">
+      <button type="submit" class="btn primary sm">${t("organizacao_notas.abrir")}</button>
       <p class="nota-trancada-erro" id="nota-pin-erro" role="alert"></p>
     </form>`;
   $("#nota-titulo").readOnly = true;
@@ -411,7 +412,7 @@ function renderTrancada() {
       renderNota();
       st.editor?.focus();
     } catch (err) {
-      $("#nota-pin-erro").textContent = err?.message || "não foi possível abrir";
+      $("#nota-pin-erro").textContent = err?.message || t("organizacao_notas.nao_foi_possivel_abrir");
       $("#nota-pin").select();
     }
   });
@@ -446,7 +447,7 @@ async function abrir(id) {
   renderNota();
   renderLista();
   if (recuperado) {
-    showToast({ title: "texto recuperado", message: "esta nota tinha alterações que não chegaram a ser salvas — já estão de volta.", iconName: "undo", sound: false });
+    showToast({ title: t("organizacao_notas.texto_recuperado"), message: t("organizacao_notas.esta_nota_tinha_alteracoes_que"), iconName: "undo", sound: false });
     aoEditar();
   }
 }
@@ -511,7 +512,7 @@ async function trancarOuDestrancar() {
   const n = st.atual;
   if (n.trancada) {
     const { showPromptModal } = await import("../modals/prompt-modal.js");
-    const pin = await showPromptModal("PIN", { title: "destrancar nota", inputType: "password", confirmText: "destrancar" });
+    const pin = await showPromptModal("PIN", { title: t("organizacao_notas.destrancar_nota"), inputType: "password", confirmText: t("organizacao_notas.destrancar") });
     if (pin == null) return;
     try {
       const livre = await api.destrancarNota(n.id, pin);
@@ -526,9 +527,9 @@ async function trancarOuDestrancar() {
     return;
   }
   const ok = await showConfirmModal(
-    "o texto fica cifrado e só abre com o PIN de abertura do app. ele sai da busca, da lista e do widget (o título continua visível — escolha um discreto). " +
-      "atenção: se a chave das senhas for redefinida, o texto trancado se perde; o backup COM senha leva ele junto.",
-    { title: "trancar nota", confirmText: "trancar" }
+    t("organizacao_notas.o_texto_fica_cifrado_e") +
+      t("organizacao_notas.aviso_chave"),
+    { title: t("organizacao_notas.trancar_nota"), confirmText: t("organizacao_notas.trancar") }
   );
   if (!ok) return;
   const id = await garantirSalva();
@@ -544,9 +545,9 @@ async function trancarOuDestrancar() {
     atualizarNaLista(trancada);
   } catch (err) {
     if (err?.status === 409) {
-      const irAgora = await showConfirmModal("pra trancar notas, ative antes o PIN de abertura em configurações › segurança.", {
-        title: "PIN desligado",
-        confirmText: "abrir configurações",
+      const irAgora = await showConfirmModal(t("organizacao_notas.pra_trancar_notas_ative_antes"), {
+        title: t("organizacao_notas.pin_desligado"),
+        confirmText: t("organizacao_notas.abrir_configuracoes"),
       });
       if (irAgora) {
         const { openConfiguracoesModal } = await import("../modals/configuracoes-modal.js");
@@ -565,9 +566,9 @@ async function apagar() {
     renderLista();
     return;
   }
-  const ok = await showConfirmModal(`apagar "${n.titulo || "(sem título)"}"? não dá pra desfazer.`, {
-    title: "apagar nota",
-    confirmText: "apagar",
+  const ok = await showConfirmModal(t("organizacao_notas.apagar_confirma", { titulo: n.titulo || t("organizacao_notas.sem_titulo") }), {
+    title: t("organizacao_notas.apagar_nota"),
+    confirmText: t("geral.apagar"),
     danger: true,
   });
   if (!ok) return;
@@ -595,11 +596,11 @@ async function carregarAlvos() {
   const tipo = $("#nota-vinculo-tipo")?.value;
   const sel = $("#nota-vinculo-alvo");
   if (!sel) return;
-  sel.innerHTML = '<option value="">carregando…</option>';
+  sel.innerHTML = `<option value="">${t("geral.carregando")}</option>`;
   const alvos = await api.listAlvosNota(tipo).catch(() => []);
   sel.innerHTML = alvos.length
     ? alvos.map((a) => `<option value="${esc(a.id)}"${st.atual?.vinculo?.id === a.id ? " selected" : ""}>${esc(a.nome)}</option>`).join("")
-    : '<option value="">nada cadastrado ainda</option>';
+    : `<option value="">${t("organizacao_notas.nada_cadastrado_ainda")}</option>`;
 }
 
 // ---------------------------------------------------------------- eventos
@@ -645,13 +646,13 @@ function onClick(e) {
     // ORG-05: lembrete ligado a esta nota
     const { id, titulo } = st.atual;
     return import("../modals/lembrete-modal.js").then((m) =>
-      m.openLembreteModal({ vinculo: { tipo: "nota", id, nome: titulo || "(sem título)" } }),
+      m.openLembreteModal({ vinculo: { tipo: "nota", id, nome: titulo || t("organizacao_notas.sem_titulo") } }),
     );
   }
   if (acao === "arquivar") {
     const arquivar = !st.atual.arquivada;
     return aplicarMeta({ arquivada: arquivar }, { recarregar: true }).then(() => {
-      showToast({ title: arquivar ? "nota arquivada" : "nota de volta às ativas", iconName: "archive", duration: 3000, sound: false });
+      showToast({ title: arquivar ? t("organizacao_notas.nota_arquivada") : t("organizacao_notas.nota_de_volta_as_ativas"), iconName: "archive", duration: 3000, sound: false });
       st.atual = null;
       renderVazio();
       renderLista();
@@ -668,7 +669,7 @@ function onClick(e) {
   if (acao === "tirar-vinculo") return aplicarMeta({ limpar_vinculo: true });
   if (acao === "ir-vinculo") {
     e.preventDefault();
-    const pagina = VINCULO_TIPOS.find((v) => v.tipo === st.atual.vinculo?.tipo)?.pagina;
+    const pagina = vinculoTipos().find((v) => v.tipo === st.atual.vinculo?.tipo)?.pagina;
     if (pagina) salvarAgora().then(() => navigateTo(pagina));
   }
 }
@@ -716,7 +717,7 @@ export async function montarNotas(painel, opts = {}) {
   const rascunhoNova = lerRascunho(null);
   if (rascunhoNova && (rascunhoNova.titulo || rascunhoNova.conteudo) && !opts.notaId) {
     await nova({ titulo: rascunhoNova.titulo, conteudo: rascunhoNova.conteudo });
-    showToast({ title: "texto recuperado", message: "uma nota nova não chegou a ser salva — ela está aberta de novo.", iconName: "undo", sound: false });
+    showToast({ title: t("organizacao_notas.texto_recuperado"), message: t("organizacao_notas.uma_nota_nova_nao_chegou"), iconName: "undo", sound: false });
   }
   await focarNotas(opts);
 }

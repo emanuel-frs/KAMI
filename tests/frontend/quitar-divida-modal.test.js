@@ -23,7 +23,7 @@ test(
     const result = openQuitarDividaModal({ debt: { description: "empréstimo", amount: 300 }, accounts: ACCOUNTS });
     const doc = dom.window.document;
     assert.equal(doc.querySelector("#qdm-conta").value, "corrente");
-    assert.match(doc.querySelector("#qdm-info").textContent, /empréstimo — R\$ 300,00/);
+    assert.match(doc.querySelector("#qdm-info").textContent, /empréstimo — R\$\s300,00/);
     doc.querySelector('#quitar-divida-modal [data-action="confirm"]').click();
     assert.deepEqual(await result, { conta_id: "corrente", forma_pagamento: null });
   })

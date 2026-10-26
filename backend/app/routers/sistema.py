@@ -36,10 +36,12 @@ arquivo cifrado e voltam cifrados com a chave de quem importa.
 import logging
 import platform
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app import backup_auto
@@ -48,6 +50,7 @@ from app.version import KAMI_VERSION
 from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
 from app.crypto import ChaveIndisponivel, apagar_do_cofre, decrypt_password, encrypt_password
 from app.limites import Entrada
+from app.mensagens import ErroKami, erro_de
 
 logger = logging.getLogger(__name__)
 
@@ -277,30 +280,41 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
     rejeitado — só que agora apontando a tabela/linha exata.
     """
     if payload.confirmation != IMPORT_CONFIRMATION_WORD:
-        raise HTTPException(
-            status_code=422,
-            detail=f"confirmação inválida; envie confirmation='{IMPORT_CONFIRMATION_WORD}' pra prosseguir",
+        raise ErroKami(
+            422,
+            "erro.sistema.confirmacao_invalida_envie_confirmation_import",
+            "confirmação inválida; envie confirmation='{import_confirmation_word}' pra prosseguir",
+            import_confirmation_word=IMPORT_CONFIRMATION_WORD,
         )
 
     tables, segredos = payload.tables, {}
     if payload.cifrado is not None:
         if not payload.senha:
-            raise HTTPException(status_code=422, detail="este backup é protegido — informe a senha")
+            raise ErroKami(
+                422,
+                "erro.sistema.este_backup_protegido_informe_senha",
+                "este backup é protegido — informe a senha",
+            )
         try:
             conteudo = decifrar(payload.cifrado, payload.senha)
         except SenhaErrada as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise erro_de(exc, 422) from exc
         except ArquivoInvalido as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise erro_de(exc, 422) from exc
         tables = conteudo.get("tables") if isinstance(conteudo, dict) else None
         segredos = conteudo.get("segredos") or {}
         if not isinstance(tables, dict):
-            raise HTTPException(status_code=422, detail="arquivo não parece ser um backup válido do Kami")
+            raise ErroKami(
+                422,
+                "erro.sistema.arquivo_nao_parece_ser_backup_2",
+                "arquivo não parece ser um backup válido do Kami",
+            )
 
     if not tables or "user_profile" not in tables:
-        raise HTTPException(
-            status_code=422,
-            detail="arquivo não parece ser um backup válido do Kami (faltando user_profile)",
+        raise ErroKami(
+            422,
+            "erro.sistema.arquivo_nao_parece_ser_backup",
+            "arquivo não parece ser um backup válido do Kami (faltando user_profile)",
         )
 
     # CONF-08: o estado de agora fica em backups/ antes de ser sobrescrito
@@ -368,9 +382,11 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
         # antes essa exceção era totalmente engolida — só sobrava "400
         # Bad Request" no log, sem pista nenhuma do motivo real.
         logger.exception("falha ao importar backup")
-        raise HTTPException(
-            status_code=400,
-            detail=f"falha ao importar o backup — arquivo corrompido, incompatível, ou dados inconsistentes; nenhuma alteração foi feita ({exc})",
+        raise ErroKami(
+            400,
+            "erro.sistema.falha_ao_importar_backup_arquivo",
+            "falha ao importar o backup — arquivo corrompido, incompatível, ou dados inconsistentes; nenhuma alteração foi feita ({exc})",
+            exc=str(exc),
         ) from exc
     finally:
         # religa sempre — get_connection() liga por padrão, mas cada
@@ -397,9 +413,11 @@ def remover_do_computador(payload: ResetIn):
     já fora do ar. A pasta extra das cópias fica (P-92).
     """
     if payload.confirmation != REMOVER_CONFIRMATION_WORD:
-        raise HTTPException(
-            status_code=422,
-            detail=f"confirmação inválida; envie confirmation='{REMOVER_CONFIRMATION_WORD}' pra prosseguir",
+        raise ErroKami(
+            422,
+            "erro.sistema.confirmacao_invalida_envie_confirmation_remover",
+            "confirmação inválida; envie confirmation='{remover_confirmation_word}' pra prosseguir",
+            remover_confirmation_word=REMOVER_CONFIRMATION_WORD,
         )
     havia = apagar_do_cofre()
     logger.warning("remover tudo do computador: chave %s", "apagada do cofre" if havia else "não estava no cofre")
@@ -417,9 +435,11 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
     em vez de confiar só na confirmação do lado do frontend.
     """
     if payload.confirmation != RESET_CONFIRMATION_WORD:
-        raise HTTPException(
-            status_code=422,
-            detail=f"confirmação inválida; envie confirmation='{RESET_CONFIRMATION_WORD}' pra prosseguir",
+        raise ErroKami(
+            422,
+            "erro.sistema.confirmacao_invalida_envie_confirmation_reset",
+            "confirmação inválida; envie confirmation='{reset_confirmation_word}' pra prosseguir",
+            reset_confirmation_word=RESET_CONFIRMATION_WORD,
         )
 
     # CONF-08: "apagar tudo" sem querer passa a ter volta (configurações ›
@@ -545,6 +565,28 @@ def _local_da_chave() -> str:
         return f"erro ao consultar ({type(exc).__name__})"
     texto = estado["local"] + (f" ({estado['cofre']})" if estado["cofre"] else "")
     return texto + (f" — {estado['motivo']}" if estado["motivo"] else "")
+
+
+# I18N-04 (P-85): o app usa as fontes do sistema. No Linux uma instalação
+# mínima pode não ter fonte com ideogramas/devanágari (quadradinhos no
+# lugar do texto); o fontconfig responde se há alguma. Windows e macOS
+# trazem as fontes desses idiomas — lá a resposta é sempre "tem".
+_FONTCONFIG_LANG = {"zh": "zh-cn", "ja": "ja", "ko": "ko", "hi": "hi"}
+
+
+@router.get("/fonte/{idioma}")
+def tem_fonte(idioma: str):
+    lang = _FONTCONFIG_LANG.get(idioma)
+    if not lang or platform.system() != "Linux":
+        return {"tem": True}
+    fc_list = shutil.which("fc-list")
+    if not fc_list:
+        return {"tem": None}  # sem como saber: o app não avisa
+    try:
+        saida = subprocess.run([fc_list, f":lang={lang}", "family"], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {"tem": None}
+    return {"tem": bool(saida.strip())}
 
 
 @router.get("/diagnostico")

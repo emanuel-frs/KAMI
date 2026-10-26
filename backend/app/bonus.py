@@ -30,6 +30,7 @@ Regras combinadas com o Emanuel em 2026-10-09:
 import datetime
 
 from app.database import now_iso
+from app.mensagens import Texto
 
 REF_BONUS = "bonus"
 PRIMEIRA_ACAO = 5
@@ -37,9 +38,8 @@ TETO = 20
 # (dias mínimos de sequência, multiplicador) — do maior pro menor
 DEGRAUS_SEQUENCIA = ((30, 1.5), (14, 1.3), (7, 1.2), (3, 1.1))
 
-DESC_PRIMEIRA = "bônus · primeira ação do dia"
-DESC_SEQUENCIA = "bônus · sequência de {dias} dias {mult}×"
-DESC_ATRASADO = "bônus · atributo atrasado 2×"
+DESC_PRIMEIRA = Texto("log.bonus.primeira", "bônus · primeira ação do dia")
+DESC_ATRASADO = Texto("log.bonus.atrasado", "bônus · atributo atrasado 2×")
 
 # desligado só pela suíte de testes (conftest.py), pelo mesmo motivo das
 # missões: com bônus ligados, todo teste antigo que confere o xp de uma
@@ -80,7 +80,7 @@ def _tem_primeira_hoje(db) -> bool:
     return db.execute(
         "SELECT 1 FROM action_logs WHERE referencia_tipo = ? AND description = ? "
         "AND substr(created_at, 1, 10) = ? LIMIT 1",
-        (REF_BONUS, DESC_PRIMEIRA, now_iso()[:10]),
+        (REF_BONUS, str(DESC_PRIMEIRA), now_iso()[:10]),
     ).fetchone() is not None
 
 
@@ -100,7 +100,7 @@ def aplicar_bonus(db, log_id: str, categories, xp: int, atrasado) -> list:
     mult = multiplicador(dias)
     extra = min(TETO, int(xp * (mult - 1) + 0.5))
     if extra > 0:
-        bonus.append((DESC_SEQUENCIA.format(dias=dias, mult=_mult_label(mult)), extra))
+        bonus.append((Texto("log.bonus.sequencia", "bônus · sequência de {dias} dias {mult}×", dias=dias, mult=_mult_label(mult)), extra))
 
     if atrasado and atrasado in categories:
         bonus.append((DESC_ATRASADO, min(TETO, xp)))

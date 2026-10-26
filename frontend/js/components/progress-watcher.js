@@ -8,6 +8,8 @@ import { escapeHtml } from "./format.js";
 import { effectsMode } from "./visual-effects.js";
 import { showLevelUp } from "./level-up.js";
 import { estaNoDocumento } from "./no-documento.js";
+import { descricaoConquista, nomeAtributo, rotuloTema, rotuloTitulo, textoDoRegistro, tituloConquista, tituloMissao } from "./textos-sistema.js";
+import { localeAtual, t } from "../i18n.js";
 
 /**
  * Feedback de progresso — iniciado uma vez em app.js (boot()), igual
@@ -108,7 +110,7 @@ function showFeedLine(label, detail, negative, extraClass = "") {
 
 function showXpLine(delta, attribute) {
   const sign = delta > 0 ? "+" : "−";
-  showFeedLine(`${sign}${Math.abs(delta)} xp`, attribute, delta < 0);
+  showFeedLine(`${sign}${Math.abs(delta)} xp`, nomeAtributo(attribute), delta < 0);
 }
 
 /**
@@ -123,8 +125,8 @@ async function celebrateLevel(previousLevel, player) {
     const rewards = await getRecompensas();
     const fresh = (item) => item.level > previousLevel && item.level <= player.level;
     unlocked = [
-      ...rewards.titulos.filter(fresh).map((t) => `título "${t.label}"`),
-      ...rewards.temas.filter(fresh).map((t) => `tema ${t.label}`),
+      ...rewards.titulos.filter(fresh).map((r) => t("nivel.recompensa_titulo", { nome: rotuloTitulo(r.key, r.label) })),
+      ...rewards.temas.filter(fresh).map((r) => t("nivel.recompensa_tema", { nome: rotuloTema(r.key, r.label) })),
     ];
   } catch {
     // sem catálogo: comemora sem a linha de recompensas
@@ -136,8 +138,10 @@ async function celebrateLevel(previousLevel, player) {
   }
   showToast({
     sound: false,
-    title: `nível ${player.level} alcançado`,
-    message: `${player.total_xp.toLocaleString("pt-BR")} xp no total${unlocked.length ? ` · desbloqueado: ${unlocked.join(", ")}` : ""}`,
+    title: t("nivel.alcancado", { nivel: player.level }),
+    message:
+      t("level_up.xp_total", { xp: player.total_xp.toLocaleString(localeAtual()) }) +
+      (unlocked.length ? ` · ${t("nivel.desbloqueado", { lista: unlocked.join(", ") })}` : ""),
     iconName: "zap",
     duration: TOAST_MS,
   });
@@ -168,8 +172,8 @@ function diffAndCelebrate(before, after) {
     if (attr.current_level > prev.current_level) {
       sound = "nivel";
       showToast({
-        title: `${name} subiu pro nível ${attr.current_level}`,
-        message: `nível ${prev.current_level} → ${attr.current_level}`,
+        title: t("nivel.atributo_subiu", { atributo: nomeAtributo(name), nivel: attr.current_level }),
+        message: t("nivel.de_para", { de: prev.current_level, para: attr.current_level }),
         iconName: "trending-up",
         duration: TOAST_MS,
         sound: false,
@@ -180,7 +184,8 @@ function diffAndCelebrate(before, after) {
   if (sound && !(after.player.level > before.player.level)) playSound(sound);
 
   for (const b of [...newBonus].reverse()) {
-    showFeedLine(`+${b.xp_gained} xp`, b.description.replace(/^bônus · /, ""), false, "bonus");
+    // o "bônus · " do começo sai (a linha já é do bônus) — em qualquer idioma
+    showFeedLine(`+${b.xp_gained} xp`, textoDoRegistro(b).replace(/^[^·]+· /, ""), false, "bonus");
   }
 
   if (after.player.level > before.player.level) {
@@ -192,9 +197,9 @@ function diffAndCelebrate(before, after) {
     changed = true;
     // GAM-15: aviso "estilo Steam" (vira toast comum com efeitos desligados)
     showAchievementPopup({
-      label: "conquista desbloqueada",
-      title: ach.title,
-      detail: ach.description ?? "",
+      label: t("progress_watcher.conquista_desbloqueada"),
+      title: tituloConquista(ach),
+      detail: descricaoConquista(ach),
       iconName: ICON_BY_CATEGORY[ach.category] ?? "star",
       onClick: () => navigateTo("perfil"),
     });
@@ -203,7 +208,7 @@ function diffAndCelebrate(before, after) {
   for (const [id, ach] of before.unlocked) {
     if (after.unlocked.has(id)) continue;
     changed = true;
-    showFeedLine("conquista bloqueada", ach.title, true);
+    showFeedLine(t("progress_watcher.conquista_bloqueada"), tituloConquista(ach), true);
   }
 
   // GAM-07: o bônus já entrou no "+xp" do atributo acima; o toast diz de onde veio
@@ -211,8 +216,8 @@ function diffAndCelebrate(before, after) {
     if (before.missionsDone.has(id)) continue;
     changed = true;
     showAchievementPopup({
-      label: "missão concluída",
-      title: m.titulo,
+      label: t("progress_watcher.missao_concluida"),
+      title: tituloMissao(m),
       detail: `+${m.xp_bonus} xp`,
       iconName: "target",
       small: true,
@@ -224,7 +229,7 @@ function diffAndCelebrate(before, after) {
   for (const [id, m] of before.missionsDone) {
     if (after.missionsDone.has(id)) continue;
     changed = true;
-    showFeedLine("missão desfeita", m.titulo, true);
+    showFeedLine(t("progress_watcher.missao_desfeita"), tituloMissao(m), true);
   }
 
   return changed;

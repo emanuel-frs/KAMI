@@ -22,6 +22,7 @@
  * loadWidgetCatalog()` antes de qualquer coisa usar o catálogo).
  */
 import { getCatalog } from "../api/widgets.js";
+import { tOu } from "../i18n.js";
 
 const COMPONENT_PATHS = {
   profile: "./profile.js",
@@ -67,7 +68,14 @@ export function loadWidgetCatalog() {
   if (!_loadPromise) {
     _loadPromise = getCatalog().then((backendCatalog) => {
       for (const [type, def] of Object.entries(backendCatalog)) {
-        WIDGET_CATALOG[type] = { ...def, component: COMPONENT_PATHS[type] };
+        const entrada = { ...def, component: COMPONENT_PATHS[type] };
+        // I18N: o rótulo vem do backend em português; quem lê `label` recebe
+        // o do idioma atual (getter — trocar o idioma não refaz o catálogo)
+        Object.defineProperty(entrada, "label", {
+          get: () => tOu(`widget.${type}`, def.label),
+          enumerable: true,
+        });
+        WIDGET_CATALOG[type] = entrada;
       }
       return WIDGET_CATALOG;
     });

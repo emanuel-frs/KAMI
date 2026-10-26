@@ -3,7 +3,8 @@ import { attachChartTooltip } from "./chart-tooltip.js";
 import { desenharNaLargura } from "./na-largura.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { listenWhileConnected } from "../components/window-listener.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
+import { t } from "../i18n.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -16,10 +17,10 @@ function shiftMonth(monthStr, delta) {
 }
 function monthAbbrev(monthStr) {
   const [, m] = monthStr.split("-").map(Number);
-  return ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][m - 1];
+  return mesesCurtos()[m - 1];
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return fmtMoeda(v, { inteiro: true });
 }
 function escapeAttr(str) {
   return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -30,7 +31,7 @@ const H = 110; // altura do traçado em px (.chart-plot); a largura é a do widg
 const PAD = 4; // pros pontos das pontas não ficarem cortados ao meio
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando evolução…</div>';
+  el.innerHTML = `<div class="empty-state">${t("graf.carregando_evolucao")}</div>`;
 
   async function reload() {
     const currentMonth = currentMonthStr();
@@ -41,7 +42,7 @@ export async function render(el, widget) {
     try {
       data = await Promise.all(months.map((m) => financasApi.getSummary(m)));
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("graf.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw(months, data);
@@ -91,8 +92,8 @@ export async function render(el, widget) {
           ${months.map((m) => `<span>${monthAbbrev(m)}</span>`).join("")}
         </div>
         ${buildTextAltTable({
-          caption: "Evolução do saldo acumulado nos últimos 6 meses",
-          headers: ["Mês", "Saldo acumulado"],
+          caption: t("graf.evolucao_caption"),
+          headers: [t("graf.mes"), t("graf.saldo_acumulado")],
           rows: months.map((m, i) => [monthAbbrev(m), brl(points[i])]),
         })}
       </div>

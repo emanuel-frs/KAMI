@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 /**
  * Chama da sequência + proteções (GAM-06). A chama é um SVG em pixel art
  * (grade 10×12, `shape-rendering: crispEdges`) — em tamanho pequeno os
@@ -112,15 +113,13 @@ export function protectionsText(count, max) {
   return "◆".repeat(count) + "◇".repeat(Math.max(0, max - count));
 }
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-
 /** Frase das proteções, pra tooltip/leitor de tela. */
 export function protectionsSummary(player) {
-  const parts = [`${player.streak_protections}/${player.streak_protections_max} proteções guardadas`];
+  const parts = [t("sequencia.protecoes_guardadas", { n: player.streak_protections, max: player.streak_protections_max })];
   if (player.streak_protections < player.streak_protections_max) {
-    parts.push(`próxima em ${plural(player.streak_next_protection_in, "dia", "dias")} com ação`);
+    parts.push(t("sequencia.proxima", { dias: t("geral.dias", { n: player.streak_next_protection_in }) }));
   }
-  if (player.streak_protected_yesterday) parts.push("ontem foi protegido");
+  if (player.streak_protected_yesterday) parts.push(t("sequencia.ontem_protegido"));
   return parts.join(" · ");
 }
 

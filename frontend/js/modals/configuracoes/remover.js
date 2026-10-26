@@ -24,6 +24,7 @@ import { escapeHtml } from "../../components/format.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { showErrorModal } from "../err-modal.js";
 import { estado } from "./estado.js";
+import { t } from "../../i18n.js";
 
 const REMOVER_WORD = "remover";
 const NO_WINDOWS = /windows/i.test(navigator.userAgent);
@@ -31,24 +32,24 @@ const NO_WINDOWS = /windows/i.test(navigator.userAgent);
 export function removerSectionHtml() {
   return `
       <div class="settings-section settings-danger" id="sm-remover" hidden>
-        <h4>remover tudo do kami deste computador</h4>
-        <p class="settings-desc">pra quem vai parar de usar o kami aqui. apaga seus dados, as cópias automáticas, a chave das senhas no cofre do sistema, o iniciar com o sistema, o ícone da cor no ${NO_WINDOWS ? "menu iniciar" : "lançador"} e o cache da tela — e fecha o kami. não tem volta.</p>
+        <h4>${t("remover.remover_tudo_do_kami_deste")}</h4>
+        <p class="settings-desc">${t("remover.desc", { onde: NO_WINDOWS ? t("remover.menu_iniciar") : t("remover.lancador") })}</p>
         <p class="settings-desc" id="sm-remover-fica"></p>
         ${
           NO_WINDOWS
             ? `<label class="cfg-toggle">
           <input type="checkbox" id="sm-remover-desinstalar" checked>
-          <span>abrir o desinstalador do programa depois<small>o mesmo de "adicionar ou remover programas"</small></span>
+          <span>${t("remover.abrir_o_desinstalador_do_programa")}<small>${t("remover.o_mesmo_de_adicionar_ou")}</small></span>
         </label>`
             : ""
         }
         <div class="field">
-          <label for="sm-remover-confirm">digite <strong>${REMOVER_WORD}</strong> pra habilitar o botão abaixo</label>
+          <label for="sm-remover-confirm">${t("geral.digite_pra_habilitar", { palavra: `<strong>${REMOVER_WORD}</strong>` })}</label>
           <input type="text" id="sm-remover-confirm" placeholder="${REMOVER_WORD}" autocomplete="off">
         </div>
         <div class="form-actions">
-          <button class="btn sm" id="sm-remover-exportar">exportar um backup antes</button>
-          <button class="btn sm danger" id="sm-remover-btn" disabled>remover tudo deste computador</button>
+          <button class="btn sm" id="sm-remover-exportar">${t("remover.exportar_um_backup_antes")}</button>
+          <button class="btn sm danger" id="sm-remover-btn" disabled>${t("remover.remover_tudo_deste_computador")}</button>
         </div>
       </div>`;
 }
@@ -62,10 +63,10 @@ async function renderOQueFica(wrap) {
     /* sem a lista de cópias: o texto fica sem a pasta extra */
   }
   const programa = NO_WINDOWS
-    ? "o programa continua instalado: o desinstalador abre no fim (ou em configurações do Windows › aplicativos)."
-    : "o programa continua instalado: <code>sudo apt remove kami</code> (.deb), <code>sudo dnf remove kami</code> (.rpm), <code>yay -R kami-bin</code> (AUR) ou apague o AppImage.";
+    ? t("remover.o_programa_continua_instalado_o")
+    : t("remover.programa_linux", { apt: "<code>sudo apt remove kami</code>", dnf: "<code>sudo dnf remove kami</code>", yay: "<code>yay -R kami-bin</code>" });
   wrap.querySelector("#sm-remover-fica").innerHTML =
-    (pasta ? `fica: a pasta extra das cópias, <code>${escapeHtml(pasta)}</code> — é a sua cópia fora deste computador. ` : "") + programa;
+    (pasta ? t("remover.fica_pasta", { pasta: `<code>${escapeHtml(pasta)}</code>` }) : "") + programa;
 }
 
 export function wireRemover(wrap, { exportar }) {
@@ -92,24 +93,24 @@ async function removerTudo(wrap) {
   const abrirDesinstalador = !!wrap.querySelector("#sm-remover-desinstalar")?.checked;
 
   const certeza = await showConfirmModal(
-    "o kami vai apagar seus dados e tudo o que deixou neste computador e fechar. as cópias automáticas vão junto — só o backup exportado (e a pasta extra, se houver) fica. tem certeza?",
-    { title: "remover o kami deste computador", confirmText: "sim, remover tudo", danger: true }
+    t("remover.o_kami_vai_apagar_seus"),
+    { title: t("remover.remover_o_kami_deste_computador"), confirmText: t("remover.sim_remover_tudo"), danger: true }
   );
   if (!certeza) return;
 
   estado.busy = true;
   confirmInput.disabled = true;
   btn.disabled = true;
-  btn.textContent = "removendo...";
+  btn.textContent = t("remover.removendo");
   try {
     await post("/api/sistema/remover-do-computador", { confirmation: REMOVER_WORD });
     // daqui o app fecha (e no Windows abre o desinstalador, se pedido)
     await window.__TAURI__.core.invoke("remover_tudo_do_computador", { abrirDesinstalador });
   } catch (err) {
-    showErrorModal(String(err?.message || err), "não deu pra remover tudo");
+    showErrorModal(String(err?.message || err), t("remover.nao_deu_pra_remover_tudo"));
     estado.busy = false;
     confirmInput.disabled = false;
     btn.disabled = false;
-    btn.textContent = "remover tudo deste computador";
+    btn.textContent = t("remover.remover_tudo_deste_computador");
   }
 }

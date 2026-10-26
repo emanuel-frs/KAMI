@@ -1,6 +1,7 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais do Perfil (etapa 5,
@@ -20,17 +21,17 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  */
 const SCREEN = "perfil";
 
-const WIDGET_TEXTS = {
-  profile: "seu nome, cor e avatar ficam aqui — toque em editar pra mudar qualquer um dos três. ao lado, seu nível geral e a sequência de dias seguidos com pelo menos uma ação.",
-  attributes: "o mesmo progresso por atributo do núcleo, só que centralizado aqui no seu perfil.",
-  achievements: "todas as conquistas num só lugar — as destravadas e, nas bloqueadas, quanto falta. dá pra filtrar por uma ou mais áreas.",
-  notas_rapidas: "suas notas fixadas, e um campo pra anotar sem sair daqui. alt+shift+n abre uma nota rápida de qualquer tela.",
-  habitos_hoje: "os hábitos que valem hoje — um clique marca (+5 xp) ou desmarca. a grade e o histórico ficam na tela hábitos (alt+9).",
-  perfil_atividade: "seu mapa de atividade — cada bloquinho é um dia, somando ações de todos os atributos. quanto mais escuro, mais coisa você registrou naquele dia.",
-};
+const widgetTexts = () => ({
+  profile: t("perfil_tips.seu_nome_cor_e_avatar"),
+  attributes: t("perfil_tips.o_mesmo_progresso_por_atributo"),
+  achievements: t("perfil_tips.todas_as_conquistas_num_so"),
+  notas_rapidas: t("perfil_tips.suas_notas_fixadas_e_um"),
+  habitos_hoje: t("perfil_tips.os_habitos_que_valem_hoje"),
+  perfil_atividade: t("perfil_tips.seu_mapa_de_atividade_cada"),
+});
 
 function buildSteps(container) {
-  return buildWidgetSteps(container, WIDGET_TEXTS);
+  return buildWidgetSteps(container, widgetTexts());
 }
 
 let running = false;

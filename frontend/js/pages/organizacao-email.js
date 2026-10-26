@@ -14,6 +14,7 @@ import { emailAccountColor } from "../components/email-account-color.js";
 import { grupoDoDia, horaCurta } from "../components/email-texto.js";
 import { openEmailLeitor } from "../modals/email-leitor-modal.js";
 import { state, rootEl, escapeHtml, escapeAttr, fmtDateTimeBR } from "./organizacao.js";
+import { t } from "../i18n.js";
 
 // true depois que a seleção inicial de contas "padrão" já rodou uma vez
 // nesta montagem — sem essa guarda, toda vez que loadAccounts() roda de
@@ -57,7 +58,7 @@ export function renderAccounts() {
   const wrap = rootEl.querySelector("#org-accounts");
   if (!wrap) return; // painel fica dentro do modal de gerenciar contas — só existe depois do primeiro mount
   if (!state.accounts.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhuma conta cadastrada ainda.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_email.nenhuma_conta_cadastrada_ainda")}</div>`;
     return;
   }
   wrap.innerHTML = state.accounts
@@ -68,14 +69,14 @@ export function renderAccounts() {
       <div class="org-account${muted ? " is-muted" : ""}">
         <div class="org-account-info">
           <b>${escapeHtml(a.label)}${a.sync_by_default ? ` ${icon("star", { size: 10, fill: "currentColor" })}` : ""}</b>
-          <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}${muted ? ` · <span class="email-muted-tag">${icon("bell-off", { size: 9 })} silenciada</span>` : ""}</span>
-          ${SYNC_ERRO_TEXTO[a.sync_erro] ? `<span class="org-account-erro">${icon("triangle-alert", { size: 10 })} ${SYNC_ERRO_TEXTO[a.sync_erro].motivo}</span>` : ""}
+          <span class="meta">${escapeHtml(a.username)} · ${escapeHtml(a.imap_host)}:${a.imap_port}${muted ? ` · <span class="email-muted-tag">${icon("bell-off", { size: 9 })} ${t("organizacao_email.silenciada")}</span>` : ""}</span>
+          ${syncErroTexto()[a.sync_erro] ? `<span class="org-account-erro">${icon("triangle-alert", { size: 10 })} ${syncErroTexto()[a.sync_erro].motivo}</span>` : ""}
         </div>
         <div class="org-account-actions">
-          <span class="icon-btn" data-tooltip="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" aria-label="${muted ? "reativar notificações desta conta" : "silenciar notificações desta conta"}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="${muted ? t("organizacao_email.reativar_notificacoes_desta_conta") : t("organizacao_email.silenciar_notificacoes_desta_conta")}" aria-label="${muted ? t("organizacao_email.reativar_notificacoes_desta_conta") : t("organizacao_email.silenciar_notificacoes_desta_conta")}" data-mute-account="${a.id}">${icon(muted ? "bell" : "bell-off", { size: 12 })}</span>
           <span class="icon-btn${syncing ? " is-syncing" : ""}" data-tooltip="${syncing ? "sincronizando..." : "sincronizar"}" aria-label="${syncing ? "sincronizando..." : "sincronizar"}" data-sync-account="${syncing ? "" : a.id}">${icon("refresh-cw", { size: 12 })}</span>
-          <span class="icon-btn" data-tooltip="editar" aria-label="editar" data-edit-account="${a.id}">${icon("pencil", { size: 12 })}</span>
-          <span class="icon-btn" data-tooltip="remover" aria-label="remover" data-delete-account="${a.id}">${icon("x")}</span>
+          <span class="icon-btn" data-tooltip="${t("geral.editar")}" aria-label="${t("geral.editar")}" data-edit-account="${a.id}">${icon("pencil", { size: 12 })}</span>
+          <span class="icon-btn" data-tooltip="${t("geral.remover")}" aria-label="${t("geral.remover")}" data-delete-account="${a.id}">${icon("x")}</span>
         </div>
       </div>`;
     })
@@ -97,7 +98,7 @@ export function renderAccountChips() {
   const wrap = rootEl.querySelector("#org-account-chips");
   if (!wrap) return;
   if (!state.accounts.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhuma conta cadastrada — clique em "gerenciar contas" pra adicionar uma.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_email.nenhuma_conta_cadastrada_clique_em")}</div>`;
     return;
   }
   wrap.innerHTML = state.accounts
@@ -105,10 +106,10 @@ export function renderAccountChips() {
       const on = state.selectedAccountIds.has(a.id);
       const color = emailAccountColor(a.id);
       return `
-      <span class="email-account-chip${on ? " on" : ""}" data-account-chip="${a.id}" style="--chip-color:${color};" data-tooltip="${on ? "remover da visualização" : "adicionar à visualização"}" aria-label="${on ? "remover da visualização" : "adicionar à visualização"}">
+      <span class="email-account-chip${on ? " on" : ""}" data-account-chip="${a.id}" style="--chip-color:${color};" data-tooltip="${on ? t("organizacao_email.remover_da_visualizacao") : t("organizacao_email.adicionar_a_visualizacao")}" aria-label="${on ? t("organizacao_email.remover_da_visualizacao") : t("organizacao_email.adicionar_a_visualizacao")}">
         <span class="email-account-chip-dot"></span>
         ${escapeHtml(a.label)}
-        <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}" aria-label="${a.sync_by_default ? "conta padrão — clique pra desmarcar" : "marcar como conta padrão (seleção automática ao abrir a tela)"}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
+        <span class="email-account-star${a.sync_by_default ? " on" : ""}" data-toggle-default="${a.id}" data-tooltip="${a.sync_by_default ? t("organizacao_email.conta_padrao_clique_pra_desmarcar") : t("organizacao_email.marcar_como_conta_padrao_selecao")}" aria-label="${a.sync_by_default ? t("organizacao_email.conta_padrao_clique_pra_desmarcar") : t("organizacao_email.marcar_como_conta_padrao_selecao")}">${icon("star", { size: 10, fill: a.sync_by_default ? "currentColor" : "none" })}</span>
       </span>`;
     })
     .join("");
@@ -117,10 +118,10 @@ export function renderAccountChips() {
 // ORG-06: o que dizer pra cada falha gravada na conta (sync_erro, ver
 // EmailAccountOut no backend). Só falhas que a pessoa resolve — queda de
 // rede não chega aqui.
-const SYNC_ERRO_TEXTO = {
-  senha: { motivo: "a senha de app salva não pode ser usada (a chave das senhas foi redefinida?)", acao: "informar a senha" },
-  login: { motivo: "o servidor recusou o login — confira o usuário e a senha de app", acao: "editar conta" },
-};
+const syncErroTexto = () => ({
+  senha: { motivo: t("organizacao_email.a_senha_de_app_salva"), acao: t("organizacao_email.informar_a_senha") },
+  login: { motivo: t("organizacao_email.o_servidor_recusou_o_login"), acao: t("organizacao_email.editar_conta") },
+});
 
 /**
  * Faixa de aviso no topo da aba de e-mail, uma linha por conta com
@@ -132,16 +133,16 @@ const SYNC_ERRO_TEXTO = {
 function renderSyncAlerts() {
   const wrap = rootEl?.querySelector("#org-email-alertas");
   if (!wrap) return;
-  const comErro = state.accounts.filter((a) => SYNC_ERRO_TEXTO[a.sync_erro]);
+  const comErro = state.accounts.filter((a) => syncErroTexto()[a.sync_erro]);
   wrap.innerHTML = comErro
     .map((a) => {
-      const t = SYNC_ERRO_TEXTO[a.sync_erro];
-      const desde = a.sync_erro_desde ? ` desde ${escapeHtml(fmtDateTimeBR(a.sync_erro_desde))}` : "";
+      const erro = syncErroTexto()[a.sync_erro];
+      const desde = a.sync_erro_desde ? t("organizacao_email.desde", { quando: fmtDateTimeBR(a.sync_erro_desde) }) : "";
       return `
       <div class="email-alerta" role="alert">
         <span class="email-alerta-icone" aria-hidden="true">${icon("triangle-alert", { size: 13 })}</span>
-        <span class="email-alerta-texto">a conta <b>${escapeHtml(a.label)}</b> não sincroniza${desde} — ${t.motivo}.</span>
-        <button type="button" class="btn sm warn" data-edit-account="${a.id}">${t.acao}</button>
+        <span class="email-alerta-texto">${t("organizacao_email.nao_sincroniza", { conta: `<b>${escapeHtml(a.label)}</b>`, desde: escapeHtml(desde), motivo: erro.motivo })}</span>
+        <button type="button" class="btn sm warn" data-edit-account="${a.id}">${erro.acao}</button>
       </div>`;
     })
     .join("");
@@ -175,7 +176,7 @@ export async function handleToggleDefaultAccount(accountId) {
     acc.sync_by_default = !next; // desfaz se a chamada falhar
     renderAccountChips();
     renderAccounts();
-    showErrorModal(err?.message || "falha ao atualizar a conta.", "erro");
+    showErrorModal(err?.message || t("organizacao_email.falha_ao_atualizar_a_conta"), "erro");
   }
 }
 
@@ -231,10 +232,10 @@ export async function handleSyncSelectedAccounts() {
   const n = results.reduce((sum, r) => sum + (r?.new_messages ?? 0), 0);
   const falhas = results.filter((r) => r === null).length;
   showToast({
-    title: falhas ? `${falhas} conta${falhas === 1 ? "" : "s"} não sincronizou` : "sincronização concluída",
+    title: falhas ? t("organizacao_email.contas_falharam", { n: falhas }) : t("organizacao_email.sincronizacao_concluida"),
     message: falhas
-      ? "veja o aviso no topo da aba de e-mail"
-      : n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
+      ? t("organizacao_email.veja_o_aviso_no_topo")
+      : n > 0 ? t("organizacao_email.n_novos", { n }) : t("organizacao_email.nenhum_e_mail_novo"),
     iconName: falhas ? "triangle-alert" : "refresh-cw",
     variant: falhas ? "erro" : undefined,
   });
@@ -258,8 +259,8 @@ export function openAccountModal(accountId) {
     // não resolve nada, então o campo já diz isso e recebe o foco
     const senhaRuim = acc.sync_erro === "senha";
     hint.textContent = senhaRuim
-      ? "(a senha salva não funciona — informe a senha de app de novo)"
-      : "(deixe em branco pra manter a senha atual)";
+      ? t("organizacao_email.a_senha_salva_nao_funciona")
+      : t("organizacao_email.deixe_em_branco_pra_manter");
     hint.classList.toggle("is-erro", senhaRuim);
     // modal-accessibility.js põe o foco em [data-autofocus] ao abrir
     rootEl.querySelector("#acc-password").toggleAttribute("data-autofocus", senhaRuim);
@@ -289,7 +290,7 @@ export async function handleSaveAccount() {
   const sync_by_default = rootEl.querySelector("#acc-sync-by-default").checked;
 
   if (!label || !imap_host || !username || (!editId && !app_password)) {
-    showErrorModal("preencha apelido, host, usuário e senha de app.", "atenção");
+    showErrorModal(t("organizacao_email.preencha_apelido_host_usuario_e"), t("geral.atencao"));
     return;
   }
 
@@ -309,9 +310,9 @@ export async function handleSaveAccount() {
 }
 
 export async function handleDeleteAccount(accountId) {
-  const ok = await showConfirmModal("remover esta conta? o cache de e-mails dela também será apagado.", {
-    title: "remover conta",
-    confirmText: "remover",
+  const ok = await showConfirmModal(t("organizacao_email.remover_esta_conta_o_cache"), {
+    title: t("organizacao_email.remover_conta"),
+    confirmText: t("geral.remover"),
     danger: true,
   });
   if (!ok) return;
@@ -335,7 +336,7 @@ export async function handleSyncAccount(accountId) {
   try {
     result = await api.syncEmailAccount(accountId);
   } catch (err) {
-    showErrorModal(err?.message || "falha ao sincronizar — confira host/porta/usuário/senha de app.", "falha ao sincronizar");
+    showErrorModal(err?.message || t("organizacao_email.falha_ao_sincronizar_confira_host"), t("organizacao_email.falha_ao_sincronizar"));
     loadAccounts().then(() => rootEl && (renderAccountChips(), renderAccounts())).catch(() => {});
     return;
   } finally {
@@ -360,8 +361,8 @@ export async function handleSyncAccount(accountId) {
   // clique manual aqui.
   const n = result?.new_messages ?? 0;
   showToast({
-    title: "sincronização concluída",
-    message: n > 0 ? `${n} novo${n === 1 ? "" : "s"} e-mail${n === 1 ? "" : "s"}` : "nenhum e-mail novo",
+    title: t("organizacao_email.sincronizacao_concluida"),
+    message: n > 0 ? t("organizacao_email.n_novos", { n }) : t("organizacao_email.nenhum_e_mail_novo"),
     iconName: "refresh-cw",
   });
   refreshNotificationBell().catch((err) => console.error("falha ao atualizar o sino de notificações:", err));
@@ -412,11 +413,11 @@ export function renderEmails() {
   if (!wrap) return;
 
   if (!state.selectedAccountIds.size) {
-    wrap.innerHTML = '<div class="empty-state">nenhuma conta selecionada — ligue um chip de conta acima pra ver os e-mails.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_email.nenhuma_conta_selecionada_ligue_um")}</div>`;
     return;
   }
   if (!state.emails.length) {
-    wrap.innerHTML = `<div class="empty-state">nenhum e-mail em cache — clique em ${icon("refresh-cw", { size: 10 })} pra sincronizar.</div>`;
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_email.vazio", { icone: icon("refresh-cw", { size: 10 }) })}</div>`;
     return;
   }
 
@@ -446,7 +447,7 @@ export function renderEmails() {
   state.visibleEmailIds = visible.map((e) => e.id);
 
   if (!visible.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhum e-mail corresponde à busca/filtro atual.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_email.nenhum_e_mail_corresponde_a")}</div>`;
     return;
   }
 
@@ -473,18 +474,18 @@ function emailItemHtml(e, agora) {
   const color = emailAccountColor(e.account_id);
   const nome = e.sender_name || e.sender || "?";
   const endereco = e.sender_email && e.sender_email !== nome ? e.sender_email : "";
-  const estado = e.is_muted ? "silenciado" : e.is_read ? "lido" : "não lido";
+  const estado = e.is_muted ? t("organizacao_email.silenciado") : e.is_read ? t("organizacao_email.lido") : t("organizacao_email.nao_lido");
   return `
-      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(`${estado}: ${e.subject || "(sem assunto)"}, de ${nome}`)}">
+      <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(t("organizacao_email.item_aria", { estado, assunto: e.subject || t("organizacao_email.sem_assunto"), nome }))}">
         <span class="email-dot" aria-hidden="true"></span>
-        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="conta: ${escapeAttr(accountLabel(e.account_id))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
+        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(t("email.conta_tooltip", { conta: accountLabel(e.account_id) }))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
         <div class="email-main">
           <div class="email-top">
             <span class="email-from"><span class="email-from-name">${escapeHtml(nome)}</span>${endereco ? ` <span class="email-from-addr">${escapeHtml(endereco)}</span>` : ""}</span>
-            ${e.is_muted ? '<span class="email-tag">silenciado</span>' : ""}
+            ${e.is_muted ? `<span class="email-tag">${t("organizacao_email.silenciado")}</span>` : ""}
             <span class="email-meta">${escapeHtml(horaCurta(e.received_at, agora))}</span>
           </div>
-          <div class="email-subject">${escapeHtml(e.subject || "(sem assunto)")}</div>
+          <div class="email-subject">${escapeHtml(e.subject || t("organizacao_email.sem_assunto"))}</div>
           ${e.body_preview ? `<div class="email-preview">${escapeHtml(e.body_preview)}</div>` : ""}
         </div>
       </div>`;

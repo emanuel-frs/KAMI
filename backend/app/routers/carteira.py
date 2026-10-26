@@ -56,7 +56,7 @@ import re
 import datetime
 from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
@@ -65,6 +65,7 @@ from app.business_days import months_between
 from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -77,7 +78,7 @@ MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
 def _validate_month(month: str) -> None:
     if not MONTH_RE.match(month):
-        raise HTTPException(status_code=422, detail="parâmetro 'month' deve ser 'YYYY-MM'")
+        raise ErroKami(422, "erro.comum.parametro_month_deve_ser_yyyy", "parâmetro 'month' deve ser 'YYYY-MM'")
 
 
 # ==================== schemas ====================
@@ -231,7 +232,7 @@ def update_bank(bank_id: str, payload: BankIn, db=Depends(get_db)):
     """
     row = db.execute("SELECT id FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="banco não encontrado")
+        raise ErroKami(404, "erro.carteira.banco_nao_encontrado", "banco não encontrado")
     db.execute(
         "UPDATE wallet_banks SET nome=?, icon_ascii=? WHERE id=?",
         (payload.nome, payload.icon_ascii, bank_id),
@@ -257,7 +258,7 @@ def delete_bank(bank_id: str, db=Depends(get_db)):
     """
     row = db.execute("SELECT id FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="banco não encontrado")
+        raise ErroKami(404, "erro.carteira.banco_nao_encontrado", "banco não encontrado")
     accounts_deleted = db.execute(
         "SELECT COUNT(*) AS c FROM wallet_accounts WHERE bank_id = ?", (bank_id,)
     ).fetchone()["c"]
@@ -270,12 +271,12 @@ def delete_bank(bank_id: str, db=Depends(get_db)):
 def create_account(bank_id: str, payload: AccountIn, db=Depends(get_db)):
     bank = db.execute("SELECT * FROM wallet_banks WHERE id = ?", (bank_id,)).fetchone()
     if not bank:
-        raise HTTPException(status_code=404, detail="banco não encontrado")
+        raise ErroKami(404, "erro.carteira.banco_nao_encontrado", "banco não encontrado")
     dup = db.execute(
         "SELECT id FROM wallet_accounts WHERE bank_id = ? AND nome = ?", (bank_id, payload.nome)
     ).fetchone()
     if dup:
-        raise HTTPException(status_code=422, detail="já existe uma conta com esse nome nesse banco")
+        raise ErroKami(422, "erro.carteira.ja_existe_conta_com_esse", "já existe uma conta com esse nome nesse banco")
 
     account_id = new_id()
     db.execute(
@@ -300,13 +301,13 @@ def create_account(bank_id: str, payload: AccountIn, db=Depends(get_db)):
 def update_account(account_id: str, payload: AccountIn, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (account_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta não encontrada")
+        raise ErroKami(404, "erro.comum.conta_nao_encontrada", "conta não encontrada")
     dup = db.execute(
         "SELECT id FROM wallet_accounts WHERE bank_id = ? AND nome = ? AND id != ?",
         (row["bank_id"], payload.nome, account_id),
     ).fetchone()
     if dup:
-        raise HTTPException(status_code=422, detail="já existe uma conta com esse nome nesse banco")
+        raise ErroKami(422, "erro.carteira.ja_existe_conta_com_esse", "já existe uma conta com esse nome nesse banco")
 
     db.execute(
         "UPDATE wallet_accounts SET nome=?, possui_saldo=?, saldo_atual=?, "
@@ -330,7 +331,7 @@ def update_account(account_id: str, payload: AccountIn, db=Depends(get_db)):
 def delete_account(account_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (account_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta não encontrada")
+        raise ErroKami(404, "erro.comum.conta_nao_encontrada", "conta não encontrada")
 
     db.execute("DELETE FROM wallet_accounts WHERE id = ?", (account_id,))
     remaining = db.execute(
@@ -368,7 +369,7 @@ def create_subscription(payload: SubscriptionIn, db=Depends(get_db)):
     if payload.conta_id:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
     sub_id = new_id()
     db.execute(
         "INSERT INTO wallet_subscriptions (id, nome, valor_esperado, dia_cobranca, conta_id, active, categoria) "
@@ -384,11 +385,11 @@ def create_subscription(payload: SubscriptionIn, db=Depends(get_db)):
 def update_subscription(sub_id: str, payload: SubscriptionIn, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_subscriptions WHERE id = ?", (sub_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+        raise ErroKami(404, "erro.carteira.assinatura_nao_encontrada", "assinatura não encontrada")
     if payload.conta_id:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
     db.execute(
         "UPDATE wallet_subscriptions SET nome=?, valor_esperado=?, dia_cobranca=?, conta_id=?, active=?, categoria=? WHERE id=?",
         (payload.nome, payload.valor_esperado, payload.dia_cobranca, payload.conta_id,
@@ -401,7 +402,7 @@ def update_subscription(sub_id: str, payload: SubscriptionIn, db=Depends(get_db)
 @router.delete("/subscriptions/{sub_id}")
 def delete_subscription(sub_id: str, db=Depends(get_db)):
     if not db.execute("SELECT 1 FROM wallet_subscriptions WHERE id = ?", (sub_id,)).fetchone():
-        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+        raise ErroKami(404, "erro.carteira.assinatura_nao_encontrada", "assinatura não encontrada")
     # P-14 (CONF-04): estorna o xp dos meses pagos antes do cascade apagar
     # os períodos (as transações reais lançadas ficam) — mesmo padrão de
     # delete_fixed_bill em financas/contas.py.
@@ -453,10 +454,10 @@ DEFAULT_SUBSCRIPTION_CATEGORY = "assinaturas"
 def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="período não encontrado")
+        raise ErroKami(404, "erro.carteira.periodo_nao_encontrado", "período não encontrado")
     sub = db.execute("SELECT * FROM wallet_subscriptions WHERE id = ?", (row["subscription_id"],)).fetchone()
     if not sub:
-        raise HTTPException(status_code=404, detail="assinatura não encontrada")
+        raise ErroKami(404, "erro.carteira.assinatura_nao_encontrada", "assinatura não encontrada")
 
     amount = payload.valor_pago if payload.valor_pago is not None else sub["valor_esperado"]
     transaction_id = None
@@ -468,17 +469,21 @@ def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
     if sub["conta_id"] and payload.gerar_transacao:
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (sub["conta_id"],)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta vinculada à assinatura não existe mais")
+            raise ErroKami(
+                422,
+                "erro.carteira.conta_vinculada_assinatura_nao_existe",
+                "conta vinculada à assinatura não existe mais",
+            )
         transaction_id = create_saida_transaction(
             db, conta, amount,
             category=sub["categoria"] or DEFAULT_SUBSCRIPTION_CATEGORY,
-            description=f"assinatura: {sub['nome']}",
+            description=Texto("lancamento.assinatura", "assinatura: {nome}", nome=sub["nome"]),
             forma_pagamento=payload.forma_pagamento,
         )
         if not has_action(db, "assinatura_periodo", period_id):
             register_action(
                 db,
-                description=f"pagou assinatura: {sub['nome']}",
+                description=Texto("log.assinatura.paga", "pagou assinatura: {nome}", nome=sub["nome"]),
                 categories=["financas"],
                 xp=XP_ASSINATURA_PAGA,
                 impact=2,
@@ -500,7 +505,7 @@ def pay_period(period_id: str, payload: PayPeriodPayload, db=Depends(get_db)):
 def unpay_period(period_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM wallet_subscription_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="período não encontrado")
+        raise ErroKami(404, "erro.carteira.periodo_nao_encontrado", "período não encontrado")
     # se essa marcação tinha gerado uma transação real, desfaz o efeito no
     # saldo/fatura e remove a transação antes de voltar pra "não paga"
     # (motivo original do item 6: evitar desconto fantasma no saldo).
@@ -650,20 +655,27 @@ def list_compras_parceladas_mes(mes: str, db=Depends(get_db)):
 @router.post("/compras-parceladas", response_model=CompraParceladaOut)
 def create_compra_parcelada(payload: CompraParceladaIn, db=Depends(get_db)):
     if not MONTH_RE.match(payload.mes_primeira_parcela):
-        raise HTTPException(status_code=422, detail="mes_primeira_parcela deve ser 'YYYY-MM'")
+        raise ErroKami(422, "erro.carteira.mes_primeira_parcela_deve_ser", "mes_primeira_parcela deve ser 'YYYY-MM'")
 
     if payload.conta_id:
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
         if not conta["possui_credito"]:
-            raise HTTPException(status_code=422, detail="a conta vinculada precisa ter crédito cadastrado")
+            raise ErroKami(
+                422,
+                "erro.carteira.conta_vinculada_precisa_ter_credito",
+                "a conta vinculada precisa ter crédito cadastrado",
+            )
         if conta["limite_total"] is not None:
             disponivel = conta["limite_total"] - (conta["fatura_atual"] or 0)
             if payload.valor_total > disponivel:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, compra de R$ {payload.valor_total:.2f}",
+                raise ErroKami(
+                    422,
+                    "erro.carteira.limite_insuficiente_disponivel_valor_disponivel",
+                    "limite insuficiente: disponível {valor_disponivel}, compra de {valor_total}",
+                    valor_disponivel=disponivel,
+                    valor_total=payload.valor_total,
                 )
 
     compra_id = new_id()
@@ -691,9 +703,9 @@ def create_compra_parcelada(payload: CompraParceladaIn, db=Depends(get_db)):
 def update_compra_parcelada(compra_id: str, payload: CompraParceladaIn, db=Depends(get_db)):
     row = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="compra parcelada não encontrada")
+        raise ErroKami(404, "erro.carteira.compra_parcelada_nao_encontrada", "compra parcelada não encontrada")
     if not MONTH_RE.match(payload.mes_primeira_parcela):
-        raise HTTPException(status_code=422, detail="mes_primeira_parcela deve ser 'YYYY-MM'")
+        raise ErroKami(422, "erro.carteira.mes_primeira_parcela_deve_ser", "mes_primeira_parcela deve ser 'YYYY-MM'")
 
     # Desfaz a reserva antiga antes de validar/aplicar a nova — mesma lógica
     # de "desfaz e refaz" que delete_compra_parcelada já usa, só que aqui
@@ -708,10 +720,14 @@ def update_compra_parcelada(compra_id: str, payload: CompraParceladaIn, db=Depen
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
             db.rollback()
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
         if not conta["possui_credito"]:
             db.rollback()
-            raise HTTPException(status_code=422, detail="a conta vinculada precisa ter crédito cadastrado")
+            raise ErroKami(
+                422,
+                "erro.carteira.conta_vinculada_precisa_ter_credito",
+                "a conta vinculada precisa ter crédito cadastrado",
+            )
         if conta["limite_total"] is not None:
             # essa SELECT já reflete o UPDATE de subtração acima (mesma
             # conexão/transação) mesmo se payload.conta_id == row["conta_id"],
@@ -720,9 +736,12 @@ def update_compra_parcelada(compra_id: str, payload: CompraParceladaIn, db=Depen
             disponivel = conta["limite_total"] - fatura_atual
             if payload.valor_total > disponivel:
                 db.rollback()
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, compra de R$ {payload.valor_total:.2f}",
+                raise ErroKami(
+                    422,
+                    "erro.carteira.limite_insuficiente_disponivel_valor_disponivel",
+                    "limite insuficiente: disponível {valor_disponivel}, compra de {valor_total}",
+                    valor_disponivel=disponivel,
+                    valor_total=payload.valor_total,
                 )
         db.execute(
             "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) + ? WHERE id = ?",
@@ -744,7 +763,7 @@ def update_compra_parcelada(compra_id: str, payload: CompraParceladaIn, db=Depen
 def ajustar_parcelas_compra(compra_id: str, payload: AjustarParcelasPayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="compra parcelada não encontrada")
+        raise ErroKami(404, "erro.carteira.compra_parcelada_nao_encontrada", "compra parcelada não encontrada")
 
     # Mesma fórmula de _compra_parcelada_out, mas SEM clamping — precisa do
     # raw_parcela "de verdade" pra saber se esse delta levaria o estado pra
@@ -755,11 +774,13 @@ def ajustar_parcelas_compra(compra_id: str, payload: AjustarParcelasPayload, db=
     novo_ajuste = row["ajuste_parcelas"] + payload.delta
     raw_parcela = elapsed + 1 + novo_ajuste
     if raw_parcela < 0 or raw_parcela > row["num_parcelas"]:
-        raise HTTPException(
-            status_code=422,
-            detail="ajuste inválido: não há adiantamento pra desfazer" if payload.delta < 0
-            else "ajuste inválido: a compra já está quitada",
-        )
+        if payload.delta < 0:
+            raise ErroKami(
+                422,
+                "erro.carteira.ajuste_sem_adiantamento",
+                "ajuste inválido: não há adiantamento pra desfazer",
+            )
+        raise ErroKami(422, "erro.carteira.ajuste_ja_quitada", "ajuste inválido: a compra já está quitada")
 
     db.execute(
         "UPDATE compras_parceladas SET ajuste_parcelas = ajuste_parcelas + ? WHERE id = ?",
@@ -774,7 +795,7 @@ def ajustar_parcelas_compra(compra_id: str, payload: AjustarParcelasPayload, db=
 def delete_compra_parcelada(compra_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM compras_parceladas WHERE id = ?", (compra_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="compra parcelada não encontrada")
+        raise ErroKami(404, "erro.carteira.compra_parcelada_nao_encontrada", "compra parcelada não encontrada")
     if row["conta_id"]:
         db.execute(
             "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) - ? WHERE id = ?",

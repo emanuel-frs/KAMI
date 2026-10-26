@@ -4,6 +4,7 @@ import { showConfirmModal } from "./confirm-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "novo evento" / "editar evento" — único tipo do calendário com
@@ -25,14 +26,14 @@ let onSavedCb = null;
 let onDeletedCb = null;
 let editingEvent = null;
 
-const REMINDER_OPTIONS = [
-  { value: "", label: "sem lembrete" },
-  { value: "0", label: "na hora" },
-  { value: "5", label: "5 min antes" },
-  { value: "15", label: "15 min antes" },
-  { value: "30", label: "30 min antes" },
-  { value: "60", label: "1 hora antes" },
-  { value: "1440", label: "1 dia antes" },
+const reminderOptions = () => [
+  { value: "", label: t("calendario_evento.sem_lembrete") },
+  { value: "0", label: t("calendario_evento.na_hora") },
+  { value: "5", label: t("calendario_evento.5_min_antes") },
+  { value: "15", label: t("calendario_evento.15_min_antes") },
+  { value: "30", label: t("calendario_evento.30_min_antes") },
+  { value: "60", label: t("calendario_evento.1_hora_antes") },
+  { value: "1440", label: t("calendario_evento.1_dia_antes") },
 ];
 
 function buildModal() {
@@ -41,41 +42,41 @@ function buildModal() {
   wrap.id = "calendar-event-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">novo evento</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("calendario_evento.novo_evento")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="cem-title">título</label><input type="text" id="cem-title" placeholder="ex: consulta, reunião, viagem..."></div>
+        <div class="field"><label for="cem-title">${t("calendario_evento.titulo")}</label><input type="text" id="cem-title" placeholder="${t("calendario_evento.ex_consulta_reuniao_viagem")}"></div>
         <div class="field-row">
-          <div class="field"><label for="cem-date">data</label><input type="date" id="cem-date"></div>
-          <div class="field"><label for="cem-time">hora (opcional)</label><input type="time" id="cem-time"></div>
+          <div class="field"><label for="cem-date">${t("calendario_evento.data")}</label><input type="date" id="cem-date"></div>
+          <div class="field"><label for="cem-time">${t("calendario_evento.hora_opcional")}</label><input type="time" id="cem-time"></div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="cem-recurrence">repetir</label>
+            <label for="cem-recurrence">${t("calendario_evento.repetir")}</label>
             <select id="cem-recurrence">
-              <option value="none">não repete</option>
-              <option value="daily">diariamente</option>
-              <option value="weekly">semanalmente</option>
-              <option value="monthly">mensalmente</option>
-              <option value="yearly">anualmente</option>
+              <option value="none">${t("calendario_evento.nao_repete")}</option>
+              <option value="daily">${t("calendario_evento.diariamente")}</option>
+              <option value="weekly">${t("calendario_evento.semanalmente")}</option>
+              <option value="monthly">${t("calendario_evento.mensalmente")}</option>
+              <option value="yearly">${t("calendario_evento.anualmente")}</option>
             </select>
           </div>
           <div class="field" id="cem-until-field">
-            <label for="cem-until">repetir até (opcional)</label>
+            <label for="cem-until">${t("calendario_evento.repetir_ate_opcional")}</label>
             <input type="date" id="cem-until">
           </div>
         </div>
         <div class="field">
-          <label for="cem-reminder">lembrete</label>
+          <label for="cem-reminder">${t("calendario_evento.lembrete")}</label>
           <select id="cem-reminder">
-            ${REMINDER_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join("")}
+            ${reminderOptions().map((o) => `<option value="${o.value}">${o.label}</option>`).join("")}
           </select>
         </div>
-        <div class="field"><label for="cem-notes">notas (opcional)</label><textarea id="cem-notes" rows="2" placeholder="detalhes, endereço, link..."></textarea></div>
+        <div class="field"><label for="cem-notes">${t("calendario_evento.notas_opcional")}</label><textarea id="cem-notes" rows="2" placeholder="${t("calendario_evento.detalhes_endereco_link")}"></textarea></div>
         <div class="cem-notas-vinc" id="cem-notas-vinc" hidden></div>
         <div class="form-actions" id="cem-actions">
-          <button class="btn sm danger cal-event-delete-btn" data-action="delete" id="cem-delete-btn" hidden>excluir</button>
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm danger cal-event-delete-btn" data-action="delete" id="cem-delete-btn" hidden>${t("calendario_evento.excluir")}</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("calendario_evento.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -114,7 +115,7 @@ function buildPayload(wrap) {
 
 async function submitEvent(wrap) {
   const payload = buildPayload(wrap);
-  if (!payload) { showErrorModal("preenche título e data.", "atenção"); return; }
+  if (!payload) { showErrorModal(t("calendario_evento.preenche_titulo_e_data"), t("geral.atencao")); return; }
 
   try {
     if (editingEvent) {
@@ -123,7 +124,7 @@ async function submitEvent(wrap) {
       await calendarioApi.createEvento(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingEvent ? "erro ao salvar evento" : "erro ao criar evento");
+    showErrorModal(err.message, editingEvent ? t("calendario_evento.erro_ao_salvar_evento") : t("calendario_evento.erro_ao_criar_evento"));
     return;
   }
   closeCalendarioEventoModal();
@@ -135,16 +136,16 @@ async function deleteEvent(wrap) {
   const isRecurring = editingEvent.recurrence && editingEvent.recurrence !== "none";
   const ok = await showConfirmModal(
     isRecurring
-      ? "remover este evento e TODAS as suas repetições? isso não afeta os outros tipos de evento do calendário (contas, dívidas, metas...)."
-      : "remover este evento?",
-    { title: "remover evento", confirmText: "remover", danger: true },
+      ? t("calendario_evento.remover_este_evento_e_todas")
+      : t("calendario_evento.remover_este_evento"),
+    { title: t("calendario_evento.remover_evento"), confirmText: t("geral.remover"), danger: true },
   );
   if (!ok) return;
 
   try {
     await calendarioApi.deleteEvento(editingEvent.id);
   } catch (err) {
-    showErrorModal(err.message, "erro ao remover evento");
+    showErrorModal(err.message, t("calendario_evento.erro_ao_remover_evento"));
     return;
   }
   closeCalendarioEventoModal();
@@ -164,7 +165,7 @@ function wireModal(wrap) {
  *   `date` — pré-preenche a data em modo criação (ex: dia selecionado no calendário).
  */
 export function openCalendarioEventoModal({ event = null, date = null, onSaved, onDeleted, inicial = null } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   onDeletedCb = onDeleted;
   editingEvent = event || null;
@@ -172,8 +173,8 @@ export function openCalendarioEventoModal({ event = null, date = null, onSaved, 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
   const deleteBtn = modalEl.querySelector("#cem-delete-btn");
-  titleEl.textContent = editingEvent ? "editar evento" : "novo evento";
-  saveBtn.textContent = editingEvent ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingEvent ? t("calendario_evento.editar_evento") : t("calendario_evento.novo_evento");
+  saveBtn.textContent = editingEvent ? t("calendario_evento.salvar_alteracoes") : "+ adicionar";
   deleteBtn.hidden = !editingEvent;
 
   // ORG-02: `inicial` = {title, time} vindo da captura rápida ("! amanhã 9h dentista")

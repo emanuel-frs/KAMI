@@ -4,6 +4,7 @@ import { escapeHtml } from "../components/format.js";
 import { navigateTo } from "../components/navigate.js";
 import { listenWhileConnected } from "../components/window-listener.js";
 import { corDaNota } from "../components/nota-cores.js";
+import { t } from "../i18n.js";
 
 const MAX_ITENS = 6;
 
@@ -17,10 +18,10 @@ const MAX_ITENS = 6;
 export async function render(el) {
   el.innerHTML = `
     <form class="nr-form">
-      <input type="text" class="nr-input" maxlength="200" placeholder="anotar algo… (Enter)" aria-label="nova nota rápida">
+      <input type="text" class="nr-input" maxlength="200" placeholder="${t("notas_rapidas.placeholder")}" aria-label="${t("notas_rapidas.nova_aria")}">
     </form>
-    <div class="nr-lista"><div class="empty-state">carregando notas…</div></div>
-    <a href="#" class="nr-todas">ver todas as notas →</a>`;
+    <div class="nr-lista"><div class="empty-state">${t("notas_rapidas.carregando")}</div></div>
+    <a href="#" class="nr-todas">${t("notas_rapidas.ver_todas")}</a>`;
   const lista = el.querySelector(".nr-lista");
 
   async function load() {
@@ -29,11 +30,11 @@ export async function render(el) {
       notas = await listNotas({ fixadas: true });
       if (!notas.length) notas = (await listNotas()).slice(0, MAX_ITENS);
     } catch (err) {
-      lista.innerHTML = `<div class="empty-state">erro ao carregar notas: ${escapeHtml(err.message)}</div>`;
+      lista.innerHTML = `<div class="empty-state">${escapeHtml(t("notas_rapidas.erro", { erro: err.message }))}</div>`;
       return;
     }
     if (!notas.length) {
-      lista.innerHTML = '<div class="empty-state">nenhuma nota ainda — anote algo acima.</div>';
+      lista.innerHTML = `<div class="empty-state">${t("notas_rapidas.vazio")}</div>`;
       return;
     }
     lista.innerHTML = notas
@@ -42,8 +43,8 @@ export async function render(el) {
         const cor = corDaNota(n.cor);
         return `
         <div class="nr-item" data-nr-abrir="${n.id}"${cor ? ` style="--nota-cor:${cor}"` : ""}>
-          <span class="nr-titulo">${escapeHtml(n.titulo || "(sem título)")}</span>
-          <span class="nr-previa">${n.trancada ? "conteúdo trancado" : escapeHtml(n.previa || "")}</span>
+          <span class="nr-titulo">${escapeHtml(n.titulo || t("notas.sem_titulo"))}</span>
+          <span class="nr-previa">${n.trancada ? t("notas.trancado") : escapeHtml(n.previa || "")}</span>
         </div>`;
       })
       .join("");

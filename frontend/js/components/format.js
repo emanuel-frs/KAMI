@@ -1,4 +1,5 @@
 /** Portado de kami_telas_final.html (fmtRelDate/fmtDateBR/fmtMoney). */
+import { localeAtual, t } from "../i18n.js";
 
 /**
  * "YYYY-MM-DD" de um Date no fuso LOCAL de quem usa. Substitui o
@@ -23,14 +24,15 @@ export function fmtRelDate(iso) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   if (diffDays <= 0) return `${hh}:${mm}`;
-  if (diffDays === 1) return "ontem";
-  return `${diffDays}d atrás`;
+  if (diffDays === 1) return t("data.ontem");
+  return t("data.dias_atras", { n: diffDays });
 }
 
 // ── datas (ORG-07, P-53) ───────────────────────────────────────────────
 // Um formatador só pra toda data numérica do app. A ordem vem de
 // configurações › aparência › formato das datas: "sistema" (padrão — segue
-// o idioma do sistema: dd/mm/aaaa no Brasil, mm/dd/aaaa nos EUA…), "dma",
+// o idioma do app desde a I18N-01: dd/mm/aaaa em português, mm/dd/aaaa em
+// inglês, aaaa/mm/dd em chinês…), "dma",
 // "mda" ou "iso" (aaaa-mm-dd). app.js chama definirFormatoData() com o
 // perfil no boot e quando ele muda. Os campos de data dos formulários são
 // os nativos (P-71) e seguem o sistema sozinhos. Nome de mês por extenso
@@ -38,28 +40,31 @@ export function fmtRelDate(iso) {
 
 const FORMATOS = ["dma", "mda", "iso"];
 let preferencia = "sistema";
-let doSistema = null;
+const ordemPorLocale = new Map();
 
 /** @param {"sistema"|"dma"|"mda"|"iso"} formato */
 export function definirFormatoData(formato) {
   preferencia = FORMATOS.includes(formato) ? formato : "sistema";
 }
 
-/** A ordem do idioma do sistema, pela ordem das partes no Intl. */
+/** A ordem do idioma do app, pela ordem das partes no Intl. */
 function ordemDoSistema() {
-  if (doSistema) return doSistema;
-  try {
-    const idioma = (typeof navigator !== "undefined" && navigator.language) || "pt-BR";
-    const partes = new Intl.DateTimeFormat(idioma, { day: "2-digit", month: "2-digit", year: "numeric" })
-      .formatToParts(new Date(2026, 9, 21))
-      .filter((p) => p.type !== "literal")
-      .map((p) => p.type[0])
-      .join("");
-    doSistema = partes === "mdy" ? "mda" : partes === "ymd" ? "iso" : "dma";
-  } catch {
-    doSistema = "dma";
+  const locale = localeAtual();
+  if (!ordemPorLocale.has(locale)) {
+    let ordem = "dma";
+    try {
+      const partes = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" })
+        .formatToParts(new Date(2026, 9, 21))
+        .filter((p) => p.type !== "literal")
+        .map((p) => p.type[0])
+        .join("");
+      ordem = partes === "mdy" ? "mda" : partes === "ymd" ? "iso" : "dma";
+    } catch {
+      /* fica dd/mm/aaaa */
+    }
+    ordemPorLocale.set(locale, ordem);
   }
-  return doSistema;
+  return ordemPorLocale.get(locale);
 }
 
 /** A ordem em uso agora: "dma" | "mda" | "iso". */
@@ -132,8 +137,64 @@ export function fmtDataHora(iso) {
   return `${fmtData(localDateKey(d))} ${hh}:${mm}`;
 }
 
+// ── moeda (I18N-06, P-94) ──────────────────────────────────────────────
+// Só o símbolo e o formato — o valor nunca é convertido. O jeito de escrever
+// o número (separadores) segue o idioma do app; o símbolo, a moeda do perfil.
+let moedaAtual = "BRL";
+const formatadores = new Map();
+
+/** @param {string} codigo ISO 4217 ("BRL", "USD"…); inválido fica como está. */
+export function definirMoeda(codigo) {
+  if (moedaValida(codigo)) moedaAtual = codigo;
+}
+
+export const moeda = () => moedaAtual;
+
+export function moedaValida(codigo) {
+  if (!/^[A-Z]{3}$/.test(codigo || "")) return false;
+  try {
+    new Intl.NumberFormat("en", { style: "currency", currency: codigo });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatador(codigo, inteiro, casasFixas) {
+  const chave = `${localeAtual()}|${codigo}|${inteiro}|${casasFixas}`;
+  if (!formatadores.has(chave)) {
+    const casas = new Intl.NumberFormat("en", { style: "currency", currency: codigo }).resolvedOptions().maximumFractionDigits;
+    formatadores.set(
+      chave,
+      new Intl.NumberFormat(localeAtual(), {
+        style: "currency",
+        currency: codigo,
+        minimumFractionDigits: inteiro ? 0 : casasFixas ? casas : 0,
+        maximumFractionDigits: inteiro ? 0 : casas,
+      })
+    );
+  }
+  return formatadores.get(chave);
+}
+
+/**
+ * Valor na moeda do perfil: "R$ 1.234,56", "$1,234.56", "￥1,235".
+ * `casas: true` (padrão) mostra sempre os centavos; `inteiro` sem centavos
+ * (eixos de gráfico); `moeda` usa outra (o salário guarda a sua).
+ */
+export function fmtMoeda(v, { inteiro = false, casas = true, moeda: codigo = moedaAtual } = {}) {
+  const c = moedaValida(codigo) ? codigo : moedaAtual;
+  return formatador(c, inteiro, casas).format(Number(v) || 0);
+}
+
+/** Como fmtMoeda, mas sem ",00" em valor redondo (textos corridos). */
 export function fmtMoney(v) {
-  return "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return fmtMoeda(v, { casas: false });
+}
+
+/** "R$", "US$", "€"… no idioma do app (as etiquetas de lançamento gerado). */
+export function simboloMoeda(codigo = moedaAtual) {
+  return formatador(codigo, true, false).formatToParts(0).find((p) => p.type === "currency")?.value || codigo;
 }
 
 /** Escapa texto livre (descrições, títulos) antes de inserir via innerHTML. */
@@ -145,4 +206,21 @@ export function escapeHtml(str) {
     '"': "&quot;",
     "'": "&#39;",
   })[char]);
+}
+
+/** ["jan", "fev", …, "dez"] no idioma atual (nome curto do mês, minúsculo). */
+export const mesesCurtos = () => Array.from({ length: 12 }, (_, i) => t(`meses.curto.${i}`));
+
+// nomes por extenso pelo Intl, no idioma do app e em minúscula como o resto
+// da interface (menos alemão, P-98: substantivo com maiúscula)
+const minuscula = (s) => (localeAtual().startsWith("de") ? s : s.toLocaleLowerCase(localeAtual()));
+
+/** "domingo", "segunda-feira", … (0 = domingo, como Date.getDay). */
+export function nomeDiaSemana(i) {
+  return minuscula(new Intl.DateTimeFormat(localeAtual(), { weekday: "long" }).format(new Date(2026, 0, 4 + i)));
+}
+
+/** "janeiro", … (0 = janeiro). */
+export function nomeMes(i) {
+  return minuscula(new Intl.DateTimeFormat(localeAtual(), { month: "long" }).format(new Date(2026, i, 1)));
 }

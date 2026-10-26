@@ -60,13 +60,14 @@ Regras de negócio (v2 — NOVO nesta versão):
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.finance_utils import create_saida_transaction
 from app.limites import Entrada
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -174,7 +175,7 @@ class ContributionOut(BaseModel):
 def _get_goal_or_404(db, goal_id: str):
     row = db.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="meta não encontrada")
+        raise ErroKami(404, "erro.metas.meta_nao_encontrada", "meta não encontrada")
     return row
 
 
@@ -274,7 +275,7 @@ def sync_learning_goals(db, track_id: str) -> None:
     for goal in newly_completed:
         register_action(
             db,
-            description=f'concluiu a meta "{goal["title"]}" (trilha, xp bônus)',
+            description=Texto("log.meta.concluida_trilha", 'concluiu a meta "{meta}" (trilha, xp bônus)', meta=goal["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
@@ -324,7 +325,7 @@ def sync_academic_goals(db, education_id: str) -> None:
     for goal in newly_completed:
         register_action(
             db,
-            description=f'concluiu a meta "{goal["title"]}" (formação, xp bônus)',
+            description=Texto("log.meta.concluida_formacao", 'concluiu a meta "{meta}" (formação, xp bônus)', meta=goal["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, goal["weight"]),
             impact=5,
@@ -357,18 +358,22 @@ def list_goals(db=Depends(get_db)):
 @router.post("", response_model=GoalOut, status_code=201)
 def create_goal(payload: GoalIn, db=Depends(get_db)):
     if payload.type not in GOAL_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"tipo inválido; valores aceitos: {sorted(GOAL_TYPES)}",
+        raise ErroKami(
+            422,
+            "erro.metas.tipo_invalido_valores_aceitos_valores",
+            "tipo inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(GOAL_TYPES))),
         )
     if not payload.title.strip():
-        raise HTTPException(status_code=422, detail="título é obrigatório")
+        raise ErroKami(422, "erro.comum.titulo_obrigatorio", "título é obrigatório")
     if payload.target_value <= 0:
-        raise HTTPException(status_code=422, detail="alvo precisa ser maior que zero")
+        raise ErroKami(422, "erro.metas.alvo_precisa_ser_maior_zero", "alvo precisa ser maior que zero")
     if payload.weight not in GOAL_WEIGHTS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"peso inválido; valores aceitos: {sorted(GOAL_WEIGHTS)}",
+        raise ErroKami(
+            422,
+            "erro.metas.peso_invalido_valores_aceitos_valores",
+            "peso inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(GOAL_WEIGHTS))),
         )
 
     linked_conta_id = None
@@ -377,31 +382,35 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
             "SELECT id FROM wallet_accounts WHERE id = ?", (payload.linked_conta_id,)
         ).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta padrão não encontrada")
+            raise ErroKami(422, "erro.metas.conta_padrao_nao_encontrada", "conta padrão não encontrada")
         linked_conta_id = payload.linked_conta_id
 
     linked_track_id = None
     if payload.type == "aprendizado":
         if not payload.linked_track_id:
-            raise HTTPException(
-                status_code=422, detail="meta do tipo 'aprendizado' precisa de uma trilha vinculada"
+            raise ErroKami(
+                422,
+                "erro.metas.meta_tipo_aprendizado_precisa_trilha",
+                "meta do tipo 'aprendizado' precisa de uma trilha vinculada",
             )
         track = db.execute("SELECT id FROM tracks WHERE id = ?", (payload.linked_track_id,)).fetchone()
         if not track:
-            raise HTTPException(status_code=422, detail="trilha não encontrada")
+            raise ErroKami(422, "erro.comum.trilha_nao_encontrada", "trilha não encontrada")
         linked_track_id = payload.linked_track_id
 
     linked_education_id = None
     if payload.type == "academica":
         if not payload.linked_education_id:
-            raise HTTPException(
-                status_code=422, detail="meta do tipo 'academica' precisa de uma formação vinculada"
+            raise ErroKami(
+                422,
+                "erro.metas.meta_tipo_academica_precisa_formacao",
+                "meta do tipo 'academica' precisa de uma formação vinculada",
             )
         education = db.execute(
             "SELECT id FROM career_educations WHERE id = ?", (payload.linked_education_id,)
         ).fetchone()
         if not education:
-            raise HTTPException(status_code=422, detail="formação não encontrada")
+            raise ErroKami(422, "erro.comum.formacao_nao_encontrada", "formação não encontrada")
         linked_education_id = payload.linked_education_id
 
     unit_label = (payload.unit_label or "").strip() or None
@@ -448,24 +457,28 @@ def update_goal(goal_id: str, payload: GoalUpdate, db=Depends(get_db)):
 
     new_title = payload.title.strip() if payload.title is not None else row["title"]
     if not new_title:
-        raise HTTPException(status_code=422, detail="título é obrigatório")
+        raise ErroKami(422, "erro.comum.titulo_obrigatorio", "título é obrigatório")
 
     new_type = payload.type if payload.type is not None else row["type"]
     if new_type not in GOAL_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"tipo inválido; valores aceitos: {sorted(GOAL_TYPES)}",
+        raise ErroKami(
+            422,
+            "erro.metas.tipo_invalido_valores_aceitos_valores",
+            "tipo inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(GOAL_TYPES))),
         )
 
     new_target = payload.target_value if payload.target_value is not None else row["target_value"]
     if new_target <= 0:
-        raise HTTPException(status_code=422, detail="alvo precisa ser maior que zero")
+        raise ErroKami(422, "erro.metas.alvo_precisa_ser_maior_zero", "alvo precisa ser maior que zero")
 
     new_weight = payload.weight if payload.weight is not None else row["weight"]
     if new_weight not in GOAL_WEIGHTS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"peso inválido; valores aceitos: {sorted(GOAL_WEIGHTS)}",
+        raise ErroKami(
+            422,
+            "erro.metas.peso_invalido_valores_aceitos_valores",
+            "peso inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(GOAL_WEIGHTS))),
         )
 
     if payload.clear_deadline:
@@ -489,7 +502,7 @@ def update_goal(goal_id: str, payload: GoalUpdate, db=Depends(get_db)):
     elif payload.linked_conta_id is not None:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.linked_conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta padrão não encontrada")
+            raise ErroKami(422, "erro.metas.conta_padrao_nao_encontrada", "conta padrão não encontrada")
         new_linked_conta_id = payload.linked_conta_id
     else:
         new_linked_conta_id = row["linked_conta_id"]
@@ -498,12 +511,14 @@ def update_goal(goal_id: str, payload: GoalUpdate, db=Depends(get_db)):
     if new_type == "aprendizado":
         candidate = payload.linked_track_id if payload.linked_track_id is not None else row["linked_track_id"]
         if not candidate:
-            raise HTTPException(
-                status_code=422, detail="meta do tipo 'aprendizado' precisa de uma trilha vinculada"
+            raise ErroKami(
+                422,
+                "erro.metas.meta_tipo_aprendizado_precisa_trilha",
+                "meta do tipo 'aprendizado' precisa de uma trilha vinculada",
             )
         track = db.execute("SELECT id FROM tracks WHERE id = ?", (candidate,)).fetchone()
         if not track:
-            raise HTTPException(status_code=422, detail="trilha não encontrada")
+            raise ErroKami(422, "erro.comum.trilha_nao_encontrada", "trilha não encontrada")
         new_linked_track_id = candidate
     elif payload.type is not None:
         # mudou pra um tipo que não é mais 'aprendizado' — solta o vínculo
@@ -513,12 +528,14 @@ def update_goal(goal_id: str, payload: GoalUpdate, db=Depends(get_db)):
     if new_type == "academica":
         candidate = payload.linked_education_id if payload.linked_education_id is not None else row["linked_education_id"]
         if not candidate:
-            raise HTTPException(
-                status_code=422, detail="meta do tipo 'academica' precisa de uma formação vinculada"
+            raise ErroKami(
+                422,
+                "erro.metas.meta_tipo_academica_precisa_formacao",
+                "meta do tipo 'academica' precisa de uma formação vinculada",
             )
         education = db.execute("SELECT id FROM career_educations WHERE id = ?", (candidate,)).fetchone()
         if not education:
-            raise HTTPException(status_code=422, detail="formação não encontrada")
+            raise ErroKami(422, "erro.comum.formacao_nao_encontrada", "formação não encontrada")
         new_linked_education_id = candidate
     elif payload.type is not None:
         # mudou pra um tipo que não é mais 'academica' — solta o vínculo
@@ -562,42 +579,56 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
 
     if row["type"] in ("aprendizado", "academica"):
         origem_label = "trilha" if row["type"] == "aprendizado" else "formação"
-        raise HTTPException(
-            status_code=422,
-            detail=f"meta do tipo '{row['type']}' progride sozinha junto com a {origem_label} — não aceita contribuição manual",
+        raise ErroKami(
+            422,
+            "erro.metas.meta_tipo_type_progride_sozinha",
+            "meta do tipo '{type}' progride sozinha junto com a {origem_label} — não aceita contribuição manual",
+            type=row['type'],
+            origem_label=origem_label,
         )
     if row["status"] == "concluida":
-        raise HTTPException(status_code=422, detail="meta já concluída — não aceita novas contribuições")
+        raise ErroKami(
+            422,
+            "erro.metas.meta_ja_concluida_nao_aceita",
+            "meta já concluída — não aceita novas contribuições",
+        )
     if payload.amount <= 0:
-        raise HTTPException(status_code=422, detail="valor da contribuição precisa ser maior que zero")
+        raise ErroKami(
+            422,
+            "erro.metas.valor_contribuicao_precisa_ser_maior",
+            "valor da contribuição precisa ser maior que zero",
+        )
 
     origem = None
     transaction_id = None
 
     if row["type"] == "financeira":
         if payload.origem not in CONTRIBUTION_ORIGINS:
-            raise HTTPException(
-                status_code=422,
-                detail=f"informe a origem da contribuição: {sorted(CONTRIBUTION_ORIGINS)}",
+            raise ErroKami(
+                422,
+                "erro.metas.informe_origem_contribuicao_valores",
+                "informe a origem da contribuição: {valores}",
+                valores=", ".join(map(str, sorted(CONTRIBUTION_ORIGINS))),
             )
         origem = payload.origem
 
         if origem == "conta":
             conta_id = payload.conta_id or row["linked_conta_id"]
             if not conta_id:
-                raise HTTPException(
-                    status_code=422,
-                    detail="informe 'conta_id' (ou cadastre uma conta padrão na meta) pra contribuir a partir de uma conta",
+                raise ErroKami(
+                    422,
+                    "erro.metas.informe_conta_id_ou_cadastre",
+                    "informe 'conta_id' (ou cadastre uma conta padrão na meta) pra contribuir a partir de uma conta",
                 )
             conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (conta_id,)).fetchone()
             if not conta:
-                raise HTTPException(status_code=422, detail="conta não encontrada")
+                raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
             if not conta["possui_saldo"]:
-                raise HTTPException(status_code=422, detail="essa conta não possui saldo")
+                raise ErroKami(422, "erro.metas.essa_conta_nao_possui_saldo", "essa conta não possui saldo")
             transaction_id = create_saida_transaction(
                 db, conta, payload.amount,
                 category="metas",
-                description=f'meta: {row["title"]}',
+                description=Texto("lancamento.meta", "meta: {meta}", meta=row["title"]),
                 forma_pagamento="saldo",
                 formas_permitidas=("saldo",),
             )
@@ -623,7 +654,7 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
     if completes_now:
         register_action(
             db,
-            description=f'concluiu a meta "{row["title"]}" (xp bônus)',
+            description=Texto("log.meta.concluida", 'concluiu a meta "{meta}" (xp bônus)', meta=row["title"]),
             categories=["metas"],
             xp=_xp_for(XP_GOAL_COMPLETED_BONUS, row["weight"]),
             impact=5,
@@ -634,7 +665,7 @@ def contribute_goal(goal_id: str, payload: ContributeIn, db=Depends(get_db)):
     elif not has_action(db, "meta_contribuicao", goal_id, only_today=True):
         register_action(
             db,
-            description=f'contribuiu para "{row["title"]}"',
+            description=Texto("log.meta.contribuiu", 'contribuiu para "{meta}"', meta=row["title"]),
             categories=["metas"],
             xp=_xp_for(XP_PER_CONTRIBUTION, row["weight"]),
             impact=2,

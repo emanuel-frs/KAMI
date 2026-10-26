@@ -1,5 +1,6 @@
 import { allowsMotion } from "./visual-effects.js";
 import { escapeHtml } from "./format.js";
+import { localeAtual, t } from "../i18n.js";
 
 /**
  * Tela de subida do NÍVEL GERAL (GAM-04) — disparada pelo
@@ -55,10 +56,10 @@ export function showLevelUp({ level, previousLevel, totalXp, unlocked = [] }) {
   el.innerHTML = `
     <div class="level-up-inner">
       <pre class="level-up-art" aria-hidden="true">${asciiBanner("LEVEL UP")}</pre>
-      <p class="level-up-title" id="level-up-title">nível ${previousLevel} → ${level}</p>
-      <p class="level-up-sub">${Number(totalXp).toLocaleString("pt-BR")} xp no total</p>
-      ${unlocked.length ? `<p class="level-up-unlocked">desbloqueado: ${unlocked.map(escapeHtml).join(" · ")}</p>` : ""}
-      <button type="button" class="btn sm level-up-close">continuar</button>
+      <p class="level-up-title" id="level-up-title">${t("nivel.de_para", { de: previousLevel, para: level })}</p>
+      <p class="level-up-sub">${t("level_up.xp_total", { xp: Number(totalXp).toLocaleString(localeAtual()) })}</p>
+      ${unlocked.length ? `<p class="level-up-unlocked">${t("nivel.desbloqueado", { lista: unlocked.map(escapeHtml).join(" · ") })}</p>` : ""}
+      <button type="button" class="btn sm level-up-close">${t("level_up.continuar")}</button>
     </div>
   `;
 

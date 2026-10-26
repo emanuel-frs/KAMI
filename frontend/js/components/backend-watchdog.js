@@ -3,6 +3,7 @@ import { icon } from "./icons.js";
 import { showToast } from "./toast.js";
 import { playSound } from "./sound.js";
 import { estaNoDocumento } from "./no-documento.js";
+import { t } from "../i18n.js";
 
 /**
  * Vigia do backend (CONF-02): o backend caiu → avisa e reinicia.
@@ -96,8 +97,8 @@ function renderBanner({ title, message = "", buttons = false, busy = false }) {
     </div>
     ${buttons ? `
       <div class="backend-banner-actions">
-        <button type="button" class="btn sm" data-action="restart">reiniciar</button>
-        <button type="button" class="btn sm" data-action="open-log">abrir pasta do log</button>
+        <button type="button" class="btn sm" data-action="restart">${t("backend_watchdog.reiniciar")}</button>
+        <button type="button" class="btn sm" data-action="open-log">${t("backend_watchdog.abrir_pasta_do_log")}</button>
       </div>` : ""}
   `;
   // textContent: a mensagem vem do Rust (motivo + caminho do log) — nunca vira HTML
@@ -118,7 +119,7 @@ async function openLogFolder() {
   try {
     await tauri().invoke("open_log_folder");
   } catch (err) {
-    showToast({ variant: "erro", iconName: "x", title: "não deu pra abrir a pasta do log", message: String(err), duration: 0 });
+    showToast({ variant: "erro", iconName: "x", title: t("backend_watchdog.nao_deu_pra_abrir_a"), message: String(err), duration: 0 });
   }
 }
 
@@ -146,7 +147,7 @@ function recovered() {
   autoRestartTried = false;
   hideBanner();
   if (wasDown) {
-    showToast({ title: "backend do kami de volta", message: "a tela foi recarregada.", iconName: "check" });
+    showToast({ title: t("backend_watchdog.backend_do_kami_de_volta"), message: t("backend_watchdog.a_tela_foi_recarregada"), iconName: "check" });
     onRecoveredCb?.();
   }
 }
@@ -156,14 +157,14 @@ function showDown(reason) {
   playSound("erro");
   if (!tauri()) {
     renderBanner({
-      title: "o backend do kami parou",
-      message: "modo dev: suba o backend de novo (uvicorn app.main:app --port 8000). esta faixa some sozinha quando ele voltar.",
+      title: t("backend_watchdog.o_backend_do_kami_parou"),
+      message: t("backend_watchdog.modo_dev_suba_o_backend"),
     });
     return;
   }
   renderBanner({
-    title: "o backend do kami parou",
-    message: reason || "não foi possível reiniciar sozinho. tente reiniciar; se continuar, abra a pasta do log e anexe o kami-backend.log num relato.",
+    title: t("backend_watchdog.o_backend_do_kami_parou"),
+    message: reason || t("backend_watchdog.nao_reiniciou"),
     buttons: true,
   });
 }
@@ -172,7 +173,7 @@ function showDown(reason) {
 export async function restart({ manual = false } = {}) {
   if (!tauri() || state === "reiniciando") return false;
   state = "reiniciando";
-  renderBanner({ title: "reiniciando o backend do kami…", message: manual ? "" : "ele parou de responder; tentando de novo sozinho.", busy: true });
+  renderBanner({ title: t("backend_watchdog.reiniciando_o_backend_do_kami"), message: manual ? "" : t("backend_watchdog.tentando_de_novo"), busy: true });
   try {
     await tauri().invoke("restart_backend");
   } catch (err) {

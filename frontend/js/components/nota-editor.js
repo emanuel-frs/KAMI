@@ -2,6 +2,7 @@ import { icon } from "./icons.js";
 import { markdownParaDom, domParaMarkdown, urlSegura } from "./nota-markdown.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
 import { openExternal } from "./open-external.js";
+import { t } from "../i18n.js";
 
 /**
  * components/nota-editor.js — editor de notas "estilo Teams" (ORG-01, P-49).
@@ -33,28 +34,28 @@ import { openExternal } from "./open-external.js";
  *   ed.getMarkdown(); ed.setMarkdown(md); ed.focus(); ed.destroy();
  */
 
-const BOTOES = [
-  { id: "negrito", rotulo: "B", dica: "negrito (Ctrl+B)", classe: "b" },
-  { id: "italico", rotulo: "I", dica: "itálico (Ctrl+I)", classe: "i" },
-  { id: "sublinhado", rotulo: "U", dica: "sublinhado (Ctrl+U)", classe: "u" },
-  { id: "tachado", rotulo: "S", dica: "tachado (Ctrl+Shift+X)", classe: "s" },
+const botoes = () => [
+  { id: "negrito", rotulo: "B", dica: t("nota_editor.negrito_ctrl_b"), classe: "b" },
+  { id: "italico", rotulo: "I", dica: t("nota_editor.italico_ctrl_i"), classe: "i" },
+  { id: "sublinhado", rotulo: "U", dica: t("nota_editor.sublinhado_ctrl_u"), classe: "u" },
+  { id: "tachado", rotulo: "S", dica: t("nota_editor.tachado_ctrl_shift_x"), classe: "s" },
   "|",
-  { id: "h1", rotulo: "H1", dica: "título (Ctrl+Alt+1)" },
-  { id: "h2", rotulo: "H2", dica: "subtítulo (Ctrl+Alt+2)" },
-  { id: "h3", rotulo: "H3", dica: "título menor (Ctrl+Alt+3)" },
+  { id: "h1", rotulo: "H1", dica: t("nota_editor.titulo_ctrl_alt_1") },
+  { id: "h2", rotulo: "H2", dica: t("nota_editor.subtitulo_ctrl_alt_2") },
+  { id: "h3", rotulo: "H3", dica: t("nota_editor.titulo_menor_ctrl_alt_3") },
   "|",
-  { id: "marcador", rotulo: "•", dica: "lista com marcador (Ctrl+Shift+8)" },
-  { id: "numerada", rotulo: "1.", dica: "lista numerada (Ctrl+Shift+7)" },
-  { id: "checklist", rotulo: "[x]", dica: "checklist (Ctrl+Shift+9)" },
+  { id: "marcador", rotulo: "•", dica: t("nota_editor.lista_com_marcador_ctrl_shift") },
+  { id: "numerada", rotulo: "1.", dica: t("nota_editor.lista_numerada_ctrl_shift_7") },
+  { id: "checklist", rotulo: "[x]", dica: t("nota_editor.checklist_ctrl_shift_9") },
   "|",
-  { id: "citacao", rotulo: "❝", dica: "citação" },
-  { id: "codigo", rotulo: "<>", dica: "código na linha (Ctrl+E)" },
-  { id: "bloco", rotulo: "{ }", dica: "bloco de código" },
+  { id: "citacao", rotulo: "❝", dica: t("nota_editor.citacao") },
+  { id: "codigo", rotulo: "<>", dica: t("nota_editor.codigo_na_linha_ctrl_e") },
+  { id: "bloco", rotulo: "{ }", dica: t("nota_editor.bloco_de_codigo") },
   "|",
-  { id: "link", icone: "link", dica: "link (Ctrl+K)" },
-  { id: "divisoria", rotulo: "──", dica: "divisória" },
-  { id: "tabela", rotulo: "▦", dica: "tabela" },
-  { id: "limpar", rotulo: "Tx", dica: "limpar formatação", classe: "limpar" },
+  { id: "link", icone: "link", dica: t("nota_editor.link_ctrl_k") },
+  { id: "divisoria", rotulo: "──", dica: t("nota_editor.divisoria") },
+  { id: "tabela", rotulo: "▦", dica: t("nota_editor.tabela") },
+  { id: "limpar", rotulo: "Tx", dica: t("nota_editor.limpar_formatacao"), classe: "limpar" },
 ];
 const BOLHA = ["negrito", "italico", "sublinhado", "tachado", "codigo", "link"];
 
@@ -77,12 +78,12 @@ function fragParaHtml(frag) {
 
 const PARECE_MARKDOWN = /(^|\n)\s*(#{1,3}\s|[-*+]\s|\d+[.)]\s|>\s?|```|\|.*\|)|\*\*\S|~~\S|\[[^\]]+\]\(https?:/;
 
-export function criarEditorNota(container, { markdown = "", onChange = () => {}, placeholder = "escreva aqui…" } = {}) {
+export function criarEditorNota(container, { markdown = "", onChange = () => {}, placeholder = t("nota_editor.escreva_aqui") } = {}) {
   container.classList.add("ne");
   container.innerHTML = `
-    <div class="ne-barra" role="toolbar" aria-label="formatação">${BOTOES.map(botaoHtml).join("")}</div>
-    <div class="ne-area" contenteditable="true" role="textbox" aria-multiline="true" aria-label="texto da nota" spellcheck="true" data-placeholder="${escapeHtml(placeholder)}"></div>
-    <div class="ne-bolha" role="toolbar" aria-label="formatar seleção" hidden>${BOTOES.filter((b) => b !== "|" && BOLHA.includes(b.id)).map(botaoHtml).join("")}</div>
+    <div class="ne-barra" role="toolbar" aria-label="${t("nota_editor.formatacao")}">${botoes().map(botaoHtml).join("")}</div>
+    <div class="ne-area" contenteditable="true" role="textbox" aria-multiline="true" aria-label="${t("nota_editor.texto_da_nota")}" spellcheck="true" data-placeholder="${escapeHtml(placeholder)}"></div>
+    <div class="ne-bolha" role="toolbar" aria-label="${t("nota_editor.formatar_selecao")}" hidden>${botoes().filter((b) => b !== "|" && BOLHA.includes(b.id)).map(botaoHtml).join("")}</div>
   `;
   const area = container.querySelector(".ne-area");
   const barra = container.querySelector(".ne-barra");
@@ -270,7 +271,7 @@ export function criarEditorNota(container, { markdown = "", onChange = () => {},
       return;
     }
     const sel = window.getSelection();
-    const texto = sel.toString() || "código";
+    const texto = sel.toString() || t("nota_editor.codigo");
     exec("insertHTML", `<code>${escapeHtml(texto)}</code>&#8203;`);
   }
 
@@ -278,10 +279,10 @@ export function criarEditorNota(container, { markdown = "", onChange = () => {},
     const sel = window.getSelection();
     const range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     const atual = dentroDe("a")?.getAttribute("href") || "";
-    const valor = await showPromptModal("endereço do link", {
-      title: "link",
+    const valor = await showPromptModal(t("nota_editor.endereco_do_link"), {
+      title: t("nota_editor.link"),
       defaultValue: atual || "https://",
-      confirmText: "aplicar",
+      confirmText: t("nota_editor.aplicar"),
     });
     if (valor == null) return;
     area.focus();
@@ -302,7 +303,7 @@ export function criarEditorNota(container, { markdown = "", onChange = () => {},
   }
 
   function tabela() {
-    const cab = "<th>coluna</th><th>coluna</th>";
+    const cab = `<th>${t("nota_editor.coluna")}</th><th>${t("nota_editor.coluna")}</th>`;
     const linha = "<td><br></td><td><br></td>";
     exec("insertHTML", `<table data-nova="1"><thead><tr>${cab}</tr></thead><tbody><tr>${linha}</tr><tr>${linha}</tr></tbody></table><p><br></p>`);
     // cursor na 1ª célula, com "coluna" selecionado pra digitar por cima

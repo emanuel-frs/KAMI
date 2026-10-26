@@ -93,15 +93,18 @@ def resumo_mes(db, mes: str) -> dict:
         ).fetchall()
     }
     acao = db.execute(
-        f"SELECT l.description, l.xp_gained, substr(l.created_at, 1, 10) AS dia FROM action_logs l "
+        f"SELECT l.description, l.descricao_chave, l.descricao_vars, l.xp_gained, substr(l.created_at, 1, 10) AS dia FROM action_logs l "
         f"WHERE substr(l.created_at, 1, 7) = ? AND {_NOT_BONUS} "
         f"ORDER BY l.xp_gained DESC, l.created_at LIMIT 1",
         (mes,),
     ).fetchone()
+    # I18N: título em português + chave (o frontend traduz pela chave; a
+    # personalizada não tem). Retrospectiva gravada antes disso tem só o
+    # título (string) — o frontend aceita os dois formatos.
     conquistas = [
-        r["title"]
+        {"titulo": r["title"], "chave": r["chave"]}
         for r in db.execute(
-            "SELECT title FROM achievements WHERE substr(unlocked_at, 1, 7) = ? ORDER BY unlocked_at", (mes,)
+            "SELECT title, chave FROM achievements WHERE substr(unlocked_at, 1, 7) = ? ORDER BY unlocked_at", (mes,)
         ).fetchall()
     ]
     return {
@@ -111,7 +114,11 @@ def resumo_mes(db, mes: str) -> dict:
         "melhor_sequencia": _melhor_sequencia(db, mes),
         "xp_por_atributo": xp_por_atributo,
         "conquistas": conquistas,
-        "acao_do_mes": {"descricao": acao["description"], "xp": acao["xp_gained"], "dia": acao["dia"]} if acao else None,
+        "acao_do_mes": {
+            "descricao": acao["description"], "xp": acao["xp_gained"], "dia": acao["dia"],
+            # I18N: chave + variáveis do texto (nulas quando é texto da pessoa)
+            "chave": acao["descricao_chave"], "vars": json.loads(acao["descricao_vars"] or "{}"),
+        } if acao else None,
         "anterior": {"mes": mes_anterior(mes), **_numeros(db, mes_anterior(mes))},
     }
 

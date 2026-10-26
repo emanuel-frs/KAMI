@@ -47,6 +47,14 @@ CREATE TABLE IF NOT EXISTS user_profile (
     atualizacoes_procurar  INTEGER NOT NULL DEFAULT 1,  -- P-88: ligado, explicado em configurações › sobre
     atualizacao_avisada    TEXT,                        -- versão que já contou no sino
     atualizacao_pulada     TEXT,                        -- "pular esta versão"
+    -- I18N-01 (P-74/P-96): idioma das telas; NULL = ainda não escolhido (banco
+    -- novo: o app usa o do sistema e grava). Quem já usava ficou com 'pt'.
+    idioma                 TEXT,
+    -- I18N-06 (P-94/P-95): moeda (ISO 4217, só o formato) e país dos
+    -- feriados do dia útil (ISO 3166); NULL = o app escolhe pelo sistema.
+    -- Quem já usava ficou com 'BRL'/'BR'.
+    moeda                  TEXT,
+    pais                   TEXT,
     updated_at            TEXT NOT NULL
 );
 
@@ -102,7 +110,11 @@ CREATE TABLE IF NOT EXISTS action_logs (
     -- exatamente este log e o xp dele. NULL = ação manual do Núcleo ou
     -- log anterior à migração. Ver app/actions.py::revert_actions.
     referencia_tipo TEXT,
-    referencia_id   TEXT
+    referencia_id   TEXT,
+    -- I18N: texto gravado pelo sistema (app/mensagens.py::Texto) — chave do
+    -- dicionário + variáveis em JSON; NULL = texto da pessoa (Núcleo)
+    descricao_chave TEXT,
+    descricao_vars  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS action_log_attributes (
@@ -351,7 +363,11 @@ CREATE TABLE IF NOT EXISTS transactions (
     forma_pagamento   TEXT,            -- 'saldo' | 'credito' — só quando a conta tem os dois (tipo 'saida')
     conta_destino_id  TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,  -- só transferência interna
     destino_externo   TEXT,            -- só transferência externa (texto livre)
-    date              TEXT NOT NULL
+    date              TEXT NOT NULL,
+    -- I18N: descrição criada pelo sistema ("conta fixa: aluguel"), ver
+    -- app/mensagens.py::Texto; editar a descrição à mão zera a chave
+    descricao_chave   TEXT,
+    descricao_vars    TEXT
 );
 
 -- ---------------- APRENDIZADO ----------------

@@ -50,8 +50,8 @@ def test_resumo_do_mes(db_conn):
     assert r["melhor_sequencia"] == 4  # 1, 2, 3 + 4 protegido
     assert r["xp_por_atributo"]["financas"] == 150
     assert r["xp_por_atributo"]["aprendizado"] == 45
-    assert r["acao_do_mes"] == {"descricao": "nova posição", "xp": 150, "dia": "2026-09-10"}
-    assert r["conquistas"] == ["aquecendo"]
+    assert r["acao_do_mes"] == {"descricao": "nova posição", "xp": 150, "dia": "2026-09-10", "chave": None, "vars": {}}
+    assert r["conquistas"] == [{"titulo": "aquecendo", "chave": "streak_3"}]
     assert r["anterior"] == {"mes": "2026-08", "xp_total": 7, "acoes": 1, "dias_ativos": 1, "missoes": 0}
 
 

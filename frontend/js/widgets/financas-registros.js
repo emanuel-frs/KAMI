@@ -1,6 +1,6 @@
 import * as financasApi from "../api/financas.js";
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml, fmtDataCurta } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, fmtMoeda, mesesCurtos, simboloMoeda } from "../components/format.js";
 import { fitAsciiText } from "../components/ascii.js";
 import { openTransacaoModal } from "../modals/transacao-modal.js";
 import { openRegistroFilterModal } from "../modals/registro-filter-modal.js";
@@ -9,6 +9,8 @@ import { listenWhileConnected } from "../components/window-listener.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { consumePendingFocus } from "../components/pending-focus.js";
+import { textoDoRegistro } from "../components/textos-sistema.js";
+import { t, tOu } from "../i18n.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -21,18 +23,22 @@ function shiftMonth(monthStr, delta) {
 }
 function monthLabel(monthStr) {
   const [y, m] = monthStr.split("-").map(Number);
-  const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const nomes = mesesCurtos();
   return `${nomes[m - 1]} ${y}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
+// de onde veio o lançamento automático (backend: _ORIGENS_TRANSACAO, em português)
+const ORIGENS = { "conta fixa": "conta_fixa", assinatura: "assinatura", renda: "renda", meta: "meta", "dívida": "divida" };
+const rotuloOrigem = (o) => tOu(ORIGENS[o] && `origem.${ORIGENS[o]}`, o);
+
 function formatDate(iso) {
   return fmtDataCurta(iso); // ORG-07
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando registros…</div>';
+  el.innerHTML = `<div class="empty-state">${t("registros.carregando")}</div>`;
   let month = currentMonthStr();
   // ORG-03: lançamento escolhido na busca (Ctrl+K) — "id|AAAA-MM-DD": abre
   // no mês dele e já com a edição aberta
@@ -71,7 +77,7 @@ export async function render(el, widget) {
         financasApi.listTransactions(month),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar registros: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("registros.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -88,24 +94,24 @@ export async function render(el, widget) {
           <button type="button" class="btn sm" data-action="next-month">${icon("arrow-right", { size: 11 })}</button>
         </div>
         <div style="display:flex; gap:6px;">
-          <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">filtro${hasActiveFilter() ? ` <span class="filter-dot"></span>` : ""}</button>
-          <button type="button" class="btn sm" data-action="add-transaction">+ lançamento</button>
+          <button type="button" class="btn sm${hasActiveFilter() ? " primary" : ""}" data-action="filter">${t("registros.filtro")}${hasActiveFilter() ? ` <span class="filter-dot"></span>` : ""}</button>
+          <button type="button" class="btn sm" data-action="add-transaction">${t("registros.novo")}</button>
         </div>
       </div>
       <div class="registros-list">
-        ${visible.length ? visible.map((t) => {
-          const found = lookup[t.conta_id];
+        ${visible.length ? visible.map((tx) => {
+          const found = lookup[tx.conta_id];
           const bankIcon = found
-            ? (found.bank.icon_ascii ? `<pre>${escapeHtml(found.bank.icon_ascii)}</pre>` : `<span class="ph">${found.bank.is_dinheiro ? "R$" : found.bank.nome.slice(0, 2).toUpperCase()}</span>`)
+            ? (found.bank.icon_ascii ? `<pre>${escapeHtml(found.bank.icon_ascii)}</pre>` : `<span class="ph">${found.bank.is_dinheiro ? simboloMoeda() : found.bank.nome.slice(0, 2).toUpperCase()}</span>`)
             : `<span class="ph">—</span>`;
-          const bankName = found ? escapeHtml(found.bank.nome) : "conta removida";
+          const bankName = found ? escapeHtml(found.bank.nome) : t("registros.conta_removida");
           const accountName = found ? escapeHtml(found.account.nome) : "";
-          const sinal = t.type === "entrada" ? "+" : t.type === "saida" ? "-" : "→";
+          const sinal = tx.type === "entrada" ? "+" : tx.type === "saida" ? "-" : "→";
           return `
             <div class="registro-row">
               <div class="r-top">
-                <div class="registro-desc" data-tooltip="${escapeHtml(t.description)}">${escapeHtml(t.description)}<span class="r-category">${escapeHtml(t.category)}</span></div>
-                <div class="registro-valor ${t.type}">${sinal} ${brl(t.amount)}</div>
+                <div class="registro-desc" data-tooltip="${escapeHtml(textoDoRegistro(tx))}">${escapeHtml(textoDoRegistro(tx))}<span class="r-category">${escapeHtml(tx.category)}</span></div>
+                <div class="registro-valor ${tx.type}">${sinal} ${brl(tx.amount)}</div>
               </div>
               <div class="r-meta">
                 <div class="registro-conta-col">
@@ -115,16 +121,16 @@ export async function render(el, widget) {
                     <span class="r-account-name" data-tooltip="${accountName}">${accountName}</span>
                   </div>
                 </div>
-                <div class="registro-date">${formatDate(t.date)}</div>
-                ${t.origem
-                  ? `<span class="registro-origem" data-tooltip="veio de ${escapeHtml(t.origem)} — corrija ou desfaça por lá">${escapeHtml(t.origem)}</span>`
+                <div class="registro-date">${formatDate(tx.date)}</div>
+                ${tx.origem
+                  ? `<span class="registro-origem" data-tooltip="${escapeHtml(t("registros.origem_dica", { origem: rotuloOrigem(tx.origem) }))}">${escapeHtml(rotuloOrigem(tx.origem))}</span>`
                   : `<span class="registro-actions">
-                      <button type="button" class="icon-btn" data-edit-tx="${escapeHtml(t.id)}" data-tooltip="corrigir lançamento" aria-label="corrigir lançamento">${icon("pencil", { size: 11 })}</button>
-                      <button type="button" class="icon-btn danger" data-delete-tx="${escapeHtml(t.id)}" data-tooltip="apagar lançamento" aria-label="apagar lançamento">${icon("trash-2", { size: 11 })}</button>
+                      <button type="button" class="icon-btn" data-edit-tx="${escapeHtml(tx.id)}" data-tooltip="${t("registros.corrigir")}" aria-label="${t("registros.corrigir")}">${icon("pencil", { size: 11 })}</button>
+                      <button type="button" class="icon-btn danger" data-delete-tx="${escapeHtml(tx.id)}" data-tooltip="${t("registros.apagar")}" aria-label="${t("registros.apagar")}">${icon("trash-2", { size: 11 })}</button>
                     </span>`}
               </div>
             </div>`;
-        }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? "nenhum lançamento bate com o filtro." : `nenhum lançamento em ${monthLabel(month)}.`}</div>`}
+        }).join("") : `<div class="wallet-empty">${hasActiveFilter() ? t("registros.vazio_filtro") : t("registros.vazio_mes", { mes: monthLabel(month) })}</div>`}
       </div>
     `;
 
@@ -148,17 +154,17 @@ export async function render(el, widget) {
     });
     el.querySelectorAll("[data-delete-tx]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const t = transactions.find((x) => x.id === btn.dataset.deleteTx);
-        if (!t) return;
+        const tx = transactions.find((x) => x.id === btn.dataset.deleteTx);
+        if (!tx) return;
         const ok = await showConfirmModal(
-          `apagar "${t.description}" (${brl(t.amount)})? o valor volta pra conta e o xp do lançamento sai.`,
-          { title: "apagar lançamento", confirmText: "apagar", danger: true },
+          t("registros.apagar_confirma", { desc: textoDoRegistro(tx), valor: brl(tx.amount) }),
+          { title: t("registros.apagar"), confirmText: t("geral.apagar"), danger: true },
         );
         if (!ok) return;
         try {
-          await financasApi.deleteTransaction(t.id);
+          await financasApi.deleteTransaction(tx.id);
         } catch (err) {
-          showErrorModal(err.message, "erro ao apagar");
+          showErrorModal(err.message, t("geral.erro_ao_apagar"));
           return;
         }
         window.dispatchEvent(new CustomEvent("kami:wallet-changed"));

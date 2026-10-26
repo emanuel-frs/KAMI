@@ -1,6 +1,6 @@
 import { listHabitos, updateHabito, deleteHabito, marcarHabito, desmarcarHabito } from "../api/habitos.js";
-import { escapeHtml, localDateKey, fmtDataCurta } from "../components/format.js";
-import { DIAS_CURTOS, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
+import { escapeHtml, fmtDataCurta, localDateKey, mesesCurtos } from "../components/format.js";
+import { diasCurtos, alternarHoje, itemHojeHtml, rotuloAtributo, rotuloFrequencia, rotuloSequencia } from "../components/habito-linha.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
@@ -11,6 +11,7 @@ import { maybeStartHabitosTips, replayHabitosTips } from "./habitos-tips.js";
 import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { t } from "../i18n.js";
 
 /**
  * pages/habitos.js — tela de hábitos (ORG-04, P-55), Alt+9.
@@ -31,15 +32,14 @@ import { registerScreenShortcuts, clearScreenShortcuts } from "../components/sho
  */
 
 const DIAS_PARA_TRAS = 2;
-const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const GLIFO = { feito: "■", faltou: "□", livre: "·", fora: "·", hoje: "◇", futuro: " " };
-const ESTADO_FALADO = {
+const estadoFalado = () => ({
   feito: "feito",
   faltou: "faltou",
-  livre: "sem marca",
-  fora: "não valia",
-  hoje: "hoje, pendente",
-};
+  livre: t("habitos.sem_marca"),
+  fora: t("habitos.nao_valia"),
+  hoje: t("habitos.hoje_pendente"),
+});
 
 let containerEl = null;
 let habitos = [];
@@ -58,7 +58,7 @@ function diaDaGrade(h, i) {
 
 function hojeLegivel() {
   const d = new Date();
-  return `${DIAS_CURTOS[(d.getDay() + 6) % 7]} ${fmtDataCurta(localDateKey(d))}`;
+  return `${diasCurtos()[(d.getDay() + 6) % 7]} ${fmtDataCurta(localDateKey(d))}`;
 }
 
 // ---------------------------------------------------------------- grade
@@ -75,13 +75,13 @@ function gradeHtml(h) {
   let ultimoMes = null;
   for (let w = 0; w < semanas; w++) {
     const mes = diaDaGrade(h, w * 7 + 6).getMonth();
-    meses += `<span class="hb-mes">${mes !== ultimoMes ? MESES[mes] : ""}</span>`;
+    meses += `<span class="hb-mes">${mes !== ultimoMes ? mesesCurtos()[mes] : ""}</span>`;
     ultimoMes = mes;
   }
 
   let linhas = "";
   for (let d = 0; d < 7; d++) {
-    linhas += `<span class="hb-dia-sem">${DIAS_CURTOS[d]}</span>`;
+    linhas += `<span class="hb-dia-sem">${diasCurtos()[d]}</span>`;
     for (let w = 0; w < semanas; w++) {
       const i = w * 7 + d;
       const estado = h.grade.estados[i];
@@ -90,17 +90,17 @@ function gradeHtml(h) {
       const glifo = GLIFO[estado] ?? " ";
       if (marcavel) {
         const feito = estado === "feito";
-        const quando = `${DIAS_CURTOS[d]} ${fmtDataCurta(localDateKey(dia))}`;
+        const quando = `${diasCurtos()[d]} ${fmtDataCurta(localDateKey(dia))}`;
         linhas += `<button type="button" class="hb-cel hb-e-${estado} hb-marcavel" data-dia="${localDateKey(dia)}" aria-pressed="${feito}"
-          aria-label="${escapeHtml(`${h.nome}, ${quando}: ${ESTADO_FALADO[estado]} — ${feito ? "desmarcar" : "marcar"}`)}"
+          aria-label="${escapeHtml(`${h.nome}, ${quando}: ${estadoFalado()[estado]} — ${feito ? "desmarcar" : "marcar"}`)}"
           data-tooltip="${quando}: ${feito ? "desmarcar" : "marcar"}">${glifo}</button>`;
       } else {
         linhas += `<span class="hb-cel hb-e-${estado}" aria-hidden="true">${glifo}</span>`;
       }
     }
   }
-  const resumo = `${h.nome}: sequência ${rotuloSequencia(h)}, recorde ${rotuloSequencia(h, h.recorde)}`;
-  return `<div class="hb-grade" style="--hb-semanas:${semanas}" role="group" aria-label="${escapeHtml(resumo)} — últimas ${semanas} semanas">${meses}${linhas}</div>`;
+  const resumo = t("habitos.resumo", { nome: h.nome, seq: rotuloSequencia(h), recorde: rotuloSequencia(h, h.recorde) });
+  return `<div class="hb-grade" style="--hb-semanas:${semanas}" role="group" aria-label="${escapeHtml(t("habitos.ultimas_semanas", { resumo, n: semanas }))}">${meses}${linhas}</div>`;
 }
 
 function cardHtml(h) {
@@ -108,32 +108,32 @@ function cardHtml(h) {
   const pausado = h.status === "pausado";
   const pct = h.aproveitamento_30d == null ? "—" : `${h.aproveitamento_30d}%`;
   const acoes = arquivado
-    ? `<span class="icon-btn" data-acao="desarquivar" data-tooltip="desarquivar" aria-label="desarquivar">${icon("archive", { size: 13 })}</span>`
-    : `<span class="icon-btn" data-acao="${pausado ? "retomar" : "pausar"}" data-tooltip="${pausado ? "retomar" : "pausar (a sequência congela)"}" aria-label="${pausado ? "retomar" : "pausar"}">${icon(pausado ? "play" : "pause", { size: 13 })}</span>
-       <span class="icon-btn" data-acao="lembrar" data-tooltip="lembrar (não avisa se já marcou no dia)" aria-label="lembrar">${icon("bell-ring", { size: 13 })}</span>
-       <span class="icon-btn" data-acao="editar" data-tooltip="editar" aria-label="editar">${icon("pencil", { size: 15 })}</span>
-       <span class="icon-btn" data-acao="arquivar" data-tooltip="arquivar (guarda o histórico)" aria-label="arquivar">${icon("archive", { size: 13 })}</span>`;
+    ? `<span class="icon-btn" data-acao="desarquivar" data-tooltip="${t("habitos.desarquivar")}" aria-label="${t("habitos.desarquivar")}">${icon("archive", { size: 13 })}</span>`
+    : `<span class="icon-btn" data-acao="${pausado ? "retomar" : "pausar"}" data-tooltip="${pausado ? "retomar" : t("habitos.pausar_a_sequencia_congela")}" aria-label="${pausado ? "retomar" : "pausar"}">${icon(pausado ? "play" : "pause", { size: 13 })}</span>
+       <span class="icon-btn" data-acao="lembrar" data-tooltip="${t("habitos.lembrar_nao_avisa_se_ja")}" aria-label="${t("habitos.lembrar")}">${icon("bell-ring", { size: 13 })}</span>
+       <span class="icon-btn" data-acao="editar" data-tooltip="${t("geral.editar")}" aria-label="${t("geral.editar")}">${icon("pencil", { size: 15 })}</span>
+       <span class="icon-btn" data-acao="arquivar" data-tooltip="${t("habitos.arquivar_guarda_o_historico")}" aria-label="${t("habitos.arquivar")}">${icon("archive", { size: 13 })}</span>`;
   return `
     <div class="card goal-card hb-card${arquivado || pausado ? " hb-parado" : ""}" data-habito-id="${h.id}">
       <div class="card-head">
         <span class="goal-title" data-tooltip="${escapeHtml(h.nome)}">${escapeHtml(h.nome)}</span>
         <span class="push goal-card-icons">
           ${acoes}
-          <span class="icon-btn danger" data-acao="apagar" data-tooltip="apagar" aria-label="apagar">${icon("trash-2", { size: 15 })}</span>
+          <span class="icon-btn danger" data-acao="apagar" data-tooltip="${t("geral.apagar")}" aria-label="${t("geral.apagar")}">${icon("trash-2", { size: 15 })}</span>
         </span>
       </div>
       <div class="card-body">
         <div class="goal-tags">
           <span class="goal-type-tag">${escapeHtml(rotuloFrequencia(h))}</span>
           <span class="goal-type-tag">${escapeHtml(rotuloAtributo(h.atributo))}</span>
-          ${pausado ? `<span class="goal-type-tag hb-tag-parado">pausado</span>` : ""}
-          ${arquivado ? `<span class="goal-type-tag hb-tag-parado">arquivado</span>` : ""}
+          ${pausado ? `<span class="goal-type-tag hb-tag-parado">${t("habitos.pausado")}</span>` : ""}
+          ${arquivado ? `<span class="goal-type-tag hb-tag-parado">${t("habitos.arquivado")}</span>` : ""}
         </div>
         ${gradeHtml(h)}
         <div class="hb-stats">
-          <span>sequência <b>${rotuloSequencia(h)}</b></span>
-          <span>recorde <b>${rotuloSequencia(h, h.recorde)}</b></span>
-          <span>30 dias <b>${pct}</b></span>
+          <span>${t("habitos.sequencia")} <b>${rotuloSequencia(h)}</b></span>
+          <span>${t("habitos.recorde")} <b>${rotuloSequencia(h, h.recorde)}</b></span>
+          <span>${t("habitos.30_dias")} <b>${pct}</b></span>
         </div>
       </div>
     </div>`;
@@ -148,11 +148,11 @@ function render() {
   const feitos = valendo.filter((h) => h.feito_hoje).length;
 
   containerEl.querySelector("#hb-sec-hoje").textContent = valendo.length
-    ? `hoje — ${hojeLegivel()} · ${feitos} de ${valendo.length} feitos`
-    : `hoje — ${hojeLegivel()}`;
+    ? t("habitos.hoje_feitos", { dia: hojeLegivel(), feitos, total: valendo.length })
+    : t("habitos.hoje_dia", { dia: hojeLegivel() });
   containerEl.querySelector("#hb-hoje").innerHTML = ativos.length
     ? ativos.map(itemHojeHtml).join("")
-    : `<div class="empty-state">${habitos.length ? "nenhum hábito ativo — retome um pausado lá embaixo" : "nenhum hábito ainda — comece por um pequeno (beber água, ler 10 páginas, caminhar)"}</div>`;
+    : `<div class="empty-state">${habitos.length ? t("habitos.nenhum_habito_ativo_retome_um") : t("habitos.nenhum_habito_ainda_comece_por")}</div>`;
   containerEl.querySelector("#hb-dica-hoje").hidden = !ativos.length;
 
   containerEl.querySelector("#hb-sec-grade").hidden = !habitos.length;
@@ -160,13 +160,13 @@ function render() {
   containerEl.querySelector("#hb-cards").innerHTML = habitos.map(cardHtml).join("");
 
   const btnArq = containerEl.querySelector("#hb-arquivados-btn");
-  btnArq.textContent = arquivados ? "esconder arquivados" : "ver arquivados";
+  btnArq.textContent = arquivados ? t("habitos.esconder_arquivados") : t("habitos.ver_arquivados");
   const arqEl = containerEl.querySelector("#hb-arquivados");
   arqEl.hidden = !arquivados;
   arqEl.innerHTML = arquivados
     ? arquivados.length
-      ? `<div class="goals-section-label">arquivados</div><div class="goals-grid">${arquivados.map(cardHtml).join("")}</div>`
-      : `<div class="empty-state">nenhum hábito arquivado</div>`
+      ? `<div class="goals-section-label">${t("habitos.arquivados")}</div><div class="goals-grid">${arquivados.map(cardHtml).join("")}</div>`
+      : `<div class="empty-state">${t("habitos.nenhum_habito_arquivado")}</div>`
     : "";
 }
 
@@ -176,7 +176,7 @@ async function recarregar() {
     habitos = lista;
     if (arq) arquivados = arq.filter((h) => h.status === "arquivado");
   } catch (err) {
-    if (containerEl) containerEl.querySelector("#hb-hoje").innerHTML = `<div class="empty-state">erro ao carregar hábitos: ${escapeHtml(err.message)}</div>`;
+    if (containerEl) containerEl.querySelector("#hb-hoje").innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_habitos", { erro: err.message }))}</div>`;
     return;
   }
   render();
@@ -238,8 +238,8 @@ async function aoClicar(e) {
     } else if (acao === "apagar") {
       const xp = h.total_marcas * h.xp_por_marca;
       const ok = await showConfirmModal(
-        `Apagar o hábito "${h.nome}"? O histórico some${h.total_marcas ? ` e os ${xp} xp das ${h.total_marcas} marcações são estornados` : ""}. Pra guardar o histórico, arquive em vez de apagar.`,
-        { title: "apagar hábito", confirmText: "apagar", danger: true },
+        h.total_marcas ? t("habitos.apagar_confirma_xp", { nome: h.nome, xp, n: h.total_marcas }) : t("habitos.apagar_confirma", { nome: h.nome }),
+        { title: t("habitos.apagar_habito"), confirmText: t("geral.apagar"), danger: true },
       );
       if (!ok) return;
       await deleteHabito(id);
@@ -248,7 +248,7 @@ async function aoClicar(e) {
       window.dispatchEvent(new CustomEvent("kami:habitos-mudaram", { detail: { origem: "tela" } }));
     }
   } catch (err) {
-    showErrorModal(err.message, "hábitos");
+    showErrorModal(err.message, t("habitos.habitos"));
   }
 }
 
@@ -271,21 +271,21 @@ export async function mount(container) {
   containerEl = container;
   arquivados = null;
   shortcutsToken = registerScreenShortcuts({
-    name: "hábitos",
-    actions: [{ code: "KeyN", label: "novo hábito", run: () => novoHabito() }],
+    name: t("habitos.habitos"),
+    actions: [{ code: "KeyN", label: t("habitos.novo_habito"), run: () => novoHabito() }],
   });
 
   container.innerHTML = `
     <div class="goals-toolbar">
-      <button type="button" class="btn sm push" id="hb-add-btn">+ novo hábito</button>
+      <button type="button" class="btn sm push" id="hb-add-btn">${t("habitos.novo_habito_2")}</button>
     </div>
-    <div class="goals-section-label" id="hb-sec-hoje">hoje</div>
-    <div class="hb-hoje" id="hb-hoje"><div class="empty-state">carregando…</div></div>
-    <div class="hb-legenda" id="hb-dica-hoje" hidden>clique marca/desmarca · dias passados (até 2 atrás) se marcam na grade · desmarcar devolve o xp</div>
-    <div class="goals-section-label" id="hb-sec-grade" hidden>últimas 12 semanas</div>
+    <div class="goals-section-label" id="hb-sec-hoje">${t("habitos.hoje")}</div>
+    <div class="hb-hoje" id="hb-hoje"><div class="empty-state">${t("geral.carregando")}</div></div>
+    <div class="hb-legenda" id="hb-dica-hoje" hidden>${t("habitos.clique_marca_desmarca_dias_passados")}</div>
+    <div class="goals-section-label" id="hb-sec-grade" hidden>${t("habitos.ultimas_12_semanas")}</div>
     <div class="goals-grid" id="hb-cards"></div>
-    <div class="hb-legenda" id="hb-legenda" hidden><b>■</b> feito · □ faltou · · não valia (ou sem marca, nos "x por semana") · <u>◇</u> hoje, pendente</div>
-    <div class="hb-rodape"><button type="button" class="btn sm" id="hb-arquivados-btn">ver arquivados</button></div>
+    <div class="hb-legenda" id="hb-legenda" hidden><b>■</b> ${t("habitos.feito_faltou_nao_valia_ou")} <u>◇</u> ${t("habitos.hoje_pendente")}</div>
+    <div class="hb-rodape"><button type="button" class="btn sm" id="hb-arquivados-btn">${t("habitos.ver_arquivados")}</button></div>
     <div id="hb-arquivados" hidden></div>
   `;
 
@@ -299,7 +299,7 @@ export async function mount(container) {
     try {
       arquivados = (await listHabitos({ arquivados: true })).filter((h) => h.status === "arquivado");
     } catch (err) {
-      showErrorModal(err.message, "hábitos");
+      showErrorModal(err.message, t("habitos.habitos"));
       return;
     }
     render();

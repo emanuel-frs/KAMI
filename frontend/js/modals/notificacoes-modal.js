@@ -1,6 +1,6 @@
 import { escapeHtml, fmtMoney, fmtRelDate, fmtDataCompacta } from "../components/format.js";
 import { icon } from "../components/icons.js";
-import { TYPE_META } from "../components/event-types.js";
+import { typeMeta } from "../components/event-types.js";
 import { fetchPendingAlerts, todayStr } from "../components/calendar-alerts.js";
 import { listEmailCache, listEmailAccounts, markEmailRead, muteAccount } from "../api/organizacao.js";
 import { refreshMutedAccounts } from "../pages/organizacao.js";
@@ -12,7 +12,8 @@ import { store } from "../state/store.js";
 import { listEntrada } from "../api/entrada.js";
 import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
 import { noSino, marcarAvisada, estadoAtualizacao, atualizarAgora, verNovidades, pularVersao, comoAtualiza } from "../components/atualizacao.js";
-import { ADIAMENTOS, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
+import { adiamentos, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal unificado de notificações (notificações v2.1) — substitui DOIS
@@ -65,20 +66,20 @@ function buildModal() {
   wrap.id = "notifications-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;notificações <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head">${icon("bell", { size: 13 })}&nbsp;${t("notificacoes.notificacoes")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="notif-section" id="notif-atualizacao-section" hidden></div>
         <div class="notif-section" id="notif-lembretes-section" hidden></div>
         <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">
             ${icon("calendar-days", { size: 12 })}
-            <span>vencendo em breve</span>
+            <span>${t("notificacoes.vencendo_em_breve")}</span>
           </div>
           <div class="cal-alerts-list" id="notif-alerts-list"></div>
         </div>
         <div class="notif-section" id="notif-entrada-section" hidden></div>
         <div class="notif-section" id="notif-email-section"></div>
-        <div class="empty-state" id="notif-all-disabled" hidden>nenhum tipo de notificação está ativo — ajuste em configurações &gt; notificações.</div>
+        <div class="empty-state" id="notif-all-disabled" hidden>${t("notificacoes.nenhum_tipo_de_notificacao_esta")}</div>
       </div>
     </div>
   `;
@@ -96,21 +97,21 @@ function renderAlerts() {
   const today = todayStr();
 
   if (!alerts.length) {
-    listEl.innerHTML = `<div class="empty-state">nada vencendo nos próximos dias.</div>`;
+    listEl.innerHTML = `<div class="empty-state">${t("notificacoes.nada_vencendo_nos_proximos_dias")}</div>`;
     return;
   }
 
   listEl.innerHTML = alerts
     .map((e) => {
-      const meta = TYPE_META[e.type] || { ...FALLBACK_META, label: e.type };
+      const meta = typeMeta()[e.type] || { ...FALLBACK_META, label: e.type };
       const diff = daysDiff(e.date, today);
       const dueLabel = diff < 0
         ? `atrasado (${Math.abs(diff)}d)`
         : diff === 0
-        ? "vence hoje"
+        ? t("notificacoes.vence_hoje")
         : diff === 1
-        ? "vence amanhã"
-        : `vence em ${diff}d`;
+        ? t("notificacoes.vence_amanha")
+        : t("notificacoes.vence_em", { n: diff });
       const amountHtml = e.amount != null ? `<span class="cal-alert-amount">${fmtMoney(e.amount)}</span>` : "";
       const recordId = e.id.split(":")[1] || "";
       return `
@@ -144,8 +145,8 @@ function renderEmailSection() {
 
   if (!accounts.length) {
     wrap.innerHTML = `
-      <div class="notif-section-head">${icon("mail", { size: 12 })}<span>e-mails</span></div>
-      <div class="empty-state">nenhuma conta conectada — configure em organização pra receber notificações de e-mail aqui.</div>
+      <div class="notif-section-head">${icon("mail", { size: 12 })}<span>${t("notificacoes.e_mails")}</span></div>
+      <div class="empty-state">${t("notificacoes.nenhuma_conta_conectada_configure_em")}</div>
     `;
     return;
   }
@@ -154,20 +155,20 @@ function renderEmailSection() {
 
   if (!unread.length) {
     wrap.innerHTML = `
-      <div class="notif-section-head">${icon("mail", { size: 12 })}<span>e-mails</span></div>
-      <div class="empty-state">tudo em dia — nenhum e-mail novo.</div>
+      <div class="notif-section-head">${icon("mail", { size: 12 })}<span>${t("notificacoes.e_mails")}</span></div>
+      <div class="empty-state">${t("notificacoes.tudo_em_dia_nenhum_e")}</div>
     `;
     return;
   }
 
   const items = unread.slice(0, MAX_EMAIL_ITEMS);
-  const summaryLabel = `você tem ${unread.length} novo${unread.length === 1 ? "" : "s"} e-mail${unread.length === 1 ? "" : "s"}`;
+  const summaryLabel = t("notificacoes.emails_novos", { n: unread.length });
 
   wrap.innerHTML = `
     <div class="notif-email-summary" id="notif-email-toggle" data-tooltip="${emailsExpanded ? "recolher" : "expandir"}">
       <span class="notif-email-summary-label">${icon("mail", { size: 13 })} ${summaryLabel}</span>
       <span class="notif-actions">
-        <span class="icon-btn" data-action="notif-mark-all" data-tooltip="marcar todos como lidos">${icon("check", { size: 12 })}</span>
+        <span class="icon-btn" data-action="notif-mark-all" data-tooltip="${t("notificacoes.marcar_todos_como_lidos")}">${icon("check", { size: 12 })}</span>
         <span class="notif-chevron${emailsExpanded ? " open" : ""}">${icon("chevron-down", { size: 12 })}</span>
       </span>
     </div>
@@ -201,18 +202,18 @@ function renderEmailSection() {
 
 function emailItemHtml(e) {
   return `
-    <div class="nbell-item unread" data-id="${e.id}" data-tooltip="marcar como lida e abrir">
+    <div class="nbell-item unread" data-id="${e.id}" data-tooltip="${t("notificacoes.marcar_como_lida_e_abrir")}">
       <span class="nbell-dot" aria-hidden="true"></span>
       <span class="nbell-avatar" style="--chip-color:${emailAccountColor(e.account_id)};">${emailInitial(e.sender_name || e.sender)}</span>
       <span class="nbell-main">
         <span class="nbell-top">
-          <span class="nbell-subject" data-tooltip="${escapeHtml(e.subject || "(sem assunto)")}">${escapeHtml(e.subject || "(sem assunto)")}</span>
+          <span class="nbell-subject" data-tooltip="${escapeHtml(e.subject || t("notificacoes.sem_assunto"))}">${escapeHtml(e.subject || t("notificacoes.sem_assunto"))}</span>
           <span class="nbell-time">${fmtRelDate(e.received_at)}</span>
         </span>
         <span class="nbell-sender"${e.sender_email ? ` data-tooltip="${escapeHtml(e.sender_email)}"` : ""}>${escapeHtml(e.sender_name || e.sender)}</span>
         ${e.body_preview ? `<span class="nbell-preview">${escapeHtml(e.body_preview)}</span>` : ""}
       </span>
-      <span class="icon-btn nbell-mute" data-action="notif-mute-account" data-account-id="${escapeHtml(e.account_id)}" data-tooltip="silenciar esta conta">${icon("bell-off", { size: 12 })}</span>
+      <span class="icon-btn nbell-mute" data-action="notif-mute-account" data-account-id="${escapeHtml(e.account_id)}" data-tooltip="${t("notificacoes.silenciar_esta_conta")}">${icon("bell-off", { size: 12 })}</span>
     </div>`;
 }
 
@@ -288,7 +289,7 @@ async function loadEmailData() {
 function quandoLembrete(l) {
   const [dia, hora] = (l.pendente_quando || "").split("T");
   if (!dia) return "";
-  return `${dia === todayStr() ? "hoje" : fmtDataCompacta(dia)} às ${hora}`;
+  return t("notificacoes.quando", { dia: dia === todayStr() ? t("calendario.hoje") : fmtDataCompacta(dia), hora });
 }
 
 async function renderLembretes() {
@@ -304,18 +305,18 @@ async function renderLembretes() {
   if (!lista.length) return;
   modalEl.querySelector("#notif-all-disabled").hidden = true;
   el.innerHTML = `
-    <div class="notif-section-head">${icon("bell-ring", { size: 12 })}<span>lembretes</span></div>
+    <div class="notif-section-head">${icon("bell-ring", { size: 12 })}<span>${t("notificacoes.lembretes")}</span></div>
     <div class="notif-lembretes">${lista
       .map(
         (l) => `
       <div class="notif-lembrete" data-lembrete-id="${l.id}">
         <div class="notif-lembrete-texto">
           <span class="notif-lembrete-titulo">${escapeHtml(l.titulo)}</span>
-          <span class="notif-lembrete-quando">${escapeHtml(quandoLembrete(l))}${l.atrasado ? ' · <span class="notif-lembrete-passou">passou com o kami fechado</span>' : ""}${l.vinculo ? ` · ${escapeHtml(l.vinculo.nome)}` : ""}</span>
+          <span class="notif-lembrete-quando">${escapeHtml(quandoLembrete(l))}${l.atrasado ? ` · <span class="notif-lembrete-passou">${t("notificacoes.passou_com_o_kami_fechado")}</span>` : ""}${l.vinculo ? ` · ${escapeHtml(l.vinculo.nome)}` : ""}</span>
         </div>
         <div class="notif-lembrete-acoes">
-          ${ADIAMENTOS.map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="adiar ${a.rotulo}: ${escapeHtml(l.titulo)}">adiar ${a.rotulo}</button>`).join("")}
-          <button type="button" class="btn sm" data-dispensar aria-label="ok, dispensar: ${escapeHtml(l.titulo)}">ok</button>
+          ${adiamentos().map((a, i) => `<button type="button" class="btn sm" data-adiar="${i}" aria-label="${t("notificacoes.adiar_aria", { quando: a.rotulo, titulo: escapeHtml(l.titulo) })}">${t("notificacoes.adiar", { quando: a.rotulo })}</button>`).join("")}
+          <button type="button" class="btn sm" data-dispensar aria-label="${t("notificacoes.dispensar_aria", { titulo: escapeHtml(l.titulo) })}">${t("notificacoes.ok")}</button>
         </div>
       </div>`,
       )
@@ -328,7 +329,7 @@ async function onLembreteClick(e) {
   const id = linha.dataset.lembreteId;
   const adiar = e.target.closest("[data-adiar]");
   try {
-    if (adiar) await adiarLembrete(id, ADIAMENTOS[Number(adiar.dataset.adiar)].quanto);
+    if (adiar) await adiarLembrete(id, adiamentos()[Number(adiar.dataset.adiar)].quanto);
     else if (e.target.closest("[data-dispensar]")) await dispensarLembrete(id);
     else return;
   } catch {
@@ -349,17 +350,17 @@ function renderAtualizacao() {
   modalEl.querySelector("#notif-all-disabled").hidden = true;
   const { versao, atual, data, instalavel } = disponivel;
   el.innerHTML = `
-    <div class="notif-section-head">${icon("download", { size: 12 })}<span>versão nova do kami</span></div>
+    <div class="notif-section-head">${icon("download", { size: 12 })}<span>${t("notificacoes.versao_nova_do_kami")}</span></div>
     <div class="notif-lembretes">
       <div class="notif-lembrete">
         <div class="notif-lembrete-texto">
-          <span class="notif-lembrete-titulo">versão ${escapeHtml(versao)} disponível</span>
-          <span class="notif-lembrete-quando">você está na ${escapeHtml(atual)}${data ? ` · publicada em ${escapeHtml(fmtDataCompacta(data))}` : ""} · ${escapeHtml(comoAtualiza())}</span>
+          <span class="notif-lembrete-titulo">${escapeHtml(t("notificacoes.versao_disponivel", { versao }))}</span>
+          <span class="notif-lembrete-quando">${escapeHtml(t("notificacoes.voce_esta_na", { versao: atual }))}${data ? escapeHtml(t("notificacoes.publicada_em", { data: fmtDataCompacta(data) })) : ""} · ${escapeHtml(comoAtualiza())}</span>
         </div>
         <div class="notif-lembrete-acoes">
-          <button type="button" class="btn sm" data-atualizacao="novidades">ver novidades</button>
-          ${instalavel ? `<button type="button" class="btn sm primary" data-atualizacao="agora"${instalando ? " disabled" : ""}>${instalando ? "atualizando…" : "atualizar agora"}</button>` : ""}
-          <button type="button" class="btn sm" data-atualizacao="pular">pular esta versão</button>
+          <button type="button" class="btn sm" data-atualizacao="novidades">${t("notificacoes.ver_novidades")}</button>
+          ${instalavel ? `<button type="button" class="btn sm primary" data-atualizacao="agora"${instalando ? " disabled" : ""}>${instalando ? t("notificacoes.atualizando") : t("notificacoes.atualizar_agora")}</button>` : ""}
+          <button type="button" class="btn sm" data-atualizacao="pular">${t("notificacoes.pular_esta_versao")}</button>
         </div>
       </div>
     </div>`;
@@ -386,7 +387,7 @@ export function closeNotificacoesModal() {
 }
 
 export async function openNotificacoesModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   emailsExpanded = false;
   modalEl.classList.add("open");
 
@@ -406,8 +407,8 @@ export async function openNotificacoesModal() {
   emailSectionEl.hidden = !showEmail;
   allDisabledEl.hidden = showAlerts || showEmail;
 
-  if (showAlerts) alertsSectionEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">carregando…</div>`;
-  if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">carregando…</div>`;
+  if (showAlerts) alertsSectionEl.querySelector("#notif-alerts-list").innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
+  if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
 
   renderLembretes();
   renderAtualizacao();
@@ -421,8 +422,8 @@ export async function openNotificacoesModal() {
       if (!itens.length) return;
       entradaEl.innerHTML = `
         <div class="notif-email-summary" data-action="abrir-entrada">
-          <span class="notif-email-summary-label">${icon("download", { size: 13 })} ${itens.length} ${itens.length === 1 ? "item" : "itens"} na caixa de entrada</span>
-          <span class="notif-entrada-ir">abrir ${icon("arrow-right", { size: 11 })}</span>
+          <span class="notif-email-summary-label">${icon("download", { size: 13 })} ${itens.length} ${itens.length === 1 ? "item" : "itens"} ${t("notificacoes.na_caixa_de_entrada")}</span>
+          <span class="notif-entrada-ir">${t("notificacoes.abrir")} ${icon("arrow-right", { size: 11 })}</span>
         </div>`;
       entradaEl.querySelector("[data-action=abrir-entrada]").addEventListener("click", () => {
         closeNotificacoesModal();

@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Optional
 
 from app import database
+from app.mensagens import Texto
 
 logger = logging.getLogger(__name__)
 
@@ -116,15 +117,15 @@ def _gravar_info(conn: sqlite3.Connection, chave: str, valor: Optional[str]) -> 
 def _validar_pasta(texto: str) -> Path:
     pasta = Path(os.path.expanduser(texto.strip()))
     if not pasta.is_absolute():
-        raise PastaInvalida("use o caminho completo da pasta (ex.: /media/pendrive/kami ou D:\\kami)")
+        raise PastaInvalida(Texto("erro.copias.caminho_completo", "use o caminho completo da pasta (ex.: /media/pendrive/kami ou D:\\kami)"))
     if not pasta.is_dir():
-        raise PastaInvalida("essa pasta não existe (pendrive ou disco conectado?)")
+        raise PastaInvalida(Texto("erro.copias.pasta_inexistente", "essa pasta não existe (pendrive ou disco conectado?)"))
     teste = pasta / f".kami-teste-{_carimbo()}"
     try:
         teste.write_bytes(b"kami")
         teste.unlink()
     except OSError:
-        raise PastaInvalida("o Kami não consegue gravar nessa pasta")
+        raise PastaInvalida(Texto("erro.copias.sem_escrita", "o Kami não consegue gravar nessa pasta"))
     return pasta.resolve()
 
 

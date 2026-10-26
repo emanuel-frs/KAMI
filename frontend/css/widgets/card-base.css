@@ -79,6 +79,9 @@
   mask: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIuNzUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=') no-repeat center / contain;
 }
 .card-head .push { margin-left: auto; font-size: 10px; }
+/* I18N-04: título longo (alemão, hindi) quebra a linha inteiro em vez de
+   ser cortado pelo botão de remover */
+.card-head .card-label { min-width: 0; overflow-wrap: anywhere; }
 
 .card-body {
   padding: 12px 14px 22px;

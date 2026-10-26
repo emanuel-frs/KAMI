@@ -6,11 +6,12 @@ partes num router só, montado em /api/organizacao). MAN-02.
 """
 from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.database import get_db, new_id
 from app.actions import register_action, revert_actions
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -62,7 +63,7 @@ def create_link(payload: LinkIn, db=Depends(get_db)):
 
     register_action(
         db,
-        description=f"adicionou link: {payload.title}",
+        description=Texto("log.link.adicionou", "adicionou link: {titulo}", titulo=payload.title),
         categories=["organizacao"],
         xp=XP_LINK_ADD,
         impact=1,
@@ -78,7 +79,7 @@ def create_link(payload: LinkIn, db=Depends(get_db)):
 def update_link(link_id: str, payload: LinkUpdate, db=Depends(get_db)):
     row = db.execute("SELECT * FROM links WHERE id = ?", (link_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="link não encontrado")
+        raise ErroKami(404, "erro.links.link_nao_encontrado", "link não encontrado")
 
     title = payload.title if payload.title is not None else row["title"]
     url = payload.url if payload.url is not None else row["url"]
@@ -97,7 +98,7 @@ def update_link(link_id: str, payload: LinkUpdate, db=Depends(get_db)):
 def delete_link(link_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM links WHERE id = ?", (link_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="link não encontrado")
+        raise ErroKami(404, "erro.links.link_nao_encontrado", "link não encontrado")
     db.execute("DELETE FROM links WHERE id = ?", (link_id,))
     db.commit()
     # adicionar e apagar o mesmo link repetidamente não rende xp

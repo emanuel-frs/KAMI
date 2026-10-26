@@ -4,7 +4,8 @@ import { showConfirmModal } from "./confirm-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml, localDateKey } from "../components/format.js";
-import { DIAS_CURTOS } from "../components/habito-linha.js";
+import { diasCurtos } from "../components/habito-linha.js";
+import { t } from "../i18n.js";
 
 /**
  * Modal "novo lembrete" / "editar lembrete" (ORG-05) — singleton, mesmo
@@ -14,14 +15,14 @@ import { DIAS_CURTOS } from "../components/habito-linha.js";
  * "lembretes" do calendário.
  */
 
-export const REPETICOES = [
-  ["nao", "não repete"],
-  ["diario", "todo dia"],
-  ["dias", "dias da semana"],
-  ["mensal", "todo mês"],
-  ["anual", "todo ano"],
+export const repeticoes = () => [
+  ["nao", t("lembrete.nao_repete")],
+  ["diario", t("lembrete.todo_dia")],
+  ["dias", t("lembrete.dias_da_semana")],
+  ["mensal", t("lembrete.todo_mes")],
+  ["anual", t("lembrete.todo_ano")],
 ];
-export const VINCULO_ROTULO = { nota: "nota", conta_fixa: "conta fixa", meta: "meta", habito: "hábito", evento: "evento" };
+export const vinculoRotulo = () => ({ nota: t("captura.nota"), conta_fixa: t("lembrete.conta_fixa"), meta: t("captura.meta"), habito: t("lembrete.habito"), evento: t("captura.evento") });
 
 let modalEl = null;
 let onSavedCb = null;
@@ -54,29 +55,29 @@ function buildModal() {
   wrap.id = "lembrete-modal";
   wrap.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lbm-head">
-      <div class="modal-head"><span class="modal-head-title" id="lbm-head">novo lembrete</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title" id="lbm-head">${t("lembrete.novo_lembrete")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="lbm-titulo">lembrar de</label><input type="text" id="lbm-titulo" maxlength="200" placeholder="ex: ligar pro banco, tomar o remédio" autocomplete="off" data-autofocus></div>
+        <div class="field"><label for="lbm-titulo">${t("lembrete.lembrar_de")}</label><input type="text" id="lbm-titulo" maxlength="200" placeholder="${t("lembrete.ex_ligar_pro_banco_tomar")}" autocomplete="off" data-autofocus></div>
         <div class="field-row">
-          <div class="field"><label for="lbm-data">dia</label><input type="date" id="lbm-data"></div>
-          <div class="field"><label for="lbm-hora">hora</label><input type="time" id="lbm-hora"></div>
+          <div class="field"><label for="lbm-data">${t("lembrete.dia")}</label><input type="date" id="lbm-data"></div>
+          <div class="field"><label for="lbm-hora">${t("lembrete.hora")}</label><input type="time" id="lbm-hora"></div>
         </div>
         <div class="field">
-          <label for="lbm-rep">repetição</label>
-          <select id="lbm-rep">${REPETICOES.map(([v, r]) => `<option value="${v}">${r}</option>`).join("")}</select>
+          <label for="lbm-rep">${t("lembrete.repeticao")}</label>
+          <select id="lbm-rep">${repeticoes().map(([v, r]) => `<option value="${v}">${r}</option>`).join("")}</select>
         </div>
         <div class="field" id="lbm-dias-campo" hidden>
-          <span class="field-label" id="lbm-dias-label">dias</span>
+          <span class="field-label" id="lbm-dias-label">${t("lembrete.dias")}</span>
           <div class="hb-dias" role="group" aria-labelledby="lbm-dias-label">
-            ${DIAS_CURTOS.map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
+            ${diasCurtos().map((d, i) => `<label class="hb-dia"><input type="checkbox" value="${i}"> ${d}</label>`).join("")}
           </div>
         </div>
         <div class="lbm-vinculo" id="lbm-vinculo" hidden></div>
         <div class="hbm-dica" id="lbm-dica"></div>
         <div class="form-actions">
-          <button type="button" class="btn sm danger" data-action="apagar" hidden>apagar</button>
-          <button type="button" class="btn sm" data-action="close">cancelar</button>
-          <button type="button" class="btn sm primary" data-action="save">+ criar</button>
+          <button type="button" class="btn sm danger" data-action="apagar" hidden>${t("geral.apagar")}</button>
+          <button type="button" class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button type="button" class="btn sm primary" data-action="save">${t("lembrete.criar")}</button>
         </div>
       </div>
     </div>`;
@@ -109,9 +110,9 @@ function mostrarVinculo() {
   const el = modalEl.querySelector("#lbm-vinculo");
   el.hidden = !vinculo;
   el.innerHTML = vinculo
-    ? `${icon("link", { size: 11 })} ligado a ${VINCULO_ROTULO[vinculo.tipo] || vinculo.tipo} «${escapeHtml(vinculo.nome || "")}»
-       <button type="button" class="lbm-tirar" data-action="tirar-vinculo" aria-label="tirar o vínculo">${icon("x", { size: 10 })}</button>
-       ${vinculo.tipo === "habito" ? `<div class="lbm-vinculo-dica">não avisa se o hábito já foi marcado no dia</div>` : ""}`
+    ? `${icon("link", { size: 11 })} ${t("lembrete.ligado_a", { tipo: vinculoRotulo()[vinculo.tipo] || vinculo.tipo, nome: escapeHtml(vinculo.nome || "") })}
+       <button type="button" class="lbm-tirar" data-action="tirar-vinculo" aria-label="${t("lembrete.tirar_o_vinculo")}">${icon("x", { size: 10 })}</button>
+       ${vinculo.tipo === "habito" ? `<div class="lbm-vinculo-dica">${t("lembrete.nao_avisa_se_o_habito")}</div>` : ""}`
     : "";
 }
 
@@ -125,14 +126,14 @@ async function salvar() {
     vinculo_tipo: vinculo?.tipo ?? null,
     vinculo_id: vinculo?.id ?? null,
   };
-  if (!dados.titulo) return showErrorModal("escreva do que lembrar.", "atenção");
-  if (!dados.data || !dados.hora) return showErrorModal("preencha o dia e a hora.", "atenção");
-  if (dados.repeticao === "dias" && !dados.dias_semana.length) return showErrorModal("escolha pelo menos um dia da semana.", "atenção");
+  if (!dados.titulo) return showErrorModal(t("lembrete.escreva_do_que_lembrar"), t("geral.atencao"));
+  if (!dados.data || !dados.hora) return showErrorModal(t("lembrete.preencha_o_dia_e_a"), t("geral.atencao"));
+  if (dados.repeticao === "dias" && !dados.dias_semana.length) return showErrorModal(t("lembrete.escolha_pelo_menos_um_dia"), t("geral.atencao"));
   let salvo;
   try {
     salvo = editando ? await updateLembrete(editando.id, dados) : await createLembrete(dados);
   } catch (err) {
-    showErrorModal(err.message, editando ? "erro ao salvar lembrete" : "erro ao criar lembrete");
+    showErrorModal(err.message, editando ? t("lembrete.erro_ao_salvar_lembrete") : t("lembrete.erro_ao_criar_lembrete"));
     return;
   }
   closeLembreteModal();
@@ -142,12 +143,12 @@ async function salvar() {
 
 async function apagar() {
   if (!editando) return;
-  const ok = await showConfirmModal(`Apagar o lembrete "${editando.titulo}"?`, { title: "apagar lembrete", confirmText: "apagar", danger: true });
+  const ok = await showConfirmModal(t("lembrete.apagar_pergunta", { titulo: editando.titulo }), { title: t("lembrete.apagar_lembrete"), confirmText: t("geral.apagar"), danger: true });
   if (!ok) return;
   try {
     await deleteLembrete(editando.id);
   } catch (err) {
-    showErrorModal(err.message, "erro ao apagar lembrete");
+    showErrorModal(err.message, t("lembrete.erro_ao_apagar_lembrete"));
     return;
   }
   closeLembreteModal();
@@ -165,8 +166,8 @@ export function openLembreteModal({ lembrete = null, vinculo: v = null, inicial 
   editando = lembrete;
   vinculo = lembrete ? lembrete.vinculo : v;
   const padrao = proximaHoraCheia();
-  modalEl.querySelector("#lbm-head").textContent = lembrete ? "editar lembrete" : "novo lembrete";
-  modalEl.querySelector('[data-action="save"]').textContent = lembrete ? "salvar alterações" : "+ criar";
+  modalEl.querySelector("#lbm-head").textContent = lembrete ? t("lembrete.editar_lembrete") : t("lembrete.novo_lembrete");
+  modalEl.querySelector('[data-action="save"]').textContent = lembrete ? t("lembrete.salvar_alteracoes") : t("lembrete.criar");
   modalEl.querySelector('[data-action="apagar"]').hidden = !lembrete;
   modalEl.querySelector("#lbm-titulo").value = lembrete?.titulo ?? inicial.titulo ?? (v ? v.nome : "");
   modalEl.querySelector("#lbm-data").value =
@@ -176,7 +177,7 @@ export function openLembreteModal({ lembrete = null, vinculo: v = null, inicial 
   const dias = new Set(lembrete?.dias_semana ?? [0, 1, 2, 3, 4]);
   modalEl.querySelectorAll(".hb-dia input").forEach((c) => (c.checked = dias.has(Number(c.value))));
   modalEl.querySelector("#lbm-dica").textContent =
-    "avisa dentro do kami e, se ligado em configurações › notificações, também pelo sistema. só com o kami aberto (ou na bandeja).";
+    t("lembrete.avisa_dentro_do_kami_e");
   refreshCustomSelect(modalEl.querySelector("#lbm-rep"));
   mostrarCampos();
   mostrarVinculo();

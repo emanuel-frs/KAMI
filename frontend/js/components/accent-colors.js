@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 /**
  * Paleta de cores de destaque — fonte única.
  *
@@ -10,16 +11,26 @@
  * o widget de perfil quanto o diálogo do kami importam deste módulo.
  */
 
+// o rótulo sai no idioma atual na hora de ler (cor.<icone> nos dicionários)
+const cor = (value, avatar, icone) => ({
+  value,
+  avatar,
+  icone,
+  get label() {
+    return t(`cor.${icone}`);
+  },
+});
+
 export const ACCENT_OPTIONS = [
-  { value: "#8fbf8f", label: "verde fósforo (padrão)", avatar: "assets/logos/logo-kami.gif", icone: "verde" },
-  { value: "#b3a06a", label: "âmbar", avatar: "assets/logos/logo-kami-ambar.gif", icone: "ambar" },
-  { value: "#8fa8bf", label: "azul acinzentado", avatar: "assets/logos/logo-kami-azul.gif", icone: "azul" },
-  { value: "#b06060", label: "vermelho fosco", avatar: "assets/logos/logo-kami-vermelho.gif", icone: "vermelho" },
-  { value: "#c9c9c9", label: "cinza claro (mono puro)", avatar: "assets/logos/logo-kami-cinza.gif", icone: "cinza" },
-  { value: "#c9a0dc", label: "lilás", avatar: "assets/logos/logo-kami-lilas.gif", icone: "lilas" },
-  { value: "#e0c15a", label: "dourado", avatar: "assets/logos/logo-kami-dourado.gif", icone: "dourado" },
-  { value: "#5ac8c8", label: "turquesa", avatar: "assets/logos/logo-kami-turquesa.gif", icone: "turquesa" },
-  { value: "#e08fa0", label: "coral", avatar: "assets/logos/logo-kami-coral.gif", icone: "coral" },
+  cor("#8fbf8f", "assets/logos/logo-kami.gif", "verde"),
+  cor("#b3a06a", "assets/logos/logo-kami-ambar.gif", "ambar"),
+  cor("#8fa8bf", "assets/logos/logo-kami-azul.gif", "azul"),
+  cor("#b06060", "assets/logos/logo-kami-vermelho.gif", "vermelho"),
+  cor("#c9c9c9", "assets/logos/logo-kami-cinza.gif", "cinza"),
+  cor("#c9a0dc", "assets/logos/logo-kami-lilas.gif", "lilas"),
+  cor("#e0c15a", "assets/logos/logo-kami-dourado.gif", "dourado"),
+  cor("#5ac8c8", "assets/logos/logo-kami-turquesa.gif", "turquesa"),
+  cor("#e08fa0", "assets/logos/logo-kami-coral.gif", "coral"),
 ];
 
 export function accentLabel(hex) {

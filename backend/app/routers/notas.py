@@ -45,7 +45,7 @@ import secrets
 import time
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app import pin
@@ -53,6 +53,7 @@ from app.actions import register_action, revert_actions, today_prefix
 from app.crypto import decrypt_password, encrypt_password
 from app.database import get_db, new_id, now_iso
 from app.limites import Entrada
+from app.mensagens import ErroKami, Texto, erro_de
 
 router = APIRouter()
 
@@ -186,10 +187,10 @@ def _validar_vinculo(db, tipo: Optional[str], vid: Optional[str]) -> None:
     if not tipo and not vid:
         return
     if tipo not in VINCULOS or not vid:
-        raise HTTPException(status_code=422, detail="vínculo inválido")
+        raise ErroKami(422, "erro.comum.vinculo_invalido", "vínculo inválido")
     tabela, _ = VINCULOS[tipo]
     if not db.execute(f"SELECT 1 FROM {tabela} WHERE id = ?", (vid,)).fetchone():  # tabela da lista fixa
-        raise HTTPException(status_code=404, detail="item vinculado não encontrado")
+        raise ErroKami(404, "erro.notas.item_vinculado_nao_encontrado", "item vinculado não encontrado")
 
 
 def _vinculo(db, row) -> Optional[dict]:
@@ -230,7 +231,7 @@ def _resumo(db, row) -> dict:
 def _nota(db, nota_id: str):
     row = db.execute("SELECT * FROM notas WHERE id = ?", (nota_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="nota não encontrada")
+        raise ErroKami(404, "erro.notas.nota_nao_encontrada", "nota não encontrada")
     return row
 
 
@@ -253,7 +254,7 @@ def _nova_chave(nota_id: str) -> str:
 def _exigir_acesso(row, chave: Optional[str]) -> None:
     """Nota trancada só muda com a chave de acesso (ou sem PIN ligado)."""
     if row["trancada"] and pin.ativo() and not _chave_ok(row["id"], chave):
-        raise HTTPException(status_code=423, detail="nota trancada — abra com o PIN pra editar")
+        raise ErroKami(423, "erro.notas.nota_trancada_abra_com_pin", "nota trancada — abra com o PIN pra editar")
 
 
 def _conferir_pin(valor: Optional[str]) -> None:
@@ -262,9 +263,9 @@ def _conferir_pin(valor: Optional[str]) -> None:
     try:
         pin.conferir(valor or "")
     except pin.Esperando as exc:
-        raise HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": str(exc.segundos)}) from exc
+        raise erro_de(exc, 429, headers={"Retry-After": str(exc.segundos)}) from exc
     except ValueError as exc:  # PinErrado é ValueError
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise erro_de(exc, 422) from exc
 
 
 def _decifrar(row) -> str:
@@ -357,7 +358,7 @@ class AlvoOut(BaseModel):
 @router.get("/alvos", response_model=List[AlvoOut])
 def listar_alvos(tipo: str = Query(..., max_length=20), db=Depends(get_db)):
     if tipo not in VINCULOS:
-        raise HTTPException(status_code=422, detail="tipo de vínculo inválido")
+        raise ErroKami(422, "erro.notas.tipo_vinculo_invalido", "tipo de vínculo inválido")
     tabela, nome = VINCULOS[tipo]
     rows = db.execute(
         f"SELECT id, {nome} AS nome FROM {tabela} ORDER BY {_ALVOS_ORDEM[tipo]} LIMIT 300"  # da lista fixa
@@ -368,7 +369,7 @@ def listar_alvos(tipo: str = Query(..., max_length=20), db=Depends(get_db)):
 @router.get("/contagem", response_model=Dict[str, int])
 def contar_por_vinculo(vinculo_tipo: str = Query(..., max_length=20), db=Depends(get_db)):
     if vinculo_tipo not in VINCULOS:
-        raise HTTPException(status_code=422, detail="tipo de vínculo inválido")
+        raise ErroKami(422, "erro.notas.tipo_vinculo_invalido", "tipo de vínculo inválido")
     rows = db.execute(
         "SELECT vinculo_id, COUNT(*) AS n FROM notas WHERE vinculo_tipo = ? AND arquivada = 0 GROUP BY vinculo_id",
         (vinculo_tipo,),
@@ -403,7 +404,10 @@ def criar_nota(payload: NotaIn, db=Depends(get_db)):
     if hoje < NOTAS_XP_POR_DIA:
         register_action(
             db,
-            description=f"criou nota: {payload.titulo.strip() or '(sem título)'}",
+            description=(
+                Texto("log.nota.criada", "criou nota: {titulo}", titulo=payload.titulo.strip()) if payload.titulo.strip()
+                else Texto("log.nota.criada_sem_titulo", "criou nota: (sem título)")
+            ),
             categories=["organizacao"],
             xp=XP_NOTA,
             impact=1,
@@ -485,7 +489,11 @@ def abrir_nota(nota_id: str, payload: PinNotaIn, db=Depends(get_db)):
 def trancar_nota(nota_id: str, db=Depends(get_db)):
     row = _nota(db, nota_id)
     if not pin.ativo():
-        raise HTTPException(status_code=409, detail="ative o PIN em configurações › segurança pra trancar notas")
+        raise ErroKami(
+            409,
+            "erro.notas.ative_pin_configuracoes_seguranca_trancar",
+            "ative o PIN em configurações › segurança pra trancar notas",
+        )
     if not row["trancada"]:
         db.execute(
             "UPDATE notas SET trancada = 1, conteudo_cifrado = ?, conteudo = '' WHERE id = ?",

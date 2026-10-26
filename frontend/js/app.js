@@ -1,4 +1,4 @@
-import { getProfile, updateAvatar } from "./api/perfil.js";
+import { getProfile, updateAvatar, updateProfile } from "./api/perfil.js";
 import { store } from "./state/store.js";
 import { ApiError } from "./api/client.js";
 import { fitAsciiText } from "./components/ascii.js";
@@ -42,9 +42,12 @@ import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
 import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
-import { definirFormatoData, formatoData } from "./components/format.js";
+import { definirFormatoData, definirMoeda, formatoData, moeda } from "./components/format.js";
+import { moedaDoPais, paisDoSistema } from "./components/pais.js";
+import { avisarSeFaltarFonte } from "./components/fonte-idioma.js";
 import { wireCamposData } from "./components/campos-data.js";
 import { novaVisitaDeTela } from "./components/dicas-novas.js";
+import { carregarIdioma, idiomaAtual, idiomaDoSistema, idiomaGuardado, t } from "./i18n.js";
 
 // pages/*.js: cada módulo exporta mount(container) / unmount().
 // Telas do v1 (seção 0.1 do projeto) + calendário e carreira, que
@@ -134,6 +137,8 @@ async function reloadCurrentPage() {
   await showPage(name);
 }
 
+let navegacao = 0;
+
 async function showPage(name, opts) {
   if (!PAGES[name]) return; // pós-mvp / link desabilitado — não faz nada
 
@@ -147,7 +152,12 @@ async function showPage(name, opts) {
     return;
   }
 
+  // cliques rápidos (ou a troca de idioma) podem começar outra navegação
+  // enquanto esta ainda carrega o módulo: só a mais recente monta a tela
+  const minha = ++navegacao;
   currentPageModule?.unmount?.();
+  currentPageModule = null;
+  currentPageName = null;
 
   document.querySelectorAll(".nav-link").forEach((el) => {
     const isActive = el.dataset.page === name;
@@ -162,11 +172,20 @@ async function showPage(name, opts) {
   });
 
   const mod = await PAGES[name]();
+  if (minha !== navegacao) return;
   currentPageModule = mod;
   currentPageName = name;
   setTelaAtual(name); // CONF-01: entra no "copiar detalhes" e no log de erro da tela
   novaVisitaDeTela(); // MAN-05: dicas novas só ao abrir a tela, uma vez por visita
-  await mod.mount(pageRoot, opts);
+  try {
+    await mod.mount(pageRoot, opts);
+  } catch (err) {
+    // a tela foi trocada no meio da montagem: o que ela ainda tentou
+    // desenhar já não existe — erro dela não é erro da tela aberta agora
+    if (minha !== navegacao) return;
+    throw err;
+  }
+  if (minha !== navegacao) return;
   playFollowUp("navegar"); // GAM-13: quieto se veio de um clique (o clique já tocou)
   // GAM-15: cards "ligando" e títulos digitados
   // (só com efeitos "completo" e sem reduced-motion — ver components/fx.js)
@@ -216,18 +235,80 @@ function aplicarFormatoData(profile) {
   if (formatoData() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
 }
 
+/**
+ * I18N-01: o idioma do perfil manda. Banco novo (idioma vazio) fica com o
+ * que a abertura escolheu pelo sistema, e grava — a partir daí é a escolha
+ * da pessoa. Perfil com outro idioma (trocado em configurações, ou backup
+ * de outra máquina importado) carrega o dicionário e redesenha.
+ */
+async function aplicarIdiomaDoPerfil(profile) {
+  if (!profile) return;
+  if (!profile.idioma) {
+    try {
+      store.set("profile", await updateProfile({ idioma: idiomaAtual() }));
+    } catch {
+      /* fica pra próxima abertura */
+    }
+    return;
+  }
+  if (profile.idioma !== idiomaAtual()) await carregarIdioma(profile.idioma);
+  // I18N-04: na abertura, uma vez — trocas depois passam por aoTrocarIdioma
+  if (!fonteConferida) {
+    fonteConferida = true;
+    avisarSeFaltarFonte(idiomaAtual());
+  }
+}
+let fonteConferida = false;
+
+/**
+ * I18N-06: moeda e país dos feriados. Banco novo (vazios) escolhe pelo
+ * sistema e grava; trocar a moeda remonta a tela atual (os valores já
+ * desenhados levavam o símbolo antigo).
+ */
+async function aplicarMoedaEPais(profile) {
+  if (!profile) return;
+  if (!profile.moeda || !profile.pais) {
+    const pais = profile.pais || paisDoSistema();
+    try {
+      store.set("profile", await updateProfile({ pais, moeda: profile.moeda || moedaDoPais(pais) }));
+    } catch {
+      /* fica pra próxima abertura */
+    }
+    return;
+  }
+  const antes = moeda();
+  definirMoeda(profile.moeda);
+  if (moeda() !== antes && currentPageName) showPage(currentPageName, { remontar: true });
+}
+
+/** Trocou o idioma: textos fixos já foram (i18n.js); falta o resto. */
+function aoTrocarIdioma() {
+  avisarSeFaltarFonte(idiomaAtual());
+  applyProfileToSidebar(store.get("profile"));
+  enviarTextosDaBandeja();
+  if (currentPageName) showPage(currentPageName, { remontar: true });
+}
+
+/** O menu da bandeja é montado pelo Rust; os textos vão daqui (I18N-01). */
+function enviarTextosDaBandeja() {
+  window.__TAURI__?.core
+    ?.invoke("janela_textos_bandeja", { abrir: t("bandeja.abrir"), captura: t("bandeja.captura"), sair: t("bandeja.sair") })
+    .catch(() => {});
+}
+
 function applyProfileToSidebar(profile) {
   if (!profile) return;
 
   const usernameEl = document.getElementById("sidebar-username");
   if (usernameEl) {
-    usernameEl.textContent = profile.display_name || "usuário";
+    usernameEl.textContent = profile.display_name && profile.display_name !== "usuário" ? profile.display_name : t("perfil.usuario");
   }
 
   const sidebarAvatarEl = document.getElementById("sidebar-avatar");
   // sem avatar: o aviso quebra linha como texto normal (o <pre> do desenho
   // ASCII cortava em "sem avatar ainda — con", LAY-01)
   sidebarAvatarEl?.classList.toggle("mini-avatar--vazio", !profile.avatar_ascii);
+  if (sidebarAvatarEl && !profile.avatar_ascii) sidebarAvatarEl.textContent = t("sidebar.sem_avatar");
   if (sidebarAvatarEl && profile.avatar_ascii) {
     sidebarAvatarEl.textContent = profile.avatar_ascii;
     try {
@@ -261,7 +342,7 @@ function wireSidebarAvatar() {
         try {
           await updateAvatar(ascii);
         } catch (err) {
-          showErrorModal(err.message, "erro ao salvar avatar");
+          showErrorModal(err.message, t("perfil.erro_salvar_avatar"));
           return;
         }
         store.set("profile", { ...store.get("profile"), avatar_ascii: ascii });
@@ -281,8 +362,8 @@ async function loadProfile() {
       // erro de conexão (status 0) traz a mensagem longa do Tauri — ela
       // vai pro modal abaixo, o sidebar só recebe um rótulo curto
       usernameEl.textContent = err instanceof ApiError && err.status === 0
-        ? "backend offline"
-        : err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
+        ? t("perfil.backend_offline")
+        : err instanceof ApiError ? t("perfil.erro", { erro: err.message }) : t("perfil.erro_carregar");
     }
     console.warn("loadProfile falhou, mas continuamos:", err);
     // status 0 = sem conexão com o backend. Antes (até a 1.9) abria um
@@ -298,6 +379,11 @@ async function boot() {
   // cor e tema da última vez, antes de qualquer coisa aparecer (o perfil
   // só chega depois — e com o PIN ligado, só depois do desbloqueio)
   restaurarAparencia();
+  // I18N-01: o idioma antes de qualquer texto (a tela de PIN vem antes do
+  // perfil): o da última vez ou, na primeira abertura, o do sistema
+  await carregarIdioma(idiomaGuardado() || idiomaDoSistema());
+  window.addEventListener("kami:idioma", aoTrocarIdioma);
+  enviarTextosDaBandeja();
 
   // splash roda em todo boot (assinatura visual, não é gate de primeira
   // vez) — dispara em paralelo com o carregamento real, pra tela já
@@ -310,6 +396,8 @@ async function boot() {
 
   store.subscribe("profile", applyProfileToSidebar);
   store.subscribe("profile", aplicarFormatoData); // ORG-07
+  store.subscribe("profile", aplicarIdiomaDoPerfil); // I18N-01
+  store.subscribe("profile", aplicarMoedaEPais); // I18N-06
   wireCamposData(); // ORG-07: campo de data vazio parece vazio (WebKitGTK)
   wireVisualEffects();
   wireEffectSkip(); // GAM-15: clique/tecla durante uma animação encerra tudo

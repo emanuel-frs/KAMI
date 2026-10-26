@@ -22,7 +22,8 @@
 import { buscar } from "../api/busca.js";
 import { getPin } from "../api/seguranca.js";
 import { icon } from "./icons.js";
-import { escapeHtml, fmtMoney } from "./format.js";
+import { escapeHtml, fmtData, fmtMoney } from "./format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 import { navigateTo } from "./navigate.js";
 import { setPendingFocus } from "./pending-focus.js";
 import { openExternal } from "./open-external.js";
@@ -51,15 +52,15 @@ export function bate(texto, consulta) {
 // ---------------------------------------------------------------- ações
 
 const TELAS = [
-  ["perfil", "perfil", "user"],
-  ["nucleo", "núcleo", "zap"],
-  ["financas", "finanças", "receipt"],
-  ["carreira", "carreira", "trending-up"],
-  ["aprendizado", "aprendizado", "target"],
-  ["organizacao", "organização", "link"],
-  ["metas", "metas pessoais", "target"],
-  ["calendario", "calendário", "calendar-days"],
-  ["habitos", "hábitos", "repeat"],
+  ["perfil", "user"],
+  ["nucleo", "zap"],
+  ["financas", "receipt"],
+  ["carreira", "trending-up"],
+  ["aprendizado", "target"],
+  ["organizacao", "link"],
+  ["metas", "target"],
+  ["calendario", "calendar-days"],
+  ["habitos", "repeat"],
 ];
 
 /** Vai pra tela e roda a ação "N" dela (nova meta/trilha/evento…). */
@@ -75,58 +76,64 @@ async function abrirConfig(aba) {
 
 function acoes(pinLigado) {
   const lista = [
-    { rotulo: "nova nota", extra: "anotar escrever", icone: "pencil", run: () => navigateTo("organizacao", { tab: "notas", novaNota: {} }) },
+    { rotulo: t("paleta.acao.nova_nota"), extra: t("paleta.extra.nova_nota"), icone: "pencil", run: () => navigateTo("organizacao", { tab: "notas", novaNota: {} }) },
     {
-      rotulo: "nota rápida",
-      extra: "anotar alt shift n",
+      rotulo: t("paleta.acao.nota_rapida"),
+      extra: t("paleta.extra.nota_rapida"),
       icone: "pencil",
       run: async () => (await import("../modals/nota-rapida-modal.js")).openNotaRapida(),
     },
     {
-      rotulo: "novo lançamento",
-      extra: "gasto despesa receita entrada saída registrar dinheiro",
+      rotulo: t("paleta.acao.novo_lancamento"),
+      extra: t("paleta.extra.novo_lancamento"),
       icone: "receipt",
       run: () => {
         setPendingFocus("lancamento", "novo");
         navigateTo("financas", { remontar: true });
       },
     },
-    { rotulo: "nova meta", extra: "objetivo", icone: "target", run: () => rodarNaTela("metas", "KeyN") },
-    { rotulo: "nova trilha", extra: "curso estudo aprendizado", icone: "target", run: () => rodarNaTela("aprendizado", "KeyN") },
-    { rotulo: "novo evento", extra: "compromisso agenda calendário", icone: "calendar-days", run: () => rodarNaTela("calendario", "KeyN") },
+    { rotulo: t("paleta.acao.nova_meta"), extra: t("paleta.extra.nova_meta"), icone: "target", run: () => rodarNaTela("metas", "KeyN") },
+    { rotulo: t("paleta.acao.nova_trilha"), extra: t("paleta.extra.nova_trilha"), icone: "target", run: () => rodarNaTela("aprendizado", "KeyN") },
+    { rotulo: t("paleta.acao.novo_evento"), extra: t("paleta.extra.novo_evento"), icone: "calendar-days", run: () => rodarNaTela("calendario", "KeyN") },
     {
-      rotulo: "novo lembrete",
-      extra: "lembrar avisar alarme notificação",
+      rotulo: t("paleta.acao.novo_lembrete"),
+      extra: t("paleta.extra.novo_lembrete"),
       icone: "bell-ring",
       run: async () => (await import("../modals/lembrete-modal.js")).openLembreteModal(),
     },
-    { rotulo: "novo hábito", extra: "rotina diário todo dia", icone: "repeat", run: () => rodarNaTela("habitos", "KeyN") },
+    { rotulo: t("paleta.acao.novo_habito"), extra: t("paleta.extra.novo_habito"), icone: "repeat", run: () => rodarNaTela("habitos", "KeyN") },
     {
-      rotulo: "sincronizar e-mails",
-      extra: "email caixa atualizar",
+      rotulo: t("paleta.acao.sincronizar_emails"),
+      extra: t("paleta.extra.sincronizar_emails"),
       icone: "refresh-cw",
       run: async () => {
         await navigateTo("organizacao", { tab: "email" });
         document.querySelector("#org-email-sync-btn")?.click();
       },
     },
-    { rotulo: "abrir configurações", extra: "ajustes preferências", icone: "settings", run: () => abrirConfig("aparencia") },
-    { rotulo: "configurações › aparência", extra: "tema cor efeitos ícone", icone: "palette", run: () => abrirConfig("aparencia") },
-    { rotulo: "configurações › segurança", extra: "pin senha cofre chave", icone: "shield", run: () => abrirConfig("seguranca") },
-    { rotulo: "configurações › backup e dados", extra: "exportar importar backup", icone: "download", run: () => abrirConfig("backup") },
-    { rotulo: "configurações › notificações", extra: "avisos lembretes", icone: "bell", run: () => abrirConfig("notificacoes") },
+    { rotulo: t("paleta.acao.abrir_configuracoes"), extra: t("paleta.extra.abrir_configuracoes"), icone: "settings", run: () => abrirConfig("aparencia") },
+    { rotulo: t("paleta.acao.cfg_aparencia"), extra: t("paleta.extra.cfg_aparencia"), icone: "palette", run: () => abrirConfig("aparencia") },
+    { rotulo: t("paleta.acao.cfg_seguranca"), extra: t("paleta.extra.cfg_seguranca"), icone: "shield", run: () => abrirConfig("seguranca") },
+    { rotulo: t("paleta.acao.cfg_backup"), extra: t("paleta.extra.cfg_backup"), icone: "download", run: () => abrirConfig("backup") },
+    { rotulo: t("paleta.acao.cfg_notificacoes"), extra: t("paleta.extra.cfg_notificacoes"), icone: "bell", run: () => abrirConfig("notificacoes") },
     {
-      rotulo: "atalhos do teclado",
-      extra: "ajuda teclas alt h",
+      rotulo: t("paleta.acao.atalhos"),
+      extra: t("paleta.extra.atalhos"),
       icone: "key",
       run: async () => (await import("../modals/shortcuts-help-modal.js")).openShortcutsHelp(),
     },
-    ...TELAS.map(([pagina, nome, ic]) => ({ rotulo: `ir para ${nome}`, extra: "tela abrir", icone: ic, run: () => navigateTo(pagina) })),
+    ...TELAS.map(([pagina, ic]) => ({
+      rotulo: t("paleta.ir_para", { tela: t(`nav.${pagina}`) }),
+      extra: t("paleta.extra.tela"),
+      icone: ic,
+      tela: true,
+      run: () => navigateTo(pagina),
+    })),
   ];
   if (pinLigado) {
     lista.push({
-      rotulo: "bloquear o app agora",
-      extra: "pin travar trancar",
+      rotulo: t("paleta.acao.bloquear"),
+      extra: t("paleta.extra.bloquear"),
       icone: "lock",
       run: async () => (await import("./lock-screen.js")).bloquearAgora(),
     });
@@ -136,27 +143,26 @@ function acoes(pinLigado) {
 
 // ---------------------------------------------------------------- resultados do banco
 
-// rótulo do grupo, ícone e como abrir
+// ícone e como abrir (o rótulo do grupo é paleta.grupo.<tipo>)
 const TIPOS = {
-  nota: { grupo: "notas", icone: "pencil", abrir: (r) => navigateTo("organizacao", { tab: "notas", notaId: r.id }) },
-  meta: { grupo: "metas", icone: "target", abrir: (r) => foco("meta", r.id, "metas") },
-  habito: { grupo: "hábitos", icone: "repeat", abrir: (r) => foco("habito", r.id, "habitos") },
-  trilha: { grupo: "trilhas", icone: "trending-up", abrir: (r) => foco("trilha", r.id, "aprendizado") },
-  marco: { grupo: "marcos de trilha", icone: "check", abrir: (r) => foco("trilha", r.ref, "aprendizado") },
-  lancamento: { grupo: "lançamentos", icone: "receipt", abrir: (r) => foco("lancamento", `${r.id}|${r.data || ""}`, "financas") },
-  conta_fixa: { grupo: "contas fixas", icone: "repeat", abrir: (r) => foco("conta_fixa", r.id, "financas") },
-  assinatura: { grupo: "assinaturas", icone: "repeat", abrir: (r) => foco("assinatura", r.id, "financas") },
-  divida: { grupo: "dívidas", icone: "credit-card", abrir: (r) => foco("divida", r.id, "financas") },
-  parcela: { grupo: "compras parceladas", icone: "credit-card", abrir: (r) => foco("parcela", r.id, "financas") },
-  conta: { grupo: "contas e cartões", icone: "credit-card", abrir: () => navigateTo("financas") },
-  evento: { grupo: "eventos", icone: "calendar-days", abrir: (r) => foco("data", r.ref, "calendario") },
-  conquista: { grupo: "conquistas", icone: "star", abrir: (r) => foco("conquista", r.id, "nucleo") },
-  posicao: { grupo: "carreira", icone: "user", abrir: (r) => foco("posicao", r.id, "carreira") },
-  formacao: { grupo: "formação", icone: "user", abrir: (r) => foco("formacao", r.id, "carreira") },
-  link: { grupo: "links", icone: "link", abrir: (r) => openExternal(r.ref) },
-  repositorio: { grupo: "repositórios", icone: "external-link", abrir: () => navigateTo("organizacao", { tab: "github" }) },
+  nota: { icone: "pencil", abrir: (r) => navigateTo("organizacao", { tab: "notas", notaId: r.id }) },
+  meta: { icone: "target", abrir: (r) => foco("meta", r.id, "metas") },
+  habito: { icone: "repeat", abrir: (r) => foco("habito", r.id, "habitos") },
+  trilha: { icone: "trending-up", abrir: (r) => foco("trilha", r.id, "aprendizado") },
+  marco: { icone: "check", abrir: (r) => foco("trilha", r.ref, "aprendizado") },
+  lancamento: { icone: "receipt", abrir: (r) => foco("lancamento", `${r.id}|${r.data || ""}`, "financas") },
+  conta_fixa: { icone: "repeat", abrir: (r) => foco("conta_fixa", r.id, "financas") },
+  assinatura: { icone: "repeat", abrir: (r) => foco("assinatura", r.id, "financas") },
+  divida: { icone: "credit-card", abrir: (r) => foco("divida", r.id, "financas") },
+  parcela: { icone: "credit-card", abrir: (r) => foco("parcela", r.id, "financas") },
+  conta: { icone: "credit-card", abrir: () => navigateTo("financas") },
+  evento: { icone: "calendar-days", abrir: (r) => foco("data", r.ref, "calendario") },
+  conquista: { icone: "star", abrir: (r) => foco("conquista", r.id, "nucleo") },
+  posicao: { icone: "user", abrir: (r) => foco("posicao", r.id, "carreira") },
+  formacao: { icone: "user", abrir: (r) => foco("formacao", r.id, "carreira") },
+  link: { icone: "link", abrir: (r) => openExternal(r.ref) },
+  repositorio: { icone: "external-link", abrir: () => navigateTo("organizacao", { tab: "github" }) },
   email: {
-    grupo: "e-mails",
     icone: "mail",
     abrir: (r) => navigateTo("organizacao", { tab: "email", accountId: r.ref, focusEmailId: r.id }),
   },
@@ -168,14 +174,13 @@ function foco(tipo, id, pagina) {
 }
 
 function dataCurta(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+  return /^\d{4}-\d{2}-\d{2}/.test(iso || "") ? fmtData(iso.slice(0, 10)) : "";
 }
 
 function detalheDe(r) {
   const partes = [];
-  if (r.tipo === "nota" && r.ref === "1") partes.push("trancada");
-  if (r.tipo === "conquista") partes.push(r.ref === "1" ? "desbloqueada" : "bloqueada");
+  if (r.tipo === "nota" && r.ref === "1") partes.push(t("paleta.trancada"));
+  if (r.tipo === "conquista") partes.push(r.ref === "1" ? t("paleta.desbloqueada") : t("paleta.bloqueada"));
   if (r.detalhe) partes.push(r.detalhe);
   if (r.valor != null) partes.push(fmtMoney(r.valor));
   if (r.data && ["lancamento", "evento", "email", "divida"].includes(r.tipo)) partes.push(dataCurta(r.data));
@@ -198,16 +203,16 @@ function montar() {
   wrap.id = "paleta";
   wrap.hidden = true;
   wrap.innerHTML = `
-    <div class="paleta" role="dialog" aria-modal="true" aria-label="buscar e comandos">
+    <div class="paleta" role="dialog" aria-modal="true" aria-label="${t("paleta.aria")}">
       <div class="paleta-entrada">
         <span class="paleta-prompt" aria-hidden="true">&gt;</span>
         <input type="text" id="paleta-q" autocomplete="off" spellcheck="false"
-          placeholder="buscar em tudo ou digitar um comando…"
+          placeholder="${t("paleta.placeholder")}"
           role="combobox" aria-expanded="true" aria-controls="paleta-lista" aria-autocomplete="list">
         <span class="paleta-status" id="paleta-status" aria-live="polite"></span>
       </div>
-      <div class="paleta-lista" id="paleta-lista" role="listbox" aria-label="resultados"></div>
-      <div class="paleta-rodape" aria-hidden="true">↑ ↓ escolher · enter abrir · esc fechar</div>
+      <div class="paleta-lista" id="paleta-lista" role="listbox" aria-label="${t("paleta.resultados")}"></div>
+      <div class="paleta-rodape" aria-hidden="true">${t("paleta.rodape")}</div>
     </div>`;
   document.body.appendChild(wrap);
 
@@ -291,7 +296,7 @@ function desenhar(grupos) {
     })
     .join("");
   const lista = el.querySelector("#paleta-lista");
-  lista.innerHTML = html || `<div class="paleta-vazio">nada encontrado.</div>`;
+  lista.innerHTML = html || `<div class="paleta-vazio">${t("paleta.nada")}</div>`;
   ativo = 0;
   marcar(0);
 }
@@ -300,11 +305,11 @@ let ultimosResultados = [];
 
 function gruposAcoes(q) {
   const acoesQueBatem = q.trim() ? listaAcoes.filter((a) => bate(`${a.rotulo} ${a.extra}`, q)) : listaAcoes;
-  const comandos = acoesQueBatem.filter((a) => !a.rotulo.startsWith("ir para"));
-  const telas = acoesQueBatem.filter((a) => a.rotulo.startsWith("ir para"));
+  const comandos = acoesQueBatem.filter((a) => !a.tela);
+  const telas = acoesQueBatem.filter((a) => a.tela);
   return [
-    { nome: "comandos", itens: comandos },
-    { nome: "telas", itens: telas },
+    { nome: t("paleta.comandos"), itens: comandos },
+    { nome: t("paleta.telas"), itens: telas },
   ];
 }
 
@@ -322,12 +327,12 @@ async function atualizar() {
     setStatus("");
     return;
   }
-  setStatus("buscando…");
+  setStatus(t("paleta.buscando"));
   let resultados = [];
   try {
     resultados = await buscar(q);
   } catch {
-    if (meu === pedido) setStatus("busca indisponível");
+    if (meu === pedido) setStatus(t("paleta.indisponivel"));
     return;
   }
   if (meu !== pedido || el.hidden) return;
@@ -337,7 +342,7 @@ async function atualizar() {
   for (const r of resultados) {
     const def = TIPOS[r.tipo];
     if (!def) continue;
-    if (!porTipo.has(r.tipo)) porTipo.set(r.tipo, { nome: def.grupo, itens: [] });
+    if (!porTipo.has(r.tipo)) porTipo.set(r.tipo, { nome: t(`paleta.grupo.${r.tipo}`), itens: [] });
     porTipo.get(r.tipo).itens.push({
       tipo: r.tipo,
       rotulo: r.titulo,
@@ -352,9 +357,9 @@ async function atualizar() {
   desenhar([acoesGrupos[0], ...ultimosResultados, acoesGrupos[1]]);
 }
 
-function setStatus(t) {
+function setStatus(texto) {
   const s = el?.querySelector("#paleta-status");
-  if (s) s.textContent = t;
+  if (s) s.textContent = texto;
 }
 
 function escolher(i) {
@@ -367,7 +372,7 @@ function escolher(i) {
 }
 
 export async function abrirPaleta() {
-  el = el && el.isConnected ? el : montar();
+  el = noIdiomaAtual(el, montar);
   if (!el.hidden) {
     el.querySelector("#paleta-q").select();
     return;

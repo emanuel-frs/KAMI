@@ -9,7 +9,7 @@ import {
 import { listBanks } from "../api/carteira.js";
 import { listTracks } from "../api/aprendizado.js";
 import { listCareerEducations } from "../api/carreira.js";
-import { escapeHtml, fmtMoney, fmtData } from "../components/format.js";
+import { escapeHtml, fmtData, fmtMoney, simboloMoeda } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { showErrorModal } from "../modals/err-modal.js";
@@ -22,26 +22,27 @@ import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
+import { t } from "../i18n.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
-const GOAL_TYPE_LABELS = {
+const goalTypeLabels = () => ({
   financeira: "financeira",
   livre: "livre",
-  saude: "saúde",
+  saude: t("metas.saude"),
   leitura: "leitura",
-  habito: "hábito",
+  habito: t("metas.habito"),
   aprendizado: "aprendizado",
-  academica: "acadêmica",
-};
+  academica: t("metas.academica"),
+});
 // placeholder do campo "unidade" no modal — só cosmético, ajuda a lembrar o
 // tipo de valor esperado sem travar o usuário num vocabulário fixo
-const UNIT_LABEL_PLACEHOLDER = {
-  livre: "ex: vezes, unidades...",
-  saude: "ex: kg, cm...",
-  leitura: "ex: páginas, livros...",
-  habito: "ex: vezes, dias...",
-};
+const unitLabelPlaceholder = () => ({
+  livre: t("metas.ex_vezes_unidades"),
+  saude: t("metas.ex_kg_cm"),
+  leitura: t("metas.ex_paginas_livros"),
+  habito: t("metas.ex_vezes_dias"),
+});
 const GOAL_WEIGHT_XP_MULT = { baixo: 0.5, medio: 1.0, alto: 1.75, epico: 3.0 };
 const XP_GOAL_COMPLETED_BONUS = 30;
 
@@ -51,6 +52,9 @@ function xpBonusFor(weight) {
 
 // ─── estado ────────────────────────────────────────────────────────────────
 let containerEl = null;
+// sobe a cada mount/unmount: o que estava carregando quando a tela saiu (ou
+// foi remontada, ex.: troca de idioma) vê o número mudado e não desenha
+let montagem = 0;
 let shortcutsToken = null;
 let goals = [];
 // ids de metas com o painel de gráfico de progresso aberto — precisa
@@ -77,8 +81,8 @@ function fmtCount(v) {
 function goalValuesText(goal) {
   const cur = goal.unit === "money" ? fmtMoney(goal.current_value) : fmtCount(goal.current_value);
   const target = goal.unit === "money" ? fmtMoney(goal.target_value) : fmtCount(goal.target_value);
-  if (goal.type === "aprendizado") return `${cur} / ${target} módulos`;
-  if (goal.type === "academica") return goal.status === "concluida" ? "concluída" : "em andamento";
+  if (goal.type === "aprendizado") return t("metas.modulos", { atual: cur, alvo: target });
+  if (goal.type === "academica") return goal.status === "concluida" ? t("metas.concluida") : t("metas.em_andamento");
   const suffix = goal.unit === "count" && goal.unit_label ? ` ${goal.unit_label}` : "";
   return `${cur} / ${target}${suffix}`;
 }
@@ -106,67 +110,67 @@ function buildGoalModal() {
   wrap.innerHTML = `
     <div class="modal">
       <div class="modal-head">
-        <span id="goal-modal-title">nova meta</span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <span id="goal-modal-title">${t("metas.nova_meta")}</span>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field">
-          <label for="goal-title-input">título</label>
-          <input type="text" id="goal-title-input" placeholder="ex: fundo de emergência">
+          <label for="goal-title-input">${t("metas.titulo")}</label>
+          <input type="text" id="goal-title-input" placeholder="${t("metas.ex_fundo_de_emergencia")}">
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="goal-type-input">tipo</label>
+            <label for="goal-type-input">${t("metas.tipo")}</label>
             <select id="goal-type-input">
-              ${GOAL_TYPES_MANUAL.map((t) => `<option value="${t}">${GOAL_TYPE_LABELS[t]}</option>`).join("")}
-              <option value="aprendizado">aprendizado (trilha)</option>
-              <option value="academica">acadêmica (formação)</option>
+              ${GOAL_TYPES_MANUAL.map((t) => `<option value="${t}">${goalTypeLabels()[t]}</option>`).join("")}
+              <option value="aprendizado">${t("metas.aprendizado_trilha")}</option>
+              <option value="academica">${t("metas.academica_formacao")}</option>
             </select>
           </div>
           <div class="field">
-            <label for="goal-weight-input">peso (xp)</label>
+            <label for="goal-weight-input">${t("metas.peso_xp")}</label>
             <select id="goal-weight-input">
-              <option value="baixo">baixo</option>
-              <option value="medio">médio</option>
-              <option value="alto">alto</option>
-              <option value="epico">épico</option>
+              <option value="baixo">${t("metas.baixo")}</option>
+              <option value="medio">${t("metas.medio")}</option>
+              <option value="alto">${t("metas.alto")}</option>
+              <option value="epico">${t("metas.epico")}</option>
             </select>
           </div>
         </div>
 
         <div class="field" id="goal-track-field">
-          <label for="goal-track-input">trilha</label>
+          <label for="goal-track-input">${t("metas.trilha")}</label>
           <select id="goal-track-input"></select>
         </div>
 
         <div class="field" id="goal-education-field">
-          <label for="goal-education-input">formação</label>
+          <label for="goal-education-input">${t("metas.formacao")}</label>
           <select id="goal-education-input"></select>
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label id="goal-target-label" for="goal-target-input">alvo</label>
+            <label id="goal-target-label" for="goal-target-input">${t("metas.alvo")}</label>
             <input type="number" id="goal-target-input" placeholder="5000" min="0.01" step="0.01">
           </div>
           <div class="field">
-            <label for="goal-deadline-input">prazo (opcional)</label>
+            <label for="goal-deadline-input">${t("metas.prazo_opcional")}</label>
             <input type="date" id="goal-deadline-input">
           </div>
         </div>
 
         <div class="field" id="goal-unit-label-field">
-          <label for="goal-unit-label-input">unidade (opcional)</label>
-          <input type="text" id="goal-unit-label-input" placeholder="ex: kg, páginas...">
+          <label for="goal-unit-label-input">${t("metas.unidade_opcional")}</label>
+          <input type="text" id="goal-unit-label-input" placeholder="${t("metas.ex_kg_paginas")}">
         </div>
 
         <div class="field" id="goal-conta-field">
-          <label for="goal-conta-input">conta padrão (opcional)</label>
+          <label for="goal-conta-input">${t("metas.conta_padrao_opcional")}</label>
           <select id="goal-conta-input"></select>
         </div>
 
         <div class="goal-modal-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
-        <button type="button" class="btn primary" id="goal-modal-save" style="width:100%;">criar meta</button>
+        <button type="button" class="btn primary" id="goal-modal-save" style="width:100%;">${t("metas.criar_meta")}</button>
       </div>
     </div>
   `;
@@ -195,11 +199,11 @@ function updateGoalModalVisibility(wrap) {
     !isAprendizado && !isAcademica && !isFinanceira ? "block" : "none";
 
   wrap.querySelector("#goal-target-label").textContent = isAprendizado
-    ? "quantos módulos"
+    ? t("metas.quantos_modulos")
     : isAcademica
-      ? "alvo (livre — a formação conclui direto pra esse valor)"
+      ? t("metas.alvo_livre_a_formacao_conclui")
       : "alvo";
-  wrap.querySelector("#goal-unit-label-input").placeholder = UNIT_LABEL_PLACEHOLDER[type] || "ex: unidades...";
+  wrap.querySelector("#goal-unit-label-input").placeholder = unitLabelPlaceholder()[type] || t("metas.ex_unidades");
 }
 
 // pré-preenche o alvo com o total de módulos da trilha escolhida — só um
@@ -226,9 +230,9 @@ async function populateGoalModalSelects(wrap, { selectedContaId = "", selectedTr
   const contaSelect = wrap.querySelector("#goal-conta-input");
   const trackSelect = wrap.querySelector("#goal-track-input");
   const educationSelect = wrap.querySelector("#goal-education-input");
-  contaSelect.innerHTML = `<option value="">nenhuma</option>`;
-  trackSelect.innerHTML = `<option value="">carregando…</option>`;
-  educationSelect.innerHTML = `<option value="">carregando…</option>`;
+  contaSelect.innerHTML = `<option value="">${t("metas.nenhuma")}</option>`;
+  trackSelect.innerHTML = `<option value="">${t("geral.carregando")}</option>`;
+  educationSelect.innerHTML = `<option value="">${t("geral.carregando")}</option>`;
   refreshCustomSelect(contaSelect);
   refreshCustomSelect(trackSelect);
   refreshCustomSelect(educationSelect);
@@ -239,26 +243,26 @@ async function populateGoalModalSelects(wrap, { selectedContaId = "", selectedTr
     wrap.__tracks = tracks;
 
     contaSelect.innerHTML =
-      `<option value="">nenhuma</option>` +
+      `<option value="">${t("metas.nenhuma")}</option>` +
       accountsFlat.map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
     contaSelect.value = selectedContaId || "";
     refreshCustomSelect(contaSelect);
 
     trackSelect.innerHTML = tracks.length
       ? tracks.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")
-      : `<option value="">nenhuma trilha cadastrada</option>`;
+      : `<option value="">${t("metas.nenhuma_trilha_cadastrada")}</option>`;
     trackSelect.value = selectedTrackId || (tracks[0]?.id ?? "");
     refreshCustomSelect(trackSelect);
 
     educationSelect.innerHTML = educations.length
       ? educations.map((e) => `<option value="${e.id}">${escapeHtml(e.curso)} — ${escapeHtml(e.instituicao)}</option>`).join("")
-      : `<option value="">nenhuma formação cadastrada</option>`;
+      : `<option value="">${t("metas.nenhuma_formacao_cadastrada")}</option>`;
     educationSelect.value = selectedEducationId || (educations[0]?.id ?? "");
     refreshCustomSelect(educationSelect);
   } catch (err) {
-    trackSelect.innerHTML = `<option value="">erro ao carregar trilhas</option>`;
+    trackSelect.innerHTML = `<option value="">${t("metas.erro_ao_carregar_trilhas")}</option>`;
     refreshCustomSelect(trackSelect);
-    educationSelect.innerHTML = `<option value="">erro ao carregar formações</option>`;
+    educationSelect.innerHTML = `<option value="">${t("metas.erro_ao_carregar_formacoes")}</option>`;
     refreshCustomSelect(educationSelect);
   }
 }
@@ -267,8 +271,8 @@ async function openCreateGoalModal() {
   if (!goalModalEl) goalModalEl = buildGoalModal();
   goalModalEditingId = null;
   const wrap = goalModalEl;
-  wrap.querySelector("#goal-modal-title").textContent = "nova meta";
-  wrap.querySelector("#goal-modal-save").textContent = "criar meta";
+  wrap.querySelector("#goal-modal-title").textContent = t("metas.nova_meta");
+  wrap.querySelector("#goal-modal-save").textContent = t("metas.criar_meta");
   wrap.querySelector("#goal-title-input").value = "";
   wrap.querySelector("#goal-type-input").value = "financeira";
   refreshCustomSelect(wrap.querySelector("#goal-type-input"));
@@ -290,7 +294,7 @@ async function openEditGoalModal(goalId) {
   goalModalEditingId = goalId;
   const wrap = goalModalEl;
   wrap.querySelector("#goal-modal-title").textContent = `editar "${goal.title}"`;
-  wrap.querySelector("#goal-modal-save").textContent = "salvar";
+  wrap.querySelector("#goal-modal-save").textContent = t("geral.salvar");
   wrap.querySelector("#goal-title-input").value = goal.title;
   wrap.querySelector("#goal-type-input").value = goal.type;
   refreshCustomSelect(wrap.querySelector("#goal-type-input"));
@@ -330,24 +334,24 @@ async function saveGoalModal() {
   const educationId = wrap.querySelector("#goal-education-input").value || null;
 
   if (!title) {
-    errorEl.textContent = "digite um título para a meta.";
+    errorEl.textContent = t("metas.digite_um_titulo_para_a");
     errorEl.style.display = "block";
     return;
   }
   if (!target || target <= 0) {
     errorEl.textContent = type === "aprendizado"
-      ? "informe quantos módulos essa meta precisa concluir."
-      : "o alvo precisa ser um número maior que zero.";
+      ? t("metas.informe_quantos_modulos_essa_meta")
+      : t("metas.o_alvo_precisa_ser_um");
     errorEl.style.display = "block";
     return;
   }
   if (type === "aprendizado" && !trackId) {
-    errorEl.textContent = "escolha a trilha vinculada a essa meta.";
+    errorEl.textContent = t("metas.escolha_a_trilha_vinculada_a");
     errorEl.style.display = "block";
     return;
   }
   if (type === "academica" && !educationId) {
-    errorEl.textContent = "escolha a formação vinculada a essa meta.";
+    errorEl.textContent = t("metas.escolha_a_formacao_vinculada_a");
     errorEl.style.display = "block";
     return;
   }
@@ -376,7 +380,7 @@ async function saveGoalModal() {
       await createGoal(payload);
     }
   } catch (err) {
-    errorEl.textContent = `erro ao salvar: ${err.message}`;
+    errorEl.textContent = t("metas.erro_salvar", { erro: err.message });
     errorEl.style.display = "block";
     return;
   }
@@ -395,31 +399,31 @@ function buildContributeModal() {
   wrap.innerHTML = `
     <div class="modal">
       <div class="modal-head">
-        <span id="goal-contribute-title">contribuir</span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <span id="goal-contribute-title">${t("metas.contribuir")}</span>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-body">
         <div class="field" id="goal-contribute-origem-field">
-          <label for="goal-contribute-origem-input">de onde vem esse valor?</label>
+          <label for="goal-contribute-origem-input">${t("metas.de_onde_vem_esse_valor")}</label>
           <select id="goal-contribute-origem-input">
-            <option value="conta">de uma conta (sai o saldo de verdade)</option>
-            <option value="externo">externo (presente, ajuda de terceiro...)</option>
+            <option value="conta">${t("metas.de_uma_conta_sai_o")}</option>
+            <option value="externo">${t("metas.externo_presente_ajuda_de_terceiro")}</option>
           </select>
         </div>
         <div class="field" id="goal-contribute-conta-field">
-          <label for="goal-contribute-conta-input">conta</label>
+          <label for="goal-contribute-conta-input">${t("metas.conta")}</label>
           <select id="goal-contribute-conta-input"></select>
         </div>
         <div class="field">
-          <label id="goal-contribute-amount-label" for="goal-contribute-amount">valor</label>
+          <label id="goal-contribute-amount-label" for="goal-contribute-amount">${t("metas.valor")}</label>
           <input type="number" id="goal-contribute-amount" min="0.01" step="0.01">
         </div>
         <div class="field">
-          <label for="goal-contribute-note">nota (opcional)</label>
-          <input type="text" id="goal-contribute-note" placeholder="ex: sobrou do salário desse mês">
+          <label for="goal-contribute-note">${t("metas.nota_opcional")}</label>
+          <input type="text" id="goal-contribute-note" placeholder="${t("metas.ex_sobrou_do_salario_desse")}">
         </div>
         <div class="goal-contribute-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
-        <button type="button" class="btn primary" id="goal-contribute-save" style="width:100%;">+ contribuir</button>
+        <button type="button" class="btn primary" id="goal-contribute-save" style="width:100%;">${t("metas.contribuir_2")}</button>
       </div>
     </div>
   `;
@@ -447,9 +451,9 @@ async function openContributeModal(goalId) {
   if (!contributeModalEl) contributeModalEl = buildContributeModal();
   contributingGoalId = goalId;
   const wrap = contributeModalEl;
-  wrap.querySelector("#goal-contribute-title").textContent = `contribuir para "${goal.title}"`;
+  wrap.querySelector("#goal-contribute-title").textContent = t("metas.contribuir_para", { meta: goal.title });
   wrap.querySelector("#goal-contribute-amount-label").textContent =
-    goal.unit === "money" ? "valor (R$)" : `quantidade${goal.unit_label ? ` (${goal.unit_label})` : ""}`;
+    goal.unit === "money" ? t("metas.valor_rs", { moeda: simboloMoeda() }) : goal.unit_label ? t("metas.quantidade_unidade", { unidade: goal.unit_label }) : t("metas.quantidade");
   wrap.querySelector("#goal-contribute-amount").value = "";
   wrap.querySelector("#goal-contribute-note").value = "";
   wrap.querySelector("#goal-contribute-origem-input").value = "conta";
@@ -461,18 +465,18 @@ async function openContributeModal(goalId) {
 
   if (goal.type === "financeira") {
     const contaSelect = wrap.querySelector("#goal-contribute-conta-input");
-    contaSelect.innerHTML = `<option value="">carregando…</option>`;
+    contaSelect.innerHTML = `<option value="">${t("geral.carregando")}</option>`;
     refreshCustomSelect(contaSelect);
     try {
       const banks = await listBanks();
       const accountsFlat = banks.flatMap((b) => b.accounts.map((a) => ({ ...a, bankNome: b.nome })));
       contaSelect.innerHTML = accountsFlat.length
         ? accountsFlat.map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("")
-        : `<option value="">nenhuma conta cadastrada</option>`;
+        : `<option value="">${t("metas.nenhuma_conta_cadastrada")}</option>`;
       contaSelect.value = goal.linked_conta_id || accountsFlat[0]?.id || "";
       refreshCustomSelect(contaSelect);
     } catch (err) {
-      contaSelect.innerHTML = `<option value="">erro ao carregar contas</option>`;
+      contaSelect.innerHTML = `<option value="">${t("metas.erro_ao_carregar_contas")}</option>`;
       refreshCustomSelect(contaSelect);
     }
   }
@@ -493,7 +497,7 @@ async function saveContribution() {
   const note = wrap.querySelector("#goal-contribute-note").value.trim() || null;
 
   if (!amount || amount <= 0) {
-    errorEl.textContent = "informe um valor maior que zero.";
+    errorEl.textContent = t("metas.informe_um_valor_maior_que");
     errorEl.style.display = "block";
     return;
   }
@@ -504,7 +508,7 @@ async function saveContribution() {
     if (payload.origem === "conta") {
       payload.conta_id = wrap.querySelector("#goal-contribute-conta-input").value || null;
       if (!payload.conta_id) {
-        errorEl.textContent = "escolha uma conta pra contribuir a partir dela.";
+        errorEl.textContent = t("metas.escolha_uma_conta_pra_contribuir");
         errorEl.style.display = "block";
         return;
       }
@@ -514,7 +518,7 @@ async function saveContribution() {
   try {
     await contributeGoal(contributingGoalId, payload);
   } catch (err) {
-    errorEl.textContent = `erro ao contribuir: ${err.message}`;
+    errorEl.textContent = t("metas.erro_contribuir", { erro: err.message });
     errorEl.style.display = "block";
     return;
   }
@@ -540,15 +544,15 @@ function goalCardHtml(goal) {
       <div class="card-head">
         <span class="goal-title" data-tooltip="${escapeHtml(goal.title)}">${escapeHtml(goal.title)}</span>
         <span class="push goal-card-icons">
-          ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="ver progresso">${icon("trending_up", { size: 13 })}</span>`}
-          ${isDone ? "" : `<span class="icon-btn" data-action="lembrar-goal" data-tooltip="lembrar">${icon("bell-ring", { size: 13 })}</span>`}
-          <span class="icon-btn" data-action="edit-goal" data-tooltip="editar">${icon("pencil", { size: 15 })}</span>
-          <span class="icon-btn danger" data-action="delete-goal" data-tooltip="excluir">${icon("trash-2", { size: 15 })}</span>
+          ${isAutoSynced ? "" : `<span class="icon-btn" data-action="toggle-progress" data-tooltip="${t("metas.ver_progresso")}">${icon("trending_up", { size: 13 })}</span>`}
+          ${isDone ? "" : `<span class="icon-btn" data-action="lembrar-goal" data-tooltip="${t("metas.lembrar")}">${icon("bell-ring", { size: 13 })}</span>`}
+          <span class="icon-btn" data-action="edit-goal" data-tooltip="${t("geral.editar")}">${icon("pencil", { size: 15 })}</span>
+          <span class="icon-btn danger" data-action="delete-goal" data-tooltip="${t("metas.excluir")}">${icon("trash-2", { size: 15 })}</span>
         </span>
       </div>
       <div class="card-body">
         <div class="goal-tags">
-          <span class="goal-type-tag">${GOAL_TYPE_LABELS[goal.type] || goal.type}</span>
+          <span class="goal-type-tag">${goalTypeLabels()[goal.type] || goal.type}</span>
           <span class="goal-weight-tag goal-weight-${goal.weight}">${goal.weight}</span>
         </div>
         <div class="bar-track"><div class="bar-fill${isDone ? " alt" : ""}" style="width:${pct}%;"></div></div>
@@ -556,28 +560,28 @@ function goalCardHtml(goal) {
           <span>${goalValuesText(goal)}</span>
           <span>${pct}%</span>
         </div>
-        ${goal.deadline ? `<div class="goal-meta">prazo: ${fmtDeadline(goal.deadline)}</div>` : ""}
+        ${goal.deadline ? `<div class="goal-meta">${t("metas.prazo_em", { data: fmtDeadline(goal.deadline) })}</div>` : ""}
         <div class="goal-meta">${linkNotasHtml("meta", goal.id, goal.title, notasPorMeta[goal.id] || 0)}</div>
         ${isLearning && goal.linked_track_name
-          ? `<div class="goal-meta">sincronizado com a trilha «${escapeHtml(goal.linked_track_name)}»</div>`
+          ? `<div class="goal-meta">${t("metas.sincronizado_trilha", { nome: escapeHtml(goal.linked_track_name) })}</div>`
           : ""
         }
         ${isAcademic && goal.linked_education_name
-          ? `<div class="goal-meta">sincronizado com a formação «${escapeHtml(goal.linked_education_name)}»</div>`
+          ? `<div class="goal-meta">${t("metas.sincronizado_formacao", { nome: escapeHtml(goal.linked_education_name) })}</div>`
           : ""
         }
         ${isDone
-          ? `<div class="goal-meta">concluída${goal.completed_at ? " em " + fmtDeadline(goal.completed_at) : ""} · +${xpBonusFor(goal.weight)} xp bônus</div>
-             <button type="button" class="btn sm" disabled>meta concluída ${icon("check", { size: 12 })}</button>`
+          ? `<div class="goal-meta">${goal.completed_at ? t("metas.concluida_em", { data: fmtDeadline(goal.completed_at) }) : t("metas.concluida")} · ${t("metas.xp_bonus", { xp: xpBonusFor(goal.weight) })}</div>
+             <button type="button" class="btn sm" disabled>${t("metas.meta_concluida")} ${icon("check", { size: 12 })}</button>`
           : isLearning
-            ? `<button type="button" class="btn sm" data-action="ver-trilha">ver trilha ${icon("arrow-right", { size: 11 })}</button>`
+            ? `<button type="button" class="btn sm" data-action="ver-trilha">${t("metas.ver_trilha")} ${icon("arrow-right", { size: 11 })}</button>`
             : isAcademic
-              ? `<button type="button" class="btn sm" data-action="ver-formacao">ver formação ${icon("arrow-right", { size: 11 })}</button>`
-              : `<button type="button" class="btn sm primary" data-action="contribute-goal">+ contribuir</button>`
+              ? `<button type="button" class="btn sm" data-action="ver-formacao">${t("metas.ver_formacao")} ${icon("arrow-right", { size: 11 })}</button>`
+              : `<button type="button" class="btn sm primary" data-action="contribute-goal">${t("metas.contribuir_2")}</button>`
         }
         ${isAutoSynced ? "" : `
         <div class="goal-progress-panel${openProgressGoalIds.has(goal.id) ? " open" : ""}" data-progress-panel="${goal.id}">
-          <div class="empty-state">carregando…</div>
+          <div class="empty-state">${t("geral.carregando")}</div>
         </div>`}
       </div>
     </div>
@@ -593,11 +597,11 @@ function render() {
 
   activeEl.innerHTML = active.length
     ? active.map(goalCardHtml).join("")
-    : `<div class="empty-state">nenhuma meta ativa no momento.</div>`;
+    : `<div class="empty-state">${t("metas.nenhuma_meta_ativa_no_momento")}</div>`;
 
   doneEl.innerHTML = done.length
     ? done.map(goalCardHtml).join("")
-    : `<div class="empty-state">nenhuma meta concluída ainda.</div>`;
+    : `<div class="empty-state">${t("metas.nenhuma_meta_concluida_ainda")}</div>`;
 
   wireCardActions(activeEl);
   wireCardActions(doneEl);
@@ -621,12 +625,12 @@ async function loadProgressPanel(goalId) {
   const panel = containerEl?.querySelector(`[data-progress-panel="${goalId}"]`);
   const goal = getGoal(goalId);
   if (!panel || !goal) return;
-  panel.innerHTML = `<div class="empty-state">carregando…</div>`;
+  panel.innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
   try {
     const contributions = await listContributions(goalId);
     renderProgressChart(panel, goal, contributions);
   } catch (err) {
-    panel.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${escapeHtml(err.message)}</div>`;
+    panel.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_grafico", { erro: err.message }))}</div>`;
   }
 }
 
@@ -665,15 +669,15 @@ function wireCardActions(scopeEl) {
 
     card.querySelector('[data-action="delete-goal"]').addEventListener("click", async () => {
       const ok = await showConfirmModal(
-        `Excluir a meta "${goal.title}"? O histórico de contribuições também será apagado (transações reais já lançadas em Finanças continuam lá).`,
-        { title: "excluir meta", confirmText: "excluir", danger: true }
+        t("metas.excluir_confirma", { meta: goal.title }),
+        { title: t("metas.excluir_meta"), confirmText: t("metas.excluir"), danger: true }
       );
       if (!ok) return;
       try {
         await deleteGoal(goalId);
         await refreshGoals();
       } catch (err) {
-        showErrorModal(err.message, "erro ao excluir");
+        showErrorModal(err.message, t("metas.erro_ao_excluir"));
       }
     });
 
@@ -695,15 +699,21 @@ function wireCardActions(scopeEl) {
 }
 
 async function refreshGoals() {
+  if (!containerEl) return;
+  const minha = montagem;
   const activeEl = containerEl.querySelector("#goals-grid-active");
   const doneEl = containerEl.querySelector("#goals-grid-done");
+  let dados;
   try {
-    [goals, notasPorMeta] = await Promise.all([listGoals(), contarNotas("meta")]);
+    dados = await Promise.all([listGoals(), contarNotas("meta")]);
   } catch (err) {
-    activeEl.innerHTML = `<div class="empty-state">erro ao carregar metas: ${escapeHtml(err.message)}</div>`;
+    if (montagem !== minha) return;
+    activeEl.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_metas", { erro: err.message }))}</div>`;
     doneEl.innerHTML = "";
     return;
   }
+  if (montagem !== minha) return; // saiu da tela (ou foi remontada) enquanto a lista chegava
+  [goals, notasPorMeta] = dados;
   render();
 }
 
@@ -715,29 +725,31 @@ export function preload() {
 
 export async function mount(container) {
   containerEl = container;
+  const minha = ++montagem;
 
   // "N" de "novo", mesma tecla de "nova trilha"/"novo widget"/"novo
   // evento" nas outras telas (aprendizado.js, dashboard.js, calendario.js).
   shortcutsToken = registerScreenShortcuts({
-    name: "metas pessoais",
-    actions: [{ code: "KeyN", label: "nova meta", run: () => openCreateGoalModal() }],
+    name: t("metas.metas_pessoais"),
+    actions: [{ code: "KeyN", label: t("metas.nova_meta"), run: () => openCreateGoalModal() }],
   });
 
   container.innerHTML = `
     <div class="goals-toolbar">
-      <button type="button" class="btn sm push" id="goals-add-btn">+ nova meta</button>
+      <button type="button" class="btn sm push" id="goals-add-btn">${t("metas.nova_meta_2")}</button>
     </div>
 
-    <div class="goals-section-label" id="goals-section-active">ativas</div>
-    <div class="goals-grid" id="goals-grid-active"><div class="empty-state">carregando…</div></div>
+    <div class="goals-section-label" id="goals-section-active">${t("metas.ativas")}</div>
+    <div class="goals-grid" id="goals-grid-active"><div class="empty-state">${t("geral.carregando")}</div></div>
 
-    <div class="goals-section-label" id="goals-section-done">histórico — metas concluídas</div>
+    <div class="goals-section-label" id="goals-section-done">${t("metas.historico_metas_concluidas")}</div>
     <div class="goals-grid" id="goals-grid-done"></div>
   `;
 
   container.querySelector("#goals-add-btn").addEventListener("click", openCreateGoalModal);
 
   await refreshGoals();
+  if (montagem !== minha) return; // desmontada durante a carga
 
   maybeStartMetasTips();
   unsubscribeProfile = store.subscribe("profile", () => maybeStartMetasTips());
@@ -757,6 +769,7 @@ export function unmount() {
   currentReplayFn = null;
   closeGoalModal();
   closeContributeModal();
+  montagem++;
   containerEl = null;
   goals = [];
   openProgressGoalIds = new Set();

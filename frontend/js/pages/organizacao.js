@@ -96,6 +96,7 @@ import {
   openEmailModal,
   handleToggleMuteAccount,
 } from "./organizacao-email.js";
+import { t } from "../i18n.js";
 
 export const state = {
   tab: "notas", // ORG-01 (P-30): notas é a primeira aba
@@ -335,19 +336,19 @@ export function unmount() {
 function template() {
   return `
     <div class="search-row">
-      <input type="text" id="org-search" placeholder="buscar na web..." aria-label="buscar na web" aria-keyshortcuts="Alt+B">
-      <button class="btn sm" data-action="org-search">buscar</button>
-      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="limpar busca" aria-label="limpar busca">${icon("x", { size: 13 })}</button>
-      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="configurar chave de busca" aria-label="configurar chave de busca">${icon("key", { size: 13 })}</button>
+      <input type="text" id="org-search" placeholder="${t("organizacao.buscar_na_web")}" aria-label="${t("organizacao.buscar_na_web_2")}" aria-keyshortcuts="Alt+B">
+      <button class="btn sm" data-action="org-search">${t("organizacao.buscar")}</button>
+      <button type="button" id="org-search-clear" class="btn icon-btn-square" data-action="org-search-clear" data-tooltip="${t("organizacao.limpar_busca")}" aria-label="${t("organizacao.limpar_busca")}">${icon("x", { size: 13 })}</button>
+      <button type="button" id="org-search-key-badge" class="btn icon-btn-square gh-token-badge" data-action="open-search-key-modal" data-tooltip="${t("organizacao.configurar_chave_de_busca")}" aria-label="${t("organizacao.configurar_chave_de_busca")}">${icon("key", { size: 13 })}</button>
     </div>
     <div id="org-search-results"></div>
 
     <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="notas">notas</div>
-      <div class="tab" data-tab="entrada">entrada <span class="tab-contagem" id="org-entrada-contagem"></span></div>
-      <div class="tab" data-tab="github">github</div>
-      <div class="tab" data-tab="email">e-mail</div>
-      <div class="tab" data-tab="links">links</div>
+      <div class="tab on" data-tab="notas">${t("organizacao.notas")}</div>
+      <div class="tab" data-tab="entrada">${t("organizacao.entrada")} <span class="tab-contagem" id="org-entrada-contagem"></span></div>
+      <div class="tab" data-tab="github">${t("organizacao.github")}</div>
+      <div class="tab" data-tab="email">${t("organizacao.e_mail")}</div>
+      <div class="tab" data-tab="links">${t("organizacao.links")}</div>
     </div>
 
     <!-- ORG-01: aba de notas — pages/organizacao-notas.js -->
@@ -359,11 +360,11 @@ function template() {
     <div id="org-panel-github" style="display:none;">
       <div class="card">
         <div class="card-head">
-          repositórios
+          ${t("organizacao.repositorios")}
           <span id="org-github-token-badge" class="gh-token-badge"></span>
           <span class="push"></span>
-          <button class="btn sm" data-action="open-github-token-modal">${icon("settings", { size: 12 })} token</button>
-          <button class="btn sm" data-action="open-repo-modal">+ conectar repositório</button>
+          <button class="btn sm" data-action="open-github-token-modal">${icon("settings", { size: 12 })} ${t("organizacao.token")}</button>
+          <button class="btn sm" data-action="open-repo-modal">${t("organizacao.conectar_repositorio")}</button>
         </div>
         <div class="card-body" id="org-repos"></div>
       </div>
@@ -372,21 +373,21 @@ function template() {
     <div id="org-panel-email" style="display:none;">
       <div class="card">
         <div class="card-head">
-          e-mails
+          ${t("organizacao.e_mails")}
           <span class="push"></span>
-          <button type="button" class="btn icon-btn-square" id="org-email-sync-btn" data-action="sync-selected-accounts" data-tooltip="sincronizar" aria-label="sincronizar">${icon("refresh-cw", { size: 13 })}</button>
-          <button type="button" class="btn sm" data-action="open-manage-accounts-modal">${icon("settings", { size: 12 })} gerenciar contas</button>
+          <button type="button" class="btn icon-btn-square" id="org-email-sync-btn" data-action="sync-selected-accounts" data-tooltip="${t("organizacao.sincronizar")}" aria-label="${t("organizacao.sincronizar")}">${icon("refresh-cw", { size: 13 })}</button>
+          <button type="button" class="btn sm" data-action="open-manage-accounts-modal">${icon("settings", { size: 12 })} ${t("organizacao.gerenciar_contas")}</button>
         </div>
         <div class="card-body">
           <div id="org-email-alertas"></div>
           <div class="email-search-row">
-            <input type="text" id="org-email-search" placeholder="buscar por assunto, remetente ou texto..." aria-label="buscar e-mails por assunto, remetente ou texto">
+            <input type="text" id="org-email-search" placeholder="${t("organizacao.buscar_por_assunto_remetente_ou")}" aria-label="${t("organizacao.buscar_e_mails_por_assunto")}">
           </div>
           <div class="email-account-chips" id="org-account-chips"></div>
           <div class="email-filter-row" id="org-email-filter">
-            <span class="email-filter-opt on" data-filter="all">tudo <span class="email-filter-count" id="org-email-filter-count-all">0</span></span>
-            <span class="email-filter-opt" data-filter="unread">não lidos <span class="email-filter-count" id="org-email-filter-count-unread">0</span></span>
-            <span class="email-filter-opt" data-filter="muted">silenciados <span class="email-filter-count" id="org-email-filter-count-muted">0</span></span>
+            <span class="email-filter-opt on" data-filter="all">${t("organizacao.tudo")} <span class="email-filter-count" id="org-email-filter-count-all">0</span></span>
+            <span class="email-filter-opt" data-filter="unread">${t("organizacao.nao_lidos")} <span class="email-filter-count" id="org-email-filter-count-unread">0</span></span>
+            <span class="email-filter-opt" data-filter="muted">${t("organizacao.silenciados")} <span class="email-filter-count" id="org-email-filter-count-muted">0</span></span>
           </div>
           <div id="org-emails"></div>
         </div>
@@ -395,7 +396,7 @@ function template() {
 
     <div id="org-panel-links" style="display:none;">
       <div class="card">
-        <div class="card-head">links<span class="push"></span><button class="btn sm" data-action="open-link-modal">+ adicionar link</button></div>
+        <div class="card-head">${t("organizacao.links")}<span class="push"></span><button class="btn sm" data-action="open-link-modal">${t("organizacao.adicionar_link")}</button></div>
         <div class="card-body" id="org-linkgroups"></div>
       </div>
     </div>
@@ -404,9 +405,9 @@ function template() {
          movido pra fora do fluxo principal de leitura, ver secao 4.2 do plano) -->
     <div class="modal-backdrop" id="manage-accounts-modal">
       <div class="modal">
-        <div class="modal-head">gerenciar contas de e-mail <button type="button" class="close" data-action="close-manage-accounts-modal" aria-label="fechar">${icon("x")}</button></div>
+        <div class="modal-head">${t("organizacao.gerenciar_contas_de_e_mail")} <button type="button" class="close" data-action="close-manage-accounts-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
         <div class="modal-body">
-          <button class="btn sm" style="width:100%; margin-bottom:10px;" data-action="open-account-modal">+ nova conta</button>
+          <button class="btn sm" style="width:100%; margin-bottom:10px;" data-action="open-account-modal">${t("organizacao.nova_conta")}</button>
           <div id="org-accounts"></div>
         </div>
       </div>
@@ -415,13 +416,13 @@ function template() {
     <!-- MODAL: novo/editar link -->
     <div class="modal-backdrop" id="link-modal">
       <div class="modal">
-        <div class="modal-head"><span id="link-modal-title">novo link</span> <button type="button" class="close" data-action="close-link-modal" aria-label="fechar">${icon("x")}</button></div>
+        <div class="modal-head"><span id="link-modal-title">${t("organizacao.novo_link")}</span> <button type="button" class="close" data-action="close-link-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
         <div class="modal-body">
           <input type="hidden" id="link-edit-id" value="">
-          <div class="field"><label for="link-title">título</label><input type="text" id="link-title" placeholder="ex: portal do aluno"></div>
-          <div class="field"><label for="link-url">url</label><input type="text" id="link-url" placeholder="https://..."></div>
-          <div class="field"><label for="link-cat">categoria</label><input type="text" id="link-cat" placeholder="geral"></div>
-          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link" id="link-save-btn">+ adicionar link</button>
+          <div class="field"><label for="link-title">${t("organizacao.titulo")}</label><input type="text" id="link-title" placeholder="${t("organizacao.ex_portal_do_aluno")}"></div>
+          <div class="field"><label for="link-url">${t("organizacao.url")}</label><input type="text" id="link-url" placeholder="${t("organizacao.https")}"></div>
+          <div class="field"><label for="link-cat">${t("organizacao.categoria")}</label><input type="text" id="link-cat" placeholder="${t("organizacao.geral")}"></div>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-link" id="link-save-btn">${t("organizacao.adicionar_link")}</button>
         </div>
       </div>
     </div>
@@ -429,15 +430,15 @@ function template() {
     <!-- MODAL: novo repositório -->
     <div class="modal-backdrop" id="repo-modal">
       <div class="modal">
-        <div class="modal-head">conectar repositório <button type="button" class="close" data-action="close-repo-modal" aria-label="fechar">${icon("x")}</button></div>
+        <div class="modal-head">${t("organizacao.conectar_repositorio_2")} <button type="button" class="close" data-action="close-repo-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
         <div class="modal-body">
           <div class="field">
-            <label for="repo-full-name">repositório</label>
-            <input type="text" id="repo-full-name" placeholder="usuario/repositorio (ou cole a url do github)">
+            <label for="repo-full-name">${t("organizacao.repositorio")}</label>
+            <input type="text" id="repo-full-name" placeholder="${t("organizacao.usuario_repositorio_ou_cole_a")}">
           </div>
-          <div class="page-sub" style="margin:0 0 8px 0; font-size:10px;">só repositórios públicos — api sem autenticação, limite de 60 req/h.</div>
+          <div class="page-sub" style="margin:0 0 8px 0; font-size:10px;">${t("organizacao.so_repositorios_publicos_api_sem")}</div>
           <div id="repo-modal-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
-          <button class="btn primary" style="width:100%;" data-action="save-repo">+ conectar</button>
+          <button class="btn primary" style="width:100%;" data-action="save-repo">${t("organizacao.conectar")}</button>
         </div>
       </div>
     </div>
@@ -445,18 +446,18 @@ function template() {
     <!-- MODAL: nova/editar conta de e-mail -->
     <div class="modal-backdrop" id="account-modal">
       <div class="modal">
-        <div class="modal-head">conta de e-mail <button type="button" class="close" data-action="close-account-modal" aria-label="fechar">${icon("x")}</button></div>
+        <div class="modal-head">${t("organizacao.conta_de_e_mail")} <button type="button" class="close" data-action="close-account-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
         <div class="modal-body">
           <input type="hidden" id="acc-edit-id">
-          <div class="field"><label for="acc-label">apelido</label><input type="text" id="acc-label" placeholder="ex: gmail pessoal"></div>
+          <div class="field"><label for="acc-label">${t("organizacao.apelido")}</label><input type="text" id="acc-label" placeholder="${t("organizacao.ex_gmail_pessoal")}"></div>
           <div class="field-row">
-            <div class="field"><label for="acc-host">host imap</label><input type="text" id="acc-host" placeholder="imap.gmail.com"></div>
-            <div class="field" style="max-width:110px;"><label for="acc-port">porta</label><input type="number" id="acc-port" value="993"></div>
+            <div class="field"><label for="acc-host">${t("organizacao.host_imap")}</label><input type="text" id="acc-host" placeholder="${t("organizacao.imap_gmail_com")}"></div>
+            <div class="field" style="max-width:110px;"><label for="acc-port">${t("organizacao.porta")}</label><input type="number" id="acc-port" value="993"></div>
           </div>
-          <div class="field"><label for="acc-username">usuário</label><input type="text" id="acc-username" placeholder="voce@gmail.com"></div>
-          <div class="field"><label for="acc-password">senha de app <span id="acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="acc-password" placeholder="••••••••"></div>
-          <label class="acc-default-toggle"><input type="checkbox" id="acc-sync-by-default" checked> ${icon("star", { size: 12 })} conta padrão (já vem selecionada ao abrir a tela)</label>
-          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-account">salvar conta</button>
+          <div class="field"><label for="acc-username">${t("organizacao.usuario")}</label><input type="text" id="acc-username" placeholder="${t("organizacao.voce_gmail_com")}"></div>
+          <div class="field"><label for="acc-password">${t("organizacao.senha_de_app")} <span id="acc-password-hint" style="color:var(--text-faint); font-size:9.5px;"></span></label><input type="password" id="acc-password" placeholder="••••••••"></div>
+          <label class="acc-default-toggle"><input type="checkbox" id="acc-sync-by-default" checked> ${icon("star", { size: 12 })} ${t("organizacao.conta_padrao_ja_vem_selecionada")}</label>
+          <button class="btn primary" style="width:100%; margin-top:6px;" data-action="save-account">${t("organizacao.salvar_conta")}</button>
         </div>
       </div>
     </div>
@@ -466,19 +467,16 @@ function template() {
     <!-- MODAL: chave de busca (tavily) -->
       <div class="modal-backdrop" id="search-key-modal">
         <div class="modal">
-          <div class="modal-head">chave de busca <button type="button" class="close" data-action="close-search-key-modal" aria-label="fechar">${icon("x")}</button></div>
+          <div class="modal-head">${t("organizacao.chave_de_busca")} <button type="button" class="close" data-action="close-search-key-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
-              necessária pro resumo inline de busca (item 4.1). crie uma
-              conta gratuita em <span data-open-link="https://tavily.com" style="color:var(--accent); cursor:pointer; text-decoration:underline;">tavily.com</span>
-              (free tier: 1000 buscas/mês, sem cartão) e cole a chave aqui.
-              sem chave configurada, o botão "buscar" mostra um link pra
-              abrir a busca no duckduckgo em vez do resumo.
+              ${t("organizacao.necessaria_pro_resumo_inline_de")} <span data-open-link="https://tavily.com" style="color:var(--accent); cursor:pointer; text-decoration:underline;">${t("organizacao.tavily_com")}</span>
+              ${t("organizacao.free_tier_1000_buscas_mes")}
             </div>
-            <div class="field"><label for="search-key-input">chave</label><input type="password" id="search-key-input" placeholder="tvly-..."></div>
+            <div class="field"><label for="search-key-input">${t("organizacao.chave")}</label><input type="password" id="search-key-input" placeholder="${t("organizacao.tvly")}"></div>
             <div id="search-key-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
-            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-search-key">salvar chave</button>
-            <button class="btn sm" style="width:100%;" data-action="delete-search-key">remover chave</button>
+            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-search-key">${t("organizacao.salvar_chave")}</button>
+            <button class="btn sm" style="width:100%;" data-action="delete-search-key">${t("organizacao.remover_chave")}</button>
           </div>
         </div>
       </div>
@@ -486,18 +484,15 @@ function template() {
     <!-- MODAL: token github -->
       <div class="modal-backdrop" id="github-token-modal">
         <div class="modal">
-          <div class="modal-head">token do github <button type="button" class="close" data-action="close-github-token-modal" aria-label="fechar">${icon("x")}</button></div>
+          <div class="modal-head">${t("organizacao.token_do_github")} <button type="button" class="close" data-action="close-github-token-modal" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
           <div class="modal-body">
             <div class="page-sub" style="margin:0 0 10px 0; font-size:10px;">
-              opcional — sem token, só repositórios públicos e 60 req/h. com um
-              fine-grained personal access token (permissão de leitura em
-              contents/metadata), o kami passa a ver repositórios privados e
-              sobe pra 5000 req/h.
+              ${t("organizacao.opcional_sem_token_so_repositorios")}
             </div>
-            <div class="field"><label for="gh-token-input">token</label><input type="password" id="gh-token-input" placeholder="github_pat_..."></div>
+            <div class="field"><label for="gh-token-input">${t("organizacao.token")}</label><input type="password" id="gh-token-input" placeholder="${t("organizacao.github_pat")}"></div>
             <div id="gh-token-error" style="display:none; color:var(--red); font-size:10.5px; margin-bottom:8px;"></div>
-            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-github-token">salvar token</button>
-            <button class="btn sm" style="width:100%;" data-action="delete-github-token">remover token</button>
+            <button class="btn primary" style="width:100%; margin-bottom:6px;" data-action="save-github-token">${t("organizacao.salvar_token")}</button>
+            <button class="btn sm" style="width:100%;" data-action="delete-github-token">${t("organizacao.remover_token")}</button>
           </div>
         </div>
       </div>

@@ -10,25 +10,26 @@ import { fitAsciiText } from "../../components/ascii.js";
 import { store } from "../../state/store.js";
 import { openConfiguracoesModal, closeConfiguracoesModal } from "../configuracoes-modal.js";
 import { estado } from "./estado.js";
+import { t } from "../../i18n.js";
 
 export function buildPerfilPanel() {
   return `
     <div class="cfg-panel" data-panel="perfil">
       <div class="settings-section" style="padding-top:0;">
-        <h4>avatar</h4>
-        <p class="settings-desc">arte ascii feita a partir de uma imagem, usada na sidebar e no cartão de perfil.</p>
-        <button type="button" class="pw-avatar-btn" id="cfg-avatar-btn" data-tooltip="editar avatar">
+        <h4>${t("perfil.avatar")}</h4>
+        <p class="settings-desc">${t("perfil.arte_ascii_feita_a_partir")}</p>
+        <button type="button" class="pw-avatar-btn" id="cfg-avatar-btn" data-tooltip="${t("perfil.editar_avatar")}">
           <pre id="cfg-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);"></pre>
         </button>
       </div>
       <div class="settings-section">
-        <h4>nome de exibição</h4>
-        <p class="settings-desc">como a kami vai te chamar.</p>
+        <h4>${t("perfil.nome_de_exibicao")}</h4>
+        <p class="settings-desc">${t("perfil.como_a_kami_vai_te")}</p>
         <div class="field">
-          <input type="text" id="cfg-name-input" placeholder="como a kami vai te chamar">
+          <input type="text" id="cfg-name-input" placeholder="${t("perfil.como_a_kami_vai_te_2")}">
         </div>
         <div class="form-actions">
-          <button class="btn sm" id="cfg-name-save-btn">salvar</button>
+          <button class="btn sm" id="cfg-name-save-btn">${t("geral.salvar")}</button>
         </div>
         <p class="settings-status" id="cfg-name-status"></p>
       </div>
@@ -47,9 +48,9 @@ export function renderPerfilTab(wrap, profile) {
   nameInput.dataset.savedValue = profile.display_name;
 
   const avatarPre = wrap.querySelector("#cfg-avatar-ascii");
-  avatarPre.textContent = profile.avatar_ascii ?? "sem avatar\nainda";
+  avatarPre.textContent = profile.avatar_ascii ?? t("perfil.sem_avatar_nainda");
   try {
-    fitAsciiText(avatarPre, profile.avatar_ascii ?? "sem avatar\nainda", {
+    fitAsciiText(avatarPre, profile.avatar_ascii ?? t("perfil.sem_avatar_nainda"), {
       container: avatarPre.parentElement,
       maxHeight: 136,
       maxFont: 8,
@@ -101,7 +102,7 @@ export function wirePerfilTab(wrap) {
         try {
           await updateAvatar(ascii);
         } catch (err) {
-          showErrorModal(err.message, "erro ao salvar avatar");
+          showErrorModal(err.message, t("perfil.erro_ao_salvar_avatar"));
           return;
         }
         avatarPre.textContent = ascii;
@@ -130,14 +131,14 @@ export function wirePerfilTab(wrap) {
 
   saveBtn.addEventListener("click", async () => {
     if (estado.busy) return;
-    const newName = nameInput.value.trim() || "usuário";
+    const newName = nameInput.value.trim() || t("perfil.usuario");
     statusEl.textContent = "";
     statusEl.classList.remove("settings-status--visible");
 
     try {
       await updateProfile({ display_name: newName });
     } catch (err) {
-      showErrorModal(err.message, "erro ao salvar nome");
+      showErrorModal(err.message, t("perfil.erro_ao_salvar_nome"));
       return;
     }
 

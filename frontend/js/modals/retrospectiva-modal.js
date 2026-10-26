@@ -1,8 +1,10 @@
 import { getRetrospectiva, listRetrospectivas, markRetrospectivaVista } from "../api/nucleo.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml, fmtDataCurta } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, nomeMes } from "../components/format.js";
 import { fxAllows } from "../components/fx.js";
 import { showToast } from "../components/toast.js";
+import { nomeAtributo, textoDoRegistro, tituloConquista } from "../components/textos-sistema.js";
+import { localeAtual, noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Retrospectiva mensal (GAM-12) — o mês que acabou em uma tela ASCII:
@@ -20,19 +22,16 @@ import { showToast } from "../components/toast.js";
  * modal-accessibility.js.
  */
 
-const MONTHS = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-];
+
 const WIDTH = 58;
-const ATTRIBUTE_LABELS = { financas: "finanças", organizacao: "organização" };
+
 
 export function monthLabel(mes) {
   const [year, month] = mes.split("-");
-  return `${MONTHS[Number(month) - 1]} de ${year}`;
+  return t("retrospectiva.mes_ano", { mes: nomeMes(Number(month) - 1), ano: year });
 }
 
-const fmt = (n) => Number(n).toLocaleString("pt-BR");
+const fmt = (n) => Number(n).toLocaleString(localeAtual());
 
 /** "↑ 18%" / "↓ 4" / "=" / "novo" — comparação com o mês anterior. */
 function compare(current, previous, { pct = false } = {}) {
@@ -62,6 +61,12 @@ function row(label, value, note = "", noteSuffix = "") {
   return parts;
 }
 
+// I18N: retrospectiva gravada antes da tradução guarda só o título (string)
+const tituloDaRetrospectiva = (c) =>
+  typeof c === "string" ? c : tituloConquista({ key: c.chave, title: c.titulo });
+
+const textoDaAcao = (a) => textoDoRegistro({ description: a.descricao, description_key: a.chave, description_vars: a.vars });
+
 function bar(pct, cells = 20) {
   const filled = Math.max(0, Math.min(cells, Math.round((pct / 100) * cells)));
   return [["[", "dim"], ["#".repeat(filled), "bar-on"], ["-".repeat(cells - filled), "bar-off"], ["]", "dim"]];
@@ -69,7 +74,7 @@ function bar(pct, cells = 20) {
 
 export function retroLines(r) {
   const prev = r.anterior ?? {};
-  const prevName = MONTHS[Number(prev.mes?.slice(5, 7)) - 1] ?? "mês anterior";
+  const prevName = prev.mes ? nomeMes(Number(prev.mes.slice(5, 7)) - 1) : t("retrospectiva.mes_anterior");
   const title = ` RETROSPECTIVA · ${monthLabel(r.mes).toUpperCase()}`;
   const xpNote = compare(r.xp_total, prev.xp_total, { pct: true });
   const lines = [
@@ -79,25 +84,25 @@ export function retroLines(r) {
     [["|", "frame"], [title.padEnd(WIDTH), "title"], ["|", "frame"]],
     [[`+${"-".repeat(WIDTH)}+`, "frame"]],
     [],
-    row("xp no mês", fmt(r.xp_total), xpNote, xpNote && xpNote !== "novo" ? ` vs ${prevName}` : ""),
-    row("ações", fmt(r.acoes), compare(r.acoes, prev.acoes)),
-    row("dias ativos", `${r.dias_ativos}/${r.dias_no_mes}`, compare(r.dias_ativos, prev.dias_ativos)),
-    row("melhor sequência", `${r.melhor_sequencia} ${r.melhor_sequencia === 1 ? "dia" : "dias"}`),
-    row("missões", fmt(r.missoes), compare(r.missoes, prev.missoes)),
+    row(t("retrospectiva.xp_no_mes"), fmt(r.xp_total), xpNote, xpNote && xpNote !== "novo" ? ` vs ${prevName}` : ""),
+    row(t("retrospectiva.acoes"), fmt(r.acoes), compare(r.acoes, prev.acoes)),
+    row(t("retrospectiva.dias_ativos"), `${r.dias_ativos}/${r.dias_no_mes}`, compare(r.dias_ativos, prev.dias_ativos)),
+    row(t("retrospectiva.melhor_sequencia"), `${r.melhor_sequencia} ${r.melhor_sequencia === 1 ? "dia" : "dias"}`),
+    row(t("retrospectiva.missoes"), fmt(r.missoes), compare(r.missoes, prev.missoes)),
     [],
-    [[" XP POR ATRIBUTO", "section"]],
+    [[t("retrospectiva.xp_por_atributo"), "section"]],
   ];
   const attrs = Object.entries(r.xp_por_atributo ?? {}).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...attrs.map(([, xp]) => xp));
   for (const [name, xp] of attrs) {
-    lines.push([[" "], [(ATTRIBUTE_LABELS[name] ?? name).padEnd(13), "label"], [" "], ...bar((xp / max) * 100), [` ${fmt(xp).padStart(6)}`, "value"]]);
+    lines.push([[" "], [nomeAtributo(name).padEnd(13), "label"], [" "], ...bar((xp / max) * 100), [` ${fmt(xp).padStart(6)}`, "value"]]);
   }
-  lines.push([], [[` CONQUISTAS DO MÊS (${r.conquistas.length})`, "section"]]);
-  if (r.conquistas.length) r.conquistas.forEach((t) => lines.push([["  * ", "bullet"], [t, "item"]]));
-  else lines.push([["  nenhuma neste mês", "dim"]]);
-  lines.push([], [[" AÇÃO DO MÊS", "section"]]);
+  lines.push([], [[t("retrospectiva.conquistas_mes", { n: r.conquistas.length }), "section"]]);
+  if (r.conquistas.length) r.conquistas.forEach((c) => lines.push([["  * ", "bullet"], [tituloDaRetrospectiva(c), "item"]]));
+  else lines.push([[t("retrospectiva.nenhuma_neste_mes"), "dim"]]);
+  lines.push([], [[t("retrospectiva.acao_do_mes"), "section"]]);
   if (r.acao_do_mes) {
-    lines.push([["  "], [r.acao_do_mes.descricao, "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${fmtDataCurta(r.acao_do_mes.dia)}`, "meta"]]);
+    lines.push([["  "], [textoDaAcao(r.acao_do_mes), "item"]], [["  "], [`+${r.acao_do_mes.xp} xp`, "up"], [` · ${fmtDataCurta(r.acao_do_mes.dia)}`, "meta"]]);
   } else {
     lines.push([["  —", "dim"]]);
   }
@@ -134,15 +139,15 @@ function buildModal() {
   wrap.id = "retrospectiva-modal";
   wrap.innerHTML = `
     <div class="modal retro-modal" role="dialog" aria-modal="true" aria-labelledby="retro-title">
-      <div class="modal-head"><span class="modal-head-title" id="retro-title">retrospectiva</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title" id="retro-title">${t("retrospectiva.retrospectiva")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <pre class="retro-pre" tabindex="0"></pre>
       </div>
       <div class="retro-actions">
-        <button type="button" class="btn sm" data-action="prev" aria-label="mês anterior">‹ anterior</button>
-        <button type="button" class="btn sm" data-action="next" aria-label="próximo mês">próximo ›</button>
+        <button type="button" class="btn sm" data-action="prev" aria-label="${t("retrospectiva.mes_anterior")}">${t("retrospectiva.anterior")}</button>
+        <button type="button" class="btn sm" data-action="next" aria-label="${t("retrospectiva.proximo_mes")}">${t("retrospectiva.proximo")}</button>
         <span class="retro-spacer"></span>
-        <button type="button" class="btn sm" data-action="export">${icon("download", { size: 11 })} exportar .txt</button>
+        <button type="button" class="btn sm" data-action="export">${icon("download", { size: 11 })} ${t("retrospectiva.exportar_txt")}</button>
       </div>
     </div>`;
   wrap.querySelectorAll('[data-action="close"]').forEach((el) => el.addEventListener("click", closeRetrospectivaModal));
@@ -171,13 +176,13 @@ function exportTxt() {
   URL.revokeObjectURL(url);
   // sem isto não dava pra saber se o arquivo tinha sido salvo (pedido no teste)
   const btn = modalEl.querySelector('[data-action="export"]');
-  btn.innerHTML = `${icon("check", { size: 11 })} exportado`;
+  btn.innerHTML = `${icon("check", { size: 11 })} ${t("retrospectiva.exportado")}`;
   setTimeout(() => {
-    btn.innerHTML = `${icon("download", { size: 11 })} exportar .txt`;
+    btn.innerHTML = `${icon("download", { size: 11 })} ${t("retrospectiva.exportar")}`;
   }, 2500);
   showToast({
-    title: "retrospectiva exportada",
-    message: `salva como ${filename} — confira sua pasta de downloads`,
+    title: t("retrospectiva.retrospectiva_exportada"),
+    message: t("retrospectiva.salva_como", { arquivo: filename }),
     iconName: "download",
     duration: 6000,
   });
@@ -194,10 +199,10 @@ async function show(i) {
     current = await getRetrospectiva(months[index].mes);
   } catch (err) {
     current = null;
-    pre.textContent = `erro ao carregar a retrospectiva: ${err.message}`;
+    pre.textContent = t("retrospectiva.erro_carregar", { erro: err.message });
     return;
   }
-  title.textContent = `retrospectiva · ${monthLabel(current.mes)}`;
+  title.textContent = t("retrospectiva.titulo_mes", { mes: monthLabel(current.mes) });
   // GAM-15: com efeitos "completo", as linhas entram uma depois da outra
   pre.classList.toggle("animated", fxAllows("completo"));
   pre.innerHTML = retroHtml(current);
@@ -214,7 +219,7 @@ async function show(i) {
 
 /** Abre na retrospectiva mais nova (ou num aviso, se ainda não há nenhuma). */
 export async function openRetrospectivaModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   try {
     months = await listRetrospectivas();
   } catch (err) {
@@ -223,9 +228,9 @@ export async function openRetrospectivaModal() {
   modalEl.classList.add("open");
   if (!months.length) {
     current = null;
-    modalEl.querySelector("#retro-title").textContent = "retrospectiva";
+    modalEl.querySelector("#retro-title").textContent = t("retrospectiva.retrospectiva");
     modalEl.querySelector(".retro-pre").textContent =
-      " nenhuma retrospectiva ainda — a primeira aparece quando o mês virar.";
+      t("retrospectiva.nenhuma_retrospectiva_ainda_a_primeira");
     modalEl.querySelectorAll('[data-action="prev"], [data-action="next"], [data-action="export"]').forEach((b) => (b.disabled = true));
     return;
   }

@@ -1,5 +1,6 @@
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "filtrar assinaturas" — mesmo padrão de registro-filter-modal.js.
@@ -18,23 +19,23 @@ function buildModal() {
   wrap.id = "assinatura-filter-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head">filtrar assinaturas <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head">${t("assinatura_filter.filtrar_assinaturas")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
-          <label for="afm-conta">conta</label>
-          <select id="afm-conta"><option value="">— todas —</option></select>
+          <label for="afm-conta">${t("assinatura_filter.conta")}</label>
+          <select id="afm-conta"><option value="">${t("assinatura_filter.todas")}</option></select>
         </div>
         <div class="field">
-          <label for="afm-status">status (mês atual)</label>
+          <label for="afm-status">${t("assinatura_filter.status_mes_atual")}</label>
           <select id="afm-status">
-            <option value="">— todos —</option>
-            <option value="paga">paga</option>
-            <option value="pendente">não paga</option>
+            <option value="">${t("assinatura_filter.todos")}</option>
+            <option value="paga">${t("assinatura_filter.paga")}</option>
+            <option value="pendente">${t("assinatura_filter.nao_paga")}</option>
           </select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="clear">limpar filtro</button>
-          <button class="btn sm primary" data-action="apply">aplicar</button>
+          <button class="btn sm" data-action="clear">${t("assinatura_filter.limpar_filtro")}</button>
+          <button class="btn sm primary" data-action="apply">${t("assinatura_filter.aplicar")}</button>
         </div>
       </div>
     </div>
@@ -68,11 +69,11 @@ function wireModal(wrap) {
  * @param {{ accounts: Array, current: object, onApply: (filter) => void }} opts
  */
 export function openAssinaturaFilterModal({ accounts, current, onApply } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onApplyCb = onApply;
 
   const contaSel = modalEl.querySelector("#afm-conta");
-  contaSel.innerHTML = `<option value="">— todas —</option>` +
+  contaSel.innerHTML = `<option value="">${t("assinatura_filter.todas")}</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
 
   contaSel.value = current?.contaId || "";

@@ -15,11 +15,12 @@ do que o item virar.
 """
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.limites import Entrada
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ class TarefaOut(BaseModel):
 def _item(db, item_id: str):
     row = db.execute("SELECT * FROM caixa_entrada WHERE id = ?", (item_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="item não encontrado na caixa de entrada")
+        raise ErroKami(404, "erro.entrada.item_nao_encontrado_na_caixa", "item não encontrado na caixa de entrada")
     return row
 
 
@@ -56,7 +57,7 @@ def listar(db=Depends(get_db)):
 def guardar(payload: EntradaIn, db=Depends(get_db)):
     texto = payload.texto.strip()
     if not texto:
-        raise HTTPException(status_code=422, detail="texto vazio")
+        raise ErroKami(422, "erro.entrada.texto_vazio", "texto vazio")
     item = {"id": new_id(), "texto": texto, "criado_em": now_iso()}
     db.execute("INSERT INTO caixa_entrada (id, texto, criado_em) VALUES (:id, :texto, :criado_em)", item)
     db.commit()

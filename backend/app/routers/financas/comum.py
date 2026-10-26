@@ -7,10 +7,10 @@ num router só, montado em /api/financas). MAN-02.
 """
 import re
 
-from fastapi import HTTPException
 from pydantic import BaseModel
 
 from app.actions import revert_actions
+from app.mensagens import ErroKami
 
 
 # XP de Finanças (balanceamento da etapa 2 da gamificação): lançar uma
@@ -25,7 +25,7 @@ MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
 def _validate_month(month: str) -> tuple:
     if not MONTH_RE.match(month):
-        raise HTTPException(status_code=422, detail="parâmetro 'month' deve ser 'YYYY-MM'")
+        raise ErroKami(422, "erro.comum.parametro_month_deve_ser_yyyy", "parâmetro 'month' deve ser 'YYYY-MM'")
     year, mo = month.split("-")
     return int(year), int(mo)
 

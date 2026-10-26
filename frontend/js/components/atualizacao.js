@@ -5,6 +5,7 @@ import { showToast } from "./toast.js";
 import { openExternal } from "./open-external.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { t } from "../i18n.js";
 
 /**
  * components/atualizacao.js — aviso de versão nova (DIST-01, P-75).
@@ -31,7 +32,7 @@ const INTERVALO = 24 * 60 * 60 * 1000;
 const RELEASES = "https://github.com/emanuel-frs/KAMI/releases";
 const NO_WINDOWS = /windows/i.test(navigator.userAgent);
 
-let disponivel = null; // { versao, atual, notas, data, instalavel }
+let disponivel = null; // { versao, atual, notas, data, instalavel, pacote }
 let ultimaConsulta = null; // Date da última consulta que respondeu
 let timer = null;
 let instalando = false;
@@ -120,8 +121,9 @@ export function verNovidades(versao = disponivel?.versao) {
 /** Texto curto de como essa instalação é atualizada (sino e sobre). */
 export function comoAtualiza(d = disponivel) {
   if (!d) return "";
-  if (d.instalavel) return NO_WINDOWS ? "o kami baixa, instala e abre de novo" : "o kami troca o AppImage e abre de novo";
-  return "esta instalação é atualizada pelo gerenciador de pacotes do sistema (dnf, apt, yay…)";
+  if (d.instalavel && d.pacote === "rpm") return t("atualizacao.rpm_como");
+  if (d.instalavel) return NO_WINDOWS ? t("atualizacao.o_kami_baixa_instala_e") : t("atualizacao.o_kami_troca_o_appimage");
+  return t("atualizacao.esta_instalacao_e_atualizada_pelo");
 }
 
 // ── instalar ───────────────────────────────────────────────────────────
@@ -130,11 +132,10 @@ export async function atualizarAgora() {
   if (!disponivel?.instalavel || instalando) return;
   const { versao } = disponivel;
   const ok = await showConfirmModal(
-    `o kami vai guardar uma cópia do banco, baixar a versão ${versao}, instalar e abrir de novo.` +
-      (NO_WINDOWS
-        ? " o Windows pode mostrar o aviso \"editor desconhecido\" (SmartScreen) — é esperado: o kami não é assinado por uma empresa. clique em \"mais informações\" › \"executar assim mesmo\"."
-        : ""),
-    { title: `atualizar para a ${versao}`, confirmText: "atualizar agora" }
+    t("atualizacao.confirmar", { versao }) +
+      (NO_WINDOWS ? ` ${t("atualizacao.o_windows_pode_mostrar_o")}` : "") +
+      (disponivel.pacote === "rpm" ? ` ${t("atualizacao.rpm_senha")}` : ""),
+    { title: t("atualizacao.atualizar_para", { versao }), confirmText: t("atualizacao.atualizar_agora") }
   );
   if (!ok) return;
 
@@ -145,7 +146,7 @@ export async function atualizarAgora() {
   try {
     await post("/api/backups/antes-de-atualizar", {});
     fecharAviso = showToast({
-      title: `baixando a versão ${versao}…`,
+      title: t("atualizacao.baixando", { versao }),
       message: "0%",
       iconName: "download",
       duration: 0,
@@ -167,6 +168,6 @@ export async function atualizarAgora() {
     fecharAviso?.();
     instalando = false;
     avisarMudou();
-    showErrorModal(String(err?.message || err), "não deu pra atualizar");
+    showErrorModal(String(err?.message || err), t("atualizacao.nao_deu_pra_atualizar"));
   }
 }

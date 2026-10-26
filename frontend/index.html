@@ -50,14 +50,14 @@
 </head>
 <body>
 
-<a href="#page-root" class="skip-link">pular para o conteúdo</a>
+<a href="#page-root" class="skip-link" data-i18n="geral.pular_conteudo">pular para o conteúdo</a>
 
 <div class="titlebar" data-tauri-drag-region>
 <div class="titlebar-text" data-tauri-drag-region>kami</div>
 <div class="win-ctrls">
-<button class="win-ctrl-btn win-ctrl-minimize" id="win-minimize" type="button" title="minimizar" aria-label="minimizar"></button>
-<button class="win-ctrl-btn win-ctrl-maximize" id="win-maximize" type="button" title="maximizar" aria-label="maximizar"></button>
-<button class="win-ctrl-btn win-ctrl-close" id="win-close" type="button" title="fechar" aria-label="fechar"></button>
+<button class="win-ctrl-btn win-ctrl-minimize" id="win-minimize" type="button" title="minimizar" aria-label="minimizar" data-i18n-attr="title:janela.minimizar;aria-label:janela.minimizar"></button>
+<button class="win-ctrl-btn win-ctrl-maximize" id="win-maximize" type="button" title="maximizar" aria-label="maximizar" data-i18n-attr="title:janela.maximizar;aria-label:janela.maximizar"></button>
+<button class="win-ctrl-btn win-ctrl-close" id="win-close" type="button" title="fechar" aria-label="fechar" data-i18n-attr="title:janela.fechar;aria-label:janela.fechar"></button>
 </div>
 </div>
 
@@ -66,16 +66,16 @@
   <!-- .sidebar-brand removido -->
 
   <div class="nav-tree" id="nav-tree">
-    <div class="nav-link" data-page="perfil" role="link" tabindex="0"><span class="branch">├─</span>perfil</div>
-    <div class="nav-link" data-page="nucleo" role="link" tabindex="0"><span class="branch">├─</span>núcleo</div>
-    <div class="nav-link" data-page="financas" role="link" tabindex="0"><span class="branch">├─</span>finanças</div>
-    <div class="nav-link" data-page="carreira" role="link" tabindex="0"><span class="branch">├─</span>carreira</div>
-    <div class="nav-link" data-page="aprendizado" role="link" tabindex="0"><span class="branch">├─</span>aprendizado</div>
-    <div class="nav-link" data-page="organizacao" role="link" tabindex="0"><span class="branch">├─</span>organização</div>
-    <div class="nav-link" data-page="metas" role="link" tabindex="0"><span class="branch">├─</span>metas pessoais</div>
-    <div class="nav-link" data-page="calendario" role="link" tabindex="0"><span class="branch">├─</span>calendário</div>
-    <div class="nav-link" data-page="habitos" role="link" tabindex="0"><span class="branch">├─</span>hábitos</div>
-    <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve" role="link" tabindex="0" aria-disabled="true"><span class="branch">└─</span>assistente kami<span class="nav-badge-soon">em breve</span></div>
+    <div class="nav-link" data-page="perfil" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.perfil">perfil</span></div>
+    <div class="nav-link" data-page="nucleo" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.nucleo">núcleo</span></div>
+    <div class="nav-link" data-page="financas" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.financas">finanças</span></div>
+    <div class="nav-link" data-page="carreira" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.carreira">carreira</span></div>
+    <div class="nav-link" data-page="aprendizado" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.aprendizado">aprendizado</span></div>
+    <div class="nav-link" data-page="organizacao" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.organizacao">organização</span></div>
+    <div class="nav-link" data-page="metas" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.metas">metas pessoais</span></div>
+    <div class="nav-link" data-page="calendario" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.calendario">calendário</span></div>
+    <div class="nav-link" data-page="habitos" role="link" tabindex="0"><span class="branch">├─</span><span data-i18n="nav.habitos">hábitos</span></div>
+    <div class="nav-link disabled" data-page="assistente" data-tooltip="em breve" data-i18n-attr="data-tooltip:nav.em_breve" role="link" tabindex="0" aria-disabled="true"><span class="branch">└─</span><span data-i18n="nav.assistente">assistente kami</span><span class="nav-badge-soon" data-i18n="nav.em_breve">em breve</span></div>
   </div>
 
   <!-- GAM-05/06: chama da sequência + "nv N [####------]" + "12d ◆◇"
@@ -85,9 +85,9 @@
   <div class="sidebar-footer">
     <pre class="mini-avatar mini-avatar--vazio" id="sidebar-avatar">sem avatar ainda — configure no módulo perfil.</pre>
     <div class="sidebar-footer-actions">
-      <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda" aria-label="ajuda"></button>
-      <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações" aria-label="notificações"></button>
-      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações (Alt+C)" aria-label="configurações" aria-keyshortcuts="Alt+C"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-help" data-tooltip="ajuda" aria-label="ajuda" data-i18n-attr="data-tooltip:sidebar.ajuda;aria-label:sidebar.ajuda"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-notifications" data-tooltip="notificações" aria-label="notificações" data-i18n-attr="data-tooltip:sidebar.notificacoes;aria-label:sidebar.notificacoes"></button>
+      <button type="button" class="btn icon-btn-square" id="btn-open-settings" data-tooltip="configurações (Alt+C)" aria-label="configurações" data-i18n-attr="data-tooltip:sidebar.configuracoes_atalho;aria-label:sidebar.configuracoes" aria-keyshortcuts="Alt+C"></button>
     </div>
   </div>
 </nav>

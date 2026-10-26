@@ -8,12 +8,14 @@ o backend nunca recebe nem guarda a foto original).
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.business_days import paises_com_feriados
 from app.database import SOM_COLUNAS, get_db, now_iso
 from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
 from app.limites import Entrada
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -48,6 +50,9 @@ class ProfileOut(BaseModel):
     atualizacoes_procurar: bool = True
     atualizacao_avisada: Optional[str] = None
     atualizacao_pulada: Optional[str] = None
+    idioma: Optional[str] = None  # I18N-01: None = ainda não escolhido
+    moeda: Optional[str] = None  # I18N-06: ISO 4217; None = ainda não escolhida
+    pais: Optional[str] = None  # I18N-06: ISO 3166 (feriados do dia útil)
     updated_at: str
 
 
@@ -83,6 +88,12 @@ class ProfileUpdate(Entrada):
     atualizacoes_procurar: Optional[bool] = None
     atualizacao_avisada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
     atualizacao_pulada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
+    # I18N-01 (P-74): os 10 idiomas — frontend/js/i18n.js::IDIOMAS
+    idioma: Optional[str] = Field(None, pattern=r"^(pt|en|es|fr|it|de|zh|ja|ko|hi)$")
+    # I18N-06: qualquer código ISO (o frontend confere com o Intl); país sem
+    # calendário na workalendar = dia útil só de segunda a sexta
+    moeda: Optional[str] = Field(None, pattern=r"^[A-Z]{3}$")
+    pais: Optional[str] = Field(None, pattern=r"^[A-Z]{2}$")
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -115,7 +126,7 @@ def _get_profile_row(db):
     row = db.execute("SELECT * FROM user_profile LIMIT 1").fetchone()
     if not row:
         # não deveria acontecer — init_db sempre semeia a linha única
-        raise HTTPException(status_code=404, detail="perfil não encontrado")
+        raise ErroKami(404, "erro.perfil.perfil_nao_encontrado", "perfil não encontrado")
     return row
 
 
@@ -132,10 +143,23 @@ def _recompensas_escolhidas(db, payload, row):
             continue
         minimo = nivel_minimo(catalogo_, valor)
         if minimo is None:
-            raise HTTPException(status_code=422, detail=f"{campo} desconhecido: '{valor}'")
+            raise ErroKami(
+                422,
+                "erro.perfil.campo_desconhecido_valor",
+                "{campo} desconhecido: '{valor}'",
+                campo=campo,
+                valor=valor,
+            )
         nivel = nivel if nivel is not None else nivel_jogador(db)
         if nivel < minimo:
-            raise HTTPException(status_code=422, detail=f"{campo} '{valor}' é liberado no nível {minimo}")
+            raise ErroKami(
+                422,
+                "erro.perfil.campo_valor_liberado_no_nivel",
+                "{campo} '{valor}' é liberado no nível {minimo}",
+                campo=campo,
+                valor=valor,
+                minimo=minimo,
+            )
     if payload.titulo is not None:
         titulo = None if payload.titulo == "auto" else payload.titulo
     if payload.tema is not None:
@@ -146,6 +170,12 @@ def _recompensas_escolhidas(db, payload, row):
 @router.get("", response_model=ProfileOut)
 def get_profile(db=Depends(get_db)):
     return dict(_get_profile_row(db))
+
+
+@router.get("/paises-feriados")
+def get_paises_feriados():
+    """I18N-06: países com calendário de feriados (o nome sai do Intl no app)."""
+    return {"paises": paises_com_feriados()}
 
 
 @router.put("", response_model=ProfileOut)
@@ -161,9 +191,11 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
     )
     efeitos_visuais = payload.efeitos_visuais if payload.efeitos_visuais is not None else row["efeitos_visuais"]
     if efeitos_visuais not in EFEITOS_VISUAIS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"efeitos_visuais inválido; valores aceitos: {sorted(EFEITOS_VISUAIS)}",
+        raise ErroKami(
+            422,
+            "erro.perfil.efeitos_visuais_invalido_valores_aceitos",
+            "efeitos_visuais inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(EFEITOS_VISUAIS))),
         )
     titulo, tema = _recompensas_escolhidas(db, payload, row)
     db.execute(
@@ -190,6 +222,10 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
     if payload.atualizacoes_procurar is not None:
         db.execute("UPDATE user_profile SET atualizacoes_procurar = ? WHERE id = ?", (int(payload.atualizacoes_procurar), row["id"]))
+    for col in ("idioma", "moeda", "pais"):
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (value, row["id"]))
     for col in ("atualizacao_avisada", "atualizacao_pulada"):
         value = getattr(payload, col)
         if value is not None:

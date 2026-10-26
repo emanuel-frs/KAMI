@@ -13,11 +13,13 @@
 //!   pública embutida — pacote com assinatura errada é recusado pelo plugin
 //!   antes de qualquer coisa —, derruba o backend e instala. Windows: o
 //!   instalador NSIS fecha o app e abre a versão nova. AppImage: o arquivo é
-//!   trocado e o app reinicia.
+//!   trocado e o app reinicia. `.rpm`: o plugin roda `rpm -U` pelo pkexec
+//!   (o sistema pede a senha) e o app reinicia na versão nova.
 //!
-//! Só dá pra instalar daqui no Windows (NSIS) e no AppImage. `.deb`, `.rpm`
-//! e AUR: o gerenciador de pacotes é quem atualiza — a tela só avisa e
-//! aponta pra página da versão.
+//! Dá pra instalar daqui no Windows (NSIS), no AppImage e no `.rpm` (o
+//! latest.json tem a entrada `linux-x86_64-rpm`). `.deb` e AUR: o
+//! gerenciador de pacotes é quem atualiza — a tela só avisa e aponta pra
+//! página da versão.
 //!
 //! `KAMI_ATUALIZACAO_URL` troca o endereço do latest.json (testes do
 //! DIST-01, com um servidor local). Não abre brecha: a assinatura continua
@@ -28,6 +30,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use serde::Serialize;
+use tauri::utils::{config::BundleType, platform::bundle_type};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -50,16 +53,27 @@ pub struct Disponivel {
     notas: Option<String>,
     /// AAAA-MM-DD, quando o latest.json traz
     data: Option<String>,
-    /// false: .deb/.rpm/AUR — só o aviso
+    /// false: .deb/AUR — só o aviso
     instalavel: bool,
+    /// "windows" | "appimage" | "rpm" | "outro" — o texto da tela muda
+    pacote: &'static str,
+}
+
+fn pacote() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "windows"
+    } else if std::env::var_os("APPIMAGE").is_some() {
+        // o AppImage em execução sempre tem $APPIMAGE (o runtime define)
+        "appimage"
+    } else if bundle_type() == Some(BundleType::Rpm) {
+        "rpm"
+    } else {
+        "outro"
+    }
 }
 
 fn pode_instalar_daqui() -> bool {
-    if cfg!(target_os = "windows") {
-        return true;
-    }
-    // o AppImage em execução sempre tem $APPIMAGE (o runtime define)
-    std::env::var_os("APPIMAGE").is_some()
+    pacote() != "outro"
 }
 
 fn updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
@@ -104,6 +118,7 @@ pub async fn atualizacao_procurar(app: AppHandle) -> Result<Option<Disponivel>, 
             format!("{:04}-{:02}-{:02}", d.year(), u8::from(d.month()), d.day())
         }),
         instalavel: pode_instalar_daqui(),
+        pacote: pacote(),
     });
     *app.state::<Pendente>().0.lock().unwrap() = update;
     Ok(resposta)
@@ -148,7 +163,7 @@ pub async fn atualizacao_instalar(app: AppHandle) -> Result<(), String> {
         })?;
 
     INSTALANDO.store(true, Ordering::SeqCst);
-    // AppImage: o arquivo é trocado com o app aberto, mas o backend sai antes
+    // AppImage/.rpm: os arquivos são trocados com o app aberto, mas o backend sai antes
     // (no Windows quem faz isso é o on_before_exit acima)
     if !cfg!(target_os = "windows") {
         crate::parar_backend(&app);

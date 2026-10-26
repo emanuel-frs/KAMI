@@ -1,14 +1,15 @@
 import * as carteiraApi from "../api/carteira.js";
 import { fitAsciiText } from "../components/ascii.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { openContaModal } from "../modals/conta-modal.js";
 import { icon } from "../components/icons.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showPromptModal } from "../modals/prompt-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { t } from "../i18n.js";
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 function pctLimite(a) {
   if (!a.limite_total) return 0;
@@ -20,21 +21,21 @@ function bankIconInner(bank) {
   return `<span class="ph">${escapeHtml(fallback)}</span>`;
 }
 function accountCardHtml(bank, a) {
-  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="editar conta" aria-label="editar conta">${icon("pencil", { size: 11 })}</span>`;
-  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="remover conta" aria-label="remover conta">${icon("x", { size: 11 })}</span>`;
+  const editBtn = `<span class="ba-edit" data-edit-account="${a.id}" data-bank-id="${bank.id}" data-tooltip="${t("carteira.editar_conta")}" aria-label="${t("carteira.editar_conta")}">${icon("pencil", { size: 11 })}</span>`;
+  const removeBtn = `<span class="ba-remove" data-remove-account="${a.id}" data-tooltip="${t("carteira.remover_conta")}" aria-label="${t("carteira.remover_conta")}">${icon("x", { size: 11 })}</span>`;
   let saldoBlock = "";
-  if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>saldo atual</span><b>${brl(a.saldo_atual)}</b></div>`;
+  if (a.possui_saldo) saldoBlock = `<div class="ba-row"><span>${t("carteira.saldo_atual")}</span><b>${brl(a.saldo_atual)}</b></div>`;
   let creditoBlock = "";
   if (a.possui_credito) {
     const pct = pctLimite(a);
     creditoBlock = `
-      <div class="ba-row"><span>fatura atual</span><b>${brl(a.fatura_atual)}</b></div>
+      <div class="ba-row"><span>${t("carteira.fatura_atual")}</span><b>${brl(a.fatura_atual)}</b></div>
       <div class="ba-credito-block">
         <div class="ba-limit"><div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div></div>
-        <div class="ba-foot"><span>${pct}% do limite de ${brl(a.limite_total)}</span><span>vencimento dia ${a.dia_vencimento || "—"}</span></div>
+        <div class="ba-foot"><span>${t("carteira.pct_limite", { pct, limite: brl(a.limite_total) })}</span><span>${t("carteira.vencimento", { dia: a.dia_vencimento || "—" })}</span></div>
       </div>`;
   }
-  if (!a.possui_saldo && !a.possui_credito) saldoBlock = `<div class="ba-empty-flags">sem saldo nem crédito configurado</div>`;
+  if (!a.possui_saldo && !a.possui_credito) saldoBlock = `<div class="ba-empty-flags">${t("carteira.sem_flags")}</div>`;
   return `
     <div class="bank-account">
       <div class="ba-head"><span class="ba-name" data-tooltip="${escapeHtml(a.nome)}">${escapeHtml(a.nome)}</span><span class="ba-actions">${editBtn}${removeBtn}</span></div>
@@ -43,7 +44,7 @@ function accountCardHtml(bank, a) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando carteira…</div>';
+  el.innerHTML = `<div class="empty-state">${t("carteira.carregando")}</div>`;
   let banks = [];
   let expandedBankId = null;
   let boundWalletChanged = null;
@@ -51,7 +52,7 @@ export async function render(el, widget) {
   function draw() {
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-account">+ nova conta</button>
+        <button type="button" class="btn sm" data-action="add-account">${t("carteira.nova_conta")}</button>
       </div>
       <div class="wallet-stack">
         ${banks.length ? banks.map((b) => {
@@ -67,12 +68,12 @@ export async function render(el, widget) {
                 <div class="bank-icon">${bankIconInner(b)}</div>
                 <div class="bank-name" data-tooltip="${escapeHtml(b.nome)}">${escapeHtml(b.nome)}</div>
                 <div class="bank-count">${b.accounts.length}</div>
-                <span class="bank-edit" data-edit-bank="${b.id}" data-tooltip="renomear banco" aria-label="renomear banco">${icon("pencil", { size: 11 })}</span>
-                <span class="bank-remove" data-remove-bank="${b.id}" data-tooltip="apagar banco" aria-label="apagar banco">${icon("x", { size: 11 })}</span>
+                <span class="bank-edit" data-edit-bank="${b.id}" data-tooltip="${t("carteira.renomear_banco")}" aria-label="${t("carteira.renomear_banco")}">${icon("pencil", { size: 11 })}</span>
+                <span class="bank-remove" data-remove-bank="${b.id}" data-tooltip="${t("carteira.apagar_banco")}" aria-label="${t("carteira.apagar_banco")}">${icon("x", { size: 11 })}</span>
               </div>
               ${accountsHtml}
             </div>`;
-        }).join("") : `<div class="wallet-empty">nenhuma conta ainda — clique em "+ nova conta".</div>`}
+        }).join("") : `<div class="wallet-empty">${t("carteira.vazio")}</div>`}
       </div>
     `;
 
@@ -112,7 +113,7 @@ export async function render(el, widget) {
     el.querySelectorAll("[data-remove-account]").forEach((node) => {
       node.addEventListener("click", async (ev) => {
         ev.stopPropagation();
-        const ok = await showConfirmModal("remover essa conta?", { title: "remover conta", confirmText: "remover", danger: true });
+        const ok = await showConfirmModal(t("carteira.remover_conta_confirma"), { title: t("carteira.remover_conta"), confirmText: t("geral.remover"), danger: true });
         if (!ok) return;
         await carteiraApi.deleteAccount(node.getAttribute("data-remove-account"));
         await reload();
@@ -125,15 +126,15 @@ export async function render(el, widget) {
         const bankId = node.getAttribute("data-edit-bank");
         const bank = banks.find((b) => b.id === bankId);
         if (!bank) return;
-        const novoNome = await showPromptModal("nome do banco", {
-          title: "renomear banco",
+        const novoNome = await showPromptModal(t("carteira.nome_banco"), {
+          title: t("carteira.renomear_banco"),
           defaultValue: bank.nome,
-          confirmText: "salvar",
+          confirmText: t("geral.salvar"),
         });
         if (novoNome === null) return;
         const nome = novoNome.trim();
         if (!nome) {
-          showErrorModal("o nome não pode ficar em branco.", "atenção");
+          showErrorModal(t("carteira.nome_vazio"), t("geral.atencao"));
           return;
         }
         await carteiraApi.updateBank(bankId, { nome, icon_ascii: bank.icon_ascii });
@@ -148,9 +149,9 @@ export async function render(el, widget) {
         if (!bank) return;
         const n = bank.accounts.length;
         const msg = n > 0
-          ? `apagar "${bank.nome}" também remove ${n} conta${n === 1 ? "" : "s"} dele. essa ação não pode ser desfeita.`
-          : `apagar o banco "${bank.nome}"? essa ação não pode ser desfeita.`;
-        const ok = await showConfirmModal(msg, { title: "apagar banco", confirmText: "apagar", danger: true });
+          ? t("carteira.apagar_banco_contas", { banco: bank.nome, n })
+          : t("carteira.apagar_banco_confirma", { banco: bank.nome });
+        const ok = await showConfirmModal(msg, { title: t("carteira.apagar_banco"), confirmText: t("geral.apagar"), danger: true });
         if (!ok) return;
         await carteiraApi.deleteBank(bankId);
         if (expandedBankId === bankId) expandedBankId = null;
@@ -176,7 +177,7 @@ export async function render(el, widget) {
         expandedBankId = null;
       }
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar carteira: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("carteira.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw();

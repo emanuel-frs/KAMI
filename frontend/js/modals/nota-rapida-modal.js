@@ -3,6 +3,7 @@ import { createNota, updateNota } from "../api/notas.js";
 import { criarEditorNota } from "../components/nota-editor.js";
 import { registrarAntesDeFechar } from "../components/antes-de-fechar.js";
 import { navigateTo } from "../components/navigate.js";
+import { t } from "../i18n.js";
 
 /**
  * modals/nota-rapida-modal.js — nota rápida de qualquer tela (ORG-01, P-51).
@@ -34,17 +35,17 @@ function buildModal() {
   wrap.innerHTML = `
     <div class="modal wide nota-rapida" role="dialog" aria-modal="true" aria-labelledby="nrm-titulo-head">
       <div class="modal-head">
-        <span id="nrm-titulo-head">${icon("pencil", { size: 12 })} nota rápida</span>
+        <span id="nrm-titulo-head">${icon("pencil", { size: 12 })} ${t("nota_rapida.nota_rapida")}</span>
         <span class="nota-status" id="nrm-status" aria-live="polite"></span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="nrm-corpo">
-        <input type="text" id="nrm-titulo" class="nota-titulo" placeholder="título (opcional)" maxlength="200" aria-label="título da nota" autocomplete="off" data-autofocus>
+        <input type="text" id="nrm-titulo" class="nota-titulo" placeholder="${t("nota_rapida.titulo_opcional")}" maxlength="200" aria-label="${t("nota_rapida.titulo_da_nota")}" autocomplete="off" data-autofocus>
         <div class="nrm-editor" id="nrm-editor"></div>
       </div>
       <div class="nrm-rodape">
-        <span class="nrm-dica">salva sozinho · esc fecha</span>
-        <button type="button" class="btn sm" data-nrm="abrir">${icon("arrow-right", { size: 11 })} abrir em notas</button>
+        <span class="nrm-dica">${t("nota_rapida.salva_sozinho_esc_fecha")}</span>
+        <button type="button" class="btn sm" data-nrm="abrir">${icon("arrow-right", { size: 11 })} ${t("nota_rapida.abrir_em_notas")}</button>
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -72,7 +73,7 @@ function status(texto, tipo = "") {
 }
 
 function agendar() {
-  status("editando…");
+  status(t("notas.editando"));
   clearTimeout(timer);
   timer = setTimeout(salvar, SALVAR_APOS_MS);
 }
@@ -87,7 +88,7 @@ function salvar() {
   fila = fila.then(async () => {
     if (dados.titulo === salvo.titulo && dados.conteudo === salvo.conteudo) return;
     if (!notaId && !dados.titulo && !dados.conteudo) return;
-    status("salvando…");
+    status(t("notas.salvando"));
     try {
       if (!notaId) {
         notaId = (await createNota(dados)).id;
@@ -96,11 +97,11 @@ function salvar() {
       }
       else await updateNota(notaId, dados);
       salvo = dados;
-      status("salvo ✓", "ok");
+      status(t("notas.salvo"), "ok");
       window.dispatchEvent(new CustomEvent("kami:notas-mudaram"));
     } catch (err) {
       console.error("nota rápida: falha ao salvar", err);
-      status("não salvou — tentando de novo…", "erro");
+      status(t("nota_rapida.nao_salvou_tentando_de_novo"), "erro");
       timer = setTimeout(salvar, 5000);
     }
   });
@@ -142,7 +143,7 @@ export function openNotaRapida({ titulo = "", conteudo = "", onCriada = null } =
   editor = criarEditorNota(modalEl.querySelector("#nrm-editor"), {
     markdown: conteudo,
     onChange: agendar,
-    placeholder: "escreva… (- lista, [] tarefa, # título)",
+    placeholder: t("nota_rapida.escreva_lista_tarefa_titulo"),
   });
   removerAntesDeFechar = registrarAntesDeFechar(salvar);
   modalEl.classList.add("open");
