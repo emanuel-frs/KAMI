@@ -8,6 +8,7 @@ import { escapeHtml, fmtData } from "../components/format.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { getLog } from "../api/nucleo.js";
 import { estado } from "./aprendizado-estado.js";
+import { t } from "../i18n.js";
 
 let heatmapYear = new Date().getFullYear();
 
@@ -112,8 +113,8 @@ export async function renderAprHeatmap() {
       const lvl = c >= 3 ? 3 : c === 2 ? 2 : c === 1 ? 1 : 0;
       const isMilestone = !!milestoneByDay[key];
       const dataStr = fmtData(key);
-      const registroStr = c ? `${c} registro${c > 1 ? 's' : ''} em aprendizado` : 'sem registro';
-      const marcoStr = isMilestone ? `marco concluído: ${milestoneByDay[key].join('; ')}` : '';
+      const registroStr = c ? t("aprendizado_heatmap.registros", { n: c }) : t("aprendizado_heatmap.sem_registro");
+      const marcoStr = isMilestone ? t("aprendizado_heatmap.marco", { marcos: milestoneByDay[key].join('; ') }) : '';
       const tip = `${dataStr} · ${registroStr}` + (marcoStr ? ` · ${marcoStr}` : '');
       cellsHtml += `<div class="hm-cell lvl-${lvl}${isMilestone ? ' milestone' : ''}" data-tooltip="${escapeHtml(tip)}"></div>`;
       // dias sem nenhum registro e sem marco não agregam nada a uma
@@ -129,11 +130,11 @@ export async function renderAprHeatmap() {
   if (altEl) {
     altEl.innerHTML = altRows.length
       ? buildTextAltTable({
-          caption: `Atividade de aprendizado em ${heatmapYear} — dias com registro`,
-          headers: ['Data', 'Atividade'],
+          caption: t("aprendizado_heatmap.caption", { ano: heatmapYear }),
+          headers: [t("aprendizado_heatmap.col_data"), t("aprendizado_heatmap.col_atividade")],
           rows: altRows,
         })
-      : `<p class="sr-only">nenhuma atividade de aprendizado registrada em ${heatmapYear}.</p>`;
+      : `<p class="sr-only">${t("aprendizado_heatmap.vazio", { ano: heatmapYear })}</p>`;
   }
 
   let monthsHtml = '';

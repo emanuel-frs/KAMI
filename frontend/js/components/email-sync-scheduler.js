@@ -2,6 +2,7 @@ import { listEmailAccounts, syncEmailAccount, listEmailCache } from "../api/orga
 import { refreshNotificationBell } from "./notification-bell.js";
 import { showToast } from "./toast.js";
 import { sendNativeNotification } from "./native-notify.js";
+import { t } from "../i18n.js";
 
 /**
  * Agendador global de sync de e-mail (notificações v2) — mesmo molde de
@@ -130,12 +131,12 @@ async function runCheck() {
 
     const message = `${effectiveNew} novos e-mails`;
     showToast({
-      title: "e-mails sincronizados",
+      title: t("email_sync_scheduler.e_mails_sincronizados"),
       message,
       iconName: "bell-ring",
       onClick: () => navigateToModuleCb?.("organizacao"),
     });
-    sendNativeNotification({ title: "kami — e-mails sincronizados", body: message });
+    sendNativeNotification({ title: t("email_sync_scheduler.kami_e_mails_sincronizados"), body: message });
   } finally {
     setRunning(false);
   }

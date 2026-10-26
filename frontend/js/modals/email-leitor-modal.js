@@ -4,6 +4,7 @@ import { renderEmailTexto, textoParaCopiar, dataLonga } from "../components/emai
 import { openExternal } from "../components/open-external.js";
 import { copyText } from "../components/clipboard.js";
 import { showToast } from "../components/toast.js";
+import { t } from "../i18n.js";
 
 /**
  * modals/email-leitor-modal.js — leitor de e-mail dentro do app (ORG-06).
@@ -48,12 +49,12 @@ function buildModal() {
   wrap.innerHTML = `
     <div class="modal wide em-leitor" role="dialog" aria-modal="true" aria-labelledby="eml-assunto">
       <div class="modal-head">
-        <span class="eml-titulo">${icon("mail", { size: 12 })} e-mail <span class="eml-pos" id="eml-pos"></span></span>
+        <span class="eml-titulo">${icon("mail", { size: 12 })} ${t("email_leitor.e_mail")} <span class="eml-pos" id="eml-pos"></span></span>
         <span class="eml-nav">
-          <button type="button" class="eml-nav-btn" data-eml="anterior" aria-label="e-mail anterior" data-tooltip="anterior (←)">${icon("chevron-left", { size: 14 })}</button>
-          <button type="button" class="eml-nav-btn" data-eml="proximo" aria-label="próximo e-mail" data-tooltip="próximo (→)">${icon("chevron-right", { size: 14 })}</button>
+          <button type="button" class="eml-nav-btn" data-eml="anterior" aria-label="${t("email_leitor.e_mail_anterior")}" data-tooltip="${t("email_leitor.anterior")}">${icon("chevron-left", { size: 14 })}</button>
+          <button type="button" class="eml-nav-btn" data-eml="proximo" aria-label="${t("email_leitor.proximo_e_mail")}" data-tooltip="${t("email_leitor.proximo")}">${icon("chevron-right", { size: 14 })}</button>
         </span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="eml-cabecalho">
         <h2 class="eml-assunto" id="eml-assunto"></h2>
@@ -69,13 +70,13 @@ function buildModal() {
           </span>
         </div>
         <div class="eml-acoes">
-          <button type="button" class="btn sm" data-eml="webmail" id="eml-webmail">${icon("external-link", { size: 11 })} abrir no webmail</button>
-          <button type="button" class="btn sm" data-eml="nao-lido">${icon("mail", { size: 11 })} marcar como não lido</button>
-          <button type="button" class="btn sm" data-eml="copiar">${icon("copy", { size: 11 })} copiar texto</button>
+          <button type="button" class="btn sm" data-eml="webmail" id="eml-webmail">${icon("external-link", { size: 11 })} ${t("email_leitor.abrir_no_webmail")}</button>
+          <button type="button" class="btn sm" data-eml="nao-lido">${icon("mail", { size: 11 })} ${t("email_leitor.marcar_como_nao_lido")}</button>
+          <button type="button" class="btn sm" data-eml="copiar">${icon("copy", { size: 11 })} ${t("email_leitor.copiar_texto")}</button>
         </div>
       </div>
-      <div class="eml-corpo" id="eml-corpo" tabindex="0" aria-label="texto do e-mail"></div>
-      <div class="eml-rodape" aria-hidden="true">← → navegar · esc fechar</div>
+      <div class="eml-corpo" id="eml-corpo" tabindex="0" aria-label="${t("email_leitor.texto_do_e_mail")}"></div>
+      <div class="eml-rodape" aria-hidden="true">${t("email_leitor.navegar_esc_fechar")}</div>
     </div>
   `;
   document.body.appendChild(wrap);
@@ -122,7 +123,7 @@ function close() {
 function preencherCabecalho(resumo) {
   const $ = (id) => modalEl.querySelector(id);
   const conta = ctx.conta(resumo.account_id) || {};
-  $("#eml-assunto").textContent = resumo.subject || "(sem assunto)";
+  $("#eml-assunto").textContent = resumo.subject || t("email_leitor.sem_assunto");
   $("#eml-nome").textContent = resumo.sender_name || resumo.sender || "?";
   $("#eml-endereco").textContent = resumo.sender_email && resumo.sender_email !== resumo.sender_name ? resumo.sender_email : "";
   const avatar = $("#eml-avatar");
@@ -148,7 +149,7 @@ async function mostrar(index) {
   const corpo = modalEl.querySelector("#eml-corpo");
   corpo.replaceChildren();
   corpo.classList.add("carregando");
-  corpo.textContent = "carregando…";
+  corpo.textContent = t("geral.carregando");
   corpo.scrollTop = 0;
   modalEl.querySelector("#eml-webmail").hidden = true;
 
@@ -159,7 +160,7 @@ async function mostrar(index) {
   } catch (err) {
     if (meu !== pedido || !ctx) return;
     corpo.classList.remove("carregando");
-    corpo.textContent = "não foi possível carregar este e-mail.";
+    corpo.textContent = t("email_leitor.nao_foi_possivel_carregar_este");
     return;
   }
   if (meu !== pedido || !ctx) return;
@@ -172,15 +173,15 @@ async function mostrar(index) {
   } else {
     const vazio = document.createElement("p");
     vazio.className = "eml-vazio";
-    vazio.textContent = "este e-mail não tem texto (só imagem ou anexo).";
+    vazio.textContent = t("email_leitor.este_e_mail_nao_tem");
     corpo.append(vazio);
   }
   if (detalhe.body_cortado) {
     const aviso = document.createElement("p");
     aviso.className = "eml-aviso";
     aviso.textContent = detalhe.webmail_url
-      ? "─ o texto completo não está guardado no kami (e-mail longo ou antigo) — abra no webmail pra ver tudo."
-      : "─ o texto completo não está guardado no kami (e-mail longo ou antigo).";
+      ? t("email_leitor.o_texto_completo_nao_esta")
+      : t("email_leitor.o_texto_completo_nao_esta_2");
     corpo.append(aviso);
   }
   modalEl.querySelector("#eml-webmail").hidden = !detalhe.webmail_url;
@@ -203,7 +204,7 @@ async function marcarNaoLido() {
   }
   close();
   onLido?.(id, false);
-  showToast({ title: "marcado como não lido", iconName: "mail", duration: 3000, sound: false });
+  showToast({ title: t("email_leitor.marcado_como_nao_lido"), iconName: "mail", duration: 3000, sound: false });
 }
 
 async function copiar() {
@@ -212,8 +213,8 @@ async function copiar() {
   const ok = await copyText(textoParaCopiar(texto));
   showToast(
     ok
-      ? { title: "texto copiado", iconName: "copy", duration: 3000, sound: false }
-      : { title: "não foi possível copiar", variant: "erro" }
+      ? { title: t("email_leitor.texto_copiado"), iconName: "copy", duration: 3000, sound: false }
+      : { title: t("email_leitor.nao_foi_possivel_copiar"), variant: "erro" }
   );
 }
 

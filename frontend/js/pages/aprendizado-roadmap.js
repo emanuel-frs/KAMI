@@ -16,6 +16,7 @@ import { getTrack, refreshTracks, startTrackNameEdit } from "./aprendizado.js";
 import { openConfirmModal, openMilestoneModal, openNewMilestoneModal } from "./aprendizado-modais.js";
 import { setupDragAndDrop, setupDragAndDropEdit } from "./aprendizado-arrastar.js";
 import { renderAprHeatmap } from "./aprendizado-heatmap.js";
+import { t } from "../i18n.js";
 
 // ─── roadmap (timeline conectada) ─────────────────────────────────────────
 function computeVisualStates(list) {
@@ -39,7 +40,7 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
           <div class="roadmap-timeline roadmap-timeline-empty" id="${listId}">
             <div class="roadmap-add-placeholder" id="${listId}-add-placeholder">
               <span class="roadmap-add-plus">+</span>
-              <span>adicionar módulo</span>
+              <span>${t("aprendizado_roadmap.adicionar_modulo")}</span>
             </div>
           </div>
         </div>
@@ -57,24 +58,24 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
         <div class="roadmap-connector"></div>
         <div class="roadmap-box">
           <div class="roadmap-heading">
-            ${editable ? `<span class="roadmap-drag-dot" data-tooltip="arrastar">${icon("grip", { size: 12 })}</span>` : ''}
+            ${editable ? `<span class="roadmap-drag-dot" data-tooltip="${t("aprendizado_roadmap.arrastar")}">${icon("grip", { size: 12 })}</span>` : ''}
             <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="concluído: ${escapeHtml(m.title)}">
             <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
             ${editable
-              ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="expandir">${icon("chevron-down", { size: 14 })}</span>`
-              : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="ver detalhes">${icon("chevron-right", { size: 14 })}</span>`
+              ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="${t("aprendizado_roadmap.expandir")}">${icon("chevron-down", { size: 14 })}</span>`
+              : `<span class="roadmap-arrow" data-id="${m.id}" data-tooltip="${t("aprendizado_roadmap.ver_detalhes")}">${icon("chevron-right", { size: 14 })}</span>`
             }
           </div>
           ${isExpanded ? `
             <div class="roadmap-expanded">
               ${m.description ? `<div class="roadmap-expanded-desc">${escapeHtml(m.description)}</div>` : ''}
               <div class="field">
-                <label for="ms-notes-${m.id}">notas</label>
+                <label for="ms-notes-${m.id}">${t("aprendizado_roadmap.notas")}</label>
                 <textarea class="ms-notes-textarea" id="ms-notes-${m.id}" data-id="${m.id}" rows="4" style="width:100%; resize:vertical;">${escapeHtml(m.notes || '')}</textarea>
               </div>
               <div style="display:flex; gap:8px; margin-top:8px;">
-                <button type="button" class="btn primary sm" data-action="save-notes-inline" data-id="${m.id}">salvar</button>
-                <button type="button" class="btn sm" data-action="edit-milestone-inline" data-id="${m.id}">editar</button>
+                <button type="button" class="btn primary sm" data-action="save-notes-inline" data-id="${m.id}">${t("geral.salvar")}</button>
+                <button type="button" class="btn sm" data-action="edit-milestone-inline" data-id="${m.id}">${t("geral.editar")}</button>
               </div>
             </div>
           ` : ''}
@@ -130,13 +131,13 @@ export async function renderMilestones() {
   if (headerEl) headerEl.style.display = '';
   if (!estado.selectedTrackId) {
     if (headerEl) headerEl.innerHTML = '';
-    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">selecione uma trilha</div>`;
+    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t("aprendizado_roadmap.selecione_uma_trilha")}</div>`;
     return;
   }
   const track = getTrack(estado.selectedTrackId);
   if (!track) {
     if (headerEl) headerEl.innerHTML = '';
-    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">trilha não encontrada</div>`;
+    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t("aprendizado_roadmap.trilha_nao_encontrada")}</div>`;
     return;
   }
 
@@ -153,7 +154,7 @@ export async function renderMilestones() {
         ${track.general_goal ? `<div class="track-goal-subtitle" data-tooltip="${escapeHtml(track.general_goal)}">${escapeHtml(track.general_goal)}</div>` : ''}
         <div class="track-notas" data-track-notas="${track.id}"></div>
       </div>
-      <button type="button" class="btn sm" id="btn-edit-track">editar</button>
+      <button type="button" class="btn sm" id="btn-edit-track">${t("geral.editar")}</button>
     </div>
   `;
   headerEl.querySelector("#btn-edit-track").addEventListener("click", () => {
@@ -199,7 +200,7 @@ export async function renderMilestones() {
         estado.heatmapEntries = null;
         await renderAprHeatmap();
       } catch (err) {
-        showErrorModal(err.message, "erro ao atualizar");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_atualizar"));
         cb.checked = !cb.checked;
       }
     });
@@ -226,13 +227,13 @@ export function renderTrackEditMode() {
   // Cabeçalho do modo edição (sem botão expandir)
   headerEl.innerHTML = `
     <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
-      <button type="button" class="btn sm icon-btn-square" id="btn-back-from-edit" data-tooltip="voltar">${icon("arrow-left", { size: 13 })}</button>
+      <button type="button" class="btn sm icon-btn-square" id="btn-back-from-edit" data-tooltip="${t("aprendizado_roadmap.voltar")}">${icon("arrow-left", { size: 13 })}</button>
       <div style="flex:1;min-width:0;">
         <span class="track-name-display" style="font-size:12px;font-weight:500;color:var(--text-dim); cursor:pointer;">${escapeHtml(track.name)}</span>
-        <div class="track-goal-display" style="font-size:10px;color:var(--text-faint);margin-top:2px;cursor:pointer;">${track.general_goal ? escapeHtml(track.general_goal) : '<span style="opacity:0.5;">(sem descrição — clique 2x para adicionar)</span>'}</div>
+        <div class="track-goal-display" style="font-size:10px;color:var(--text-faint);margin-top:2px;cursor:pointer;">${track.general_goal ? escapeHtml(track.general_goal) : `<span style="opacity:0.5;">${t("aprendizado_roadmap.sem_descricao_clique_2x_para")}</span>`}</div>
       </div>
-      <button type="button" class="btn sm icon-btn-square" id="btn-delete-track" data-tooltip="deletar trilha">${icon("trash-2", { size: 13 })}</button>
-      <button type="button" class="btn sm icon-btn-square" id="btn-add-module" data-tooltip="adicionar módulo">+</button>
+      <button type="button" class="btn sm icon-btn-square" id="btn-delete-track" data-tooltip="${t("aprendizado_roadmap.deletar_trilha")}">${icon("trash-2", { size: 13 })}</button>
+      <button type="button" class="btn sm icon-btn-square" id="btn-add-module" data-tooltip="${t("aprendizado_roadmap.adicionar_modulo")}">+</button>
     </div>
   `;
 
@@ -248,7 +249,7 @@ export function renderTrackEditMode() {
   });
 
   headerEl.querySelector('#btn-delete-track').addEventListener('click', () => {
-    openConfirmModal(`Tem certeza que deseja deletar a trilha "${track.name}"?`, async () => {
+    openConfirmModal(t("aprendizado.deletar_trilha", { trilha: track.name }), async () => {
       try {
         await deleteTrack(track.id);
         estado.selectedTrackId = null;
@@ -256,7 +257,7 @@ export function renderTrackEditMode() {
         estado.expandedMilestoneId = null;
         await refreshTracks();
         headerEl.innerHTML = '';
-        bodyEl.innerHTML = `<div class="empty-state">trilha deletada</div>`;
+        bodyEl.innerHTML = `<div class="empty-state">${t("aprendizado_roadmap.trilha_deletada")}</div>`;
         const left = estado.containerEl.querySelector('.apr-left');
         if (left) left.style.display = '';
         const grid = estado.containerEl.querySelector('.apr-grid');
@@ -267,10 +268,10 @@ export function renderTrackEditMode() {
         // é o único alvo estável (sempre existe, é a próxima ação óbvia
         // depois de deletar) — announce() cobre quem usa leitor de tela
         // mesmo que o foco em si não fale "trilha deletada" sozinho.
-        announce(`trilha "${track.name}" deletada`);
+        announce(t("aprendizado.trilha_deletada", { trilha: track.name }));
         estado.containerEl.querySelector('#apr-add-track')?.focus();
       } catch (err) {
-        showErrorModal(err.message, "erro ao deletar");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_deletar"));
       }
     });
   });
@@ -309,7 +310,7 @@ export function renderTrackEditMode() {
         estado.heatmapEntries = null;
         await renderAprHeatmap();
       } catch (err) {
-        showErrorModal(err.message, "erro ao atualizar");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_atualizar"));
         cb.checked = !cb.checked;
       }
     });
@@ -342,7 +343,7 @@ export function renderTrackEditMode() {
         estado.expandedMilestoneId = id;
         renderMilestones();
       } catch (err) {
-        showErrorModal(err.message, "erro ao salvar notas");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_salvar_notas"));
       }
     });
   });
@@ -362,7 +363,7 @@ export function renderTrackEditMode() {
   });
   // dblclick não tem equivalente no teclado — Enter faz o mesmo
   makeFocusable(trackNameEl, {
-    label: `renomear trilha: ${track.name}`,
+    label: t("aprendizado.renomear_trilha", { nome: track.name }),
     onActivate: () => startTrackNameEdit(trackNameEl, track),
   });
 
@@ -371,7 +372,7 @@ export function renderTrackEditMode() {
     startTrackGoalEdit(trackGoalEl, track);
   });
   makeFocusable(trackGoalEl, {
-    label: 'editar descrição da trilha',
+    label: t("aprendizado_roadmap.editar_descricao_da_trilha"),
     onActivate: () => startTrackGoalEdit(trackGoalEl, track),
   });
 
@@ -387,8 +388,8 @@ function startTrackGoalEdit(displayEl, track) {
   wrap.innerHTML = `
     <textarea rows="2" style="width:100%;font-size:11px;">${escapeHtml(track.general_goal || '')}</textarea>
     <div style="display:flex;gap:6px;margin-top:4px;">
-      <span class="icon-btn confirm" data-tooltip="salvar">${icon("check")}</span>
-      <span class="icon-btn cancel" data-tooltip="cancelar">${icon("x")}</span>
+      <span class="icon-btn confirm" data-tooltip="${t("geral.salvar")}">${icon("check")}</span>
+      <span class="icon-btn cancel" data-tooltip="${t("geral.cancelar")}">${icon("x")}</span>
     </div>
   `;
   displayEl.replaceWith(wrap);
@@ -406,7 +407,7 @@ function startTrackGoalEdit(displayEl, track) {
         track.general_goal = newGoal || null;
         await refreshTracks();
       } catch (err) {
-        showErrorModal(err.message, "erro ao salvar descrição");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_salvar_descricao"));
       }
     }
     renderTrackEditMode();
@@ -434,10 +435,10 @@ async function moveMilestoneByKeyboard(id, delta) {
     estado.milestones = ids.map((x) => estado.milestones.find((m) => m.id === x)).filter(Boolean);
     estado.pendingRoadmapFocus = { kind: 'roadmap-title', id };
     renderMilestones();
-    announce(`módulo movido para a posição ${to + 1} de ${ids.length}`);
+    announce(t("aprendizado.modulo_movido", { pos: to + 1, total: ids.length }));
     await refreshTracks();
   } catch (err) {
-    showErrorModal(err.message, "erro ao reordenar");
+    showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_reordenar"));
   }
 }
 
@@ -459,14 +460,14 @@ function wireRoadmapKeyboard(bodyEl, listSelector, { editable }) {
 
   listEl.querySelectorAll('.roadmap-node').forEach((node) => {
     const id = node.dataset.milestoneId;
-    const name = estado.milestones.find((m) => m.id === id)?.title || 'módulo';
+    const name = estado.milestones.find((m) => m.id === id)?.title || t("aprendizado_roadmap.modulo");
 
     const title = node.querySelector('.roadmap-title');
     if (title) {
       if (editable) {
-        makeFocusable(title, { label: `renomear módulo: ${name}`, onActivate: () => startInlineEdit(title, id) });
+        makeFocusable(title, { label: t("aprendizado.renomear_modulo", { nome: name }), onActivate: () => startInlineEdit(title, id) });
       } else {
-        makeFocusable(title, { label: `abrir detalhes: ${name}` });
+        makeFocusable(title, { label: t("aprendizado.abrir_detalhes", { nome: name }) });
       }
     }
     const arrow = node.querySelector('.roadmap-arrow');
@@ -477,12 +478,12 @@ function wireRoadmapKeyboard(bodyEl, listSelector, { editable }) {
     const expandBtn = node.querySelector('.roadmap-expand-btn');
     if (expandBtn) {
       const open = estado.expandedMilestoneId === id;
-      makeFocusable(expandBtn, { label: `${open ? 'recolher' : 'expandir'} módulo: ${name}`, expanded: open });
+      makeFocusable(expandBtn, { label: t(open ? "aprendizado.recolher_modulo" : "aprendizado.expandir_modulo", { nome: name }), expanded: open });
     }
   });
 
   const placeholder = listEl.querySelector('.roadmap-add-placeholder');
-  if (placeholder) makeFocusable(placeholder, { label: 'adicionar módulo' });
+  if (placeholder) makeFocusable(placeholder, { label: t("aprendizado_roadmap.adicionar_modulo") });
 
   listEl.addEventListener('keydown', (e) => {
     const t = e.target;
@@ -520,7 +521,7 @@ export async function refreshMilestones() {
   } catch (err) {
     estado.milestones = [];
     const detail = estado.containerEl.querySelector("#apr-detail-body");
-    if (detail) detail.innerHTML = `<div class="empty-state">erro ao carregar módulos: ${escapeHtml(err.message)}</div>`;
+    if (detail) detail.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_modulos", { erro: err.message }))}</div>`;
     return;
   }
   renderMilestones();
@@ -571,7 +572,7 @@ function startInlineEdit(titleEl, id) {
         await updateMilestone(id, { title: newTitle });
         ms.title = newTitle;
       } catch (err) {
-        showErrorModal(err.message, "erro ao renomear");
+        showErrorModal(err.message, t("aprendizado_roadmap.erro_ao_renomear"));
       }
     }
     estado.selectedNodeId = null;

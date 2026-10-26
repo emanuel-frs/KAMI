@@ -22,6 +22,7 @@ import {
 } from "./aprendizado-modais.js";
 import { setupTracksDragAndDrop, setupTrackListKeyboard } from "./aprendizado-arrastar.js";
 import { renderAprHeatmap } from "./aprendizado-heatmap.js";
+import { t } from "../i18n.js";
 
 let shortcutsToken = null;
 // dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/financas/metas/organizacao
@@ -55,14 +56,14 @@ export function renderTracks() {
     estado.pendingTrackFocusId = null;
     listEl.removeAttribute("role");
     listEl.removeAttribute("aria-label");
-    listEl.innerHTML = `<div class="empty-state">nenhuma trilha criada.</div>`;
+    listEl.innerHTML = `<div class="empty-state">${t("aprendizado.nenhuma_trilha_criada")}</div>`;
     return;
   }
   const sorted = [...estado.tracks].sort((a, b) => a.position - b.position);
   // lista de seleção única: 1 parada de Tab (a trilha selecionada, ou a
   // primeira) e setas percorrem as demais — ver setupListEvents().
   listEl.setAttribute("role", "listbox");
-  listEl.setAttribute("aria-label", "trilhas de aprendizado");
+  listEl.setAttribute("aria-label", t("aprendizado.trilhas_de_aprendizado"));
   const tabStopId = sorted.some((t) => t.id === estado.selectedTrackId) ? estado.selectedTrackId : sorted[0].id;
   listEl.innerHTML = sorted.map(track => {
     const pct = track.progress_pct ?? 0;
@@ -71,7 +72,7 @@ export function renderTracks() {
       <div class="apr-track-item${isSelected ? " selected" : ""}" data-track-id="${track.id}"
            role="option" aria-selected="${isSelected}" tabindex="${track.id === tabStopId ? 0 : -1}"
            aria-label="${escapeHtml(track.name)}, ${Math.round(pct)}%">
-        <span class="apr-track-drag-dot" data-tooltip="arrastar" aria-hidden="true">${icon("grip", { size: 12 })}</span>
+        <span class="apr-track-drag-dot" data-tooltip="${t("aprendizado.arrastar")}" aria-hidden="true">${icon("grip", { size: 12 })}</span>
         <div class="apr-track-item-body">
           <div class="apr-track-info">
             <span class="apr-track-name">${escapeHtml(track.name)}</span>
@@ -96,7 +97,7 @@ export function renderTracks() {
     // trilha selecionada, e sem a caixa tracejada do empty-state — só o
     // texto solto, sem moldura nenhuma.
     if (header) { header.innerHTML = ''; header.style.display = 'none'; }
-    if (body) body.innerHTML = `<div class="empty-state" style="border:none;">comece uma trilha de aprendizado</div>`;
+    if (body) body.innerHTML = `<div class="empty-state" style="border:none;">${t("aprendizado.comece_uma_trilha_de_aprendizado")}</div>`;
   }
 }
 
@@ -154,7 +155,7 @@ function shortcutFocusRoadmap() {
 export async function refreshTracks() {
   const listEl = estado.containerEl.querySelector("#apr-tracks-list");
   captureTrackFocus(listEl); // antes de "carregando…" apagar a lista (e o foco junto)
-  listEl.innerHTML = '<div class="empty-state">carregando…</div>';
+  listEl.innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
   try {
     estado.tracks = await listTracks();
   } catch (err) {
@@ -201,8 +202,8 @@ export function startTrackNameEdit(displayEl, track) {
   wrap.style.flex = '1';
   wrap.innerHTML = `
     <input type="text" value="${escapeHtml(track.name)}">
-    <span class="icon-btn confirm" data-tooltip="salvar">${icon("check")}</span>
-    <span class="icon-btn cancel" data-tooltip="cancelar">${icon("x")}</span>
+    <span class="icon-btn confirm" data-tooltip="${t("geral.salvar")}">${icon("check")}</span>
+    <span class="icon-btn cancel" data-tooltip="${t("geral.cancelar")}">${icon("x")}</span>
   `;
   displayEl.replaceWith(wrap);
   wrap.querySelectorAll('.icon-btn').forEach((b) =>
@@ -220,7 +221,7 @@ export function startTrackNameEdit(displayEl, track) {
         track.name = newName;
         await refreshTracks();
       } catch (err) {
-        showErrorModal(err.message, "erro ao renomear trilha");
+        showErrorModal(err.message, t("aprendizado.erro_ao_renomear_trilha"));
       }
     }
     renderTrackEditMode();
@@ -266,45 +267,45 @@ export async function mount(container) {
   estado.containerEl = container;
   container.innerHTML = `
     <div class="wg-toolbar">
-      <button type="button" class="btn sm" id="apr-add-track">+ adicionar trilha</button>
+      <button type="button" class="btn sm" id="apr-add-track">${t("aprendizado.adicionar_trilha")}</button>
     </div>
     <div class="card" style="max-height: 500px; display: flex; flex-direction: column;">
-      <div class="card-head">trilhas de aprendizado</div>
+      <div class="card-head">${t("aprendizado.trilhas_de_aprendizado")}</div>
       <div class="card-body apr-grid" style="flex:1;min-height:0;overflow:hidden;">
         <div class="apr-left" style="height:100%;overflow-y:auto;">
-          <div id="apr-tracks-list"><div class="empty-state">carregando…</div></div>
+          <div id="apr-tracks-list"><div class="empty-state">${t("geral.carregando")}</div></div>
         </div>
         <div class="apr-right" style="height:100%;overflow:hidden;display:flex;flex-direction:column;">
           <div id="apr-detail-header" style="flex-shrink:0; padding:6px 8px; background: var(--panel); z-index:5;"></div>
           <div id="apr-detail-body" style="flex:1;overflow-y:auto;">
-            <div class="empty-state">selecione uma trilha</div>
+            <div class="empty-state">${t("aprendizado.selecione_uma_trilha")}</div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <div class="card-head">atividade — log de aprendizado agrupado por dia <span class="push" style="color:var(--text-faint); font-size:10px;">estilo contribution graph</span></div>
+      <div class="card-head">${t("aprendizado.atividade_log_de_aprendizado_agrupado")} <span class="push" style="color:var(--text-faint); font-size:10px;">${t("aprendizado.estilo_contribution_graph")}</span></div>
       <div class="card-body">
         <div class="apr-heatmap-card-inner">
           <div class="apr-heatmap-main" aria-hidden="true">
             <div class="apr-heatmap-months" id="apr-heatmap-months"></div>
             <div class="apr-heatmap-body">
               <div class="apr-heatmap-weekdays">
-                <span></span><span>seg</span><span></span><span>qua</span><span></span><span>sex</span><span></span>
+                <span></span><span>${t("aprendizado.seg")}</span><span></span><span>${t("aprendizado.qua")}</span><span></span><span>${t("aprendizado.sex")}</span><span></span>
               </div>
               <div class="apr-heatmap-grid" id="apr-heatmap"></div>
             </div>
             <div class="apr-heatmap-legend">
-              <span>menos</span>
+              <span>${t("aprendizado.menos")}</span>
               <span class="lg-sw" style="background:var(--bg-alt);"></span>
               <span class="lg-sw" style="background:var(--accent-dim); opacity:0.5; border-color:transparent;"></span>
               <span class="lg-sw" style="background:var(--accent-dim); opacity:0.85; border-color:transparent;"></span>
               <span class="lg-sw" style="background:var(--accent); border-color:transparent;"></span>
-              <span>mais</span>
+              <span>${t("aprendizado.mais")}</span>
               <span class="lg-milestone">
                 <span class="lg-sw" style="background:var(--bg-alt); box-shadow:0 0 0 2px var(--amber);"></span>
-                marco concluído
+                ${t("aprendizado.marco_concluido")}
               </span>
             </div>
           </div>
@@ -364,16 +365,16 @@ export async function mount(container) {
   shortcutsToken = registerScreenShortcuts({
     name: 'aprendizado',
     actions: [
-      { code: 'KeyN', label: 'nova trilha', run: shortcutNewTrack },
-      { code: 'KeyE', label: 'editar a trilha selecionada (ou voltar da edição)', run: shortcutToggleEdit, when: () => !!estado.selectedTrackId },
-      { code: 'KeyM', label: 'novo módulo na trilha selecionada', run: shortcutNewMilestone, when: () => !!estado.selectedTrackId },
-      { code: 'KeyT', label: 'ir para a lista de trilhas', run: shortcutFocusTracks },
-      { code: 'KeyR', label: 'ir para os módulos da trilha (roadmap)', run: shortcutFocusRoadmap },
+      { code: 'KeyN', label: t("aprendizado.nova_trilha"), run: shortcutNewTrack },
+      { code: 'KeyE', label: t("aprendizado.editar_a_trilha_selecionada_ou"), run: shortcutToggleEdit, when: () => !!estado.selectedTrackId },
+      { code: 'KeyM', label: t("aprendizado.novo_modulo_na_trilha_selecionada"), run: shortcutNewMilestone, when: () => !!estado.selectedTrackId },
+      { code: 'KeyT', label: t("aprendizado.ir_para_a_lista_de"), run: shortcutFocusTracks },
+      { code: 'KeyR', label: t("aprendizado.ir_para_os_modulos_da"), run: shortcutFocusRoadmap },
     ],
     hints: [
-      { combos: [['↑'], ['↓']], label: 'na lista de trilhas ou de módulos: mover o foco (Home / End vão ao primeiro / último)' },
-      { combos: [['Enter'], ['Espaço']], label: 'trilha: selecionar ou desmarcar · módulo: abrir detalhes (no modo edição, renomear)' },
-      { combos: [['Shift', '↑'], ['Shift', '↓']], label: 'mover a trilha ou o módulo de posição (alternativa ao arrastar)' },
+      { combos: [['↑'], ['↓']], label: t("aprendizado.na_lista_de_trilhas_ou") },
+      { combos: [['Enter'], [t("aprendizado.espaco")]], label: t("aprendizado.trilha_selecionar_ou_desmarcar_modulo") },
+      { combos: [['Shift', '↑'], ['Shift', '↓']], label: t("aprendizado.mover_a_trilha_ou_o") },
     ],
   });
 }

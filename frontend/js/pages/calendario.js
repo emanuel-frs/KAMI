@@ -210,7 +210,7 @@ async function renderLembretes() {
       </button>`,
           )
           .join("")
-      : `<div class="empty-state">${t("calendario.nenhum_lembrete_crie_um_aqui")} <kbd>${t("calendario.alt")}</kbd>+<kbd>Q</kbd> ${t("calendario.e_amanha_9h")}</div>`}`;
+      : `<div class="empty-state">${t("calendario.nenhum_lembrete_crie_um_aqui")} <kbd>Alt</kbd>+<kbd>Q</kbd> ${t("calendario.e_amanha_9h")}</div>`}`;
 }
 
 async function editarLembrete(id) {

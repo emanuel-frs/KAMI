@@ -7,6 +7,7 @@ import * as api from "../api/organizacao.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { state, rootEl, escapeHtml, escapeAttr } from "./organizacao.js";
+import { t } from "../i18n.js";
 
 /* ==================== links ==================== */
 
@@ -17,7 +18,7 @@ export async function loadLinks() {
 export function renderLinks() {
   const wrap = rootEl.querySelector("#org-linkgroups");
   if (!state.links.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhum link cadastrado ainda.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_links.nenhum_link_cadastrado_ainda")}</div>`;
     return;
   }
   const groups = {};
@@ -43,7 +44,7 @@ export function renderLinks() {
               <span class="favicon favicon-letter" aria-hidden="true">${escapeHtml(initial)}</span>
               <span class="lr-title" data-open-link="${escapeAttr(l.url)}" data-tooltip="${escapeHtml(l.title)}">${escapeHtml(l.title)}</span>
               <span class="lr-go" data-open-link="${escapeAttr(l.url)}">${icon("external-link", { size: 11 })}</span>
-              <span class="lr-edit" data-tooltip="editar" aria-label="editar" data-edit-link="${l.id}">${icon("pencil", { size: 12 })}</span>
+              <span class="lr-edit" data-tooltip="${t("geral.editar")}" aria-label="${t("geral.editar")}" data-edit-link="${l.id}">${icon("pencil", { size: 12 })}</span>
               <span class="lr-delete" data-delete-link="${l.id}">${icon("x")}</span>
             </div>`;
         })
@@ -62,12 +63,12 @@ export function openLinkModal(linkId) {
     rootEl.querySelector("#link-title").value = l.title;
     rootEl.querySelector("#link-url").value = l.url;
     rootEl.querySelector("#link-cat").value = l.category;
-    titleEl.textContent = "editar link";
-    saveBtn.textContent = "salvar link";
+    titleEl.textContent = t("organizacao_links.editar_link");
+    saveBtn.textContent = t("organizacao_links.salvar_link");
   } else {
     ["link-edit-id", "link-title", "link-url", "link-cat"].forEach((id) => (rootEl.querySelector("#" + id).value = ""));
-    titleEl.textContent = "novo link";
-    saveBtn.textContent = "+ adicionar link";
+    titleEl.textContent = t("organizacao_links.novo_link");
+    saveBtn.textContent = t("organizacao_links.adicionar_link");
   }
   rootEl.querySelector("#link-modal").classList.add("open");
 }
@@ -81,7 +82,7 @@ export async function handleSaveLink() {
   const url = rootEl.querySelector("#link-url").value.trim();
   const category = rootEl.querySelector("#link-cat").value.trim() || "geral";
   if (!title || !url) {
-    showErrorModal("preencha título e url.", "atenção");
+    showErrorModal(t("organizacao_links.preencha_titulo_e_url"), t("geral.atencao"));
     return;
   }
   if (editId) {

@@ -8,6 +8,7 @@ import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showToast } from "../components/toast.js";
 import { state, rootEl, escapeHtml, fmtDateTimeBR } from "./organizacao.js";
+import { t } from "../i18n.js";
 
 /* ==================== github ==================== */
 
@@ -29,7 +30,7 @@ function parseRepoFullName(raw) {
 export async function renderRepos() {
   const wrap = rootEl.querySelector("#org-repos");
   if (!state.repos.length) {
-    wrap.innerHTML = '<div class="empty-state">nenhum repositório conectado ainda.</div>';
+    wrap.innerHTML = `<div class="empty-state">${t("organizacao_github.nenhum_repositorio_conectado_ainda")}</div>`;
     return;
   }
   wrap.innerHTML = state.repos.map((r) => repoCardHtml(r)).join("");
@@ -54,18 +55,18 @@ function repoCardHtml(r) {
   const stats = s
     ? `<div class="rc-stats">
          <span><span class="rc-star">${icon("star", { size: 13, fill: "currentColor" })}</span> <b>${s.stargazers_count ?? "—"}</b></span>
-         <span>issues <b>${s.open_issues_count ?? "—"}</b></span>
-         <span>branch <b>${escapeHtml(s.default_branch ?? "—")}</b></span>
-         ${s.language ? `<span>lang <b>${escapeHtml(s.language)}</b></span>` : ""}
-         ${s.private ? `<span class="gh-private-tag">privado</span>` : ""}
+         <span>${t("organizacao_github.issues")} <b>${s.open_issues_count ?? "—"}</b></span>
+         <span>${t("organizacao_github.branch")} <b>${escapeHtml(s.default_branch ?? "—")}</b></span>
+         ${s.language ? `<span>${t("organizacao_github.lang")} <b>${escapeHtml(s.language)}</b></span>` : ""}
+         ${s.private ? `<span class="gh-private-tag">${t("organizacao_github.privado")}</span>` : ""}
        </div>
        ${s.description ? `<div class="rc-desc">${escapeHtml(s.description)}</div>` : ""}`
     : "";
   const synced = r.last_synced_at
-    ? `<div class="rc-synced">última sincronização: ${fmtDateTimeBR(r.last_synced_at)}</div>`
+    ? `<div class="rc-synced">${t("organizacao_github.ultima_sync", { quando: fmtDateTimeBR(r.last_synced_at) })}</div>`
     : "";
   const error = neverSynced
-    ? `<div class="rc-error">sem dados do github — repositório pode não existir, estar privado (sem token com acesso), ou o nome pode estar incorreto. tente ressincronizar (${icon("refresh-cw", { size: 10 })} acima) de novo.</div>`
+    ? `<div class="rc-error">${t("organizacao_github.sem_dados", { icone: icon("refresh-cw", { size: 10 }) })}</div>`
     : "";
 
   // se já tem a atividade em memória (visita anterior nesta sessão),
@@ -81,11 +82,11 @@ function repoCardHtml(r) {
       <div class="rc-head">
         <span class="rc-name-group">
           <span class="rc-name">${escapeHtml(r.repo_full_name)}</span>
-          <span class="repo-source-badge ${r.source === "auto" ? "auto" : "manual"}" data-tooltip="${r.source === "auto" ? `importado automaticamente${r.owner_login ? ` (${escapeHtml(r.owner_login)})` : ""}` : "cadastrado manualmente"}">${r.source === "auto" ? "auto" : "manual"}</span>
+          <span class="repo-source-badge ${r.source === "auto" ? "auto" : "manual"}" data-tooltip="${r.source === "auto" ? `importado automaticamente${r.owner_login ? ` (${escapeHtml(r.owner_login)})` : ""}` : t("organizacao_github.cadastrado_manualmente")}">${r.source === "auto" ? "auto" : "manual"}</span>
         </span>
         <span class="rc-actions">
-          <span class="icon-btn" data-tooltip="ressincronizar" aria-label="ressincronizar" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
-          <span class="icon-btn danger" data-tooltip="remover" aria-label="remover" data-delete-repo="${r.id}">${icon("x")}</span>
+          <span class="icon-btn" data-tooltip="${t("organizacao_github.ressincronizar")}" aria-label="${t("organizacao_github.ressincronizar")}" data-sync-repo="${r.id}">${icon("refresh-cw", { size: 12 })}</span>
+          <span class="icon-btn danger" data-tooltip="${t("geral.remover")}" aria-label="${t("geral.remover")}" data-delete-repo="${r.id}">${icon("x")}</span>
         </span>
       </div>
       ${stats}
@@ -129,7 +130,7 @@ export async function handleAddRepo() {
   const errBox = rootEl.querySelector("#repo-modal-error");
   const repoFullName = parseRepoFullName(input.value);
   if (!repoFullName || !repoFullName.includes("/")) {
-    errBox.textContent = "informe no formato usuario/repositorio (ou cole a url do github).";
+    errBox.textContent = t("organizacao_github.informe_no_formato_usuario_repositorio");
     errBox.style.display = "block";
     return;
   }
@@ -139,7 +140,7 @@ export async function handleAddRepo() {
     result = await api.createGithubRepo({ repo_full_name: repoFullName });
   } catch (err) {
     // erro de transporte/validação (ex: 422 já cadastrado)
-    errBox.textContent = err?.message || "não foi possível conectar o repositório.";
+    errBox.textContent = err?.message || t("organizacao_github.nao_foi_possivel_conectar_o");
     errBox.style.display = "block";
     return;
   }
@@ -152,7 +153,7 @@ export async function handleAddRepo() {
     // mas avisa na hora que a sincronização inicial falhou — sem isso é
     // o ponto 5 do feedback: nada acontece e vira um card fantasma.
     closeRepoModal();
-    showErrorModal(result.sync_error, "repositório conectado, mas a sincronização inicial falhou");
+    showErrorModal(result.sync_error, t("organizacao_github.repositorio_conectado_mas_a_sincronizacao"));
   } else {
     closeRepoModal();
   }
@@ -163,7 +164,7 @@ export async function handleSyncRepo(repoId) {
   await loadRepos();
   renderRepos();
   if (result?.sync_error) {
-    showErrorModal(result.sync_error, "falha ao sincronizar");
+    showErrorModal(result.sync_error, t("organizacao_github.falha_ao_sincronizar"));
   }
 }
 
@@ -182,8 +183,8 @@ export function renderGithubTokenBadge() {
   const badge = rootEl.querySelector("#org-github-token-badge");
   if (!badge) return;
   badge.innerHTML = state.githubTokenConfigured
-    ? `<span class="status-dot"></span> token ativo`
-    : `<span class="status-dot"></span> sem token`;
+    ? `<span class="status-dot"></span> ${t("organizacao_github.token_ativo")}`
+    : `<span class="status-dot"></span> ${t("organizacao_github.sem_token")}`;
   badge.classList.toggle("on", state.githubTokenConfigured);
 }
 
@@ -203,7 +204,7 @@ export async function handleSaveGithubToken() {
   const err = rootEl.querySelector("#gh-token-error");
   const token = input.value.trim();
   if (!token) {
-    err.textContent = "cole um token.";
+    err.textContent = t("organizacao_github.cole_um_token");
     err.style.display = "block";
     return;
   }
@@ -211,7 +212,7 @@ export async function handleSaveGithubToken() {
   try {
     result = await api.saveGithubToken(token);
   } catch (e) {
-    err.textContent = e?.message || "token inválido ou sem permissão.";
+    err.textContent = e?.message || t("organizacao_github.token_invalido_ou_sem_permissao");
     err.style.display = "block";
     return;
   }
@@ -226,15 +227,15 @@ export async function handleSaveGithubToken() {
   renderRepos();
 
   if (result?.import_error) {
-    showErrorModal(result.import_error, "token salvo, mas a importação automática de repositórios falhou");
+    showErrorModal(result.import_error, t("organizacao_github.token_salvo_mas_a_importacao"));
   } else if (typeof result?.imported_count === "number") {
-    const owner = result.owner_login ? ` de ${result.owner_login}` : "";
+    const owner = result.owner_login ? t("organizacao_github.de_dono", { dono: result.owner_login }) : "";
     showToast({
-      title: "github",
+      title: t("organizacao_github.github"),
       message:
         result.imported_count > 0
-          ? `${result.imported_count} repositório(s) importado(s) automaticamente${owner}.`
-          : `token salvo — nenhum repositório novo pra importar${owner}.`,
+          ? t("organizacao_github.importados", { n: result.imported_count, dono: owner })
+          : t("organizacao_github.nenhum_novo", { dono: owner }),
     });
   }
 }

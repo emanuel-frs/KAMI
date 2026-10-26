@@ -1,4 +1,6 @@
-import { fmtDataCurta, localDateKey } from "./format.js";
+import { fmtDataCurta, localDateKey, nomeMes } from "./format.js";
+import { localeAtual, t } from "../i18n.js";
+import { diasCurtos } from "./habito-linha.js";
 
 /**
  * components/email-texto.js — desenha o texto de um e-mail (ORG-06).
@@ -51,7 +53,7 @@ function nosDaLinha(doc, linha) {
       a.className = "em-link" + (rotulo ? "" : " so-seta");
       a.href = "#";
       a.dataset.url = url;
-      a.dataset.tooltip = `abrir no navegador — ${dominio(url)}`;
+      a.dataset.tooltip = t("email_texto.abrir_navegador", { dominio: dominio(url) });
       a.textContent = rotulo ? `${rotulo} ↗` : "↗";
       frag.append(a);
     } else if (rotulo) {
@@ -123,8 +125,9 @@ export function textoParaCopiar(texto) {
 
 // ---------------- lista: grupos por dia ----------------
 
-const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+// nomes de mês/dia no idioma do app (Intl e dicionário), domingo = 0
+const diaCurto = (d) => { const c = diasCurtos(); return c[(d.getDay() + 6) % 7]; };
+const fmt = (opcoes, d) => new Intl.DateTimeFormat(localeAtual(), opcoes).format(d);
 
 function inicioDoDia(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -137,18 +140,18 @@ function inicioDoDia(d) {
  */
 export function grupoDoDia(iso, agora = new Date()) {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return { chave: "sem-data", rotulo: "sem data" };
+  if (Number.isNaN(d.getTime())) return { chave: "sem-data", rotulo: t("email_texto.sem_data") };
   const hoje = inicioDoDia(agora);
   const dia = inicioDoDia(d);
   const dias = Math.round((hoje - dia) / 86400000);
-  if (dias <= 0) return { chave: "hoje", rotulo: "hoje" };
-  if (dias === 1) return { chave: "ontem", rotulo: "ontem" };
+  if (dias <= 0) return { chave: "hoje", rotulo: t("email_texto.hoje") };
+  if (dias === 1) return { chave: "ontem", rotulo: t("email_texto.ontem") };
   const desdeSegunda = (hoje.getDay() + 6) % 7; // segunda = 0
-  if (dias <= desdeSegunda) return { chave: "semana", rotulo: "esta semana" };
+  if (dias <= desdeSegunda) return { chave: "semana", rotulo: t("email_texto.esta_semana") };
   if (d.getFullYear() === agora.getFullYear() && d.getMonth() === agora.getMonth()) {
-    return { chave: "mes", rotulo: "este mês" };
+    return { chave: "mes", rotulo: t("email_texto.este_mes") };
   }
-  const rotulo = d.getFullYear() === agora.getFullYear() ? MESES[d.getMonth()] : `${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+  const rotulo = d.getFullYear() === agora.getFullYear() ? nomeMes(d.getMonth()) : fmt({ month: "long", year: "numeric" }, d);
   return { chave: `${d.getFullYear()}-${d.getMonth()}`, rotulo };
 }
 
@@ -160,7 +163,7 @@ export function horaCurta(iso, agora = new Date()) {
   const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   const { chave } = grupoDoDia(iso, agora);
   if (chave === "hoje" || chave === "ontem") return hh;
-  if (chave === "semana") return `${DIAS[d.getDay()]} ${hh}`;
+  if (chave === "semana") return `${diaCurto(d)} ${hh}`;
   return fmtDataCurta(localDateKey(d)); // ORG-07
 }
 
@@ -169,5 +172,5 @@ export function dataLonga(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()} · ${hh}`;
+  return `${diaCurto(d)}, ${fmt({ day: "numeric", month: "long", year: "numeric" }, d)} · ${hh}`;
 }

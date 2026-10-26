@@ -15,6 +15,7 @@ import { listNotas, contarNotasPorVinculo } from "../api/notas.js";
 import { navigateTo } from "./navigate.js";
 import { escapeHtml } from "./format.js";
 import { icon } from "./icons.js";
+import { t } from "../i18n.js";
 
 /** {id: quantidade} — falha silenciosa (a tela continua sem o link). */
 export async function contarNotas(tipo) {
@@ -27,7 +28,7 @@ export async function contarNotas(tipo) {
 
 export function linkNotasHtml(tipo, id, nome, n = 0) {
   const rotulo = n ? `notas (${n})` : "+ nota";
-  const dica = n ? (n === 1 ? "abrir a nota vinculada" : "ver as notas vinculadas") : "criar uma nota vinculada a este item";
+  const dica = n ? (n === 1 ? t("notas_vinculadas.abrir_a_nota_vinculada") : t("notas_vinculadas.ver_as_notas_vinculadas")) : t("notas_vinculadas.criar_uma_nota_vinculada_a");
   return `<a href="#" class="notas-vinc${n ? " tem" : ""}" data-notas-vinculo="${escapeHtml(tipo)}" data-notas-id="${escapeHtml(id)}" data-notas-nome="${escapeHtml(nome || "")}" data-notas-n="${n}" data-tooltip="${dica}">${icon("pencil", { size: 9 })} ${rotulo}</a>`;
 }
 

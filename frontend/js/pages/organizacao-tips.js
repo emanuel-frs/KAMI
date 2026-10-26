@@ -1,6 +1,7 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { switchTab } from "./organizacao.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais de Organização (etapa 5,
@@ -47,81 +48,81 @@ import { switchTab } from "./organizacao.js";
  */
 const SCREEN = "organizacao";
 
-const STEPS = [
+const steps = () => [
   // ─── busca (topo da tela, independe de aba) ──────────────────────────
   {
     id: "busca",
     selector: "#org-search",
-    text: "busca na web sem sair do kami — funciona em qualquer uma das abas abaixo.",
+    text: t("organizacao_tips.busca_na_web_sem_sair"),
   },
   {
     id: "chave-busca",
     selector: "#org-search-key-badge",
-    text: "a chave de busca é opcional: sem ela, o resultado abre direto no duckduckgo; com uma chave configurada aqui, você vê um resumo direto nesta tela.",
+    text: t("organizacao_tips.a_chave_de_busca_e"),
   },
   {
     id: "limpar-busca",
     selector: "#org-search-clear",
-    text: "esse botão limpa o texto e o resultado da última busca.",
+    text: t("organizacao_tips.esse_botao_limpa_o_texto"),
   },
 
   // ─── visão geral das abas ─────────────────────────────────────────────
   {
     id: "abas-2",
     selector: ".tabs",
-    text: "organização junta suas notas, a caixa de entrada da captura rápida e três tipos de fonte — repositórios do github, e-mail e links — cada um na sua aba.",
+    text: t("organizacao_tips.organizacao_junta_suas_notas_a"),
   },
 
   // ─── aba: notas (padrão ao entrar na tela, ORG-01) ─────────────────────
   {
     id: "aba-notas",
     selector: '.tab[data-tab="notas"]',
-    text: "notas: texto com formatação (negrito, listas, checklist, tabela…), tags, cor, e dá pra fixar, arquivar ou trancar com o PIN. tudo salva sozinho enquanto você escreve.",
+    text: t("organizacao_tips.notas_texto_com_formatacao_negrito"),
   },
   {
     onEnter: () => switchTab("notas"),
     id: "nova-nota",
     selector: '[data-nt="nova"]',
-    text: "\"+ nova nota\" começa uma nota aqui; de qualquer tela, alt+shift+n abre uma nota rápida. markdown funciona ao digitar: \"- \" vira lista, \"[] \" vira tarefa, \"# \" vira título. criar nota rende xp (até 3 por dia).",
+    text: t("organizacao_tips.nova_nota_comeca_uma_nota"),
   },
 
   // ─── aba: entrada (ORG-02) ─────────────────────────────────────────────
   {
     id: "aba-entrada",
     selector: '.tab[data-tab="entrada"]',
-    text: "entrada: o que você anotou com alt+q (de qualquer tela) sem prefixo cai aqui pra decidir depois — cada item vira gasto, tarefa, nota, meta, evento ou lembrete com um clique, ou é descartado. com prefixo vai direto: \"$ 25 almoço\" gasto, \"# ideia\" nota, \"! sexta 14h\" evento, \"@ amanhã 9h\" lembrete.",
+    text: t("organizacao_tips.entrada_o_que_voce_anotou"),
   },
 
   // ─── aba: github ───────────────────────────────────────────────────────
   {
     id: "aba-github",
     selector: '.tab[data-tab="github"]',
-    text: "aqui ficam os repositórios que você conectar — estrelas, issues, atividade de commit, sem precisar abrir o github. sincronizar rende xp uma vez por dia por repositório.",
+    text: t("organizacao_tips.aqui_ficam_os_repositorios_que"),
   },
   {
     onEnter: () => switchTab("github"),
     id: "conectar-repo",
     selector: '[data-action="open-repo-modal"]',
-    text: "\"+ conectar repositório\" só precisa do nome usuario/repositorio — se colar a url inteira do github sem querer, o kami entende do mesmo jeito.",
+    text: t("organizacao_tips.conectar_repositorio_so_precisa_do"),
   },
   {
     onEnter: () => switchTab("github"),
     id: "token-github",
     selector: '[data-action="open-github-token-modal"]',
-    text: "o token é opcional: sem ele você só vê repositórios públicos, com 60 requisições/hora. com um token de leitura, também vê privados e sobe pra 5000/hora.",
+    text: t("organizacao_tips.o_token_e_opcional_sem"),
   },
 
   // ─── aba: e-mail ───────────────────────────────────────────────────────
   {
     id: "aba-email-2",
     selector: '.tab[data-tab="email"]',
-    text: "próxima aba: suas contas de e-mail (imap) e o que chegou nelas, guardado em cache local. clique num e-mail pra ler aqui mesmo, em texto limpo (sem rastreadores), ou abrir no webmail. sincronizar na mão rende xp uma vez por dia por conta.",
+    text: t("organizacao_tips.proxima_aba_suas_contas_de"),
   },
   {
     onEnter: () => switchTab("email"),
     id: "contas-email",
     selector: '[data-action="open-manage-accounts-modal"]',
-    text: '"gerenciar contas" é onde tudo acontece: adicionar uma conta nova (host e porta imap, usuário, e uma senha de app — não a sua senha normal; gmail, outlook etc. geram essa senha separada nas configurações de segurança), silenciar ou remover as existentes. dá pra ter várias contas, e marcar quais ficam selecionadas por padrão sempre que você abrir a tela.',
+    text: t("organizacao_tips.gerenciar_contas_e_onde_tudo"),
   },
 
   // ─── aba: links ────────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ const STEPS = [
     onEnter: () => switchTab("links"),
     id: "novo-link",
     selector: '[data-action="open-link-modal"]',
-    text: "\"+ adicionar link\" cadastra um atalho novo. a categoria é livre — você escolhe os nomes, e os links viram grupos por categoria aqui embaixo.",
+    text: t("organizacao_tips.adicionar_link_cadastra_um_atalho"),
     advanceOn: "interact",
   },
 ];
@@ -147,7 +148,7 @@ let running = false;
 export function replayOrganizacaoTips() {
   if (running) return;
   running = true;
-  startTipSequence(STEPS, {
+  startTipSequence(steps(), {
     onFinish: () => {
       running = false;
     },
@@ -166,5 +167,5 @@ const ATE_1_12 = ["busca", "chave-busca", "limpar-busca", "aba-github", "conecta
  * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
 export function maybeStartOrganizacaoTips() {
-  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => steps(), ate112: ATE_1_12 });
 }

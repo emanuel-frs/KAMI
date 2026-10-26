@@ -10,6 +10,7 @@ import { announce } from "../components/a11y.js";
 import { estado } from "./aprendizado-estado.js";
 import { renderTracks, refreshTracks } from "./aprendizado.js";
 import { renderMilestones } from "./aprendizado-roadmap.js";
+import { t } from "../i18n.js";
 
 // ─── Drag and Drop ────────────────────────────────────────────────────────
 let dragSrcId = null;
@@ -44,7 +45,7 @@ export function setupDragAndDrop() {
         renderMilestones();
         await refreshTracks();
       } catch (err) {
-        showErrorModal(err.message, "erro ao reordenar");
+        showErrorModal(err.message, t("aprendizado_arrastar.erro_ao_reordenar"));
       }
     });
   });
@@ -80,7 +81,7 @@ export function setupDragAndDropEdit() {
         renderMilestones();
         await refreshTracks();
       } catch (err) {
-        showErrorModal(err.message, "erro ao reordenar");
+        showErrorModal(err.message, t("aprendizado_arrastar.erro_ao_reordenar"));
       }
     });
   });
@@ -168,7 +169,7 @@ function startTrackDrag(item, startEvent) {
       estado.tracks = await reorderTracks(ids);
       renderTracks();
     } catch (err) {
-      showErrorModal(err.message, "erro ao reordenar trilhas");
+      showErrorModal(err.message, t("aprendizado_arrastar.erro_ao_reordenar_trilhas"));
       renderTracks();
     }
   };
@@ -190,10 +191,10 @@ async function moveTrackByKeyboard(id, delta) {
   try {
     estado.tracks = await reorderTracks(ids);
     renderTracks();
-    announce(`trilha movida para a posição ${to + 1} de ${ids.length}`);
+    announce(t("aprendizado.trilha_movida", { pos: to + 1, total: ids.length }));
   } catch (err) {
     estado.pendingTrackFocusId = null;
-    showErrorModal(err.message, "erro ao reordenar trilhas");
+    showErrorModal(err.message, t("aprendizado_arrastar.erro_ao_reordenar_trilhas"));
     renderTracks();
   }
 }
