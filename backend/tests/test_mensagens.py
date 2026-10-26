@@ -20,6 +20,8 @@ def _chamadas(classe, posicao):
     """(arquivo, linha, chave, texto) de cada `classe(...)` do backend — chave e texto a partir de `posicao`."""
     achados = []
     for arquivo in (RAIZ / "backend" / "app").rglob("*.py"):
+        if arquivo.name == "mensagens.py":
+            continue  # a própria classe e o erro_de (repassa o Texto de uma exceção)
         arvore = ast.parse(arquivo.read_text(encoding="utf-8"))
         for no in ast.walk(arvore):
             if isinstance(no, ast.Call) and getattr(no.func, "id", None) == classe:
@@ -92,3 +94,12 @@ def test_resposta_leva_chave_e_variaveis(client):
     assert corpo["detail"] == "confirmação inválida; envie confirmation='restaurar' pra prosseguir"
     # HTTPException comum (ainda não convertida) segue sem chave
     assert "chave" not in client.get("/api/perfil/rota-que-nao-existe").json()
+
+
+def test_validacao_leva_chave_por_erro(client):
+    """I18N-06: 422 do pydantic com a chave de cada erro, que existe no pt.json."""
+    r = client.put("/api/perfil", json={"som_volume": 500})
+    assert r.status_code == 422
+    corpo = r.json()
+    assert corpo["erros"] == [{"campo": "som_volume", "chave": "erro.validacao.less_than_equal", "vars": {"le": 100}}]
+    assert PT["erro.validacao.less_than_equal"].format(le=100) in corpo["detail"]

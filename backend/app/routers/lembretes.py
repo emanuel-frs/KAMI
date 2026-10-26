@@ -24,12 +24,13 @@ Sem xp: lembrete é ferramenta, não ação.
 import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.lembretes import REPETICOES, de_iso, dias_da_semana, iso_minuto, mais_cedo, proxima_desde
 from app.limites import Entrada
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -104,22 +105,22 @@ def _regra(row_or_payload) -> dict:
 
 def _validar(db, p: LembreteIn) -> None:
     if not p.titulo.strip():
-        raise HTTPException(status_code=422, detail="o lembrete precisa de um texto")
+        raise ErroKami(422, "erro.lembretes.lembrete_precisa_texto", "o lembrete precisa de um texto")
     if p.repeticao not in REPETICOES:
-        raise HTTPException(status_code=422, detail="repetição inválida")
+        raise ErroKami(422, "erro.lembretes.repeticao_invalida", "repetição inválida")
     try:
         datetime.date.fromisoformat(p.data)
     except ValueError:
-        raise HTTPException(status_code=422, detail="data inválida")
+        raise ErroKami(422, "erro.lembretes.data_invalida", "data inválida")
     if p.repeticao == "dias" and not dias_da_semana(",".join(map(str, p.dias_semana))):
-        raise HTTPException(status_code=422, detail="escolha pelo menos um dia da semana")
+        raise ErroKami(422, "erro.comum.escolha_pelo_menos_dia_semana", "escolha pelo menos um dia da semana")
     if p.vinculo_tipo is None and p.vinculo_id is None:
         return
     if p.vinculo_tipo not in VINCULOS or not p.vinculo_id:
-        raise HTTPException(status_code=422, detail="vínculo inválido")
+        raise ErroKami(422, "erro.comum.vinculo_invalido", "vínculo inválido")
     tabela, _ = VINCULOS[p.vinculo_tipo]
     if not db.execute(f"SELECT 1 FROM {tabela} WHERE id = ?", (p.vinculo_id,)).fetchone():
-        raise HTTPException(status_code=422, detail="o item vinculado não existe mais")
+        raise ErroKami(422, "erro.lembretes.item_vinculado_nao_existe_mais", "o item vinculado não existe mais")
 
 
 def _proxima(regra: dict) -> Optional[str]:
@@ -130,7 +131,7 @@ def _proxima(regra: dict) -> Optional[str]:
 def _row(db, lembrete_id: str):
     row = db.execute("SELECT * FROM lembretes WHERE id = ?", (lembrete_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="lembrete não encontrado")
+        raise ErroKami(404, "erro.lembretes.lembrete_nao_encontrado", "lembrete não encontrado")
     return row
 
 
@@ -190,7 +191,7 @@ def criar(payload: LembreteIn, db=Depends(get_db)):
     regra = _regra(payload)
     proxima = _proxima(regra)
     if proxima is None:
-        raise HTTPException(status_code=422, detail="esse horário já passou")
+        raise ErroKami(422, "erro.lembretes.esse_horario_ja_passou", "esse horário já passou")
     lembrete_id, agora = new_id(), now_iso()
     db.execute(
         "INSERT INTO lembretes (id, titulo, data, hora, repeticao, dias_semana, vinculo_tipo, vinculo_id, "
@@ -209,7 +210,7 @@ def editar(lembrete_id: str, payload: LembreteIn, db=Depends(get_db)):
     regra = _regra(payload)
     proxima = _proxima(regra)
     if proxima is None:
-        raise HTTPException(status_code=422, detail="esse horário já passou")
+        raise ErroKami(422, "erro.lembretes.esse_horario_ja_passou", "esse horário já passou")
     db.execute(
         "UPDATE lembretes SET titulo = ?, data = ?, hora = ?, repeticao = ?, dias_semana = ?, vinculo_tipo = ?, "
         "vinculo_id = ?, proxima = ?, adiado_para = NULL, atualizado_em = ? WHERE id = ?",
@@ -273,7 +274,7 @@ def adiar(lembrete_id: str, payload: AdiarIn, db=Depends(get_db)):
     elif payload.minutos:
         quando = agora + datetime.timedelta(minutes=payload.minutos)
     else:
-        raise HTTPException(status_code=422, detail="diga por quanto tempo adiar")
+        raise ErroKami(422, "erro.lembretes.diga_por_quanto_tempo_adiar", "diga por quanto tempo adiar")
     db.execute(
         "UPDATE lembretes SET adiado_para = ?, pendente_desde = NULL, pendente_quando = NULL, "
         "pendente_atrasado = 0 WHERE id = ?",

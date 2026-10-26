@@ -15,7 +15,7 @@ from app.actions import register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_saida_transaction, create_entrada_transaction
 from app.limites import Entrada
-from app.mensagens import Texto, texto_da_linha
+from app.mensagens import ErroKami, Texto, texto_da_linha
 from app.routers.financas.comum import (
     CategoryTotal,
     XP_TRANSACAO,
@@ -91,7 +91,12 @@ def _apply_transaction(db, payload: TransactionIn) -> dict:
     """
     conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
     if not conta:
-        raise HTTPException(status_code=422, detail=f"conta não encontrada: '{payload.conta_id}'")
+        raise ErroKami(
+            422,
+            "erro.comum.conta_nao_encontrada_conta_id",
+            "conta não encontrada: '{conta_id}'",
+            conta_id=payload.conta_id,
+        )
 
     forma_pagamento = payload.forma_pagamento
     conta_destino_id = None
@@ -127,17 +132,25 @@ def _apply_transaction(db, payload: TransactionIn) -> dict:
 
     else:  # transferencia
         if not conta["possui_saldo"]:
-            raise HTTPException(status_code=422, detail="a conta de origem de uma transferência precisa ter saldo")
+            raise ErroKami(
+                422,
+                "erro.lancamentos.conta_origem_transferencia_precisa_ter",
+                "a conta de origem de uma transferência precisa ter saldo",
+            )
         saldo_atual = conta["saldo_atual"] or 0
         if payload.amount > saldo_atual:
-            raise HTTPException(
-                status_code=422,
-                detail=f"saldo insuficiente pra essa transferência: disponível R$ {saldo_atual:.2f}, tentando transferir R$ {payload.amount:.2f}",
+            raise ErroKami(
+                422,
+                "erro.lancamentos.saldo_insuficiente_essa_transferencia_disponivel",
+                "saldo insuficiente pra essa transferência: disponível {valor_saldo_atual}, tentando transferir {valor_amount}",
+                valor_saldo_atual=saldo_atual,
+                valor_amount=payload.amount,
             )
         if bool(payload.conta_destino_id) == bool(payload.destino_externo):
-            raise HTTPException(
-                status_code=422,
-                detail="informe exatamente um destino: 'conta_destino_id' (interna) ou 'destino_externo' (texto livre)",
+            raise ErroKami(
+                422,
+                "erro.lancamentos.informe_exatamente_destino_conta_destino",
+                "informe exatamente um destino: 'conta_destino_id' (interna) ou 'destino_externo' (texto livre)",
             )
         forma_pagamento = None
         db.execute(
@@ -149,9 +162,13 @@ def _apply_transaction(db, payload: TransactionIn) -> dict:
                 "SELECT * FROM wallet_accounts WHERE id = ?", (payload.conta_destino_id,)
             ).fetchone()
             if not destino:
-                raise HTTPException(status_code=422, detail="conta de destino não encontrada")
+                raise ErroKami(422, "erro.lancamentos.conta_destino_nao_encontrada", "conta de destino não encontrada")
             if not destino["possui_saldo"]:
-                raise HTTPException(status_code=422, detail="a conta de destino precisa ter saldo")
+                raise ErroKami(
+                    422,
+                    "erro.lancamentos.conta_destino_precisa_ter_saldo",
+                    "a conta de destino precisa ter saldo",
+                )
             db.execute(
                 "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
                 (payload.amount, destino["id"]),
@@ -219,12 +236,14 @@ def _origem_transacao(db, tx_id: str) -> Optional[str]:
 def _get_avulsa_or_error(db, tx_id: str):
     tx = db.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
     if not tx:
-        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+        raise ErroKami(404, "erro.lancamentos.lancamento_nao_encontrado", "lançamento não encontrado")
     origem = _origem_transacao(db, tx_id)
     if origem:
-        raise HTTPException(
-            status_code=409,
-            detail=f"este lançamento veio de {origem} — desfaça por lá (ex.: desmarque o pagamento)",
+        raise ErroKami(
+            409,
+            "erro.lancamentos.este_lancamento_veio_origem_desfaca",
+            "este lançamento veio de {origem} — desfaça por lá (ex.: desmarque o pagamento)",
+            origem=origem,
         )
     return tx
 

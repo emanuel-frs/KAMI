@@ -7,7 +7,7 @@ num router só, montado em /api/financas). MAN-02.
 """
 from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
@@ -15,7 +15,7 @@ from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_saida_transaction, revert_saida_transaction
 from app.limites import Entrada, SAIDA_CONFIG
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 from app.routers.financas.comum import (
     XP_PAGAMENTO_RECORRENTE,
     _revert_period_xp,
@@ -88,7 +88,7 @@ def create_fixed_bill(payload: FixedBillIn, db=Depends(get_db)):
     if payload.conta_id:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
     bill_id = new_id()
     db.execute(
         "INSERT INTO fixed_bills (id, name, amount, due_day, active, conta_id, categoria) "
@@ -104,11 +104,11 @@ def create_fixed_bill(payload: FixedBillIn, db=Depends(get_db)):
 def update_fixed_bill(bill_id: str, payload: FixedBillIn, db=Depends(get_db)):
     row = db.execute("SELECT * FROM fixed_bills WHERE id = ?", (bill_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+        raise ErroKami(404, "erro.contas.conta_fixa_nao_encontrada", "conta fixa não encontrada")
     if payload.conta_id:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
     db.execute(
         "UPDATE fixed_bills SET name=?, amount=?, due_day=?, active=?, conta_id=?, categoria=? WHERE id=?",
         (payload.name, payload.amount, payload.due_day, int(payload.active),
@@ -121,7 +121,7 @@ def update_fixed_bill(bill_id: str, payload: FixedBillIn, db=Depends(get_db)):
 @router.delete("/fixed-bills/{bill_id}")
 def delete_fixed_bill(bill_id: str, db=Depends(get_db)):
     if not db.execute("SELECT 1 FROM fixed_bills WHERE id = ?", (bill_id,)).fetchone():
-        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+        raise ErroKami(404, "erro.contas.conta_fixa_nao_encontrada", "conta fixa não encontrada")
     # P-14 (CONF-04): estorna o xp dos meses pagos (transações reais ficam)
     _revert_period_xp(db, "conta_fixa_periodo", "fixed_bill_periods", "fixed_bill_id", bill_id)
     db.execute("DELETE FROM fixed_bills WHERE id = ?", (bill_id,))
@@ -183,10 +183,10 @@ def list_fixed_bill_periods(month: str, db=Depends(get_db)):
 def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="instância de conta fixa não encontrada")
+        raise ErroKami(404, "erro.contas.instancia_conta_fixa_nao_encontrada", "instância de conta fixa não encontrada")
     bill = db.execute("SELECT * FROM fixed_bills WHERE id = ?", (row["fixed_bill_id"],)).fetchone()
     if not bill:
-        raise HTTPException(status_code=404, detail="conta fixa não encontrada")
+        raise ErroKami(404, "erro.contas.conta_fixa_nao_encontrada", "conta fixa não encontrada")
 
     amount = payload.valor_pago if payload.valor_pago is not None else bill["amount"]
     transaction_id = None
@@ -198,7 +198,11 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
     if bill["conta_id"] and payload.gerar_transacao:
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (bill["conta_id"],)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta vinculada à conta fixa não existe mais")
+            raise ErroKami(
+                422,
+                "erro.contas.conta_vinculada_conta_fixa_nao",
+                "conta vinculada à conta fixa não existe mais",
+            )
         transaction_id = create_saida_transaction(
             db, conta, amount,
             category=bill["categoria"] or DEFAULT_FIXED_BILL_CATEGORY,
@@ -234,7 +238,7 @@ def pay_fixed_bill_period(period_id: str, payload: PayFixedBillPeriodPayload, db
 def unpay_fixed_bill_period(period_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM fixed_bill_periods WHERE id = ?", (period_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="instância de conta fixa não encontrada")
+        raise ErroKami(404, "erro.contas.instancia_conta_fixa_nao_encontrada", "instância de conta fixa não encontrada")
     # se essa marcação tinha gerado uma transação real, desfaz o efeito no
     # saldo/fatura e remove a transação antes de voltar pra "não paga" —
     # sem isso o saldo ficaria com um desconto fantasma que o usuário não
@@ -274,7 +278,12 @@ def _pay_debt(db, debt, conta_id: Optional[str], forma_pagamento: Optional[str])
     if conta_id:
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail=f"conta não encontrada: '{conta_id}'")
+            raise ErroKami(
+                422,
+                "erro.comum.conta_nao_encontrada_conta_id",
+                "conta não encontrada: '{conta_id}'",
+                conta_id=conta_id,
+            )
         transacao_id = create_saida_transaction(
             db, conta, debt["amount"],
             category=DEFAULT_DEBT_CATEGORY,
@@ -309,7 +318,7 @@ def _unpay_debt(db, debt) -> None:
 def _get_debt_or_404(db, debt_id: str):
     row = db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="dívida não encontrada")
+        raise ErroKami(404, "erro.contas.divida_nao_encontrada", "dívida não encontrada")
     return row
 
 

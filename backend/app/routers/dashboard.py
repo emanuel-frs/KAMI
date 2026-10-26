@@ -27,12 +27,13 @@ Endpoints:
 """
 from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
 from app.widgets import LAYOUT_PADRAO_VERSAO, WIDGET_CATALOG, is_valid_widget_type, layout_padrao, screens_for
 from app.limites import Entrada, SAIDA_CONFIG
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -65,33 +66,42 @@ class DashboardLayoutIn(Entrada):
 
 def _validate_screen(screen: str) -> None:
     if screen not in KNOWN_SCREENS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"screen inválida; valores aceitos: {sorted(KNOWN_SCREENS)}",
+        raise ErroKami(
+            422,
+            "erro.dashboard.screen_invalida_valores_aceitos_valores",
+            "screen inválida; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(KNOWN_SCREENS))),
         )
 
 
 def _validate_widget_for_screen(item: DashboardWidgetIn, screen: str) -> None:
     if not is_valid_widget_type(item.widget_type):
-        raise HTTPException(
-            status_code=422,
-            detail=f"widget_type inválido: '{item.widget_type}'; não está no catálogo fixo",
+        raise ErroKami(
+            422,
+            "erro.dashboard.widget_type_invalido_widget_type",
+            "widget_type inválido: '{widget_type}'; não está no catálogo fixo",
+            widget_type=item.widget_type,
         )
     if screen not in screens_for(item.widget_type):
-        raise HTTPException(
-            status_code=422,
-            detail=f"widget '{item.widget_type}' não é permitido na tela '{screen}'",
+        raise ErroKami(
+            422,
+            "erro.dashboard.widget_widget_type_nao_permitido",
+            "widget '{widget_type}' não é permitido na tela '{screen}'",
+            widget_type=item.widget_type,
+            screen=screen,
         )
     catalog_entry = WIDGET_CATALOG[item.widget_type]
     min_span = catalog_entry["min_span"]
     max_span = catalog_entry["max_span"]
     if not (min_span <= item.width <= max_span):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"width inválido para '{item.widget_type}': {item.width} "
-                f"(aceito entre {min_span} e {max_span})"
-            ),
+        raise ErroKami(
+            422,
+            "erro.dashboard.width_invalido_para_widget_type",
+            "width inválido para '{widget_type}': {width} (aceito entre {min_span} e {max_span})",
+            widget_type=item.widget_type,
+            width=item.width,
+            min_span=min_span,
+            max_span=max_span,
         )
 
 
@@ -104,9 +114,11 @@ def _validate_non_removable_present(payload_types: set, screen: str) -> None:
     }
     missing = required - payload_types
     if missing:
-        raise HTTPException(
-            status_code=422,
-            detail=f"widget(s) obrigatório(s) ausente(s) do layout: {sorted(missing)}",
+        raise ErroKami(
+            422,
+            "erro.dashboard.widget_s_obrigatorio_s_ausente",
+            "widget(s) obrigatório(s) ausente(s) do layout: {valores}",
+            valores=", ".join(map(str, sorted(missing))),
         )
 
 

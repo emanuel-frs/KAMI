@@ -11,14 +11,14 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action, revert_actions
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
 from app.limites import Entrada
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -168,7 +168,7 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
         "SELECT id FROM github_repos WHERE repo_full_name = ?", (payload.repo_full_name,)
     ).fetchone()
     if existing:
-        raise HTTPException(status_code=422, detail="esse repositório já está cadastrado")
+        raise ErroKami(422, "erro.github.esse_repositorio_ja_esta_cadastrado", "esse repositório já está cadastrado")
 
     status, error = _fetch_github_status(payload.repo_full_name, db)
     repo_id = new_id()
@@ -203,7 +203,7 @@ def create_github_repo(payload: GithubRepoIn, db=Depends(get_db)):
 def sync_github_repo(repo_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="repositório não encontrado")
+        raise ErroKami(404, "erro.github.repositorio_nao_encontrado", "repositório não encontrado")
 
     status, error = _fetch_github_status(row["repo_full_name"], db)
     if status:
@@ -233,7 +233,7 @@ def sync_github_repo(repo_id: str, db=Depends(get_db)):
 def delete_github_repo(repo_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="repositório não encontrado")
+        raise ErroKami(404, "erro.github.repositorio_nao_encontrado", "repositório não encontrado")
     db.execute("DELETE FROM github_repos WHERE id = ?", (repo_id,))
     db.commit()
     revert_actions(db, "github_repo", repo_id)
@@ -376,7 +376,7 @@ def _auto_import_repos(db, token: str) -> dict:
 def save_github_token(payload: GithubTokenIn, db=Depends(get_db)):
     token = payload.token.strip()
     if not token:
-        raise HTTPException(status_code=422, detail="token vazio")
+        raise ErroKami(422, "erro.github.token_vazio", "token vazio")
 
     # valida o token contra a api antes de salvar — evita salvar lixo
     # e só descobrir na próxima sincronização de repo
@@ -388,10 +388,19 @@ def save_github_token(payload: GithubTokenIn, db=Depends(get_db)):
         urllib.request.urlopen(req, timeout=8)
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            raise HTTPException(status_code=422, detail="token inválido ou sem permissão")
-        raise HTTPException(status_code=422, detail=f"erro ao validar token (http {e.code})")
+            raise ErroKami(422, "erro.github.token_invalido_ou_sem_permissao", "token inválido ou sem permissão")
+        raise ErroKami(
+            422,
+            "erro.github.erro_ao_validar_token_http",
+            "erro ao validar token (http {code})",
+            code=e.code,
+        )
     except (urllib.error.URLError, TimeoutError):
-        raise HTTPException(status_code=422, detail="sem conexão com a api do github pra validar o token")
+        raise ErroKami(
+            422,
+            "erro.github.sem_conexao_com_api_github",
+            "sem conexão com a api do github pra validar o token",
+        )
 
     enc = encrypt_password(token)
     existing = db.execute("SELECT id FROM github_settings LIMIT 1").fetchone()
@@ -426,7 +435,7 @@ def delete_github_token(db=Depends(get_db)):
 def get_commit_activity(repo_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM github_repos WHERE id = ?", (repo_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="repositório não encontrado")
+        raise ErroKami(404, "erro.github.repositorio_nao_encontrado", "repositório não encontrado")
 
     try:
         headers = _get_github_headers(db)

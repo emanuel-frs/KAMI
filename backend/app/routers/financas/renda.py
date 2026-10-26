@@ -8,7 +8,7 @@ import calendar
 import datetime
 from typing import ClassVar, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
@@ -17,7 +17,7 @@ from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_entrada_transaction, revert_entrada_transaction
 from app.limites import Entrada, SAIDA_CONFIG
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 from app.routers.financas.comum import (
     XP_PAGAMENTO_RECORRENTE,
     _revert_period_xp,
@@ -266,10 +266,10 @@ def get_income_entries(month: str, db=Depends(get_db)):
 def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db)):
     row = db.execute("SELECT * FROM income_entries WHERE id = ?", (entry_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="entrada de renda não encontrada")
+        raise ErroKami(404, "erro.renda.entrada_renda_nao_encontrada", "entrada de renda não encontrada")
     source = db.execute("SELECT * FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
     if not source:
-        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
+        raise ErroKami(404, "erro.renda.fonte_renda_nao_encontrada", "fonte de renda não encontrada")
 
     amount = payload.valor_recebido if payload.valor_recebido is not None else row["amount"]
     paid_date = payload.paid_date or datetime.date.today().isoformat()
@@ -281,7 +281,11 @@ def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db
     if source["conta_id"]:
         conta = db.execute("SELECT * FROM wallet_accounts WHERE id = ?", (source["conta_id"],)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta vinculada à fonte de renda não existe mais")
+            raise ErroKami(
+                422,
+                "erro.renda.conta_vinculada_fonte_renda_nao",
+                "conta vinculada à fonte de renda não existe mais",
+            )
         transaction_id = create_entrada_transaction(
             db, conta, amount,
             category=source["categoria"] or DEFAULT_INCOME_CATEGORY,
@@ -327,7 +331,7 @@ def pay_income_entry(entry_id: str, payload: PayIncomePayload, db=Depends(get_db
 def unpay_income_entry(entry_id: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM income_entries WHERE id = ?", (entry_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="entrada de renda não encontrada")
+        raise ErroKami(404, "erro.renda.entrada_renda_nao_encontrada", "entrada de renda não encontrada")
     source = db.execute("SELECT * FROM income_sources WHERE id = ?", (row["income_source_id"],)).fetchone()
 
     # desfaz o efeito de saldo se essa marcação tinha gerado uma
@@ -398,44 +402,51 @@ def _validate_income_source_payload(db, payload: IncomeSourceIn, source_id: Opti
     if payload.conta_id:
         conta = db.execute("SELECT id FROM wallet_accounts WHERE id = ?", (payload.conta_id,)).fetchone()
         if not conta:
-            raise HTTPException(status_code=422, detail="conta não encontrada")
+            raise ErroKami(422, "erro.comum.conta_nao_encontrada", "conta não encontrada")
 
     if payload.frequencia == "avulsa":
         if not payload.data_avulsa:
-            raise HTTPException(status_code=422, detail="fonte avulsa precisa de 'data_avulsa'")
+            raise ErroKami(422, "erro.renda.fonte_avulsa_precisa_data_avulsa", "fonte avulsa precisa de 'data_avulsa'")
         return
 
     if not payload.tipo_data:
-        raise HTTPException(status_code=422, detail="informe 'tipo_data' pra uma fonte não avulsa")
+        raise ErroKami(422, "erro.renda.informe_tipo_data_fonte_nao", "informe 'tipo_data' pra uma fonte não avulsa")
 
     if payload.tipo_data in ("dia_fixo", "dia_util") and payload.frequencia != "mensal":
-        raise HTTPException(status_code=422, detail=f"'{payload.tipo_data}' só faz sentido com frequencia='mensal'")
+        raise ErroKami(
+            422,
+            "erro.renda.tipo_data_so_faz_sentido",
+            "'{tipo_data}' só faz sentido com frequencia='mensal'",
+            tipo_data=payload.tipo_data,
+        )
 
     if payload.tipo_data == "dia_fixo" and not payload.dia_mes:
-        raise HTTPException(status_code=422, detail="informe 'dia_mes' pra tipo_data='dia_fixo'")
+        raise ErroKami(422, "erro.renda.informe_dia_mes_tipo_data", "informe 'dia_mes' pra tipo_data='dia_fixo'")
 
     if payload.tipo_data == "dia_util" and not payload.nth_dia_util:
-        raise HTTPException(status_code=422, detail="informe 'nth_dia_util' pra tipo_data='dia_util'")
+        raise ErroKami(422, "erro.renda.informe_nth_dia_util_tipo", "informe 'nth_dia_util' pra tipo_data='dia_util'")
 
     if payload.tipo_data == "intervalo_dias" and (not payload.intervalo_dias or not payload.data_base):
-        raise HTTPException(
-            status_code=422,
-            detail="informe 'intervalo_dias' e 'data_base' pra tipo_data='intervalo_dias'",
+        raise ErroKami(
+            422,
+            "erro.renda.informe_intervalo_dias_data_base",
+            "informe 'intervalo_dias' e 'data_base' pra tipo_data='intervalo_dias'",
         )
 
     if payload.tipo_data == "offset_fonte":
         if not payload.fonte_referencia_id or payload.offset_dias_uteis is None:
-            raise HTTPException(
-                status_code=422,
-                detail="informe 'fonte_referencia_id' e 'offset_dias_uteis' pra tipo_data='offset_fonte'",
+            raise ErroKami(
+                422,
+                "erro.renda.informe_fonte_referencia_id_offset",
+                "informe 'fonte_referencia_id' e 'offset_dias_uteis' pra tipo_data='offset_fonte'",
             )
         if source_id and payload.fonte_referencia_id == source_id:
-            raise HTTPException(status_code=422, detail="uma fonte não pode depender de si mesma")
+            raise ErroKami(422, "erro.renda.fonte_nao_pode_depender_si", "uma fonte não pode depender de si mesma")
         ref = db.execute("SELECT id FROM income_sources WHERE id = ?", (payload.fonte_referencia_id,)).fetchone()
         if not ref:
-            raise HTTPException(status_code=422, detail="fonte de referência não encontrada")
+            raise ErroKami(422, "erro.renda.fonte_referencia_nao_encontrada", "fonte de referência não encontrada")
         if source_id and _would_create_cycle(db, source_id, payload.fonte_referencia_id):
-            raise HTTPException(status_code=422, detail="esse encadeamento formaria um ciclo")
+            raise ErroKami(422, "erro.renda.esse_encadeamento_formaria_ciclo", "esse encadeamento formaria um ciclo")
 
 
 @router.get("/income-sources", response_model=List[IncomeSourceOut])
@@ -480,7 +491,7 @@ def create_income_source(payload: IncomeSourceIn, db=Depends(get_db)):
 def update_income_source(source_id: str, payload: IncomeSourceIn, db=Depends(get_db)):
     row = db.execute("SELECT * FROM income_sources WHERE id = ?", (source_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
+        raise ErroKami(404, "erro.renda.fonte_renda_nao_encontrada", "fonte de renda não encontrada")
     _validate_income_source_payload(db, payload, source_id=source_id)
     unica = 1 if payload.frequencia == "avulsa" else 0
     db.execute(
@@ -502,14 +513,15 @@ def update_income_source(source_id: str, payload: IncomeSourceIn, db=Depends(get
 @router.delete("/income-sources/{source_id}")
 def delete_income_source(source_id: str, db=Depends(get_db)):
     if not db.execute("SELECT 1 FROM income_sources WHERE id = ?", (source_id,)).fetchone():
-        raise HTTPException(status_code=404, detail="fonte de renda não encontrada")
+        raise ErroKami(404, "erro.renda.fonte_renda_nao_encontrada", "fonte de renda não encontrada")
     dependents = db.execute(
         "SELECT id FROM income_sources WHERE fonte_referencia_id = ?", (source_id,)
     ).fetchall()
     if dependents:
-        raise HTTPException(
-            status_code=422,
-            detail="não é possível remover: existe(m) fonte(s) que dependem desta (encadeamento).",
+        raise ErroKami(
+            422,
+            "erro.renda.nao_possivel_remover_existe_m",
+            "não é possível remover: existe(m) fonte(s) que dependem desta (encadeamento).",
         )
     # P-14 (CONF-04): apagar a fonte estorna o xp das ocorrências recebidas
     # — sem isso, criar, receber, apagar e recriar rendia xp de novo. As

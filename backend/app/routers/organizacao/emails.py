@@ -15,7 +15,7 @@ from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from app import email_texto
@@ -23,7 +23,7 @@ from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
 from app.limites import Entrada
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -248,7 +248,7 @@ def create_email_account(payload: EmailAccountIn, db=Depends(get_db)):
 def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depends(get_db)):
     row = db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+        raise ErroKami(404, "erro.emails.conta_mail_nao_encontrada", "conta de e-mail não encontrada")
 
     label = payload.label if payload.label is not None else row["label"]
     imap_host = payload.imap_host if payload.imap_host is not None else row["imap_host"]
@@ -282,7 +282,7 @@ def update_email_account(account_id: str, payload: EmailAccountUpdate, db=Depend
 def delete_email_account(account_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+        raise ErroKami(404, "erro.emails.conta_mail_nao_encontrada", "conta de e-mail não encontrada")
     db.execute("DELETE FROM email_accounts WHERE id = ?", (account_id,))
     db.commit()
 
@@ -293,7 +293,7 @@ def sync_email_account(
 ):
     account = db.execute("SELECT * FROM email_accounts WHERE id = ?", (account_id,)).fetchone()
     if not account:
-        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+        raise ErroKami(404, "erro.emails.conta_mail_nao_encontrada", "conta de e-mail não encontrada")
 
     try:
         plain_password = decrypt_password(account["app_password_enc"])
@@ -304,9 +304,10 @@ def sync_email_account(
         raise
     except ValueError:
         _marcar_erro_de_sync(db, account_id, "senha")
-        raise HTTPException(
-            status_code=422,
-            detail="não foi possível ler a senha salva; edite a conta e informe a senha de app de novo",
+        raise ErroKami(
+            422,
+            "erro.emails.nao_foi_possivel_ler_senha",
+            "não foi possível ler a senha salva; edite a conta e informe a senha de app de novo",
         )
 
     try:
@@ -315,12 +316,13 @@ def sync_email_account(
         imap.select("INBOX")
     except imaplib.IMAP4.error:
         _marcar_erro_de_sync(db, account_id, "login")
-        raise HTTPException(
-            status_code=422,
-            detail="falha ao autenticar no imap; verifique host/porta/usuário/senha de app",
+        raise ErroKami(
+            422,
+            "erro.emails.falha_ao_autenticar_no_imap",
+            "falha ao autenticar no imap; verifique host/porta/usuário/senha de app",
         )
     except OSError:
-        raise HTTPException(status_code=422, detail="não foi possível conectar ao servidor imap")
+        raise ErroKami(422, "erro.emails.nao_foi_possivel_conectar_ao", "não foi possível conectar ao servidor imap")
 
     # Busca e parseia todas as mensagens ANTES de tocar no banco — isso é
     # puramente IMAP/rede (lento, cada .fetch() é um round-trip), sem
@@ -422,9 +424,10 @@ def sync_email_account(
     except sqlite3.OperationalError as exc:
         db.rollback()
         if "locked" in str(exc).lower():
-            raise HTTPException(
-                status_code=503,
-                detail="banco de dados ocupado por outra sincronização; tente novamente em alguns segundos",
+            raise ErroKami(
+                503,
+                "erro.emails.banco_dados_ocupado_por_outra",
+                "banco de dados ocupado por outra sincronização; tente novamente em alguns segundos",
             )
         raise
 
@@ -532,7 +535,7 @@ def get_email(cache_id: str, db=Depends(get_db)):
         (cache_id,),
     ).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="e-mail não encontrado no cache")
+        raise ErroKami(404, "erro.emails.mail_nao_encontrado_no_cache", "e-mail não encontrado no cache")
     out = _email_out(row, _muted_account_set(db))
     if row["body_text"] is not None:
         out |= {"body_text": row["body_text"], "body_cortado": bool(row["body_cortado"])}
@@ -552,7 +555,7 @@ def get_email(cache_id: str, db=Depends(get_db)):
 def _set_email_read(cache_id: str, lido: bool, db) -> dict:
     row = db.execute("SELECT id FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="e-mail não encontrado no cache")
+        raise ErroKami(404, "erro.emails.mail_nao_encontrado_no_cache", "e-mail não encontrado no cache")
     db.execute("UPDATE email_cache SET is_read = ? WHERE id = ?", (int(lido), cache_id))
     db.commit()
     updated = db.execute(f"SELECT {_EMAIL_LIST_COLS} FROM email_cache WHERE id = ?", (cache_id,)).fetchone()
@@ -588,7 +591,7 @@ def list_muted_accounts(db=Depends(get_db)):
 def mute_account(payload: MutedAccountIn, db=Depends(get_db)):
     account = db.execute("SELECT id FROM email_accounts WHERE id = ?", (payload.account_id,)).fetchone()
     if not account:
-        raise HTTPException(status_code=404, detail="conta de e-mail não encontrada")
+        raise ErroKami(404, "erro.emails.conta_mail_nao_encontrada", "conta de e-mail não encontrada")
 
     existing = db.execute(
         "SELECT * FROM muted_accounts WHERE account_id = ?", (payload.account_id,)
@@ -612,6 +615,6 @@ def mute_account(payload: MutedAccountIn, db=Depends(get_db)):
 def unmute_account(muted_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM muted_accounts WHERE id = ?", (muted_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conta silenciada não encontrada")
+        raise ErroKami(404, "erro.emails.conta_silenciada_nao_encontrada", "conta silenciada não encontrada")
     db.execute("DELETE FROM muted_accounts WHERE id = ?", (muted_id,))
     db.commit()

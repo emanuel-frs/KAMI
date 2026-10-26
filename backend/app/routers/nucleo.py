@@ -22,7 +22,7 @@ import datetime
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.database import backup_database, get_db, local_now, new_id, now_iso
@@ -34,7 +34,7 @@ from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
 from app.bonus import atributo_atrasado
 from app.retrospectiva import garantir_retrospectiva
-from app.mensagens import texto_da_linha
+from app.mensagens import ErroKami, texto_da_linha
 from app.recompensas import catalogo as recompensas_catalogo, chave_titulo_atual, titulo_atual
 from app.limites import Entrada
 
@@ -378,9 +378,14 @@ def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
     keyword = (payload.keyword or "").strip() or None
     attribute = payload.attribute or None
     if not title:
-        raise HTTPException(status_code=422, detail="dê um nome pra conquista")
+        raise ErroKami(422, "erro.nucleo.nome_conquista", "dê um nome pra conquista")
     if attribute and not db.execute("SELECT 1 FROM attributes WHERE name = ?", (attribute,)).fetchone():
-        raise HTTPException(status_code=422, detail=f"área desconhecida: '{attribute}'")
+        raise ErroKami(
+            422,
+            "erro.nucleo.area_desconhecida_attribute",
+            "área desconhecida: '{attribute}'",
+            attribute=attribute,
+        )
     description = f"{payload.count} {'ação' if payload.count == 1 else 'ações'}"
     if attribute:
         description += f" em {attribute}"
@@ -409,7 +414,11 @@ def delete_custom_achievement(achievement_id: str, db=Depends(get_db)):
         "SELECT 1 FROM achievements WHERE id = ? AND rule_type = 'custom'", (achievement_id,)
     ).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="conquista personalizada não encontrada")
+        raise ErroKami(
+            404,
+            "erro.nucleo.conquista_personalizada_nao_encontrada",
+            "conquista personalizada não encontrada",
+        )
     db.execute("DELETE FROM achievements WHERE id = ?", (achievement_id,))
     db.commit()
 
@@ -491,7 +500,7 @@ def list_retrospectivas(db=Depends(get_db)):
 def get_retrospectiva(mes: str, db=Depends(get_db)):
     row = db.execute("SELECT * FROM retrospectivas WHERE mes = ?", (mes,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="retrospectiva não encontrada")
+        raise ErroKami(404, "erro.nucleo.retrospectiva_nao_encontrada", "retrospectiva não encontrada")
     return {**json.loads(row["dados_json"]), "vista": row["vista_em"] is not None}
 
 

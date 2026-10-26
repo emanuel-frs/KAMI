@@ -9,6 +9,7 @@
  * decidir como mostrar isso na UI sem reimplementar o parsing.
  */
 import { t } from "../i18n.js";
+import { fmtMoeda } from "../components/format.js";
 
 /**
  * Porta do backend (ver ALINHAMENTO.md 2.5): o sidecar empacotado sobe
@@ -107,6 +108,13 @@ export async function pingBackend(timeoutMs = 4000) {
 // erros que o backend classifica sozinho (app/erros.py::classificar)
 const ERROS_DE_AMBIENTE = new Set(["erro_interno", "banco_ocupado", "sem_espaco", "banco_inacessivel", "banco_corrompido"]);
 
+// I18N-06: variável `valor_*` é dinheiro — sai na moeda da pessoa
+function varsLegiveis(vars = {}) {
+  return Object.fromEntries(
+    Object.entries(vars || {}).map(([k, v]) => [k, k.startsWith("valor") && typeof v === "number" ? fmtMoeda(v) : v])
+  );
+}
+
 export class ApiError extends Error {
   constructor(status, body) {
     const msg = ApiError._extractMessage(body) ?? t("erro.http", { status });
@@ -140,7 +148,14 @@ export class ApiError extends Error {
     // Rota ainda sem chave: o `detail` em português de sempre.
     // Sem a tradução (dicionário que não carregou), t() devolve a própria
     // chave: aí fica o `detail`.
-    if (body.chave && t(body.chave, body.vars || {}) !== body.chave) return t(body.chave, body.vars || {});
+    if (body.chave) {
+      const texto = t(body.chave, varsLegiveis(body.vars));
+      if (texto !== body.chave) return texto;
+    }
+    // I18N-06: erros de validação, um por campo
+    if (Array.isArray(body.erros) && body.erros.every((e) => t(e.chave) !== e.chave)) {
+      return body.erros.map((e) => `${e.campo}: ${t(e.chave, e.vars || {})}`).join("; ");
+    }
     const chaveAmbiente = `erro.${body.codigo}`;
     if (ERROS_DE_AMBIENTE.has(body.codigo) && t(chaveAmbiente) !== chaveAmbiente) {
       return t(chaveAmbiente) + (body.id ? ` ${t("erro.codigo", { id: body.id })}` : "");

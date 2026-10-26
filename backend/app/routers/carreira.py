@@ -35,7 +35,7 @@ career_positions já usa.
 from datetime import date
 from typing import ClassVar, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.actions import debit_xp, register_action, revert_actions
@@ -43,7 +43,7 @@ from app.achievements import relock_unmet_achievements
 from app.database import get_db, new_id, now_iso
 from app.routers.metas import sync_academic_goals
 from app.limites import Entrada, SAIDA_CONFIG
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -66,7 +66,7 @@ def _get_career_profile_row(db):
     row = db.execute("SELECT * FROM career_profile LIMIT 1").fetchone()
     if not row:
         # não deveria acontecer — init_db sempre semeia a linha única
-        raise HTTPException(status_code=404, detail="perfil de carreira não encontrado")
+        raise ErroKami(404, "erro.carreira.perfil_carreira_nao_encontrado", "perfil de carreira não encontrado")
     return row
 
 
@@ -119,7 +119,7 @@ def list_interests(db=Depends(get_db)):
 def create_interest(payload: InterestIn, db=Depends(get_db)):
     tag = payload.tag.strip()
     if not tag:
-        raise HTTPException(status_code=422, detail="tag não pode ser vazia")
+        raise ErroKami(422, "erro.carreira.tag_nao_pode_ser_vazia", "tag não pode ser vazia")
 
     interest_id = new_id()
     created_at = now_iso()
@@ -137,7 +137,7 @@ def create_interest(payload: InterestIn, db=Depends(get_db)):
 def delete_interest(interest_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM career_interests WHERE id = ?", (interest_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="interesse não encontrado")
+        raise ErroKami(404, "erro.carreira.interesse_nao_encontrado", "interesse não encontrado")
     db.execute("DELETE FROM career_interests WHERE id = ?", (interest_id,))
     db.commit()
 
@@ -196,7 +196,7 @@ def create_position(payload: PositionIn, db=Depends(get_db)):
     company = payload.company.strip()
     role = payload.role.strip()
     if not company or not role:
-        raise HTTPException(status_code=422, detail="empresa e cargo são obrigatórios")
+        raise ErroKami(422, "erro.carreira.empresa_cargo_sao_obrigatorios", "empresa e cargo são obrigatórios")
 
     is_first = db.execute("SELECT COUNT(*) AS c FROM career_positions").fetchone()["c"] == 0
 
@@ -237,12 +237,12 @@ def create_position(payload: PositionIn, db=Depends(get_db)):
 def update_position(position_id: str, payload: PositionIn, db=Depends(get_db)):
     row = db.execute("SELECT id FROM career_positions WHERE id = ?", (position_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="posição não encontrada")
+        raise ErroKami(404, "erro.carreira.posicao_nao_encontrada", "posição não encontrada")
 
     company = payload.company.strip()
     role = payload.role.strip()
     if not company or not role:
-        raise HTTPException(status_code=422, detail="empresa e cargo são obrigatórios")
+        raise ErroKami(422, "erro.carreira.empresa_cargo_sao_obrigatorios", "empresa e cargo são obrigatórios")
 
     db.execute(
         "UPDATE career_positions SET company=?, role=?, area=?, employment_type=?, "
@@ -263,7 +263,7 @@ def update_position(position_id: str, payload: PositionIn, db=Depends(get_db)):
 def delete_position(position_id: str, db=Depends(get_db)):
     row = db.execute("SELECT id FROM career_positions WHERE id = ?", (position_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="posição não encontrada")
+        raise ErroKami(404, "erro.carreira.posicao_nao_encontrada", "posição não encontrada")
     db.execute("DELETE FROM career_positions WHERE id = ?", (position_id,))
     db.commit()
     revert_actions(db, "posicao", position_id)
@@ -320,7 +320,7 @@ class EducationOut(BaseModel):
 def _get_education_or_404(db, education_id: str):
     row = db.execute("SELECT * FROM career_educations WHERE id = ?", (education_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="formação não encontrada")
+        raise ErroKami(404, "erro.comum.formacao_nao_encontrada", "formação não encontrada")
     return row
 
 
@@ -357,11 +357,21 @@ def create_education(payload: EducationIn, db=Depends(get_db)):
     curso = payload.curso.strip()
     instituicao = payload.instituicao.strip()
     if not curso or not instituicao:
-        raise HTTPException(status_code=422, detail="curso e instituição são obrigatórios")
+        raise ErroKami(422, "erro.carreira.curso_instituicao_sao_obrigatorios", "curso e instituição são obrigatórios")
     if payload.nivel not in NIVEL_XP:
-        raise HTTPException(status_code=422, detail=f"nível inválido; valores aceitos: {sorted(NIVEL_XP)}")
+        raise ErroKami(
+            422,
+            "erro.carreira.nivel_invalido_valores_aceitos_valores",
+            "nível inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(NIVEL_XP))),
+        )
     if payload.status not in EDUCATION_STATUSES:
-        raise HTTPException(status_code=422, detail=f"status inválido; valores aceitos: {sorted(EDUCATION_STATUSES)}")
+        raise ErroKami(
+            422,
+            "erro.comum.status_invalido_valores_aceitos_valores",
+            "status inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(EDUCATION_STATUSES))),
+        )
 
     education_id = new_id()
     created_at = now_iso()
@@ -405,15 +415,25 @@ def update_education(education_id: str, payload: EducationUpdate, db=Depends(get
     curso = payload.curso.strip() if payload.curso is not None else row["curso"]
     instituicao = payload.instituicao.strip() if payload.instituicao is not None else row["instituicao"]
     if not curso or not instituicao:
-        raise HTTPException(status_code=422, detail="curso e instituição são obrigatórios")
+        raise ErroKami(422, "erro.carreira.curso_instituicao_sao_obrigatorios", "curso e instituição são obrigatórios")
 
     nivel = payload.nivel if payload.nivel is not None else row["nivel"]
     if nivel not in NIVEL_XP:
-        raise HTTPException(status_code=422, detail=f"nível inválido; valores aceitos: {sorted(NIVEL_XP)}")
+        raise ErroKami(
+            422,
+            "erro.carreira.nivel_invalido_valores_aceitos_valores",
+            "nível inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(NIVEL_XP))),
+        )
 
     new_status = payload.status if payload.status is not None else row["status"]
     if new_status not in EDUCATION_STATUSES:
-        raise HTTPException(status_code=422, detail=f"status inválido; valores aceitos: {sorted(EDUCATION_STATUSES)}")
+        raise ErroKami(
+            422,
+            "erro.comum.status_invalido_valores_aceitos_valores",
+            "status inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(EDUCATION_STATUSES))),
+        )
 
     if payload.clear_previsao_conclusao:
         previsao_conclusao = None
@@ -576,7 +596,7 @@ class SalaryStatsOut(BaseModel):
 def _get_salary_record_or_404(db, record_id: str):
     row = db.execute("SELECT * FROM career_salary_records WHERE id = ?", (record_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="registro salarial não encontrado")
+        raise ErroKami(404, "erro.carreira.registro_salarial_nao_encontrado", "registro salarial não encontrado")
     return row
 
 
@@ -585,7 +605,7 @@ def _validate_position_id(db, position_id: Optional[str]) -> None:
         return
     row = db.execute("SELECT id FROM career_positions WHERE id = ?", (position_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=422, detail="posição vinculada não encontrada")
+        raise ErroKami(422, "erro.carreira.posicao_vinculada_nao_encontrada", "posição vinculada não encontrada")
 
 
 @router.get("/salarios", response_model=list[SalaryRecordOut])
@@ -600,7 +620,7 @@ def list_salary_records(db=Depends(get_db)):
 @router.post("/salarios", response_model=SalaryRecordOut, status_code=201)
 def create_salary_record(payload: SalaryRecordIn, db=Depends(get_db)):
     if payload.amount <= 0:
-        raise HTTPException(status_code=422, detail="valor deve ser maior que zero")
+        raise ErroKami(422, "erro.carreira.valor_deve_ser_maior_zero", "valor deve ser maior que zero")
     currency = payload.currency.strip() or "BRL"
     _validate_position_id(db, payload.position_id)
 
@@ -638,7 +658,7 @@ def create_salary_record(payload: SalaryRecordIn, db=Depends(get_db)):
 def update_salary_record(record_id: str, payload: SalaryRecordIn, db=Depends(get_db)):
     old = _get_salary_record_or_404(db, record_id)
     if payload.amount <= 0:
-        raise HTTPException(status_code=422, detail="valor deve ser maior que zero")
+        raise ErroKami(422, "erro.carreira.valor_deve_ser_maior_zero", "valor deve ser maior que zero")
     currency = payload.currency.strip() or "BRL"
     _validate_position_id(db, payload.position_id)
 

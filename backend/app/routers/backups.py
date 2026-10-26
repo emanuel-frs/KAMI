@@ -18,13 +18,13 @@ Endpoints:
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app import backup_auto
 from app.database import get_connection, get_db
 from app.limites import Entrada
-from app.mensagens import ErroKami
+from app.mensagens import ErroKami, erro_de
 
 router = APIRouter()
 
@@ -88,7 +88,7 @@ def definir_pasta_extra(payload: PastaExtraIn, db=Depends(get_db)):
     try:
         backup_auto.definir_pasta_extra(db, payload.pasta)
     except backup_auto.PastaInvalida as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise erro_de(exc, 422) from exc
     return backup_auto.status(db)
 
 

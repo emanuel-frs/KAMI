@@ -26,9 +26,17 @@ import json
 from starlette.exceptions import HTTPException
 
 
+def _reais(v: float) -> str:
+    return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 class ErroKami(HTTPException):
+    """Variável `valor_*` é dinheiro: vai como número (o frontend escreve na
+    moeda da pessoa, I18N-06) e no `detail` em português sai em reais."""
+
     def __init__(self, status_code: int, chave: str, texto_pt: str, headers: dict | None = None, **vars):
-        super().__init__(status_code=status_code, detail=texto_pt.format(**vars) if vars else texto_pt, headers=headers)
+        legivel = {k: _reais(v) if k.startswith("valor") and isinstance(v, (int, float)) else v for k, v in vars.items()}
+        super().__init__(status_code=status_code, detail=texto_pt.format(**legivel) if vars else texto_pt, headers=headers)
         self.chave = chave
         self.texto_pt = texto_pt
         self.vars = vars
@@ -53,8 +61,19 @@ class Texto(str):
     def __new__(cls, chave: str, texto_pt: str, **vars):
         obj = super().__new__(cls, texto_pt.format(**vars) if vars else texto_pt)
         obj.chave = chave
+        obj.texto_pt = texto_pt
         obj.vars = vars
         return obj
+
+
+def erro_de(exc: Exception, status_code: int, headers: dict | None = None) -> HTTPException:
+    """Exceção do domínio (PIN, backup protegido, pasta extra…) → resposta.
+    Se a mensagem é um Texto (tem chave), vira ErroKami e sai no idioma da
+    pessoa; senão, o texto de sempre."""
+    msg = exc.args[0] if exc.args else None
+    if isinstance(msg, Texto):
+        return ErroKami(status_code, msg.chave, msg.texto_pt, headers=headers, **msg.vars)
+    return HTTPException(status_code=status_code, detail=str(exc), headers=headers)
 
 
 def colunas_do_texto(descricao) -> tuple:

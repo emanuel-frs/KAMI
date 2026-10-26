@@ -34,14 +34,14 @@ import datetime
 import re
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
 from app.business_days import months_between
 from app.limites import Entrada
 from app.lembretes import ocorrencias as ocorrencias_lembrete
-from app.mensagens import texto_da_linha
+from app.mensagens import ErroKami, texto_da_linha
 
 router = APIRouter()
 
@@ -53,7 +53,7 @@ RECURRENCES = {"none", "daily", "weekly", "monthly", "yearly"}
 
 def _validate_month(month: str) -> tuple:
     if not MONTH_RE.match(month):
-        raise HTTPException(status_code=422, detail="parâmetro 'month' deve ser 'YYYY-MM'")
+        raise ErroKami(422, "erro.comum.parametro_month_deve_ser_yyyy", "parâmetro 'month' deve ser 'YYYY-MM'")
     year, mo = month.split("-")
     return int(year), int(mo)
 
@@ -92,17 +92,26 @@ class EventoIn(Entrada):
 
 def _validate_evento(payload: EventoIn) -> None:
     if not payload.title.strip():
-        raise HTTPException(status_code=422, detail="título é obrigatório")
+        raise ErroKami(422, "erro.comum.titulo_obrigatorio", "título é obrigatório")
     if not DATE_RE.match(payload.date):
-        raise HTTPException(status_code=422, detail="'date' deve ser 'YYYY-MM-DD'")
+        raise ErroKami(422, "erro.calendario.date_deve_ser_yyyy_mm", "'date' deve ser 'YYYY-MM-DD'")
     if payload.time and not TIME_RE.match(payload.time):
-        raise HTTPException(status_code=422, detail="'time' deve ser 'HH:MM'")
+        raise ErroKami(422, "erro.calendario.time_deve_ser_hh_mm", "'time' deve ser 'HH:MM'")
     if payload.recurrence not in RECURRENCES:
-        raise HTTPException(status_code=422, detail=f"'recurrence' deve ser um de {sorted(RECURRENCES)}")
+        raise ErroKami(
+            422,
+            "erro.calendario.recurrence_deve_ser_valores",
+            "'recurrence' deve ser um de {valores}",
+            valores=", ".join(map(str, sorted(RECURRENCES))),
+        )
     if payload.recurrence_end and not DATE_RE.match(payload.recurrence_end):
-        raise HTTPException(status_code=422, detail="'recurrence_end' deve ser 'YYYY-MM-DD'")
+        raise ErroKami(422, "erro.calendario.recurrence_end_deve_ser_yyyy", "'recurrence_end' deve ser 'YYYY-MM-DD'")
     if payload.reminder_minutes_before is not None and payload.reminder_minutes_before < 0:
-        raise HTTPException(status_code=422, detail="'reminder_minutes_before' não pode ser negativo")
+        raise ErroKami(
+            422,
+            "erro.calendario.reminder_minutes_before_nao_pode",
+            "'reminder_minutes_before' não pode ser negativo",
+        )
 
 
 # ==================== fontes de evento ====================
@@ -451,7 +460,7 @@ def update_evento(event_id: str, payload: EventoIn, db=Depends(get_db)):
     _validate_evento(payload)
     existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     if not existing:
-        raise HTTPException(status_code=404, detail="evento não encontrado")
+        raise ErroKami(404, "erro.calendario.evento_nao_encontrado", "evento não encontrado")
     db.execute(
         "UPDATE calendar_events SET title=?, date=?, time=?, notes=?, recurrence=?, "
         "recurrence_end=?, reminder_minutes_before=?, color=?, updated_at=? WHERE id=?",
@@ -470,10 +479,10 @@ class EventoDateIn(Entrada):
 def reschedule_evento(event_id: str, payload: EventoDateIn, db=Depends(get_db)):
     """Só a data (drag-and-drop na grade) — sem tocar no resto do evento."""
     if not DATE_RE.match(payload.date):
-        raise HTTPException(status_code=422, detail="'date' deve ser 'YYYY-MM-DD'")
+        raise ErroKami(422, "erro.calendario.date_deve_ser_yyyy_mm", "'date' deve ser 'YYYY-MM-DD'")
     existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     if not existing:
-        raise HTTPException(status_code=404, detail="evento não encontrado")
+        raise ErroKami(404, "erro.calendario.evento_nao_encontrado", "evento não encontrado")
     db.execute(
         "UPDATE calendar_events SET date=?, updated_at=? WHERE id=?",
         (payload.date, now_iso(), event_id),
@@ -486,6 +495,6 @@ def reschedule_evento(event_id: str, payload: EventoDateIn, db=Depends(get_db)):
 def delete_evento(event_id: str, db=Depends(get_db)):
     existing = db.execute("SELECT id FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     if not existing:
-        raise HTTPException(status_code=404, detail="evento não encontrado")
+        raise ErroKami(404, "erro.calendario.evento_nao_encontrado", "evento não encontrado")
     db.execute("DELETE FROM calendar_events WHERE id = ?", (event_id,))
     db.commit()

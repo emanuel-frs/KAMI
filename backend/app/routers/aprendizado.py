@@ -45,7 +45,7 @@ Regras de negócio:
 import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.database import get_db, local_now, new_id, now_iso
@@ -53,7 +53,7 @@ from app.actions import debit_xp, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.routers.metas import sync_learning_goals
 from app.limites import Entrada
-from app.mensagens import Texto
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -216,14 +216,14 @@ def _track_row_to_out(db, row) -> dict:
 def _get_track_or_404(db, track_id: str):
     row = db.execute("SELECT * FROM tracks WHERE id = ?", (track_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="trilha não encontrada")
+        raise ErroKami(404, "erro.comum.trilha_nao_encontrada", "trilha não encontrada")
     return row
 
 
 def _get_milestone_or_404(db, milestone_id: str):
     row = db.execute("SELECT * FROM milestones WHERE id = ?", (milestone_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="marco não encontrado")
+        raise ErroKami(404, "erro.aprendizado.marco_nao_encontrado", "marco não encontrado")
     return row
 
 
@@ -244,9 +244,11 @@ def list_tracks(db=Depends(get_db)):
 @router.post("/tracks", response_model=TrackOut, status_code=201)
 def create_track(payload: TrackIn, db=Depends(get_db)):
     if payload.status not in TRACK_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"status inválido; valores aceitos: {sorted(TRACK_STATUSES)}",
+        raise ErroKami(
+            422,
+            "erro.comum.status_invalido_valores_aceitos_valores",
+            "status inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(TRACK_STATUSES))),
         )
     track_id = new_id()
     next_position = db.execute(
@@ -277,9 +279,10 @@ def reorder_tracks(payload: TrackReorderIn, db=Depends(get_db)):
     existing_ids = {r["id"] for r in db.execute("SELECT id FROM tracks").fetchall()}
     payload_ids = set(payload.track_ids)
     if payload_ids != existing_ids:
-        raise HTTPException(
-            status_code=422,
-            detail="a lista precisa conter exatamente as trilhas atuais, sem faltar nem sobrar nenhuma",
+        raise ErroKami(
+            422,
+            "erro.aprendizado.lista_precisa_conter_exatamente_trilhas",
+            "a lista precisa conter exatamente as trilhas atuais, sem faltar nem sobrar nenhuma",
         )
 
     for position, track_id in enumerate(payload.track_ids):
@@ -296,9 +299,11 @@ def update_track(track_id: str, payload: TrackUpdate, db=Depends(get_db)):
 
     new_status = payload.status if payload.status is not None else row["status"]
     if new_status not in TRACK_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"status inválido; valores aceitos: {sorted(TRACK_STATUSES)}",
+        raise ErroKami(
+            422,
+            "erro.comum.status_invalido_valores_aceitos_valores",
+            "status inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(TRACK_STATUSES))),
         )
 
     db.execute(
@@ -371,9 +376,11 @@ def update_milestone(milestone_id: str, payload: MilestoneUpdate, db=Depends(get
 
     new_status = payload.status if payload.status is not None else row["status"]
     if new_status not in MILESTONE_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"status inválido; valores aceitos: {sorted(MILESTONE_STATUSES)}",
+        raise ErroKami(
+            422,
+            "erro.comum.status_invalido_valores_aceitos_valores",
+            "status inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(MILESTONE_STATUSES))),
         )
 
     now = now_iso()
@@ -473,9 +480,10 @@ def reorder_milestones(track_id: str, payload: MilestoneReorderIn, db=Depends(ge
     }
     payload_ids = set(payload.milestone_ids)
     if payload_ids != existing_ids:
-        raise HTTPException(
-            status_code=422,
-            detail="a lista precisa conter exatamente os marcos atuais da trilha, sem faltar nem sobrar nenhum",
+        raise ErroKami(
+            422,
+            "erro.aprendizado.lista_precisa_conter_exatamente_marcos",
+            "a lista precisa conter exatamente os marcos atuais da trilha, sem faltar nem sobrar nenhum",
         )
 
     for position, milestone_id in enumerate(payload.milestone_ids):

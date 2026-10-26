@@ -8,13 +8,14 @@ o backend nunca recebe nem guarda a foto original).
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.business_days import paises_com_feriados
 from app.database import SOM_COLUNAS, get_db, now_iso
 from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
 from app.limites import Entrada
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -125,7 +126,7 @@ def _get_profile_row(db):
     row = db.execute("SELECT * FROM user_profile LIMIT 1").fetchone()
     if not row:
         # não deveria acontecer — init_db sempre semeia a linha única
-        raise HTTPException(status_code=404, detail="perfil não encontrado")
+        raise ErroKami(404, "erro.perfil.perfil_nao_encontrado", "perfil não encontrado")
     return row
 
 
@@ -142,10 +143,23 @@ def _recompensas_escolhidas(db, payload, row):
             continue
         minimo = nivel_minimo(catalogo_, valor)
         if minimo is None:
-            raise HTTPException(status_code=422, detail=f"{campo} desconhecido: '{valor}'")
+            raise ErroKami(
+                422,
+                "erro.perfil.campo_desconhecido_valor",
+                "{campo} desconhecido: '{valor}'",
+                campo=campo,
+                valor=valor,
+            )
         nivel = nivel if nivel is not None else nivel_jogador(db)
         if nivel < minimo:
-            raise HTTPException(status_code=422, detail=f"{campo} '{valor}' é liberado no nível {minimo}")
+            raise ErroKami(
+                422,
+                "erro.perfil.campo_valor_liberado_no_nivel",
+                "{campo} '{valor}' é liberado no nível {minimo}",
+                campo=campo,
+                valor=valor,
+                minimo=minimo,
+            )
     if payload.titulo is not None:
         titulo = None if payload.titulo == "auto" else payload.titulo
     if payload.tema is not None:
@@ -177,9 +191,11 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
     )
     efeitos_visuais = payload.efeitos_visuais if payload.efeitos_visuais is not None else row["efeitos_visuais"]
     if efeitos_visuais not in EFEITOS_VISUAIS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"efeitos_visuais inválido; valores aceitos: {sorted(EFEITOS_VISUAIS)}",
+        raise ErroKami(
+            422,
+            "erro.perfil.efeitos_visuais_invalido_valores_aceitos",
+            "efeitos_visuais inválido; valores aceitos: {valores}",
+            valores=", ".join(map(str, sorted(EFEITOS_VISUAIS))),
         )
     titulo, tema = _recompensas_escolhidas(db, payload, row)
     db.execute(

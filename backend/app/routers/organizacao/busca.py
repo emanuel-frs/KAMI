@@ -10,12 +10,13 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.database import get_db, new_id, now_iso
 from app.crypto import encrypt_password, decrypt_password
 from app.limites import Entrada
+from app.mensagens import ErroKami
 
 router = APIRouter()
 
@@ -75,7 +76,7 @@ def get_search_key_status(db=Depends(get_db)):
 def save_search_key(payload: SearchApiKeyIn, db=Depends(get_db)):
     api_key = payload.api_key.strip()
     if not api_key:
-        raise HTTPException(status_code=422, detail="chave vazia")
+        raise ErroKami(422, "erro.busca.chave_vazia", "chave vazia")
 
     # valida a chave com uma busca mínima antes de salvar — evita salvar
     # lixo e só descobrir na próxima vez que a pessoa tentar buscar algo
@@ -83,10 +84,14 @@ def save_search_key(payload: SearchApiKeyIn, db=Depends(get_db)):
         _tavily_request({"api_key": api_key, "query": "teste", "max_results": 1})
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
-            raise HTTPException(status_code=422, detail="chave inválida ou sem permissão")
-        raise HTTPException(status_code=422, detail=f"erro ao validar chave (http {e.code})")
+            raise ErroKami(422, "erro.busca.chave_invalida_ou_sem_permissao", "chave inválida ou sem permissão")
+        raise ErroKami(422, "erro.busca.erro_ao_validar_chave_http", "erro ao validar chave (http {code})", code=e.code)
     except (urllib.error.URLError, TimeoutError):
-        raise HTTPException(status_code=422, detail="sem conexão com a api da tavily pra validar a chave")
+        raise ErroKami(
+            422,
+            "erro.busca.sem_conexao_com_api_tavily",
+            "sem conexão com a api da tavily pra validar a chave",
+        )
 
     enc = encrypt_password(api_key)
     existing = db.execute("SELECT id FROM search_settings LIMIT 1").fetchone()
@@ -114,15 +119,23 @@ def delete_search_key(db=Depends(get_db)):
 def search_web(q: str, db=Depends(get_db)):
     q = q.strip()
     if not q:
-        raise HTTPException(status_code=422, detail="busca vazia")
+        raise ErroKami(422, "erro.busca.busca_vazia", "busca vazia")
 
     row = db.execute("SELECT api_key_enc FROM search_settings LIMIT 1").fetchone()
     if not row or not row["api_key_enc"]:
-        raise HTTPException(status_code=422, detail="nenhuma chave de busca configurada — cadastre uma chave da tavily em organização")
+        raise ErroKami(
+            422,
+            "erro.busca.nenhuma_chave_busca_configurada_cadastre",
+            "nenhuma chave de busca configurada — cadastre uma chave da tavily em organização",
+        )
     try:
         api_key = decrypt_password(row["api_key_enc"])
     except ValueError:
-        raise HTTPException(status_code=422, detail="chave de busca corrompida — reconfigure a chave")
+        raise ErroKami(
+            422,
+            "erro.busca.chave_busca_corrompida_reconfigure_chave",
+            "chave de busca corrompida — reconfigure a chave",
+        )
 
     try:
         data = _tavily_request(
@@ -131,12 +144,20 @@ def search_web(q: str, db=Depends(get_db)):
         )
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
-            raise HTTPException(status_code=422, detail="chave de busca inválida — reconfigure a chave")
+            raise ErroKami(
+                422,
+                "erro.busca.chave_busca_invalida_reconfigure_chave",
+                "chave de busca inválida — reconfigure a chave",
+            )
         if e.code in (429, 432):
-            raise HTTPException(status_code=422, detail="limite mensal de buscas gratuitas atingido")
-        raise HTTPException(status_code=502, detail=f"erro http {e.code} na api de busca")
+            raise ErroKami(
+                422,
+                "erro.busca.limite_mensal_buscas_gratuitas_atingido",
+                "limite mensal de buscas gratuitas atingido",
+            )
+        raise ErroKami(502, "erro.busca.erro_http_code_na_api", "erro http {code} na api de busca", code=e.code)
     except (urllib.error.URLError, TimeoutError):
-        raise HTTPException(status_code=502, detail="sem conexão com a api de busca no momento")
+        raise ErroKami(502, "erro.busca.sem_conexao_com_api_busca", "sem conexão com a api de busca no momento")
 
     results = []
     for item in (data.get("results") or [])[:SEARCH_RESULT_MAX]:
