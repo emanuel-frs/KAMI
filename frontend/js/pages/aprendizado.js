@@ -160,7 +160,7 @@ export async function refreshTracks() {
     estado.tracks = await listTracks();
   } catch (err) {
     estado.pendingTrackFocusId = null;
-    listEl.innerHTML = `<div class="empty-state">erro: ${escapeHtml(err.message)}</div>`;
+    listEl.innerHTML = `<div class="empty-state">${escapeHtml(t("aprendizado.erro", { erro: err.message }))}</div>`;
     return;
   }
   renderTracks();

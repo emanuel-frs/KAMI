@@ -67,7 +67,7 @@ export async function render(el, widget) {
             </div>
             <div class="ce-instituicao">${escapeHtml(e.instituicao)} · ${nivelLabels()[e.nivel] || e.nivel}</div>
             ${e.previsao_conclusao && e.status === "em_andamento"
-              ? `<div class="ce-previsao">previsão de conclusão: ${formatDate(e.previsao_conclusao)}</div>`
+              ? `<div class="ce-previsao">${t("carreira_formacoes.previsao", { data: formatDate(e.previsao_conclusao) })}</div>`
               : ""}
           </div>`).join("") : `<div class="wallet-empty">${t("carreira_formacoes.nenhuma_formacao_registrada_ainda")}</div>`}
       </div>

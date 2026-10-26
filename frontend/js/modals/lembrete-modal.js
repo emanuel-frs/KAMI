@@ -143,7 +143,7 @@ async function salvar() {
 
 async function apagar() {
   if (!editando) return;
-  const ok = await showConfirmModal(`Apagar o lembrete "${editando.titulo}"?`, { title: t("lembrete.apagar_lembrete"), confirmText: t("geral.apagar"), danger: true });
+  const ok = await showConfirmModal(t("lembrete.apagar_pergunta", { titulo: editando.titulo }), { title: t("lembrete.apagar_lembrete"), confirmText: t("geral.apagar"), danger: true });
   if (!ok) return;
   try {
     await deleteLembrete(editando.id);
@@ -167,7 +167,7 @@ export function openLembreteModal({ lembrete = null, vinculo: v = null, inicial 
   vinculo = lembrete ? lembrete.vinculo : v;
   const padrao = proximaHoraCheia();
   modalEl.querySelector("#lbm-head").textContent = lembrete ? t("lembrete.editar_lembrete") : t("lembrete.novo_lembrete");
-  modalEl.querySelector('[data-action="save"]').textContent = lembrete ? t("lembrete.salvar_alteracoes") : "+ criar";
+  modalEl.querySelector('[data-action="save"]').textContent = lembrete ? t("lembrete.salvar_alteracoes") : t("lembrete.criar");
   modalEl.querySelector('[data-action="apagar"]').hidden = !lembrete;
   modalEl.querySelector("#lbm-titulo").value = lembrete?.titulo ?? inicial.titulo ?? (v ? v.nome : "");
   modalEl.querySelector("#lbm-data").value =

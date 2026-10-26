@@ -196,9 +196,9 @@ function describeChave(estado) {
     return `${icon("check", { size: 12 })} ${escapeHtml(t("seguranca.no_cofre", { cofre: estado.cofre }))}`;
   }
   if (estado.local === "arquivo") {
-    return `<span class="cfg-seg-warn">[!]</span> num arquivo na pasta de dados — ${escapeHtml(estado.motivo || t("seguranca.o_sistema_nao_tem_cofre"))}. funciona, mas quem copiar a pasta leva a chave junto.`;
+    return `<span class="cfg-seg-warn">[!]</span> ${escapeHtml(t("seguranca.em_arquivo", { motivo: estado.motivo || t("seguranca.o_sistema_nao_tem_cofre") }))}`;
   }
-  return `<span class="cfg-seg-warn">[!]</span> indisponível — ${escapeHtml(estado.motivo || t("seguranca.o_cofre_nao_entregou_a"))}. as senhas salvas não podem ser lidas até a chave voltar.`;
+  return `<span class="cfg-seg-warn">[!]</span> ${escapeHtml(t("seguranca.indisponivel", { motivo: estado.motivo || t("seguranca.o_cofre_nao_entregou_a") }))}`;
 }
 
 async function loadSeguranca(wrap) {

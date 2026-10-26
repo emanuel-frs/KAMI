@@ -19,7 +19,7 @@
  */
 import { icon } from "./icons.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 const LIMIT_DAYS = 14;
 let dismissedThisSession = false;
@@ -51,9 +51,9 @@ function buildToast() {
   el.setAttribute("aria-atomic", "true");
   el.innerHTML = `
     ${icon("download", { size: 14 })}
-    <span class="backup-reminder-text">faz tempo que você não exporta um backup dos seus dados</span>
-    <button type="button" class="btn sm" data-action="backup">fazer backup</button>
-    <button type="button" class="backup-reminder-close" data-action="dismiss" aria-label="dispensar">${icon("x", { size: 12 })}</button>
+    <span class="backup-reminder-text">${t("backup_reminder.faz_tempo_que_voce_nao")}</span>
+    <button type="button" class="btn sm" data-action="backup">${t("backup_reminder.fazer_backup")}</button>
+    <button type="button" class="backup-reminder-close" data-action="dismiss" aria-label="${t("backup_reminder.dispensar")}">${icon("x", { size: 12 })}</button>
   `;
   el.querySelector('[data-action="backup"]').addEventListener("click", () => {
     hideBackupReminder();

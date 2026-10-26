@@ -1,5 +1,6 @@
 import { getPlayer, markStreakSavedSeen } from "../api/nucleo.js";
 import { showAchievementPopup } from "./achievement-popup.js";
+import { t } from "../i18n.js";
 
 /**
  * Aviso "sequência salva" (GAM-06). A proteção de sequência é gasta no
@@ -17,16 +18,10 @@ import { showAchievementPopup } from "./achievement-popup.js";
 
 const shown = new Set();
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-
 export function noticeText(player, days) {
-  const left = player.streak_protections;
-  const rest = left === 0 ? "nenhuma proteção sobrando" : `${left === 1 ? "resta" : "restam"} ${plural(left, "proteção", "proteções")}`;
-  const covered =
-    days.length === 1
-      ? "um dia ficou em branco e uma proteção segurou"
-      : `${days.length} dias ficaram em branco e as proteções seguraram`;
-  return `${covered} sua sequência de ${plural(player.streak_current, "dia", "dias")} · ${rest}`;
+  const dias = t("streak_notice.dias", { n: player.streak_current });
+  const coberto = t("streak_notice.coberto", { n: days.length, dias });
+  return `${coberto} · ${t("streak_notice.restam", { n: player.streak_protections })}`;
 }
 
 async function check() {
@@ -41,7 +36,7 @@ async function check() {
   days.forEach((d) => shown.add(d));
   // GAM-15: mesmo aviso "estilo Steam" das conquistas, tamanho menor
   showAchievementPopup({
-    label: "sequência salva!",
+    label: t("streak_notice.sequencia_salva"),
     title: noticeText(player, days),
     iconName: "shield",
     small: true,

@@ -289,7 +289,7 @@ async function loadEmailData() {
 function quandoLembrete(l) {
   const [dia, hora] = (l.pendente_quando || "").split("T");
   if (!dia) return "";
-  return `${dia === todayStr() ? "hoje" : fmtDataCompacta(dia)} às ${hora}`;
+  return t("notificacoes.quando", { dia: dia === todayStr() ? t("calendario.hoje") : fmtDataCompacta(dia), hora });
 }
 
 async function renderLembretes() {

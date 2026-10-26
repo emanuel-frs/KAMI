@@ -319,7 +319,7 @@ function metaHtml(n) {
   return `
     <div class="nota-meta">
       <div class="nota-tags" id="nota-tags">
-        ${n.tags.map((t) => `<span class="nota-tag">#${esc(t)}<button type="button" data-nt-tirar-tag="${esc(t)}" aria-label="tirar a tag ${esc(t)}">${icon("x", { size: 9 })}</button></span>`).join("")}
+        ${n.tags.map((tag) => `<span class="nota-tag">#${esc(tag)}<button type="button" data-nt-tirar-tag="${esc(tag)}" aria-label="${esc(t("notas.tirar_tag", { tag }))}">${icon("x", { size: 9 })}</button></span>`).join("")}
         <input type="text" id="nota-tag-input" placeholder="${n.tags.length ? "+ tag" : t("organizacao_notas.tags_enter")}" aria-label="${t("organizacao_notas.adicionar_tag")}" maxlength="40" autocomplete="off">
       </div>
       <div class="nota-acoes">

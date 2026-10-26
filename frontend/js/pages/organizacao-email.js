@@ -478,7 +478,7 @@ function emailItemHtml(e, agora) {
   return `
       <div class="email-item${e.is_read ? "" : " unread"}${e.is_muted ? " is-muted" : ""}" data-open-email="${e.id}" aria-label="${escapeAttr(`${estado}: ${e.subject || t("organizacao_email.sem_assunto")}, de ${nome}`)}">
         <span class="email-dot" aria-hidden="true"></span>
-        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="conta: ${escapeAttr(accountLabel(e.account_id))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
+        <div class="email-avatar" style="--chip-color:${color};" data-tooltip="${escapeAttr(t("email.conta_tooltip", { conta: accountLabel(e.account_id) }))}">${escapeHtml(nome.trim().charAt(0).toUpperCase() || "?")}</div>
         <div class="email-main">
           <div class="email-top">
             <span class="email-from"><span class="email-from-name">${escapeHtml(nome)}</span>${endereco ? ` <span class="email-from-addr">${escapeHtml(endereco)}</span>` : ""}</span>

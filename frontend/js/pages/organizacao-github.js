@@ -109,7 +109,7 @@ function sparklineHtml(activity) {
     })
     .join("");
   const width = weeks.length * (barW + gap);
-  return `<div class="rc-sparkline" data-tooltip="commits nas últimas ${weeks.length} semanas">
+  return `<div class="rc-sparkline" data-tooltip="${t("organizacao_github.commits_semanas", { n: weeks.length })}">
     <svg viewBox="0 0 ${width} ${h}" width="${width}" height="${h}">${bars}</svg>
   </div>`;
 }

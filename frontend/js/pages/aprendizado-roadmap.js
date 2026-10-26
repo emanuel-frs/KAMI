@@ -59,7 +59,7 @@ function renderRoadmapTimeline(list, { editable, listId, expandedId }) {
         <div class="roadmap-box">
           <div class="roadmap-heading">
             ${editable ? `<span class="roadmap-drag-dot" data-tooltip="${t("aprendizado_roadmap.arrastar")}">${icon("grip", { size: 12 })}</span>` : ''}
-            <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="concluído: ${escapeHtml(m.title)}">
+            <input type="checkbox" ${checked} class="ms-checkbox" data-id="${m.id}" aria-label="${escapeHtml(t("aprendizado_roadmap.concluido", { nome: m.title }))}">
             <span class="roadmap-title" data-id="${m.id}" data-tooltip="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
             ${editable
               ? `<span class="roadmap-expand-btn" data-id="${m.id}" data-tooltip="${t("aprendizado_roadmap.expandir")}">${icon("chevron-down", { size: 14 })}</span>`

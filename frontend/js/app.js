@@ -271,7 +271,7 @@ function applyProfileToSidebar(profile) {
 
   const usernameEl = document.getElementById("sidebar-username");
   if (usernameEl) {
-    usernameEl.textContent = profile.display_name || "usuário";
+    usernameEl.textContent = profile.display_name && profile.display_name !== "usuário" ? profile.display_name : t("perfil.usuario");
   }
 
   const sidebarAvatarEl = document.getElementById("sidebar-avatar");
@@ -312,7 +312,7 @@ function wireSidebarAvatar() {
         try {
           await updateAvatar(ascii);
         } catch (err) {
-          showErrorModal(err.message, "erro ao salvar avatar");
+          showErrorModal(err.message, t("perfil.erro_salvar_avatar"));
           return;
         }
         store.set("profile", { ...store.get("profile"), avatar_ascii: ascii });
@@ -332,8 +332,8 @@ async function loadProfile() {
       // erro de conexão (status 0) traz a mensagem longa do Tauri — ela
       // vai pro modal abaixo, o sidebar só recebe um rótulo curto
       usernameEl.textContent = err instanceof ApiError && err.status === 0
-        ? "backend offline"
-        : err instanceof ApiError ? `erro: ${err.message}` : "erro ao carregar perfil";
+        ? t("perfil.backend_offline")
+        : err instanceof ApiError ? t("perfil.erro", { erro: err.message }) : t("perfil.erro_carregar");
     }
     console.warn("loadProfile falhou, mas continuamos:", err);
     // status 0 = sem conexão com o backend. Antes (até a 1.9) abria um

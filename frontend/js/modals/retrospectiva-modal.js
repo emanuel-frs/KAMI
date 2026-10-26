@@ -199,7 +199,7 @@ async function show(i) {
     current = await getRetrospectiva(months[index].mes);
   } catch (err) {
     current = null;
-    pre.textContent = `erro ao carregar a retrospectiva: ${err.message}`;
+    pre.textContent = t("retrospectiva.erro_carregar", { erro: err.message });
     return;
   }
   title.textContent = t("retrospectiva.titulo_mes", { mes: monthLabel(current.mes) });

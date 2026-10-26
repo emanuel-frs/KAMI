@@ -295,8 +295,8 @@ function renderGrid() {
       + (milestoneEvts.length
         ? `<span class="cal-chip milestone" style="--type-color:${milestoneMeta().color}" data-tooltip="${escapeHtml(
             milestoneEvts.length > 1
-              ? `${milestoneEvts.length} marcos concluídos`
-              : `marco concluído: ${milestoneName(milestoneEvts[0])}`
+              ? t("calendario.marcos_concluidos", { n: milestoneEvts.length })
+              : t("calendario.marco_concluido", { nome: milestoneName(milestoneEvts[0]) })
           )}">${icon(milestoneMeta().icon, { size: 14 })}</span>`
         : "");
 

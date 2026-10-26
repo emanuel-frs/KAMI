@@ -11,12 +11,12 @@
  */
 import { getNovidadeLayout, responderNovidadeLayout, saveLayout } from "../api/dashboard.js";
 import { showToast } from "./toast.js";
+import { localeAtual, t } from "../i18n.js";
 
-const NOMES = { nucleo: "núcleo", perfil: "perfil", financas: "finanças", carreira: "carreira" };
-
+// "núcleo, finanças e carreira" no jeito do idioma
 function listar(telas) {
-  const nomes = telas.map((t) => NOMES[t] || t);
-  return nomes.length > 1 ? `${nomes.slice(0, -1).join(", ")} e ${nomes.at(-1)}` : nomes[0];
+  const nomes = telas.map((tela) => t(`nav.${tela}`));
+  return new Intl.ListFormat(localeAtual(), { type: "conjunction" }).format(nomes);
 }
 
 export async function oferecerLayoutNovo({ recarregarTela }) {
@@ -29,13 +29,13 @@ export async function oferecerLayoutNovo({ recarregarTela }) {
   if (!novidade?.telas?.length) return;
 
   showToast({
-    title: "layout novo das telas",
-    message: `o layout padrão de ${listar(novidade.telas)} melhorou: widgets em faixas alinhadas. aplicar? dá pra desfazer logo depois.`,
+    title: t("layout_novidade.layout_novo_das_telas"),
+    message: t("layout_novidade.oferta", { telas: listar(novidade.telas) }),
     iconName: "grip",
     duration: 0,
     actions: [
       {
-        label: "aplicar",
+        label: t("layout_novidade.aplicar"),
         onClick: async (btn) => {
           btn.disabled = true;
           let resp;
@@ -47,13 +47,13 @@ export async function oferecerLayoutNovo({ recarregarTela }) {
           }
           await recarregarTela();
           showToast({
-            title: "layout novo aplicado",
-            message: `${listar(resp.aplicadas)} ${resp.aplicadas.length > 1 ? "estão" : "está"} com o layout padrão novo.`,
+            title: t("layout_novidade.layout_novo_aplicado"),
+            message: t("layout_novidade.aplicadas", { n: resp.aplicadas.length, telas: listar(resp.aplicadas) }),
             iconName: "check",
             duration: 20000,
             actions: [
               {
-                label: "desfazer",
+                label: t("geral.desfazer"),
                 onClick: async () => {
                   for (const [tela, widgets] of Object.entries(resp.anteriores)) {
                     await saveLayout(tela, widgets);
@@ -68,7 +68,7 @@ export async function oferecerLayoutNovo({ recarregarTela }) {
         },
       },
       {
-        label: "agora não",
+        label: t("layout_novidade.agora_nao"),
         onClick: () => {
           responderNovidadeLayout(false).catch(() => {});
           return true;

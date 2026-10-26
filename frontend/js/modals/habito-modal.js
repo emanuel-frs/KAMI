@@ -111,7 +111,7 @@ export function openHabitoModal({ habito = null, onSaved = null } = {}) {
   onSavedCb = onSaved;
   editando = habito;
   modalEl.querySelector("#hbm-head").textContent = habito ? t("habito.editar_habito") : t("habito.novo_habito");
-  modalEl.querySelector('[data-action="save"]').textContent = habito ? t("habito.salvar_alteracoes") : "+ criar";
+  modalEl.querySelector('[data-action="save"]').textContent = habito ? t("habito.salvar_alteracoes") : t("habito.criar");
   modalEl.querySelector("#hbm-nome").value = habito?.nome || "";
   modalEl.querySelector("#hbm-freq").value = habito?.frequencia || "diario";
   modalEl.querySelector("#hbm-attr").value = habito?.atributo || "organizacao";

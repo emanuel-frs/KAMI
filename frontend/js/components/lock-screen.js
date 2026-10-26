@@ -29,6 +29,7 @@ import { ApiError } from "../api/client.js";
 import { copyText } from "./clipboard.js";
 import { escapeHtml } from "./format.js";
 import { icon } from "./icons.js";
+import { t } from "../i18n.js";
 
 const PIN_MIN = 4;
 const PIN_MAX = 8;
@@ -44,12 +45,12 @@ let inatividadeTimer = null;
 export function codigoRecuperacaoHtml(codigo) {
   return `
     <div class="lock-codigo" data-codigo="${escapeHtml(codigo)}">
-      <p class="lock-codigo-titulo">código de recuperação</p>
+      <p class="lock-codigo-titulo">${t("lock_screen.codigo_de_recuperacao")}</p>
       <p class="lock-codigo-valor">${escapeHtml(codigo)}</p>
-      <p class="lock-codigo-aviso">anote ou baixe agora — ele <strong>não aparece de novo</strong>. é o único jeito de trocar o PIN se você esquecer.</p>
+      <p class="lock-codigo-aviso">${t("lock_screen.aviso_codigo")}</p>
       <div class="lock-codigo-acoes">
-        <button type="button" class="btn sm" data-codigo-acao="copiar">copiar</button>
-        <button type="button" class="btn sm" data-codigo-acao="baixar">baixar .txt</button>
+        <button type="button" class="btn sm" data-codigo-acao="copiar">${t("lock_screen.copiar")}</button>
+        <button type="button" class="btn sm" data-codigo-acao="baixar">${t("lock_screen.baixar_txt")}</button>
       </div>
       <p class="lock-codigo-status" aria-live="polite"></p>
     </div>`;
@@ -61,10 +62,10 @@ export function wireCodigoRecuperacao(root) {
   const codigo = box.dataset.codigo;
   const status = box.querySelector(".lock-codigo-status");
   box.querySelector('[data-codigo-acao="copiar"]').addEventListener("click", async () => {
-    status.textContent = (await copyText(codigo)) ? "copiado" : "não deu pra copiar — anote à mão";
+    status.textContent = (await copyText(codigo)) ? t("geral.copiado") : t("lock_screen.nao_deu_pra_copiar_anote");
   });
   box.querySelector('[data-codigo-acao="baixar"]').addEventListener("click", () => {
-    const texto = `Kami — código de recuperação do PIN\n\n${codigo}\n\nUse em "esqueci o PIN", na tela de bloqueio. Guarde num lugar seguro.\n`;
+    const texto = `${t("lock_screen.arquivo_codigo", { codigo })}\n`;
     const url = URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
@@ -73,7 +74,7 @@ export function wireCodigoRecuperacao(root) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    status.textContent = "salvo na pasta de downloads";
+    status.textContent = t("lock_screen.salvo_na_pasta_de_downloads");
   });
 }
 
@@ -82,10 +83,10 @@ export function wireCodigoRecuperacao(root) {
 function pinPadHtml() {
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "apagar", "0", "ok"];
   return `<div class="lock-pad">${teclas
-    .map((t) => {
-      if (t === "apagar") return `<button type="button" class="lock-key" data-key="apagar" aria-label="apagar">⌫</button>`;
-      if (t === "ok") return `<button type="button" class="lock-key lock-key--ok" data-key="ok">ok</button>`;
-      return `<button type="button" class="lock-key" data-key="${t}">${t}</button>`;
+    .map((k) => {
+      if (k === "apagar") return `<button type="button" class="lock-key" data-key="apagar" aria-label="${t("geral.apagar")}">⌫</button>`;
+      if (k === "ok") return `<button type="button" class="lock-key lock-key--ok" data-key="ok">${t("lock_screen.ok")}</button>`;
+      return `<button type="button" class="lock-key" data-key="${k}">${k}</button>`;
     })
     .join("")}</div>`;
 }
@@ -93,42 +94,42 @@ function pinPadHtml() {
 function viewPin() {
   return `
     <div class="lock-view" data-view="pin">
-      <p class="lock-prompt" id="lock-title">&gt; digite o PIN<span class="lock-cursor">_</span></p>
+      <p class="lock-prompt" id="lock-title">&gt; ${t("lock_screen.digite_o_pin")}<span class="lock-cursor">_</span></p>
       <input class="lock-input" id="lock-pin" type="password" inputmode="numeric" autocomplete="off"
              maxlength="${PIN_MAX}" aria-labelledby="lock-title" spellcheck="false">
       ${pinPadHtml()}
       <p class="lock-msg" aria-live="polite"></p>
-      <button type="button" class="lock-link" data-ir="recuperar">esqueci o PIN</button>
+      <button type="button" class="lock-link" data-ir="recuperar">${t("lock_screen.esqueci_o_pin")}</button>
     </div>`;
 }
 
 function viewRecuperar(pasta) {
   return `
     <div class="lock-view" data-view="recuperar" hidden>
-      <p class="lock-prompt">&gt; código de recuperação<span class="lock-cursor">_</span></p>
-      <p class="lock-desc">é o código <code>KAMI-…</code> mostrado quando o PIN foi ligado.</p>
-      <div class="field"><label for="lock-codigo">código</label>
+      <p class="lock-prompt">&gt; ${t("lock_screen.codigo_de_recuperacao")}<span class="lock-cursor">_</span></p>
+      <p class="lock-desc">${t("lock_screen.e_o_codigo")}</p>
+      <div class="field"><label for="lock-codigo">${t("lock_screen.codigo")}</label>
         <input type="text" id="lock-codigo" autocomplete="off" spellcheck="false" maxlength="40" placeholder="KAMI-XXXX-XXXX-XXXX"></div>
-      <div class="field"><label for="lock-novo">PIN novo (${PIN_MIN} a ${PIN_MAX} dígitos)</label>
+      <div class="field"><label for="lock-novo">${t("lock_screen.pin_novo", { min: PIN_MIN, max: PIN_MAX })}</label>
         <input type="password" id="lock-novo" inputmode="numeric" autocomplete="off" maxlength="${PIN_MAX}"></div>
-      <div class="field"><label for="lock-novo2">repita o PIN novo</label>
+      <div class="field"><label for="lock-novo2">${t("lock_screen.repita_o_pin_novo")}</label>
         <input type="password" id="lock-novo2" inputmode="numeric" autocomplete="off" maxlength="${PIN_MAX}"></div>
       <div class="form-actions">
-        <button type="button" class="btn sm" data-acao="recuperar">trocar o PIN</button>
-        <button type="button" class="btn sm" data-ir="pin">voltar</button>
+        <button type="button" class="btn sm" data-acao="recuperar">${t("lock_screen.trocar_o_pin")}</button>
+        <button type="button" class="btn sm" data-ir="pin">${t("lock_screen.voltar")}</button>
       </div>
       <p class="lock-msg" aria-live="polite"></p>
       <details class="lock-sem-codigo">
-        <summary>não tenho o código</summary>
-        <p>feche o kami e apague o arquivo <code>pin.json</code> da pasta de dados:</p>
+        <summary>${t("lock_screen.nao_tenho_o_codigo")}</summary>
+        <p>${t("lock_screen.feche_e_apague")}</p>
         <p><code class="lock-pasta">${escapeHtml(pasta || "")}</code></p>
-        <p>na próxima abertura o kami abre sem PIN. seus dados continuam intactos — o PIN protege a abertura do app, não cifra o banco.</p>
+        <p>${t("lock_screen.na_proxima_abertura_o_kami")}</p>
       </details>
     </div>
     <div class="lock-view" data-view="novo-codigo" hidden>
-      <p class="lock-prompt">&gt; PIN trocado<span class="lock-cursor">_</span></p>
+      <p class="lock-prompt">&gt; ${t("lock_screen.pin_trocado")}<span class="lock-cursor">_</span></p>
       <div class="lock-novo-codigo"></div>
-      <div class="form-actions"><button type="button" class="btn sm" data-acao="guardei">guardei o código, continuar</button></div>
+      <div class="form-actions"><button type="button" class="btn sm" data-acao="guardei">${t("lock_screen.guardei_o_codigo_continuar")}</button></div>
     </div>`;
 }
 
@@ -170,7 +171,7 @@ function aplicarEspera(view, segundos, campos) {
     if (resta <= 0) {
       clearInterval(esperaTimer);
       campos.forEach((c) => (c.disabled = false));
-      setMsg(view, "pode tentar de novo", false);
+      setMsg(view, t("lock_screen.pode_tentar_de_novo"), false);
       campos[0]?.focus();
       return;
     }
@@ -218,10 +219,10 @@ function abrir({ estado, recarregar = false }) {
   el.setAttribute("aria-labelledby", "lock-title");
   el.innerHTML = `
     <div class="lock-box">
-      <p class="lock-brand">kami <span class="lock-brand-tag">${icon("shield", { size: 12 })} bloqueado</span></p>
+      <p class="lock-brand">kami <span class="lock-brand-tag">${icon("shield", { size: 12 })} ${t("lock_screen.bloqueado")}</span></p>
       ${viewPin()}
       ${viewRecuperar(estado?.pasta)}
-      <p class="lock-nota">o PIN protege a abertura do app — não cifra os seus dados.</p>
+      <p class="lock-nota">${t("lock_screen.o_pin_protege_a_abertura")}</p>
     </div>`;
   document.body.appendChild(el);
 
@@ -246,7 +247,7 @@ function wireTela(root) {
   const enviar = async () => {
     const valor = input.value;
     if (valor.length < PIN_MIN) {
-      setMsg(viewP, `o PIN tem de ${PIN_MIN} a ${PIN_MAX} dígitos`);
+      setMsg(viewP, t("lock_screen.pin_tamanho", { min: PIN_MIN, max: PIN_MAX }));
       input.focus();
       return;
     }
@@ -259,7 +260,7 @@ function wireTela(root) {
       input.value = "";
       camposPin().forEach((c) => (c.disabled = false));
       if (erroEhEspera(err)) aplicarEspera(viewP, segundosDaEspera(err), camposPin());
-      else setMsg(viewP, err instanceof ApiError && err.status === 422 ? "PIN errado" : `não deu pra conferir: ${err.message}`);
+      else setMsg(viewP, err instanceof ApiError && err.status === 422 ? t("lock_screen.pin_errado") : t("seguranca.erro_verificar", { erro: err.message }));
       if (!input.disabled) input.focus();
     }
   };
@@ -289,9 +290,9 @@ function wireTela(root) {
     const codigo = viewR.querySelector("#lock-codigo").value.trim();
     const novo = viewR.querySelector("#lock-novo").value;
     const novo2 = viewR.querySelector("#lock-novo2").value;
-    if (!codigo) return setMsg(viewR, "digite o código de recuperação");
-    if (!/^[0-9]{4,8}$/.test(novo)) return setMsg(viewR, `o PIN novo tem de ${PIN_MIN} a ${PIN_MAX} dígitos (só números)`);
-    if (novo !== novo2) return setMsg(viewR, "os dois PINs não são iguais");
+    if (!codigo) return setMsg(viewR, t("lock_screen.digite_o_codigo_de_recuperacao"));
+    if (!/^[0-9]{4,8}$/.test(novo)) return setMsg(viewR, t("lock_screen.pin_novo_tamanho", { min: PIN_MIN, max: PIN_MAX }));
+    if (novo !== novo2) return setMsg(viewR, t("lock_screen.os_dois_pins_nao_sao"));
     const campos = [...viewR.querySelectorAll("input, button")];
     campos.forEach((c) => (c.disabled = true));
     setMsg(viewR, "conferindo…", false);

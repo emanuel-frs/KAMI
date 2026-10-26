@@ -5,7 +5,7 @@ import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-
 import { icon } from "../components/icons.js";
 import { prefersReducedMotion } from "../components/a11y.js";
 import { playSound } from "../components/sound.js";
-import { noIdiomaAtual } from "../i18n.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Diálogo de boas-vindas + criação de personagem (etapas 2 e 3
@@ -56,35 +56,35 @@ const NAME_BEAT = 5;
 // text: string fixa ou função (draft) -> string, pra reagir ao que já foi
 // respondido (nome, cor). type controla o que aparece abaixo do texto.
 const BEATS = [
-  { type: "say", text: () => "Oi! Eu sou a kami." },
+  { type: "say", text: () => t("kami_intro.oi_eu_sou_a_kami") },
   {
     type: "say",
     text: () =>
-      "A partir de agora sou eu que vou te ajudar a organizar sua vida — carreira, finanças, aprendizado, metas, tudo num lugar só.",
+      t("kami_intro.a_partir_de_agora_sou"),
   },
   {
     type: "say",
     text: () =>
-      "Funciono como um jogo: toda ação que você registra vira xp num atributo, sobe de nível, desbloqueia conquistas. Organizar deixa de ser chato.",
+      t("kami_intro.funciono_como_um_jogo_toda"),
   },
   {
     type: "say",
     text: () =>
-      "E pode ficar tranquilo(a): tudo roda aqui, na sua máquina. nada sai daqui, sem servidor, sem conta pra criar.",
+      t("kami_intro.e_pode_ficar_tranquilo_a"),
   },
-  { type: "say", text: () => "Aliás, falando nisso — eu nem sei seu nome ainda..." },
-  { type: "ask-name", text: () => "como posso te chamar?" },
-  { type: "say", text: () => `Prazer, ${draft.display_name || "então"}.` },
-  { type: "ask-color", text: () => "Agora... qual cor combina com você?" },
+  { type: "say", text: () => t("kami_intro.alias_falando_nisso_eu_nem") },
+  { type: "ask-name", text: () => t("kami_intro.como_posso_te_chamar") },
+  { type: "say", text: () => t("kami_intro.prazer", { nome: draft.display_name || t("kami_intro.entao") }) },
+  { type: "ask-color", text: () => t("kami_intro.agora_qual_cor_combina_com") },
   { type: "say", text: () => `Gostei, ${accentLabel(draft.accent_color)}.` },
   {
     type: "ask-avatar",
     text: () =>
-      "Por último — quer gerar um avatar em ascii a partir de uma foto? é rápido, e dá pra pular se preferir.",
+      t("kami_intro.por_ultimo_quer_gerar_um"),
   },
   {
     type: "say-end",
-    text: () => `Prontinho, ${draft.display_name || "então"}. Bora dar uma volta pelo sistema?`,
+    text: () => t("kami_intro.prontinho", { nome: draft.display_name || t("kami_intro.entao") }),
   },
 ];
 
@@ -100,7 +100,7 @@ function buildOverlay() {
       <div class="ki-box" role="dialog" aria-modal="true" aria-label="kami" tabindex="-1" data-autofocus>
         <div class="ki-box-head">
           <span class="ki-speaker">kami<span class="ki-cursor"></span></span>
-          <button type="button" class="ki-btn-skip" id="ki-btn-skip">pular</button>
+          <button type="button" class="ki-btn-skip" id="ki-btn-skip">${t("kami_intro.pular")}</button>
         </div>
         <div class="ki-box-body">
           <!-- o texto visível é digitado letra a letra (efeito de máquina de
@@ -111,8 +111,8 @@ function buildOverlay() {
           <div class="sr-only" id="ki-sr-live" role="status" aria-live="polite" aria-atomic="true"></div>
           <div class="ki-controls" id="ki-controls"></div>
           <div class="ki-footer-row">
-            <button type="button" class="ki-btn-back" id="ki-btn-back" style="display:none">${icon("arrow-left", { size: 11 })} voltar</button>
-            <button type="button" class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">continuar ${icon("chevron-right", { size: 11 })}</button>
+            <button type="button" class="ki-btn-back" id="ki-btn-back" style="display:none">${icon("arrow-left", { size: 11 })} ${t("kami_intro.voltar")}</button>
+            <button type="button" class="ki-advance-hint" id="ki-advance-hint" style="visibility:hidden">${t("kami_intro.continuar")} ${icon("chevron-right", { size: 11 })}</button>
           </div>
         </div>
       </div>
@@ -237,7 +237,7 @@ function renderBeat(index) {
 
   canTapAdvance = false;
   hintEl.style.visibility = "hidden";
-  hintEl.innerHTML = `continuar ${icon("chevron-right", { size: 11 })}`;
+  hintEl.innerHTML = `${t("kami_intro.continuar")} ${icon("chevron-right", { size: 11 })}`;
   backBtn.style.display = index === 7 || index === 9 ? "" : "none";
   controlsEl.innerHTML = "";
   controlsEl.style.display = "none";
@@ -269,7 +269,7 @@ function onBeatTextRevealed(beat, controlsEl, hintEl) {
   if (beat.type === "say-end") {
     canTapAdvance = true;
     hintEl.style.visibility = "visible";
-    hintEl.innerHTML = `começar ${icon("chevron-right", { size: 11 })}`;
+    hintEl.innerHTML = `${t("kami_intro.comecar")} ${icon("chevron-right", { size: 11 })}`;
     hintEl.focus({ preventScroll: true });
     return;
   }
@@ -286,13 +286,13 @@ function buildNameControls(container) {
       <input
         id="ki-input-nome"
         type="text"
-        placeholder="seu nome ou apelido"
-        aria-label="seu nome ou apelido"
+        placeholder="${t("kami_intro.seu_nome_ou_apelido")}"
+        aria-label="${t("kami_intro.seu_nome_ou_apelido")}"
         maxlength="40"
         autocomplete="off"
         spellcheck="false"
       >
-      <button type="button" class="btn primary sm" id="ki-btn-nome-ok" disabled>confirmar ${icon("arrow-right", { size: 11 })}</button>
+      <button type="button" class="btn primary sm" id="ki-btn-nome-ok" disabled>${t("geral.confirmar")} ${icon("arrow-right", { size: 11 })}</button>
     </div>`;
 
   const input = container.querySelector("#ki-input-nome");
@@ -338,11 +338,11 @@ function buildColorControls(container, hintEl) {
         b.setAttribute("aria-pressed", b === btn ? "true" : "false");
       });
       overlayEl.querySelector("#ki-sr-live").textContent =
-        `${btn.getAttribute("aria-label")} selecionada. use "continuar" para seguir.`;
+        t("kami_intro.cor_selecionada", { cor: btn.getAttribute("aria-label") });
       document.documentElement.style.setProperty("--accent", draft.accent_color);
       setAvatarHero(draft.accent_color);
       canTapAdvance = true;
-      hintEl.innerHTML = `continuar ${icon("chevron-right", { size: 11 })}`;
+      hintEl.innerHTML = `${t("kami_intro.continuar")} ${icon("chevron-right", { size: 11 })}`;
       hintEl.style.visibility = "visible";
       // o foco fica no swatch de propósito: quem navega por teclado
       // pode experimentar outras cores antes de seguir (Tab chega no
@@ -359,20 +359,20 @@ function buildAvatarControls(container) {
   container.innerHTML = `
     <div class="ki-avatar-grid">
       <div class="ki-avatar-controls">
-        <input type="file" id="ki-av-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp" aria-label="escolher uma imagem para o avatar">
+        <input type="file" id="ki-av-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp" aria-label="${t("kami_intro.escolher_uma_imagem_para_o")}">
         <div class="ki-av-col-field" id="ki-av-col-field" style="display:none">
-          <label for="ki-av-cols">largura: <b id="ki-av-cols-val">70</b></label>
+          <label for="ki-av-cols">${t("kami_intro.largura")} <b id="ki-av-cols-val">70</b></label>
           <input type="range" id="ki-av-cols" min="30" max="120" value="70">
         </div>
-        <p class="ki-av-hint">arraste uma imagem ou use o campo acima. a foto original nunca é salva.</p>
+        <p class="ki-av-hint">${t("kami_intro.arraste_uma_imagem_ou_use")}</p>
       </div>
       <div class="ki-avatar-preview" id="ki-av-preview">
-        <span class="ki-av-placeholder">nenhuma imagem carregada</span>
+        <span class="ki-av-placeholder">${t("kami_intro.nenhuma_imagem_carregada")}</span>
       </div>
     </div>
     <div class="ki-avatar-actions">
-      <button type="button" class="ki-btn-ghost" id="ki-btn-av-skip">pular esse passo</button>
-      <button type="button" class="btn primary sm" id="ki-btn-av-ok" disabled>usar esse avatar ${icon("arrow-right", { size: 11 })}</button>
+      <button type="button" class="ki-btn-ghost" id="ki-btn-av-skip">${t("kami_intro.pular_esse_passo")}</button>
+      <button type="button" class="btn primary sm" id="ki-btn-av-ok" disabled>${t("kami_intro.usar_avatar")} ${icon("arrow-right", { size: 11 })}</button>
     </div>`;
 
   const fileInput = container.querySelector("#ki-av-file");

@@ -1,4 +1,5 @@
 import { icon } from "./icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Motor genérico de dicas contextuais por tela (etapa 5).
@@ -59,15 +60,15 @@ function buildDom() {
     <div class="tip-shade tip-shade--left"></div>
     <div class="tip-shade tip-shade--right"></div>
     <div class="tip-highlight"></div>
-    <div class="tip-balloon" role="dialog" aria-modal="true" aria-label="dicas da tela">
+    <div class="tip-balloon" role="dialog" aria-modal="true" aria-label="${t("tip_sequence.dicas_da_tela")}">
       <div class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
       <div class="tip-balloon-head">
         <span class="tip-step-label"></span>
-        <span class="tip-skip" data-action="skip" role="button" tabindex="0">pular tudo</span>
+        <span class="tip-skip" data-action="skip" role="button" tabindex="0">${t("tip_sequence.pular_tudo")}</span>
       </div>
       <p class="tip-text"></p>
       <div class="tip-balloon-foot">
-        <span class="tip-interact-hint">toque (ou Enter, com o foco nele) no elemento em destaque para continuar</span>
+        <span class="tip-interact-hint">${t("tip_sequence.toque_ou_enter_com_o")}</span>
         <button type="button" class="btn sm primary tip-next-btn">
           próximo ${icon("arrow-right", { size: 12 })}
         </button>
@@ -284,14 +285,14 @@ function renderStep() {
   nextBtn.style.display = showNext ? "" : "none";
   hint.style.display = isInteract ? "" : "none";
   if (showNext) {
-    nextBtn.innerHTML = isLast ? `${icon("check", { size: 12 })} entendi` : `próximo ${icon("arrow-right", { size: 12 })}`;
+    nextBtn.innerHTML = isLast ? `${icon("check", { size: 12 })} ${t("geral.entendi")}` : `${t("tip_sequence.proximo")} ${icon("arrow-right", { size: 12 })}`;
   }
 
   // anuncia o passo inteiro de uma vez (o foco vai pro botão, que sozinho
   // não leria o texto da dica)
   root.querySelector('[role="status"]').textContent =
-    `${rotulo ? `${rotulo}. ` : ""}passo ${index + 1} de ${total}. ${step.text}` +
-    (isInteract ? (keyboardTarget ? " Ative o elemento em destaque para continuar." : "") : "");
+    `${rotulo ? `${rotulo}. ` : ""}${t("tip_sequence.passo", { n: index + 1, total })}. ${step.text}` +
+    (isInteract && keyboardTarget ? ` ${t("tip_sequence.ative_o_elemento_em_destaque")}` : "");
 
   positionAll();
   // positionAll() pode ter avançado a sequência de novo (elemento deste

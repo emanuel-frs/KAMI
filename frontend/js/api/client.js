@@ -109,7 +109,7 @@ const ERROS_DE_AMBIENTE = new Set(["erro_interno", "banco_ocupado", "sem_espaco"
 
 export class ApiError extends Error {
   constructor(status, body) {
-    const msg = ApiError._extractMessage(body) ?? `Erro HTTP ${status}`;
+    const msg = ApiError._extractMessage(body) ?? t("erro.http", { status });
     super(msg);
     this.name = "ApiError";
     this.status = status;

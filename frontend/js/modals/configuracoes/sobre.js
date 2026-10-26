@@ -72,7 +72,7 @@ async function loadDiagnostico(wrap) {
   try {
     const diag = await getDiagnostico();
     diagText = `${diag.texto}\n\n--- tela ---\n${navigator.userAgent}`;
-    wrap.querySelector("#cfg-sobre-versao").textContent = `versão ${diag.versao}`;
+    wrap.querySelector("#cfg-sobre-versao").textContent = t("sobre.versao_n", { versao: diag.versao });
     pre.textContent = diagText;
   } catch (err) {
     diagText = "";
