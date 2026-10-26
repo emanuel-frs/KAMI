@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.business_days import paises_com_feriados
 from app.database import SOM_COLUNAS, get_db, now_iso
 from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
 from app.limites import Entrada
@@ -49,6 +50,8 @@ class ProfileOut(BaseModel):
     atualizacao_avisada: Optional[str] = None
     atualizacao_pulada: Optional[str] = None
     idioma: Optional[str] = None  # I18N-01: None = ainda não escolhido
+    moeda: Optional[str] = None  # I18N-06: ISO 4217; None = ainda não escolhida
+    pais: Optional[str] = None  # I18N-06: ISO 3166 (feriados do dia útil)
     updated_at: str
 
 
@@ -86,6 +89,10 @@ class ProfileUpdate(Entrada):
     atualizacao_pulada: Optional[str] = Field(None, max_length=40, pattern=VERSAO_OU_VAZIO)
     # I18N-01 (P-74): os 10 idiomas — frontend/js/i18n.js::IDIOMAS
     idioma: Optional[str] = Field(None, pattern=r"^(pt|en|es|fr|it|de|zh|ja|ko|hi)$")
+    # I18N-06: qualquer código ISO (o frontend confere com o Intl); país sem
+    # calendário na workalendar = dia útil só de segunda a sexta
+    moeda: Optional[str] = Field(None, pattern=r"^[A-Z]{3}$")
+    pais: Optional[str] = Field(None, pattern=r"^[A-Z]{2}$")
 
 
 # GAM-04 — ver database.py::_migrate_user_profile_efeitos_visuais
@@ -151,6 +158,12 @@ def get_profile(db=Depends(get_db)):
     return dict(_get_profile_row(db))
 
 
+@router.get("/paises-feriados")
+def get_paises_feriados():
+    """I18N-06: países com calendário de feriados (o nome sai do Intl no app)."""
+    return {"paises": paises_com_feriados()}
+
+
 @router.put("", response_model=ProfileOut)
 def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
     row = _get_profile_row(db)
@@ -193,8 +206,10 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute("UPDATE user_profile SET avisos_hora = ? WHERE id = ?", (payload.avisos_hora, row["id"]))
     if payload.atualizacoes_procurar is not None:
         db.execute("UPDATE user_profile SET atualizacoes_procurar = ? WHERE id = ?", (int(payload.atualizacoes_procurar), row["id"]))
-    if payload.idioma is not None:
-        db.execute("UPDATE user_profile SET idioma = ? WHERE id = ?", (payload.idioma, row["id"]))
+    for col in ("idioma", "moeda", "pais"):
+        value = getattr(payload, col)
+        if value is not None:
+            db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (value, row["id"]))
     for col in ("atualizacao_avisada", "atualizacao_pulada"):
         value = getattr(payload, col)
         if value is not None:

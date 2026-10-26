@@ -22,6 +22,8 @@
 # execução (erro típico: "ModuleNotFoundError" só ao RODAR o binário,
 # não ao compilar).
 
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
 block_cipher = None
 
 a = Analysis(
@@ -33,6 +35,12 @@ a = Analysis(
         # arquivo de versão (fonte de verdade única, raiz do repo, um
         # nível acima de backend/) — ver app/version.py
         ('../VERSION', '.'),
+        # I18N-06: os calendários de feriados dos outros países (dados
+        # dos calendários lunares/hebraico usados por alguns deles)
+        *collect_data_files('workalendar'),
+        *collect_data_files('convertdate'),
+        *collect_data_files('lunardate'),
+        *collect_data_files('pyluach'),
     ],
     hiddenimports=[
         # uvicorn resolve esses módulos dinamicamente (auto-detecção
@@ -42,11 +50,10 @@ a = Analysis(
         'uvicorn.protocols.http.auto',
         'uvicorn.protocols.websockets.auto',
         'uvicorn.lifespan.on',
-        # workalendar.america é importado explicitamente em
-        # business_days.py, mas o pacote workalendar registra
-        # calendários por região via introspecção interna — incluído
-        # aqui por precaução.
-        'workalendar.america',
+        # I18N-06: o país dos feriados é escolhido pela pessoa e o
+        # registro da workalendar importa o módulo de cada região na hora
+        # (workalendar.registry) — a análise estática não enxerga.
+        *collect_submodules('workalendar'),
     ],
     hookspath=[],
     hooksconfig={},

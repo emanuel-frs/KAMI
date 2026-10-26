@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS user_profile (
     -- I18N-01 (P-74/P-96): idioma das telas; NULL = ainda não escolhido (banco
     -- novo: o app usa o do sistema e grava). Quem já usava ficou com 'pt'.
     idioma                 TEXT,
+    -- I18N-06 (P-94/P-95): moeda (ISO 4217, só o formato) e país dos
+    -- feriados do dia útil (ISO 3166); NULL = o app escolhe pelo sistema.
+    -- Quem já usava ficou com 'BRL'/'BR'.
+    moeda                  TEXT,
+    pais                   TEXT,
     updated_at            TEXT NOT NULL
 );
 

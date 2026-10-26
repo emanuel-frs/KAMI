@@ -274,3 +274,21 @@ def test_quem_ja_usava_fica_em_portugues_ao_atualizar():
     conn.execute("UPDATE user_profile SET idioma = 'ko'")
     migracoes._migrate_user_profile_idioma(conn)
     assert conn.execute("SELECT idioma FROM user_profile").fetchone()[0] == "ko"
+
+
+# ─── I18N-06: moeda e país ──────────────────────────────────────────────
+
+
+def test_banco_novo_comeca_sem_moeda_e_pais_e_guarda_os_escolhidos(client):
+    perfil = client.get("/api/perfil").json()
+    assert perfil["moeda"] is None and perfil["pais"] is None  # o app usa os do sistema
+    novo = client.put("/api/perfil", json={"moeda": "JPY", "pais": "JP"}).json()
+    assert (novo["moeda"], novo["pais"]) == ("JPY", "JP")
+    assert client.put("/api/perfil", json={"moeda": "yen"}).status_code == 422
+    assert client.put("/api/perfil", json={"pais": "BRA"}).status_code == 422
+
+
+def test_paises_com_feriados(client):
+    paises = client.get("/api/perfil/paises-feriados").json()["paises"]
+    assert {"BR", "US", "DE", "JP"} <= set(paises)
+    assert "IN" not in paises  # sem calendário: dia útil só de segunda a sexta

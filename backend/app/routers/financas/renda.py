@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import get_db, new_id
-from app.business_days import nth_business_day_of_month, add_business_days
+from app.business_days import PAIS_PADRAO, add_business_days, nth_business_day_of_month
 from app.actions import has_action, register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_entrada_transaction, revert_entrada_transaction
@@ -173,6 +173,12 @@ def _upsert_interval_entries(db, source, year: int, month: int) -> list:
     return entries
 
 
+def _pais(db) -> str:
+    """País dos feriados do dia útil (I18N-06); sem escolha ainda, Brasil."""
+    row = db.execute("SELECT pais FROM user_profile LIMIT 1").fetchone()
+    return (row["pais"] if row else None) or PAIS_PADRAO
+
+
 def _resolve_source_entries_for_month(db, source, year: int, month: int, sources_by_id: dict, cache: dict) -> list:
     """Garante e devolve as income_entries de `source` pro (year, month)
     dado, resolvendo a cadeia de offset_fonte recursivamente. `cache`
@@ -192,7 +198,7 @@ def _resolve_source_entries_for_month(db, source, year: int, month: int, sources
         ).fetchall()
 
     elif source["tipo_data"] == "dia_util":
-        expected = nth_business_day_of_month(year, month, source["nth_dia_util"])
+        expected = nth_business_day_of_month(year, month, source["nth_dia_util"], _pais(db))
         entries = [_upsert_single_month_entry(db, source, month_prefix, expected)]
 
     elif source["tipo_data"] == "dia_fixo":
@@ -213,7 +219,7 @@ def _resolve_source_entries_for_month(db, source, year: int, month: int, sources
             for ref_entry in ref_entries:
                 base_str = ref_entry["paid_date"] or ref_entry["expected_date"]
                 base_date = datetime.date.fromisoformat(base_str)
-                expected = add_business_days(base_date, source["offset_dias_uteis"])
+                expected = add_business_days(base_date, source["offset_dias_uteis"], _pais(db))
                 entries.append(_upsert_single_month_entry(db, source, month_prefix, expected))
     else:
         entries = []

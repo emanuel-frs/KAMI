@@ -546,6 +546,24 @@ def _migrate_user_profile_idioma(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_moeda_pais(conn: sqlite3.Connection) -> None:
+    """
+    I18N-06 (P-94/P-95): moeda (código ISO 4217, só o formato — nunca
+    converte valor) e país dos feriados do dia útil (ISO 3166, 2 letras).
+    Banco que já existia fica em real e Brasil, como sempre foi; banco novo
+    nasce com NULL e o app escolhe pelo país do sistema na primeira
+    abertura (igual ao idioma).
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "moeda" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN moeda TEXT")
+        conn.execute("UPDATE user_profile SET moeda = 'BRL'")
+    if "pais" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN pais TEXT")
+        conn.execute("UPDATE user_profile SET pais = 'BR'")
+    conn.commit()
+
+
 def _migrate_textos_sistema(conn: sqlite3.Connection) -> None:
     """
     I18N: o registro de atividade e os lançamentos que o sistema cria
