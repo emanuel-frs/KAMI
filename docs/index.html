@@ -101,39 +101,108 @@
     a:focus-visible { outline: 2px solid #b6ff5c; outline-offset: 3px; }
 
     [hidden] { display: none !important; }
+
+    .idioma { display: flex; justify-content: flex-end; margin: -8px -8px 16px 0; }
+    .idioma select {
+      font: inherit; font-size: 0.85rem; color: #ededed; background: #111;
+      border: 1px solid #454545; padding: 4px 6px;
+    }
+    /* ideogramas e devanágari: fonte do sistema certa pra cada idioma */
+    :lang(zh) { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", "PingFang SC", monospace; }
+    :lang(ja) { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono CJK JP", "Meiryo", "Hiragino Sans", monospace; }
+    :lang(ko) { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono CJK KR", "Malgun Gothic", "Apple SD Gothic Neo", monospace; }
+    :lang(hi) { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Devanagari", "Nirmala UI", monospace; }
+    /* o logo em blocos precisa de uma mono latina (na CJK os blocos têm
+       largura dupla e o desenho entorta) */
+    main .mark { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace; }
   </style>
 </head>
 <body>
   <main>
+    <label class="idioma"><span hidden data-t="idioma">idioma</span>
+      <select id="idioma" aria-label="idioma"></select>
+    </label>
     <pre class="mark" aria-hidden="true">██╗  ██╗ █████╗ ███╗   ███╗ ██╗
 ██║ ██╔╝██╔══██╗████╗ ████║ ██║
 █████╔╝ ███████║██╔████╔██║ ██║
 ██╔═██╗ ██╔══██║██║╚██╔╝██║ ██║
 ██║  ██╗██║  ██║██║ ╚═╝ ██║ ██║
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═╝</pre>
-    <p class="accent">SISTEMA PESSOAL DE ORGANIZAÇÃO GAMIFICADA</p>
-    <h1>Baixar Kami</h1>
-    <p>Organize carreira, finanças, aprendizado e metas. O app roda na sua máquina; seus dados permanecem locais.</p>
+    <p class="accent" data-t="tagline">SISTEMA PESSOAL DE ORGANIZAÇÃO GAMIFICADA</p>
+    <h1 data-t="titulo">Baixar Kami</h1>
+    <p data-t="resumo">Organize carreira, finanças, aprendizado e metas. O app roda na sua máquina; seus dados permanecem locais.</p>
+    <p data-t="idiomas">Em 10 idiomas: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.</p>
     <p id="status" class="status" role="status" aria-live="polite">Consultando a última release…</p>
     <div id="downloads" class="downloads"></div>
     <pre id="commands" class="commands" hidden></pre>
     <p id="fallback" class="fallback" hidden>
-      Não foi possível carregar os assets agora.
-      <a href="https://github.com/emanuel-frs/KAMI/releases/latest">Abrir a página de Releases</a>.
+      <span data-t="falha_assets">Não foi possível carregar os assets agora.</span>
+      <a href="https://github.com/emanuel-frs/KAMI/releases/latest" data-t="abrir_pagina">Abrir a página de Releases</a>.
     </p>
     <footer>
-      <a href="https://github.com/emanuel-frs/KAMI">Código-fonte</a>
-      · <a href="https://github.com/emanuel-frs/KAMI/blob/main/docs/INSTALACAO.md">Instruções de instalação</a>
-      · <a href="https://github.com/emanuel-frs/KAMI/releases/latest">Todas as Releases</a>
+      <a href="https://github.com/emanuel-frs/KAMI" data-t="codigo">Código-fonte</a>
+      · <a id="instrucoes" href="https://github.com/emanuel-frs/KAMI/blob/main/docs/INSTALACAO.md" data-t="instrucoes">Instruções de instalação</a>
+      · <a href="https://github.com/emanuel-frs/KAMI/releases/latest" data-t="todas">Todas as Releases</a>
     </footer>
   </main>
   <script>
+    // I18N-05: resumo nos 10 idiomas do app, pelo idioma do navegador;
+    // fora deles, português (mesma regra do app). O seletor troca na hora.
+    const TEXTOS = {
+      pt: { nome: "português", tagline: "SISTEMA PESSOAL DE ORGANIZAÇÃO GAMIFICADA", titulo: "Baixar Kami", resumo: "Organize carreira, finanças, aprendizado e metas. O app roda na sua máquina; seus dados permanecem locais.", idiomas: "Em 10 idiomas: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Consultando a última release…", ultima: "Última versão: {v}. Escolha o instalador do seu sistema.", sem_sums: " Esta release não publicou SHA256SUMS; os comandos de instalação verificada não estão disponíveis.", nao_apareceu: " O instalador não apareceu na lista de assets.", so_win_linux: "Instaladores para Windows e Linux. macOS ainda não é suportado.", falhou: "A consulta à release falhou; use o link direto para Releases.", abrir: "Abrir Releases", falha_assets: "Não foi possível carregar os assets agora.", abrir_pagina: "Abrir a página de Releases", codigo: "Código-fonte", instrucoes: "Instruções de instalação", todas: "Todas as Releases", win: "Baixar para Windows (.exe)", cmd_script: "# O script detecta a distribuição e valida SHA256SUMS:", cmd_manual: "# Ou verifique os downloads e instale manualmente:", idioma: "idioma" },
+      en: { nome: "English", tagline: "PERSONAL GAMIFIED ORGANIZATION SYSTEM", titulo: "Download Kami", resumo: "Organize your career, finances, learning and goals. The app runs on your computer; your data stays local.", idiomas: "In 10 languages: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Checking the latest release…", ultima: "Latest version: {v}. Pick the installer for your system.", sem_sums: " This release didn't publish SHA256SUMS; the verified install commands aren't available.", nao_apareceu: " The installer isn't in the list of assets.", so_win_linux: "Installers for Windows and Linux. macOS isn't supported yet.", falhou: "Checking the release failed; use the direct link to Releases.", abrir: "Open Releases", falha_assets: "Couldn't load the assets right now.", abrir_pagina: "Open the Releases page", codigo: "Source code", instrucoes: "Install guide", todas: "All Releases", win: "Download for Windows (.exe)", cmd_script: "# The script detects your distribution and checks SHA256SUMS:", cmd_manual: "# Or verify the downloads and install by hand:", idioma: "language" },
+      es: { nome: "español", tagline: "SISTEMA PERSONAL DE ORGANIZACIÓN GAMIFICADA", titulo: "Descargar Kami", resumo: "Organiza tu carrera, finanzas, aprendizaje y metas. La app funciona en tu computadora; tus datos se quedan contigo.", idiomas: "En 10 idiomas: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Consultando la última versión…", ultima: "Última versión: {v}. Elige el instalador de tu sistema.", sem_sums: " Esta versión no publicó SHA256SUMS; los comandos de instalación verificada no están disponibles.", nao_apareceu: " El instalador no aparece en la lista de archivos.", so_win_linux: "Instaladores para Windows y Linux. macOS todavía no es compatible.", falhou: "Falló la consulta de la versión; usa el enlace directo a Releases.", abrir: "Abrir Releases", falha_assets: "No se pudieron cargar los archivos ahora.", abrir_pagina: "Abrir la página de Releases", codigo: "Código fuente", instrucoes: "Guía de instalación", todas: "Todas las versiones", win: "Descargar para Windows (.exe)", cmd_script: "# El script detecta la distribución y verifica SHA256SUMS:", cmd_manual: "# O verifica las descargas e instala a mano:", idioma: "idioma" },
+      fr: { nome: "français", tagline: "SYSTÈME PERSONNEL D'ORGANISATION GAMIFIÉE", titulo: "Télécharger Kami", resumo: "Organise ta carrière, tes finances, ton apprentissage et tes objectifs. L'app tourne sur ton ordinateur ; tes données restent chez toi.", idiomas: "En 10 langues : português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Recherche de la dernière version…", ultima: "Dernière version : {v}. Choisis l'installeur de ton système.", sem_sums: " Cette version n'a pas publié de SHA256SUMS ; les commandes d'installation vérifiée ne sont pas disponibles.", nao_apareceu: " L'installeur n'apparaît pas dans la liste des fichiers.", so_win_linux: "Installeurs pour Windows et Linux. macOS n'est pas encore pris en charge.", falhou: "La recherche de la version a échoué ; utilise le lien direct vers les Releases.", abrir: "Ouvrir les Releases", falha_assets: "Impossible de charger les fichiers pour le moment.", abrir_pagina: "Ouvrir la page des Releases", codigo: "Code source", instrucoes: "Guide d'installation", todas: "Toutes les versions", win: "Télécharger pour Windows (.exe)", cmd_script: "# Le script détecte la distribution et vérifie SHA256SUMS :", cmd_manual: "# Ou vérifie les téléchargements et installe à la main :", idioma: "langue" },
+      it: { nome: "italiano", tagline: "SISTEMA PERSONALE DI ORGANIZZAZIONE GAMIFICATA", titulo: "Scarica Kami", resumo: "Organizza carriera, finanze, apprendimento e obiettivi. L'app gira sul tuo computer; i tuoi dati restano in locale.", idiomas: "In 10 lingue: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Controllo dell'ultima versione…", ultima: "Ultima versione: {v}. Scegli l'installer del tuo sistema.", sem_sums: " Questa versione non ha pubblicato SHA256SUMS; i comandi di installazione verificata non sono disponibili.", nao_apareceu: " L'installer non compare nell'elenco dei file.", so_win_linux: "Installer per Windows e Linux. macOS non è ancora supportato.", falhou: "Il controllo della versione non è riuscito; usa il link diretto alle Releases.", abrir: "Apri le Releases", falha_assets: "Impossibile caricare i file adesso.", abrir_pagina: "Apri la pagina delle Releases", codigo: "Codice sorgente", instrucoes: "Guida all'installazione", todas: "Tutte le versioni", win: "Scarica per Windows (.exe)", cmd_script: "# Lo script rileva la distribuzione e verifica SHA256SUMS:", cmd_manual: "# Oppure verifica i download e installa a mano:", idioma: "lingua" },
+      de: { nome: "Deutsch", tagline: "PERSÖNLICHES GAMIFIZIERTES ORGANISATIONSSYSTEM", titulo: "Kami herunterladen", resumo: "Organisiere Karriere, Finanzen, Lernen und Ziele. Die App läuft auf deinem Rechner; deine Daten bleiben lokal.", idiomas: "In 10 Sprachen: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "Neueste Version wird abgefragt…", ultima: "Neueste Version: {v}. Wähle den Installer für dein System.", sem_sums: " Diese Version hat keine SHA256SUMS veröffentlicht; die geprüften Installationsbefehle sind nicht verfügbar.", nao_apareceu: " Der Installer ist nicht in der Dateiliste.", so_win_linux: "Installer für Windows und Linux. macOS wird noch nicht unterstützt.", falhou: "Die Abfrage der Version ist fehlgeschlagen; nutze den direkten Link zu den Releases.", abrir: "Releases öffnen", falha_assets: "Die Dateien konnten gerade nicht geladen werden.", abrir_pagina: "Releases-Seite öffnen", codigo: "Quellcode", instrucoes: "Installationsanleitung", todas: "Alle Versionen", win: "Für Windows herunterladen (.exe)", cmd_script: "# Das Skript erkennt die Distribution und prüft SHA256SUMS:", cmd_manual: "# Oder prüfe die Downloads und installiere von Hand:", idioma: "Sprache" },
+      zh: { nome: "中文", tagline: "游戏化的个人整理系统", titulo: "下载 Kami", resumo: "整理你的职业、财务、学习和目标。应用在你的电脑上运行，数据只保存在本地。", idiomas: "支持 10 种语言：português、English、español、français、italiano、Deutsch、中文、日本語、한국어、हिन्दी。", consultando: "正在查询最新版本…", ultima: "最新版本：{v}。选择适合你系统的安装程序。", sem_sums: " 此版本没有发布 SHA256SUMS，无法提供带校验的安装命令。", nao_apareceu: " 文件列表中没有找到安装程序。", so_win_linux: "提供 Windows 和 Linux 安装程序。暂不支持 macOS。", falhou: "查询版本失败，请使用 Releases 的直接链接。", abrir: "打开 Releases", falha_assets: "暂时无法加载文件。", abrir_pagina: "打开 Releases 页面", codigo: "源代码", instrucoes: "安装说明", todas: "所有版本", win: "下载 Windows 版（.exe）", cmd_script: "# 脚本会识别发行版并校验 SHA256SUMS：", cmd_manual: "# 或者校验下载的文件后手动安装：", idioma: "语言" },
+      ja: { nome: "日本語", tagline: "ゲーム感覚の個人整理システム", titulo: "Kami をダウンロード", resumo: "キャリア、お金、学習、目標をまとめて整理。アプリはあなたのパソコンで動き、データはローカルに残ります。", idiomas: "10 言語対応：português、English、español、français、italiano、Deutsch、中文、日本語、한국어、हिन्दी。", consultando: "最新バージョンを確認中…", ultima: "最新バージョン：{v}。お使いのシステム用のインストーラーを選んでください。", sem_sums: " このバージョンには SHA256SUMS がないため、検証付きのインストールコマンドは使えません。", nao_apareceu: " ファイル一覧にインストーラーが見つかりません。", so_win_linux: "Windows と Linux 用のインストーラーがあります。macOS にはまだ対応していません。", falhou: "バージョンの確認に失敗しました。Releases への直接リンクを使ってください。", abrir: "Releases を開く", falha_assets: "今はファイルを読み込めませんでした。", abrir_pagina: "Releases ページを開く", codigo: "ソースコード", instrucoes: "インストールガイド", todas: "すべてのバージョン", win: "Windows 版をダウンロード（.exe）", cmd_script: "# スクリプトがディストリビューションを判別し、SHA256SUMS を検証します：", cmd_manual: "# または、ダウンロードを検証して手動でインストール：", idioma: "言語" },
+      ko: { nome: "한국어", tagline: "게임처럼 즐기는 개인 정리 시스템", titulo: "Kami 다운로드", resumo: "커리어, 재정, 학습, 목표를 한곳에서 정리하세요. 앱은 내 컴퓨터에서 실행되고, 데이터는 로컬에 남아요.", idiomas: "10개 언어 지원: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी.", consultando: "최신 버전을 확인하는 중…", ultima: "최신 버전: {v}. 내 시스템에 맞는 설치 파일을 고르세요.", sem_sums: " 이 버전은 SHA256SUMS를 게시하지 않아 검증된 설치 명령을 쓸 수 없어요.", nao_apareceu: " 파일 목록에 설치 파일이 없어요.", so_win_linux: "Windows와 Linux용 설치 파일이 있어요. macOS는 아직 지원하지 않아요.", falhou: "버전 확인에 실패했어요. Releases 바로가기를 이용하세요.", abrir: "Releases 열기", falha_assets: "지금은 파일을 불러올 수 없어요.", abrir_pagina: "Releases 페이지 열기", codigo: "소스 코드", instrucoes: "설치 안내", todas: "모든 버전", win: "Windows용 다운로드 (.exe)", cmd_script: "# 스크립트가 배포판을 알아내고 SHA256SUMS를 검증해요:", cmd_manual: "# 또는 다운로드를 검증하고 직접 설치:", idioma: "언어" },
+      hi: { nome: "हिन्दी", tagline: "खेल जैसा निजी व्यवस्था सिस्टम", titulo: "Kami डाउनलोड करें", resumo: "करियर, वित्त, सीखना और लक्ष्य एक जगह व्यवस्थित करें। ऐप आपके कंप्यूटर पर चलता है; आपका डेटा वहीं रहता है।", idiomas: "10 भाषाओं में: português, English, español, français, italiano, Deutsch, 中文, 日本語, 한국어, हिन्दी।", consultando: "नया संस्करण देखा जा रहा है…", ultima: "नया संस्करण: {v}। अपने सिस्टम का इंस्टॉलर चुनें।", sem_sums: " इस संस्करण ने SHA256SUMS प्रकाशित नहीं किया; जाँचे गए इंस्टॉल आदेश उपलब्ध नहीं हैं।", nao_apareceu: " फ़ाइलों की सूची में इंस्टॉलर नहीं है।", so_win_linux: "Windows और Linux के इंस्टॉलर। macOS अभी समर्थित नहीं है।", falhou: "संस्करण की जाँच विफल रही; Releases का सीधा लिंक इस्तेमाल करें।", abrir: "Releases खोलें", falha_assets: "अभी फ़ाइलें लोड नहीं हो सकीं।", abrir_pagina: "Releases पेज खोलें", codigo: "सोर्स कोड", instrucoes: "इंस्टॉल गाइड", todas: "सभी संस्करण", win: "Windows के लिए डाउनलोड करें (.exe)", cmd_script: "# स्क्रिप्ट डिस्ट्रीब्यूशन पहचानती है और SHA256SUMS जाँचती है:", cmd_manual: "# या डाउनलोड जाँचें और ख़ुद इंस्टॉल करें:", idioma: "भाषा" },
+    };
+    const INTL = { pt: "pt-BR", en: "en", es: "es", fr: "fr", it: "it", de: "de", zh: "zh-CN", ja: "ja", ko: "ko", hi: "hi" };
+    function idiomaDoNavegador() {
+      for (const l of navigator.languages || [navigator.language || ""]) {
+        const base = String(l).toLowerCase().split(/[-_]/)[0];
+        if (TEXTOS[base]) return base;
+      }
+      return "pt";
+    }
+    let idioma = idiomaDoNavegador();
+    const T = (k, vars = {}) => (TEXTOS[idioma][k] ?? TEXTOS.pt[k]).replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? "");
+    function aplicarIdioma() {
+      document.documentElement.lang = INTL[idioma];
+      document.title = T("titulo");
+      document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = T(el.dataset.t)));
+      document.querySelector("#idioma").setAttribute("aria-label", T("idioma"));
+      // guia de instalação: português ou inglês (P-83)
+      document.querySelector("#instrucoes").href =
+        `https://github.com/emanuel-frs/KAMI/blob/main/docs/${idioma === "pt" ? "INSTALACAO.md" : "INSTALACAO.en.md"}`;
+    }
+
     const repository = "emanuel-frs/KAMI";
     const releasePage = `https://github.com/${repository}/releases/latest`;
     const status = document.querySelector("#status");
     const downloads = document.querySelector("#downloads");
     const commands = document.querySelector("#commands");
     const fallback = document.querySelector("#fallback");
+    const seletor = document.querySelector("#idioma");
+    for (const [codigo, textos] of Object.entries(TEXTOS)) {
+      const op = document.createElement("option");
+      op.value = codigo;
+      op.textContent = textos.nome;
+      seletor.append(op);
+    }
+    seletor.value = idioma;
+    seletor.addEventListener("change", () => {
+      idioma = seletor.value;
+      downloads.replaceChildren();
+      commands.hidden = true;
+      fallback.hidden = true;
+      aplicarIdioma();
+      loadRelease();
+    });
+    aplicarIdioma();
 
     function addDownload(label, asset) {
       if (!asset) return;
@@ -146,7 +215,8 @@
 
     function detectPlatform() {
       const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent;
-      if (/windows/i.test(platform)) return "windows";
+      // "Win32" no navigator.platform (Firefox não tem userAgentData)
+      if (/windows|^win/i.test(platform)) return "windows";
       if (/linux/i.test(platform) && !/android/i.test(platform)) return "linux";
       return "other";
     }
@@ -154,12 +224,12 @@
     function showLinuxCommands(packages) {
       commands.hidden = false;
       const lines = [
-        "# O script detecta a distribuição e valida SHA256SUMS:",
+        T("cmd_script"),
         "git clone https://github.com/emanuel-frs/KAMI.git",
         "cd KAMI",
         "sh scripts/install.sh",
         "",
-        "# Ou verifique os downloads e instale manualmente:"
+        T("cmd_manual")
       ];
       if (packages.checksums) {
         lines.push("sha256sum --ignore-missing --check SHA256SUMS");
@@ -172,8 +242,11 @@
       commands.textContent = lines.join("\n");
     }
 
+    let consulta = 0;
     async function loadRelease() {
       let timeout;
+      const minha = ++consulta; // trocar o idioma no meio refaz a consulta
+      status.textContent = T("consultando");
       try {
         const controller = new AbortController();
         timeout = setTimeout(() => controller.abort(), 8000);
@@ -185,6 +258,7 @@
         if (!response.ok) throw new Error(`GitHub API: HTTP ${response.status}`);
 
         const release = await response.json();
+        if (minha !== consulta) return;
         const assets = Array.isArray(release.assets) ? release.assets : [];
         const version = String(release.tag_name || "").replace(/^v/, "");
         if (!version) throw new Error("A release não informou uma versão.");
@@ -192,10 +266,10 @@
           asset.name === `kami-${version}-${suffix}` || asset.name === legacyName
         );
 
-        status.textContent = `Última versão: ${release.tag_name}. Escolha o instalador do seu sistema.`;
+        status.textContent = T("ultima", { v: release.tag_name });
         if (detectPlatform() === "windows") {
           addDownload(
-            "Baixar para Windows (.exe)",
+            T("win"),
             find("windows-x64-setup.exe", `Kami_${version}_x64-setup.exe`)
           );
         } else if (detectPlatform() === "linux") {
@@ -213,23 +287,24 @@
               addDownload("SHA256SUMS", packages.checksums);
               showLinuxCommands(packages);
             } else {
-              status.textContent += " Esta release não publicou SHA256SUMS; os comandos de instalação verificada não estão disponíveis.";
+              status.textContent += T("sem_sums");
             }
           }
         } else {
-          status.textContent = "Instaladores para Windows e Linux. macOS ainda não é suportado.";
+          status.textContent = T("so_win_linux");
         }
 
         if (downloads.childElementCount === 0) {
-          status.textContent += " O instalador não apareceu na lista de assets.";
+          status.textContent += T("nao_apareceu");
           fallback.hidden = false;
         }
       } catch {
-        status.textContent = "A consulta à release falhou; use o link direto para Releases.";
+        if (minha !== consulta) return;
+        status.textContent = T("falhou");
         fallback.hidden = false;
         const link = document.createElement("a");
         link.href = releasePage;
-        link.textContent = "Abrir Releases";
+        link.textContent = T("abrir");
         downloads.append(link);
       } finally {
         clearTimeout(timeout);
