@@ -1,6 +1,7 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais de Carreira (etapa 5, seção 8 item 5 — "espalhar
@@ -17,34 +18,34 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  * buildWidgetSteps já lida com isso sozinho (widget ausente = passo
  * ausente, sem guard especial).
  *
- * ADD_WIDGET_STEP segue o padrão de nucleo-tips.js/financas-tips.js
+ * addWidgetStep() segue o padrão de nucleo-tips.js/financas-tips.js
  * (não o de perfil-tips.js, que omite esse passo): como quatro dos
  * cinco widgets daqui são removíveis, o botão de adicionar continua
  * relevante mesmo depois da primeira visita.
  */
 const SCREEN = "carreira";
 
-const WIDGET_TEXTS = {
-  carreira_perfil: "área atual e área que você quer alcançar — toque em editar pra atualizar qualquer uma das duas.",
-  carreira_interesses: "tags livres com o que te interessa profissionalmente — adicione quantas quiser.",
-  carreira_posicoes: "linha do tempo dos seus empregos e cargos, do mais recente pro mais antigo.",
-  carreira_formacoes: "cursos, graduação, certificações — tudo que você estudou ou está estudando.",
-  carreira_salario: "como sua remuneração evoluiu ao longo do tempo, com o motivo de cada mudança.",
-};
+const widgetTexts = () => ({
+  carreira_perfil: t("carreira_tips.area_atual_e_area_que"),
+  carreira_interesses: t("carreira_tips.tags_livres_com_o_que"),
+  carreira_posicoes: t("carreira_tips.linha_do_tempo_dos_seus"),
+  carreira_formacoes: t("carreira_tips.cursos_graduacao_certificacoes_tudo_que"),
+  carreira_salario: t("carreira_tips.como_sua_remuneracao_evoluiu_ao"),
+});
 
 // único passo que não é um widget do catálogo — o botão de adicionar
 // widget da própria toolbar (ver createDashboardPage em dashboard.js).
 // Fica sempre por último e é sempre incluído (o botão sempre existe na
 // tela), diferente dos widgets, que dependem do que o usuário montou.
-const ADD_WIDGET_STEP = {
+const addWidgetStep = () => ({
   id: "adicionar-widget",
   selector: "#carreira-add-widget",
-  text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
+  text: t("carreira_tips.esse_painel_e_seu_toque"),
   advanceOn: "interact",
-};
+});
 
 function buildSteps(container) {
-  return [...buildWidgetSteps(container, WIDGET_TEXTS), ADD_WIDGET_STEP];
+  return [...buildWidgetSteps(container, widgetTexts()), addWidgetStep()];
 }
 
 let running = false;

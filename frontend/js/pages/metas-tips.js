@@ -1,5 +1,6 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais de Metas (etapa 5,
@@ -35,24 +36,24 @@ import { mostrarDicasNovas } from "../components/dicas-novas.js";
  */
 const SCREEN = "metas";
 
-const STEPS = [
+const steps = () => [
   {
     // informar — orienta antes de entrar em detalhe de card
     id: "em-andamento",
     selector: "#goals-section-active",
-    text: "aqui ficam suas metas em andamento, cada uma com uma barra mostrando o quanto já foi atingido.",
+    text: t("metas_tips.aqui_ficam_suas_metas_em"),
   },
   {
     // informar — visão geral do card (tipo, peso em xp, progresso)
     id: "card",
     selector: ".goal-card",
-    text: "cada meta vira um card assim: o tipo, o peso em xp (quanto maior, maior o bônus ao concluir) e o quanto falta pra bater o alvo.",
+    text: t("metas_tips.cada_meta_vira_um_card"),
   },
   {
     // ensinar a usar — ícone de gráfico só existe em metas que não são de aprendizado
     id: "grafico",
     selector: '.goal-card-icons [data-action="toggle-progress"]',
-    text: "toque aqui pra abrir um gráfico com o histórico de contribuições dessa meta.",
+    text: t("metas_tips.toque_aqui_pra_abrir_um"),
     advanceOn: "interact",
   },
   {
@@ -67,25 +68,25 @@ const STEPS = [
     // passo só aponta e explica, sem forçar o clique.
     id: "contribuir",
     selector: '[data-action="contribute-goal"]',
-    text: "toda vez que avançar de verdade nessa meta, registre aqui — é isso que move a barra de progresso. contribuir rende xp uma vez por dia por meta; o bônus de conclusão vem sempre.",
+    text: t("metas_tips.contribuir"),
   },
   {
     // ORG-05: lembrete ligado à meta
     id: "lembrar",
     selector: '[data-action="lembrar-goal"]',
-    text: "o sino cria um lembrete ligado a esta meta — ex.: \"guardar 200 todo dia 5\".",
+    text: t("metas_tips.o_sino_cria_um_lembrete"),
   },
   {
     // informar — só existe se houver meta de aprendizado ativa
     id: "ver-trilha",
     selector: '[data-action="ver-trilha"]',
-    text: "metas de aprendizado ficam sincronizadas com uma trilha — o progresso vem sozinho de lá. esse botão leva direto pra ela.",
+    text: t("metas_tips.metas_de_aprendizado_ficam_sincronizadas"),
   },
   {
     // informar — seção de histórico
     id: "concluidas",
     selector: "#goals-section-done",
-    text: "metas concluídas migram pra cá, com a data e o bônus de xp que elas renderam.",
+    text: t("metas_tips.metas_concluidas_migram_pra_ca"),
   },
   {
     // ensinar a usar — sempre presente, fecha a sequência (mesma lógica do
@@ -93,7 +94,7 @@ const STEPS = [
     // quem chega com a tela vazia)
     id: "nova-meta",
     selector: "#goals-add-btn",
-    text: "toda meta nova começa aqui.",
+    text: t("metas_tips.toda_meta_nova_comeca_aqui"),
     advanceOn: "interact",
   },
 ];
@@ -109,7 +110,7 @@ let running = false;
 export function replayMetasTips() {
   if (running) return;
   running = true;
-  startTipSequence(STEPS, {
+  startTipSequence(steps(), {
     onFinish: () => {
       running = false;
     },
@@ -128,5 +129,5 @@ const ATE_1_12 = ["em-andamento", "card", "grafico", "contribuir", "ver-trilha",
  * store.subscribe do perfil, pra rodar logo depois do tour geral).
  */
 export function maybeStartMetasTips() {
-  return mostrarDicasNovas({ tela: SCREEN, passos: () => STEPS, ate112: ATE_1_12 });
+  return mostrarDicasNovas({ tela: SCREEN, passos: () => steps(), ate112: ATE_1_12 });
 }

@@ -1,7 +1,8 @@
 import * as financasApi from "../api/financas.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { t } from "../i18n.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -14,15 +15,15 @@ function shiftMonth(monthStr, delta) {
 }
 function monthLabel(monthStr) {
   const [y, m] = monthStr.split("-").map(Number);
-  const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const nomes = mesesCurtos();
   return `${nomes[m - 1]} ${y}`;
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando categorias…</div>';
+  el.innerHTML = `<div class="empty-state">${t("graf.carregando_categorias")}</div>`;
   let month = currentMonthStr();
 
   async function reload() {
@@ -30,7 +31,7 @@ export async function render(el, widget) {
     try {
       summary = await financasApi.getSummary(month);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar categorias: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("graf.erro_categorias", { erro: err.message }))}</div>`;
       return;
     }
     draw(summary.top_categories || []);
@@ -54,7 +55,7 @@ export async function render(el, widget) {
               <span class="cat-valor">${brl(c.total)}</span>
             </div>
             <div class="cat-bar-track"><div class="bar-fill" style="width:${((c.total / max) * 100).toFixed(1)}%;"></div></div>
-          </div>`).join("") : `<div class="wallet-empty">nenhum gasto em ${monthLabel(month)}.</div>`}
+          </div>`).join("") : `<div class="wallet-empty">${t("graf.sem_gasto", { mes: monthLabel(month) })}</div>`}
       </div>
     `;
 

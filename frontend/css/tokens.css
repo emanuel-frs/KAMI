@@ -65,3 +65,29 @@
 
   --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
 }
+
+/* I18N-04: a fonte de cada escrita (P-85: a do sistema, nada embutido).
+   O latim continua na JetBrains Mono/Cascadia; os ideogramas e o
+   devanágari caem na fonte do idioma — o mesmo caractere chinês tem
+   desenho diferente em chinês e em japonês, por isso uma pilha por
+   idioma (o <html lang> vem do i18n.js). Mono primeiro (alinha melhor
+   com o resto), depois as de interface de cada sistema: Windows
+   (YaHei/Meiryo/Malgun/Nirmala), macOS (PingFang/Hiragino/Apple SD) e
+   Linux (Noto/WenQuanYi/Lohit). Sem nenhuma, o app avisa
+   (components/fonte-idioma.js). */
+:root:lang(zh) {
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Noto Sans Mono CJK SC', 'Sarasa Mono SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', monospace;
+}
+:root:lang(ja) {
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Noto Sans Mono CJK JP', 'Sarasa Mono J',
+    'Meiryo UI', 'Meiryo', 'Yu Gothic UI', 'Hiragino Sans', 'Noto Sans CJK JP', 'IPAGothic', monospace;
+}
+:root:lang(ko) {
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Noto Sans Mono CJK KR', 'D2Coding',
+    'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK KR', 'NanumGothicCoding', 'NanumGothic', monospace;
+}
+:root:lang(hi) {
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Noto Sans Devanagari', 'Nirmala UI',
+    'Mangal', 'Kohinoor Devanagari', 'Lohit Devanagari', monospace;
+}

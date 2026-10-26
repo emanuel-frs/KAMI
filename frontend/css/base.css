@@ -476,3 +476,15 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
     border-color: var(--kami-focus-color, var(--accent));
   }
 }
+
+/* I18N-01 (P-98): o Kami escreve em minúsculas (estética de terminal), mas
+   o alemão mantém os substantivos com maiúscula — é regra da língua e sem
+   ela o texto fica difícil de ler. Os dicionários já vêm com a caixa
+   certa; aqui só se desliga o que o CSS forçava em minúscula. */
+:lang(de) .settings-section h4,
+:lang(de) .ach-pop-label,
+:lang(de) .ki-speaker,
+:lang(de) .ks-section,
+:lang(de) .ob-title {
+  text-transform: none;
+}

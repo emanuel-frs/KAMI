@@ -2,6 +2,7 @@ import * as carreiraApi from "../api/carreira.js";
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova formação" / "editar formação" — mesmo padrão dual
@@ -19,19 +20,19 @@ let modalEl = null;
 let onSavedCb = null;
 let editingEducation = null;
 
-const NIVEIS = [
-  { value: "certificacao", label: "certificação" },
-  { value: "tecnico", label: "técnico" },
-  { value: "pos_graduacao", label: "pós-graduação" },
-  { value: "graduacao", label: "graduação" },
-  { value: "mestrado", label: "mestrado" },
-  { value: "doutorado", label: "doutorado" },
+const niveis = () => [
+  { value: "certificacao", label: t("formacao.certificacao") },
+  { value: "tecnico", label: t("formacao.tecnico") },
+  { value: "pos_graduacao", label: t("formacao.pos_graduacao") },
+  { value: "graduacao", label: t("formacao.graduacao") },
+  { value: "mestrado", label: t("formacao.mestrado") },
+  { value: "doutorado", label: t("formacao.doutorado") },
 ];
 
-const STATUSES = [
-  { value: "em_andamento", label: "em andamento" },
-  { value: "concluido", label: "concluído" },
-  { value: "trancado", label: "trancado" },
+const statuses = () => [
+  { value: "em_andamento", label: t("formacao.em_andamento") },
+  { value: "concluido", label: t("formacao.concluido") },
+  { value: "trancado", label: t("formacao.trancado") },
 ];
 
 function buildModal() {
@@ -40,32 +41,32 @@ function buildModal() {
   wrap.id = "education-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova formação</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("formacao.nova_formacao")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label for="em-curso">curso</label><input type="text" id="em-curso" placeholder="ex: ciência da computação"></div>
-          <div class="field"><label for="em-instituicao">instituição</label><input type="text" id="em-instituicao" placeholder="ex: usp"></div>
+          <div class="field"><label for="em-curso">${t("formacao.curso")}</label><input type="text" id="em-curso" placeholder="${t("formacao.ex_ciencia_da_computacao")}"></div>
+          <div class="field"><label for="em-instituicao">${t("formacao.instituicao")}</label><input type="text" id="em-instituicao" placeholder="${t("formacao.ex_usp")}"></div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="em-nivel">nível</label>
+            <label for="em-nivel">${t("formacao.nivel")}</label>
             <select id="em-nivel">
-              ${NIVEIS.map((n) => `<option value="${n.value}">${n.label}</option>`).join("")}
+              ${niveis().map((n) => `<option value="${n.value}">${n.label}</option>`).join("")}
             </select>
           </div>
           <div class="field">
-            <label for="em-status">status</label>
+            <label for="em-status">${t("formacao.status")}</label>
             <select id="em-status">
-              ${STATUSES.map((s) => `<option value="${s.value}">${s.label}</option>`).join("")}
+              ${statuses().map((s) => `<option value="${s.value}">${s.label}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label for="em-previsao">previsão de conclusão (opcional)</label><input type="date" id="em-previsao"></div>
+          <div class="field"><label for="em-previsao">${t("formacao.previsao_de_conclusao_opcional")}</label><input type="date" id="em-previsao"></div>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("formacao.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -81,7 +82,7 @@ async function submitEducation(wrap) {
   const curso = wrap.querySelector("#em-curso").value.trim();
   const instituicao = wrap.querySelector("#em-instituicao").value.trim();
   if (!curso || !instituicao) {
-    showErrorModal("preenche curso e instituição.", "atenção");
+    showErrorModal(t("formacao.preenche_curso_e_instituicao"), t("geral.atencao"));
     return;
   }
 
@@ -100,7 +101,7 @@ async function submitEducation(wrap) {
       await carreiraApi.createCareerEducation(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingEducation ? "erro ao salvar formação" : "erro ao criar formação");
+    showErrorModal(err.message, editingEducation ? t("formacao.erro_ao_salvar_formacao") : t("formacao.erro_ao_criar_formacao"));
     return;
   }
   closeFormacaoModal();
@@ -119,19 +120,19 @@ function wireModal(wrap) {
  *   de POST) pré-preenchido com os dados da formação.
  */
 export function openFormacaoModal({ education = null, onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingEducation = education || null;
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingEducation ? "editar formação" : "nova formação";
-  saveBtn.textContent = editingEducation ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingEducation ? t("formacao.editar_formacao") : t("formacao.nova_formacao");
+  saveBtn.textContent = editingEducation ? t("formacao.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#em-curso").value = editingEducation?.curso || "";
   modalEl.querySelector("#em-instituicao").value = editingEducation?.instituicao || "";
-  modalEl.querySelector("#em-nivel").value = editingEducation?.nivel || NIVEIS[0].value;
-  modalEl.querySelector("#em-status").value = editingEducation?.status || STATUSES[0].value;
+  modalEl.querySelector("#em-nivel").value = editingEducation?.nivel || niveis()[0].value;
+  modalEl.querySelector("#em-status").value = editingEducation?.status || statuses()[0].value;
   modalEl.querySelector("#em-previsao").value = editingEducation?.previsao_conclusao || "";
   refreshCustomSelect(modalEl.querySelector("#em-nivel"));
   refreshCustomSelect(modalEl.querySelector("#em-status"));

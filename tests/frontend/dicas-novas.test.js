@@ -107,10 +107,11 @@ test("cada tela: ids únicos e ATE_1_12 só com ids que existem", () => {
   for (const arquivo of arquivos) {
     const src = readFileSync(new URL(arquivo, PAGES), "utf8");
     const ids = [...src.matchAll(/^\s*id: "([^"]+)",/gm)].map((m) => m[1]);
-    const textos = src.match(/const WIDGET_TEXTS = \{([\s\S]*?)\n\};/);
+    // I18N-02: virou função (os textos saem do dicionário na hora de mostrar)
+    const textos = src.match(/const (?:WIDGET_TEXTS = |widgetTexts = \(\) => \()\{([\s\S]*?)\n\}\)?;/);
     if (textos) {
-      const revisoes = src.match(/buildWidgetSteps\([^)]*\{([^}]*)\}\)/)?.[1] ?? "";
-      for (const [, tipo] of textos[1].matchAll(/^ {2}([a-z_]+): "/gm)) {
+      const revisoes = src.match(/buildWidgetSteps\([^{]*\{([^}]*)\}\)/)?.[1] ?? "";
+      for (const [, tipo] of textos[1].matchAll(/^ {2}([a-z_]+): (?:"|t\()/gm)) {
         const rev = revisoes.match(new RegExp(`${tipo}: (\\d+)`))?.[1];
         ids.push(rev ? `widget-${tipo}-${rev}` : `widget-${tipo}`);
       }

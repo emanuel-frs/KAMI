@@ -71,6 +71,16 @@ def test_latest_json_no_formato_do_updater(tmp_path, capsys):
     }
 
 
+def test_rpm_ganha_a_chave_do_pacote(tmp_path):
+    g = _script()
+    for nome in ("a", "w", "r"):
+        (tmp_path / f"{nome}.sig").write_text(f"assinatura-{nome}", encoding="utf-8")
+    doc = g.gerar("1.15.0", "https://x/", ("k.AppImage", tmp_path / "a.sig"), ("k.exe", tmp_path / "w.sig"), rpm=("k.rpm", tmp_path / "r.sig"))
+    # o updater de uma instalação .rpm procura linux-x86_64-rpm antes de linux-x86_64
+    assert doc["platforms"]["linux-x86_64-rpm"] == {"signature": "assinatura-r", "url": "https://x/k.rpm"}
+    assert doc["platforms"]["linux-x86_64"]["url"] == "https://x/k.AppImage"
+
+
 def test_assinatura_vazia_para_a_release(tmp_path):
     g = _script()
     (tmp_path / "vazia.sig").write_text("  \n", encoding="utf-8")

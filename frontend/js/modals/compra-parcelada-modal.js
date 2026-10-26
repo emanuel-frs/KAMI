@@ -3,6 +3,7 @@ import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml, fmtMesAno, formatoData, lerMesAno } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova compra parcelada" / "editar compra parcelada" — mesmo
@@ -32,24 +33,24 @@ function buildModal() {
   wrap.id = "compra-parcelada-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova compra parcelada</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("compra_parcelada.nova_compra_parcelada")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="cpm-nome">nome</label><input type="text" id="cpm-nome" placeholder="ex: notebook, geladeira..."></div>
+        <div class="field"><label for="cpm-nome">${t("compra_parcelada.nome")}</label><input type="text" id="cpm-nome" placeholder="${t("compra_parcelada.ex_notebook_geladeira")}"></div>
         <div class="field-row">
-          <div class="field"><label for="cpm-valor">valor total</label><input type="number" id="cpm-valor" placeholder="0.00"></div>
-          <div class="field"><label for="cpm-parcelas">número de parcelas</label><input type="number" id="cpm-parcelas" min="1" placeholder="12"></div>
+          <div class="field"><label for="cpm-valor">${t("compra_parcelada.valor_total")}</label><input type="number" id="cpm-valor" placeholder="0.00"></div>
+          <div class="field"><label for="cpm-parcelas">${t("compra_parcelada.numero_de_parcelas")}</label><input type="number" id="cpm-parcelas" min="1" placeholder="12"></div>
         </div>
         <div class="field">
-          <label for="cpm-mes">mês da 1ª parcela</label>
+          <label for="cpm-mes">${t("compra_parcelada.mes_da_1a_parcela")}</label>
           <input type="text" id="cpm-mes" inputmode="numeric" autocomplete="off">
         </div>
         <div class="field">
-          <label for="cpm-conta">conta (opcional — soma a parcela na fatura dela todo mês)</label>
-          <select id="cpm-conta"><option value="">— nenhuma —</option></select>
+          <label for="cpm-conta">${t("compra_parcelada.conta_opcional_soma_a_parcela")}</label>
+          <select id="cpm-conta"><option value="">${t("compra_parcelada.nenhuma")}</option></select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("compra_parcelada.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -67,12 +68,12 @@ async function submitCompraParcelada(wrap) {
   // campo nativo de mês sai quebrado no WebKitGTK, por isso é texto
   const mesTexto = wrap.querySelector("#cpm-mes").value.trim();
   if (!nome || !valorTotal || !numParcelas || !mesTexto) {
-    showErrorModal("preenche nome, valor total, número de parcelas e mês da 1ª parcela.", "atenção");
+    showErrorModal(t("compra_parcelada.preenche_nome_valor_total_numero"), t("geral.atencao"));
     return;
   }
   const mes = lerMesAno(mesTexto);
   if (!mes) {
-    showErrorModal(`mês da 1ª parcela inválido — use ${fmtMesAno("2026-10")} (mês e ano).`, "atenção");
+    showErrorModal(t("compra_parcelada.mes_invalido", { exemplo: fmtMesAno("2026-10") }), t("geral.atencao"));
     return;
   }
   const contaId = wrap.querySelector("#cpm-conta").value || null;
@@ -92,7 +93,7 @@ async function submitCompraParcelada(wrap) {
       await carteiraApi.createCompraParcelada(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingCompra ? "erro ao salvar compra parcelada" : "erro ao criar compra parcelada");
+    showErrorModal(err.message, editingCompra ? t("compra_parcelada.erro_ao_salvar_compra_parcelada") : t("compra_parcelada.erro_ao_criar_compra_parcelada"));
     return;
   }
   closeCompraParceladaModal();
@@ -114,22 +115,22 @@ function wireModal(wrap) {
  *   botões de ajuste (setas) do widget (ver compras-parceladas.js/item 7).
  */
 export function openCompraParceladaModal({ compra = null, accounts = [], onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingCompra = compra || null;
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingCompra ? "editar compra parcelada" : "nova compra parcelada";
-  saveBtn.textContent = editingCompra ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingCompra ? t("compra_parcelada.editar_compra_parcelada") : t("compra_parcelada.nova_compra_parcelada");
+  saveBtn.textContent = editingCompra ? t("compra_parcelada.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#cpm-nome").value = editingCompra?.nome || "";
   modalEl.querySelector("#cpm-valor").value = editingCompra?.valor_total ?? "";
   modalEl.querySelector("#cpm-parcelas").value = editingCompra?.num_parcelas ?? "";
   modalEl.querySelector("#cpm-mes").value = fmtMesAno(editingCompra?.mes_primeira_parcela || currentMonthStr());
-  modalEl.querySelector("#cpm-mes").placeholder = formatoData() === "iso" ? "aaaa-mm" : "mm/aaaa";
+  modalEl.querySelector("#cpm-mes").placeholder = formatoData() === "iso" ? t("geral.formato_mes_iso") : t("geral.formato_mes");
   modalEl.querySelector("#cpm-conta").innerHTML =
-    `<option value="">— nenhuma —</option>` +
+    `<option value="">${t("compra_parcelada.nenhuma")}</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#cpm-conta").value = editingCompra?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#cpm-conta"));

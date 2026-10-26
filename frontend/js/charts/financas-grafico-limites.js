@@ -1,20 +1,21 @@
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { listenWhileConnected } from "../components/window-listener.js";
+import { t } from "../i18n.js";
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando limites…</div>';
+  el.innerHTML = `<div class="empty-state">${t("graf.carregando_limites")}</div>`;
 
   async function reload() {
     let banks;
     try {
       banks = await carteiraApi.listBanks();
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar limites: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("graf.erro_limites", { erro: err.message }))}</div>`;
       return;
     }
     const contasComCredito = banks.flatMap((b) =>
@@ -38,9 +39,9 @@ export async function render(el, widget) {
                 <span class="lim-pct">${pct}%</span>
               </div>
               <div class="lim-bar-track"><div class="bar-fill lim-${nivel}" style="width:${pct}%;"></div></div>
-              <span class="lim-valor-detail">${brl(a.fatura_atual || 0)} de ${brl(a.limite_total)}</span>
+              <span class="lim-valor-detail">${t("graf.de", { usado: brl(a.fatura_atual || 0), total: brl(a.limite_total) })}</span>
             </div>`;
-        }).join("") : `<div class="wallet-empty">nenhuma conta com crédito e limite definido.</div>`}
+        }).join("") : `<div class="wallet-empty">${t("graf.sem_limite")}</div>`}
       </div>
     `;
   }

@@ -98,6 +98,11 @@ def http_exception_handler(request, exc: HTTPException):
     lança com a classe base): mesma resposta de antes + `codigo`.
     """
     content = {"detail": exc.detail, "codigo": codigo_por_status(exc.status_code)}
+    # I18N-01: mensagem traduzível (app/mensagens.py) — o frontend mostra
+    # t(chave, vars) no idioma da pessoa; `detail` segue em português
+    if getattr(exc, "chave", None):
+        content["chave"] = exc.chave
+        content["vars"] = exc.vars
     return JSONResponse(status_code=exc.status_code, content=content, headers=getattr(exc, "headers", None))
 
 

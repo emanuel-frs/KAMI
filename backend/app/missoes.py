@@ -36,6 +36,7 @@ import random
 
 from app.database import new_id, now_iso
 from app.habitos import carregar as carregar_habitos, dias_com_tudo_feito
+from app.mensagens import Texto
 
 REF_MISSAO = "missao"
 BONUS_DIARIA = 10
@@ -61,6 +62,29 @@ SEMANAIS = {
 }
 
 
+# título de cada missão diária, por tipo. `{nome}` é o nome que a pessoa deu
+# (conta, meta, trilha…) e nunca é traduzido. I18N: o frontend mostra
+# `missao.dia.<tipo>` do dicionário do idioma (frontend/i18n/), com este
+# texto em português como reserva — tests/test_textos_sistema.py confere
+# que os dois são iguais. As semanais (acima) seguem `missao.semana.<tipo>`.
+DIARIAS = {
+    "lancamento": "lance um gasto ou uma entrada",
+    "conta_fixa": 'pague a conta fixa "{nome}"',
+    "renda": 'receba a renda "{nome}"',
+    "meta": 'contribua com a meta "{nome}"',
+    "marco": 'conclua um marco da trilha "{nome}"',
+    "marco_esquecido": 'resgate o marco esquecido "{nome}"',
+    "link": "salve um link",
+    "habito": 'marque o hábito "{nome}"',
+}
+
+
+def nome_da_missao(titulo: str):
+    """O `{nome}` de um título de missão diária (o que está entre as aspas), ou None."""
+    inicio, fim = titulo.find('"'), titulo.rfind('"')
+    return titulo[inicio + 1:fim] if 0 <= inicio < fim else None
+
+
 def semana_inicio(dia: datetime.date) -> datetime.date:
     return dia - datetime.timedelta(days=dia.weekday())
 
@@ -69,7 +93,7 @@ def semana_inicio(dia: datetime.date) -> datetime.date:
 
 def _candidatos_diarios(db, hoje: datetime.date) -> list:
     """(tipo, alvo_id, titulo, atributo) de cada missão possível hoje."""
-    out = [("lancamento", None, "lance um gasto ou uma entrada", "financas")]
+    out = [("lancamento", None, DIARIAS["lancamento"], "financas")]
 
     # conta fixa só gera ação (e xp) quando tem conta vinculada — ver
     # routers/financas/contas.py::pay_fixed_bill_period
@@ -80,7 +104,7 @@ def _candidatos_diarios(db, hoje: datetime.date) -> list:
         "                WHERE p.fixed_bill_id = b.id AND p.mes_ano = ? AND p.paga = 1)",
         (hoje.day, hoje.strftime("%Y-%m")),
     ).fetchall():
-        out.append(("conta_fixa", b["id"], f'pague a conta fixa "{b["name"]}"', "financas"))
+        out.append(("conta_fixa", b["id"], DIARIAS["conta_fixa"].format(nome=b["name"]), "financas"))
 
     # renda idem: só gera ação com conta vinculada na fonte
     for e in db.execute(
@@ -88,29 +112,29 @@ def _candidatos_diarios(db, hoje: datetime.date) -> list:
         "WHERE e.status = 'previsto' AND e.expected_date <= ? AND s.conta_id IS NOT NULL",
         (hoje.isoformat(),),
     ).fetchall():
-        out.append(("renda", e["id"], f'receba a renda "{e["nome"]}"', "financas"))
+        out.append(("renda", e["id"], DIARIAS["renda"].format(nome=e["nome"]), "financas"))
 
     # metas de trilha/formação progridem sozinhas — não aceitam contribuição
     for g in db.execute(
         "SELECT id, title FROM goals WHERE status = 'ativa' AND type NOT IN ('aprendizado', 'academica')"
     ).fetchall():
-        out.append(("meta", g["id"], f'contribua com a meta "{g["title"]}"', "metas"))
+        out.append(("meta", g["id"], DIARIAS["meta"].format(nome=g["title"]), "metas"))
 
     for t in db.execute(
         "SELECT DISTINCT t.id, t.name FROM tracks t JOIN milestones m ON m.track_id = t.id "
         "WHERE t.status = 'ativa' AND m.status = 'pendente'"
     ).fetchall():
-        out.append(("marco", t["id"], f'conclua um marco da trilha "{t["name"]}"', "aprendizado"))
+        out.append(("marco", t["id"], DIARIAS["marco"].format(nome=t["name"]), "aprendizado"))
 
     for m in db.execute("SELECT id, title FROM milestones WHERE status = 'esquecido'").fetchall():
-        out.append(("marco_esquecido", m["id"], f'resgate o marco esquecido "{m["title"]}"', "aprendizado"))
+        out.append(("marco_esquecido", m["id"], DIARIAS["marco_esquecido"].format(nome=m["title"]), "aprendizado"))
 
-    out.append(("link", None, "salve um link", "organizacao"))
+    out.append(("link", None, DIARIAS["link"], "organizacao"))
 
     # ORG-04 (P-58): hábito que vale hoje e ainda não foi feito
     for h in carregar_habitos(db, "status = 'ativo'"):
         if h.vale(hoje) and hoje not in h.marcas:
-            out.append(("habito", h.row["id"], f'marque o hábito "{h.row["nome"]}"', h.row["atributo"]))
+            out.append(("habito", h.row["id"], DIARIAS["habito"].format(nome=h.row["nome"]), h.row["atributo"]))
     return out
 
 
@@ -266,7 +290,11 @@ def avaliar_missoes(db, hoje: datetime.date = None) -> list:
             db.execute("UPDATE missoes SET concluida_em = ? WHERE id = ?", (now_iso(), m["id"]))
             register_action(
                 db,
-                description=f"missão concluída: {m['titulo']}",
+                # I18N: período/tipo/nome deixam o frontend traduzir a missão dentro do texto
+                description=Texto(
+                    "log.missao.concluida", "missão concluída: {missao}", missao=m["titulo"],
+                    periodo=m["periodo"], tipo=m["tipo"], nome=nome_da_missao(m["titulo"]) if m["periodo"] == "dia" else None,
+                ),
                 categories=[m["atributo"]],
                 xp=m["xp_bonus"],
                 source=REF_MISSAO,
@@ -289,7 +317,10 @@ def listar_missoes(db, hoje: datetime.date = None) -> dict:
         return {
             "id": m["id"],
             "tipo": m["tipo"],
+            "periodo": m["periodo"],
             "titulo": m["titulo"],
+            # pro frontend montar o título no idioma da pessoa (I18N)
+            "nome": nome_da_missao(m["titulo"]) if m["periodo"] == "dia" else None,
             "atributo": m["atributo"],
             "xp_bonus": m["xp_bonus"],
             "progresso": progresso(db, m),

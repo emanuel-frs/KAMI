@@ -1,6 +1,7 @@
 import { startTipSequence } from "../components/tip-sequence.js";
 import { mostrarDicasNovas } from "../components/dicas-novas.js";
 import { buildWidgetSteps } from "../components/widget-tips.js";
+import { t } from "../i18n.js";
 
 /**
  * Dicas contextuais do Núcleo (etapa 5) — a
@@ -8,7 +9,7 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  *
  * Os passos são gerados na hora a partir do que está de fato no grid
  * (ver widget-tips.js) — não é mais uma lista fixa de seletores. Isso
- * significa: widget presente sem texto em WIDGET_TEXTS (ex: um widget
+ * significa: widget presente sem texto em widgetTexts() (ex: um widget
  * novo ainda não revisado) não ganha passo; widget ausente (ex: um dos
  * cinco abaixo removido pelo usuário) simplesmente não aparece na
  * lista — sem precisar de nenhum guard especial nos dois casos.
@@ -19,30 +20,30 @@ import { buildWidgetSteps } from "../components/widget-tips.js";
  */
 const SCREEN = "nucleo";
 
-const WIDGET_TEXTS = {
-  attributes: "cada área da sua vida sobe de nível conforme você age. isso aqui é seu progresso por atributo.",
-  priorities: "o atributo mais atrasado e a meta com prazo mais próximo — por onde vale começar.",
-  log: "todo registro que você faz em qualquer módulo aparece aqui, em ordem. desfez algo (desmarcou um pagamento, reabriu um marco, apagou um item)? o registro e o xp dele saem juntos.",
-  registrar: "registre qualquer ação manual pra ganhar xp direto num atributo — até 50 xp por ação.",
-  missoes: "três missões por dia e uma por semana, sorteadas pelo que dá pra fazer agora — elas se cumprem sozinhas quando você faz a ação e rendem xp bônus. toque numa pendente pra ir à tela dela.",
-  notas_rapidas: "suas notas fixadas, e um campo pra anotar sem sair daqui. alt+shift+n abre uma nota rápida de qualquer tela.",
-  habitos_hoje: "os hábitos que valem hoje — um clique marca (+5 xp) ou desmarca. a grade e o histórico ficam na tela hábitos (alt+9).",
-  achievements: "marcos que destravam sozinhos conforme você usa o app. as bloqueadas mostram quanto falta; filtre por uma ou mais áreas.",
-};
+const widgetTexts = () => ({
+  attributes: t("nucleo_tips.cada_area_da_sua_vida"),
+  priorities: t("nucleo_tips.o_atributo_mais_atrasado_e"),
+  log: t("nucleo_tips.todo_registro_que_voce_faz"),
+  registrar: t("nucleo_tips.registre_qualquer_acao_manual_pra"),
+  missoes: t("nucleo_tips.tres_missoes_por_dia_e"),
+  notas_rapidas: t("nucleo_tips.suas_notas_fixadas_e_um"),
+  habitos_hoje: t("nucleo_tips.os_habitos_que_valem_hoje"),
+  achievements: t("nucleo_tips.conquistas"),
+});
 
 // único passo que não é um widget do catálogo — o botão de adicionar
 // widget da própria toolbar (ver createDashboardPage em dashboard.js).
 // Fica sempre por último e é sempre incluído (o botão sempre existe na
 // tela), diferente dos widgets, que dependem do que o usuário montou.
-const ADD_WIDGET_STEP = {
+const addWidgetStep = () => ({
   id: "adicionar-widget",
   selector: "#nucleo-add-widget",
-  text: "esse painel é seu: toque aqui pra adicionar ou tirar widgets.",
+  text: t("nucleo_tips.esse_painel_e_seu_toque"),
   advanceOn: "interact",
-};
+});
 
 function buildSteps(container) {
-  return [...buildWidgetSteps(container, WIDGET_TEXTS), ADD_WIDGET_STEP];
+  return [...buildWidgetSteps(container, widgetTexts()), addWidgetStep()];
 }
 
 let running = false;

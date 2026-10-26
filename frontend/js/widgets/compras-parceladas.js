@@ -1,10 +1,11 @@
 import * as carteiraApi from "../api/carteira.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
 import { openCompraParceladaModal } from "../modals/compra-parcelada-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
 import { icon } from "../components/icons.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget "compras parceladas". A progressão (parcela_atual) vem
@@ -37,16 +38,16 @@ function shiftMonth(monthStr, delta) {
 }
 function monthLabel(monthStr) {
   const [y, m] = monthStr.split("-").map(Number);
-  const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const nomes = mesesCurtos();
   return `${nomes[m - 1]} ${y}`;
 }
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando compras parceladas…</div>';
+  el.innerHTML = `<div class="empty-state">${t("parceladas.carregando")}</div>`;
   let compras = [];
   let banks = [];
   let faturaMes = currentMonthStr();
@@ -68,7 +69,7 @@ export async function render(el, widget) {
         carteiraApi.listBanks(),
       ]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar compras parceladas: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("parceladas.erro", { erro: err.message }))}</div>`;
       return;
     }
     await reloadFatura();
@@ -88,33 +89,33 @@ export async function render(el, widget) {
     const lookup = accountLookup();
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-compra">+ compra parcelada</button>
+        <button type="button" class="btn sm" data-action="add-compra">${t("parceladas.nova")}</button>
       </div>
       <div class="compras-parceladas-list">
         ${compras.length ? compras.map((c) => {
           const found = c.conta_id ? lookup[c.conta_id] : null;
-          const contaLabel = found ? `${escapeHtml(found.bank.nome)} — ${escapeHtml(found.account.nome)}` : "sem conta vinculada";
-          const ajusteTag = c.ajuste_parcelas ? `<span class="cp-ajuste-tag" data-tooltip="ajuste manual">${c.ajuste_parcelas > 0 ? "+" : ""}${c.ajuste_parcelas}</span>` : "";
+          const contaLabel = found ? `${escapeHtml(found.bank.nome)} — ${escapeHtml(found.account.nome)}` : t("parceladas.sem_conta");
+          const ajusteTag = c.ajuste_parcelas ? `<span class="cp-ajuste-tag" data-tooltip="${t("parceladas.ajuste")}">${c.ajuste_parcelas > 0 ? "+" : ""}${c.ajuste_parcelas}</span>` : "";
           return `
             <div class="compra-parcelada-row${c.quitada ? " quitada" : ""}" data-parcela-id="${c.id}">
               <div class="cp-top">
                 <span class="cp-nome" data-edit-compra="${c.id}" data-tooltip="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</span>
-                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="remover (desfaz a reserva no limite, se tinha conta)" aria-label="remover (desfaz a reserva no limite, se tinha conta)">${icon("x", { size: 11 })}</span>
+                <span class="cp-remove" data-remove-compra="${c.id}" data-tooltip="${t("parceladas.remover_dica")}" aria-label="${t("parceladas.remover_dica")}">${icon("x", { size: 11 })}</span>
               </div>
               <div class="cp-meta">
                 <div class="cp-parcela-adjust">
-                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="desfazer um adiantamento" aria-label="desfazer um adiantamento">${icon("arrow-left", { size: 11 })}</button>
-                  <span class="cp-parcela">${c.parcela_atual}/${c.num_parcelas}${ajusteTag}${c.quitada ? " · quitada" : ""}</span>
-                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="adiantar uma parcela" aria-label="adiantar uma parcela">${icon("arrow-right", { size: 11 })}</button>
+                  <button type="button" class="cp-adjust-btn${c.parcela_atual <= 0 ? " disabled" : ""}" data-adjust="-1" data-compra="${c.id}" ${c.parcela_atual <= 0 ? "disabled" : ""} data-tooltip="${t("parceladas.desfazer_adiant")}" aria-label="${t("parceladas.desfazer_adiant")}">${icon("arrow-left", { size: 11 })}</button>
+                  <span class="cp-parcela">${c.parcela_atual}/${c.num_parcelas}${ajusteTag}${c.quitada ? t("parceladas.quitada") : ""}</span>
+                  <button type="button" class="cp-adjust-btn${c.quitada || c.parcela_atual >= c.num_parcelas ? " disabled" : ""}" data-adjust="1" data-compra="${c.id}" ${c.quitada || c.parcela_atual >= c.num_parcelas ? "disabled" : ""} data-tooltip="${t("parceladas.adiantar")}" aria-label="${t("parceladas.adiantar")}">${icon("arrow-right", { size: 11 })}</button>
                 </div>
                 <div class="cp-valor-stack">
                   <span class="cp-valor">${brl(c.valor_parcela)}</span>
-                  <span class="cp-valor-total">de ${brl(c.valor_total)}</span>
+                  <span class="cp-valor-total">${t("parceladas.de_total", { total: brl(c.valor_total) })}</span>
                 </div>
               </div>
               <div class="cp-conta" data-tooltip="${contaLabel}">${contaLabel}</div>
             </div>`;
-        }).join("") : `<div class="wallet-empty">nenhuma compra parcelada cadastrada.</div>`}
+        }).join("") : `<div class="wallet-empty">${t("parceladas.vazio")}</div>`}
       </div>
 
       <div class="cp-fatura-section">
@@ -124,14 +125,14 @@ export async function render(el, widget) {
             <span class="month-label">${monthLabel(faturaMes)}</span>
             <button type="button" class="btn sm" data-action="fatura-next-month">${icon("arrow-right", { size: 11 })}</button>
           </div>
-          <span class="cp-fatura-title">fatura do mês</span>
+          <span class="cp-fatura-title">${t("parceladas.fatura_mes")}</span>
         </div>
         <div class="cp-fatura-list">
           ${faturaItens.length ? faturaItens.map((f) => `
             <div class="cp-fatura-row">
               <span class="cp-fatura-nome" data-tooltip="${escapeHtml(f.nome)}">${escapeHtml(f.nome)}<span class="cp-fatura-parcela">(${f.parcela_numero}/${f.num_parcelas})</span></span>
               <span class="cp-fatura-valor">${brl(f.valor_parcela)}</span>
-            </div>`).join("") : `<div class="wallet-empty">nenhuma compra parcelada ativa em ${monthLabel(faturaMes)}.</div>`}
+            </div>`).join("") : `<div class="wallet-empty">${t("parceladas.vazio_fatura", { mes: monthLabel(faturaMes) })}</div>`}
         </div>
       </div>
     `;
@@ -156,8 +157,8 @@ export async function render(el, widget) {
     el.querySelectorAll("[data-remove-compra]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!(await showConfirmModal(
-          "remover essa compra parcelada? isso desfaz a reserva no limite, se tinha conta vinculada.",
-          { title: "remover compra parcelada", confirmText: "remover", danger: true }
+          t("parceladas.remover_confirma"),
+          { title: t("parceladas.remover"), confirmText: t("geral.remover"), danger: true }
         ))) return;
         await carteiraApi.deleteCompraParcelada(btn.getAttribute("data-remove-compra"));
         await reload();
@@ -172,7 +173,7 @@ export async function render(el, widget) {
         try {
           await carteiraApi.ajustarParcelasCompra(compraId, delta);
         } catch (err) {
-          showErrorModal(err.message, "erro ao ajustar parcela");
+          showErrorModal(err.message, t("parceladas.erro_ajuste"));
           return;
         }
         await reload();

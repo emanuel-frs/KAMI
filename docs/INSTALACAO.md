@@ -1,5 +1,7 @@
 # Instalação do Kami
 
+*[English](./INSTALACAO.en.md)*
+
 O Kami é um aplicativo desktop local-first. O backend e o banco SQLite
 rodam na sua máquina; nenhum serviço remoto é necessário para usar o app.
 Ele só acessa a internet quando você ativa GitHub, e-mail ou busca (lista
@@ -68,6 +70,19 @@ não aparece mais no menu nem tenta abrir no login (as entradas que ele
 deixou na pasta pessoal se desligam sozinhas quando o programa some), e os
 arquivos que sobraram estão listados em
 [Remover tudo à mão](#remover-tudo-à-mão).
+
+### Fontes para chinês, japonês, coreano e hindi
+
+O Kami usa as fontes do sistema. A maioria das distribuições já vem com
+elas; numa instalação mínima, o texto desses idiomas pode aparecer como
+quadradinhos — o app avisa e mostra o pacote. O `.deb` e o `.rpm`
+recomendam as fontes, e o PKGBUILD as lista como opcionais:
+
+```sh
+sudo dnf install google-noto-sans-cjk-fonts google-noto-sans-devanagari-fonts   # Fedora
+sudo apt install fonts-noto-cjk fonts-noto-core                                  # Debian/Ubuntu
+sudo pacman -S noto-fonts-cjk noto-fonts                                         # Arch
+```
 
 ### Instalação manual e verificação
 
@@ -180,16 +195,26 @@ instala sozinho**. Para saber, consulta só a lista de versões da página de
 Releases (ao abrir e uma vez por dia); dá pra desligar em configurações ›
 sobre › "procurar atualizações", e lá também tem "procurar agora".
 
-- **Windows** e **AppImage**: "atualizar agora" (no sino ou em
-  configurações › sobre) guarda uma cópia do banco
+- **Windows**, **AppImage** e **`.rpm`**: "atualizar agora" (no sino ou
+  em configurações › sobre) guarda uma cópia do banco
   (`backups/kami-antes-de-atualizar-…`), baixa a versão nova, confere a
   assinatura das atualizações e instala; o Kami fecha e abre de novo já
-  atualizado. No Windows o SmartScreen pode mostrar "editor desconhecido"
-  de novo nessa hora — é o mesmo aviso da instalação (veja
+  atualizado. No `.rpm` o sistema pede a sua senha nessa hora (pkexec).
+  No Windows o SmartScreen pode mostrar "editor desconhecido" de novo —
+  é o mesmo aviso da instalação (veja
   [Windows sem assinatura](#windows-sem-assinatura)).
-- **`.deb`, `.rpm` e AUR**: o aviso aparece igual, mas quem atualiza é o
+- **`.deb` e AUR**: o aviso aparece igual, mas quem atualiza é o
   gerenciador de pacotes do sistema (baixe o pacote novo da Release e
   instale por cima, ou `yay -Syu` no Arch). Os seus dados ficam.
+
+**Atualizar o `.rpm` sozinho (opcional).** Quem prefere não pensar nisso
+pode instalar um serviço do sistema que confere a última versão ao ligar o
+computador e uma vez por dia, confere o SHA-256 publicado pelo GitHub e
+instala com `dnf` — sem perguntar:
+
+```sh
+sudo bash scripts/atualizar-rpm.sh instalar   # desfazer: ... remover
+```
 
 Avisos de versão de teste (`2.0.0-rc.1`, por exemplo) não aparecem: só
 versões publicadas.

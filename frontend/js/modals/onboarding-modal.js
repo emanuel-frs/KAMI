@@ -1,8 +1,10 @@
 import { updateOnboarding } from "../api/perfil.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtDataCurta, fmtMoney } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { accentLabel } from "../components/accent-colors.js";
+import { nomeAtributo } from "../components/textos-sistema.js";
 import { store } from "../state/store.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal de onboarding (item 15.6, decisão 25 — REVISADA; texto
@@ -61,7 +63,7 @@ let marking = false;
 function buildCtx() {
   const profile = store.get("profile") ?? {};
   return {
-    name: profile.display_name && profile.display_name !== "usuário" ? profile.display_name : "você",
+    name: profile.display_name && profile.display_name !== "usuário" ? profile.display_name : t("onboarding.voce"),
     colorLabel: accentLabel(profile.accent_color ?? "#8fbf8f"),
   };
 }
@@ -70,9 +72,9 @@ function buildCtx() {
 // Cada passo: { title(ctx), desc(ctx), illustration(ctx) -> HTMLstring }
 const STEPS = [
   {
-    title: (ctx) => `bora, ${ctx.name}`,
+    title: (ctx) => t("onboarding.bora", { nome: ctx.name }),
     desc: () =>
-      "essa é uma prévia rápida — oito telas, meio minuto cada. o fio condutor do kami: toda ação que você registra em qualquer módulo credita xp num atributo, sobe de nível e pode desbloquear conquistas. vou usar o mesmo exemplo em mais de uma tela pra você ver como um módulo alimenta o outro.",
+      t("onboarding.essa_e_uma_previa_rapida"),
     illustration: () => `
       <div class="ob-illus ob-illus--intro">
         <div class="ob-illus-row">
@@ -80,23 +82,23 @@ const STEPS = [
           <span class="ob-level">lv 4</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">aprendizado</span>
+          <span class="ob-attr">${nomeAtributo("aprendizado")}</span>
           <span class="ob-attr-xp">+20 xp</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">finanças</span>
+          <span class="ob-attr">${nomeAtributo("financas")}</span>
           <span class="ob-attr-xp">+20 xp</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">metas</span>
+          <span class="ob-attr">${nomeAtributo("metas")}</span>
           <span class="ob-attr-xp">+30 xp</span>
         </div>
       </div>`,
   },
   {
-    title: () => "perfil",
+    title: () => t("nav.perfil"),
     desc: (ctx) =>
-      `esse é você: nome, ${ctx.colorLabel} como cor de destaque — dá pra trocar quando quiser, inclusive agora se mudar de ideia — e o avatar em ascii, gerado 100% local a partir de uma foto que nunca é salva. perfil e núcleo aceitam os mesmos widgets configuráveis: arraste, redimensione, adicione, remova.`,
+      t("onboarding.desc_perfil", { cor: ctx.colorLabel }),
     illustration: (ctx) => `
       <div class="ob-illus ob-illus--perfil">
         <div class="ob-profile-card">
@@ -106,80 +108,80 @@ const STEPS = [
 ░░▒▒░░</pre>
           <div class="ob-profile-info">
             <span class="ob-profile-name">${escapeHtml(ctx.name)}</span>
-            <span class="ob-profile-sub">cor de destaque <span class="ob-accent-dot"></span></span>
+            <span class="ob-profile-sub">${t("onboarding.cor_de_destaque")} <span class="ob-accent-dot"></span></span>
           </div>
         </div>
       </div>`,
   },
   {
-    title: () => "núcleo",
+    title: () => t("nav.nucleo"),
     desc: () =>
-      "o coração da gamificação: 5 atributos que sobem de nível conforme você registra ações, o log cronológico de tudo que foi feito, conquistas por regra fixa e o painel de prioridades. repara na última linha do log ali embaixo — aquele marco de aprendizado vai reaparecer daqui a duas telas.",
+      t("onboarding.o_coracao_da_gamificacao_5"),
     illustration: () => `
       <div class="ob-illus ob-illus--nucleo">
         <div class="ob-nucleo-attrs">
-          ${["carreira", "finanças", "aprendizado", "organização", "metas"]
+          ${["carreira", "financas", "aprendizado", "organizacao", "metas"]
             .map((a, i) => {
               const pct = [38, 72, 55, 20, 84][i];
               return `<div class="ob-attr-line">
-              <span class="ob-attr-name">${a}</span>
+              <span class="ob-attr-name">${nomeAtributo(a)}</span>
               <span class="ob-mini-bar"><span class="ob-mini-fill" style="width:${pct}%"></span></span>
               <span class="ob-lv">lv${[2, 5, 3, 1, 7][i]}</span>
             </div>`;
             })
             .join("")}
           <div class="ob-attr-row" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border-soft);">
-            <span class="ob-attr">${icon("check", { size: 9 })} concluiu "fundamentos de python"</span>
+            <span class="ob-attr">${icon("check", { size: 9 })} ${t("onboarding.concluiu", { nome: t("onboarding.fundamentos_de_python") })}</span>
             <span class="ob-attr-xp">+20 xp</span>
           </div>
         </div>
       </div>`,
   },
   {
-    title: () => "finanças",
+    title: () => t("nav.financas"),
     desc: () =>
-      "renda recorrente com cadastro próprio (várias fontes, dia fixo/dia útil/intervalo de dias/depende de outra fonte, ou avulsa) e cálculo de dia útil real, cartões, contas fixas, dívidas, compras parceladas, assinaturas e gastos avulsos — visão mensal de entradas vs. saídas, comparando com o mês anterior, mais gráficos de fluxo, categorias, evolução e limites de cartão. cada lançamento daqui também vira uma linha no log do núcleo, com xp igual a qualquer outro módulo.",
+      t("onboarding.renda_recorrente_com_cadastro_proprio"),
     illustration: () => `
       <div class="ob-illus ob-illus--financas">
         <div class="ob-fin-row">
-          <span class="ob-fin-label">entradas</span>
-          <span class="ob-fin-val ob-fin-pos">+ R$ 3.100</span>
+          <span class="ob-fin-label">${t("onboarding.entradas")}</span>
+          <span class="ob-fin-val ob-fin-pos">+ ${fmtMoney(3100)}</span>
         </div>
         <div class="ob-fin-row">
-          <span class="ob-fin-label">saídas</span>
-          <span class="ob-fin-val ob-fin-neg">− R$ 1.840</span>
+          <span class="ob-fin-label">${t("onboarding.saidas")}</span>
+          <span class="ob-fin-val ob-fin-neg">− ${fmtMoney(1840)}</span>
         </div>
         <div class="ob-fin-divider"></div>
         <div class="ob-fin-row">
-          <span class="ob-fin-label">saldo</span>
-          <span class="ob-fin-val ob-fin-pos">R$ 1.260</span>
+          <span class="ob-fin-label">${t("onboarding.saldo")}</span>
+          <span class="ob-fin-val ob-fin-pos">${fmtMoney(1260)}</span>
         </div>
-        <div class="ob-fin-next">próx. salário: <span class="ob-fin-date">05 ago</span></div>
+        <div class="ob-fin-next">${t("onboarding.prox_salario")} <span class="ob-fin-date">${fmtDataCurta("2000-08-05")}</span></div>
       </div>`,
   },
   {
     title: () => "aprendizado",
     desc: () =>
-      'trilhas de estudo com marcos, progresso calculado automaticamente, roadmap visual com drag-and-drop pra reordenar e um heatmap estilo GitHub. esse marco "fundamentos de python" concluído aqui foi exatamente o que gerou aquele +20 xp que você viu no log do núcleo, duas telas atrás.',
+      t("onboarding.trilhas_de_estudo_com_marcos"),
     illustration: () => `
       <div class="ob-illus ob-illus--aprendizado">
         <div class="ob-track-header">
-          <span class="ob-track-name">programação</span>
+          <span class="ob-track-name">${t("onboarding.programacao")}</span>
           <span class="ob-track-pct">67%</span>
         </div>
         <div class="ob-track-bar"><span class="ob-track-fill" style="width:67%"></span></div>
         <div class="ob-milestones">
-          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} fundamentos de python</div>
-          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} fastapi — rotas e modelos</div>
-          <div class="ob-milestone">  sqlite sem ORM</div>
-          <div class="ob-milestone ob-ms-faint">  testes com pytest</div>
+          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} ${t("onboarding.fundamentos_de_python")}</div>
+          <div class="ob-milestone ob-ms-done">${icon("check", { size: 9 })} ${t("onboarding.fastapi_rotas_e_modelos")}</div>
+          <div class="ob-milestone">  ${t("onboarding.sqlite_sem_orm")}</div>
+          <div class="ob-milestone ob-ms-faint">  ${t("onboarding.testes_com_pytest")}</div>
         </div>
       </div>`,
   },
   {
-    title: () => "organização",
+    title: () => t("nav.organizacao"),
     desc: () =>
-      "hub de acesso rápido: links categorizados, status dos seus repositórios do GitHub, e-mail via IMAP de verdade — assunto, remetente e trecho do corpo em texto puro, sem HTML de terceiros e sem IA lendo nada por enquanto — e uma busca na web com resumo inline (chave pessoal opcional; sem ela, cai pro DuckDuckGo direto).",
+      t("onboarding.desc_organizacao"),
     illustration: () => `
       <div class="ob-illus ob-illus--org">
         <div class="ob-org-row">
@@ -188,69 +190,69 @@ const STEPS = [
         </div>
         <div class="ob-org-row">
           <span class="ob-org-icon">${icon("mail", { size: 11 })}</span>
-          <span class="ob-org-label">3 mensagens não lidas</span>
+          <span class="ob-org-label">${t("onboarding.3_mensagens_nao_lidas")}</span>
         </div>
         <div class="ob-email-preview">
           <span class="ob-email-from">dev@lista.org</span>
-          <span class="ob-email-subj">release v0.9 disponível</span>
+          <span class="ob-email-subj">${t("onboarding.release_v0_9_disponivel")}</span>
         </div>
       </div>`,
   },
   {
-    title: () => "metas pessoais",
+    title: () => t("nav.metas"),
     desc: () =>
-      'metas financeiras (tipo aquela viagem ali embaixo) ou livres, cada uma com prazo e histórico de contribuições. repara na segunda: metas do tipo aprendizado ficam vinculadas a uma trilha — a mesma de programação que você viu — e avançam sozinhas conforme os marcos são concluídos, sem precisar atualizar nada na mão. isso fecha o fio: um marco concluído em aprendizado virou xp no núcleo e progresso aqui, tudo pela mesma ação.',
+      t("onboarding.metas_financeiras_tipo_aquela_viagem"),
     illustration: () => `
       <div class="ob-illus ob-illus--metas">
         <div class="ob-meta-card">
-          <span class="ob-meta-title">viagem para o japão</span>
+          <span class="ob-meta-title">${t("onboarding.viagem_para_o_japao")}</span>
           <div class="ob-meta-bar"><span class="ob-meta-fill" style="width:43%"></span></div>
-          <span class="ob-meta-sub">R$ 4.300 / R$ 10.000 · vence em dez</span>
+          <span class="ob-meta-sub">${fmtMoney(4300)} / ${fmtMoney(10000)} · ${t("onboarding.vence_em_dez")}</span>
         </div>
         <div class="ob-meta-card">
-          <span class="ob-meta-title">dominar python</span>
+          <span class="ob-meta-title">${t("onboarding.dominar_python")}</span>
           <div class="ob-meta-bar"><span class="ob-meta-fill" style="width:67%"></span></div>
-          <span class="ob-meta-sub">trilha: programação · avança sozinha</span>
+          <span class="ob-meta-sub">${t("onboarding.trilha_programacao_avanca_sozinha")}</span>
         </div>
       </div>`,
   },
   {
-    title: () => "calendário",
+    title: () => t("nav.calendario"),
     desc: () =>
-      'todo compromisso financeiro (contas fixas, dívidas, parcelas, assinaturas), meta com prazo e marco concluído cai automaticamente aqui, cada tipo com sua cor — sem precisar cadastrar nada duas vezes. dá pra criar eventos manuais também, arrastar pra outro dia, filtrar por tipo dentro de um dia específico e ver alertas do que está vencendo em breve.',
+      t("onboarding.todo_compromisso_financeiro_contas_fixas"),
     illustration: () => `
       <div class="ob-illus ob-illus--calendario">
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("receipt", { size: 9 })} conta de luz</span>
-          <span class="ob-attr-xp">venceu ontem</span>
+          <span class="ob-attr">${icon("receipt", { size: 9 })} ${t("onboarding.conta_de_luz")}</span>
+          <span class="ob-attr-xp">${t("onboarding.venceu_ontem")}</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("target", { size: 9 })} viagem para o japão</span>
-          <span class="ob-attr-xp">vence em dez</span>
+          <span class="ob-attr">${icon("target", { size: 9 })} ${t("onboarding.viagem_para_o_japao")}</span>
+          <span class="ob-attr-xp">${t("onboarding.vence_em_dez")}</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("star", { size: 9 })} concluiu "fundamentos de python"</span>
-          <span class="ob-attr-xp">há 2 dias</span>
+          <span class="ob-attr">${icon("star", { size: 9 })} ${t("onboarding.concluiu", { nome: t("onboarding.fundamentos_de_python") })}</span>
+          <span class="ob-attr-xp">${t("onboarding.ha_2_dias")}</span>
         </div>
       </div>`,
   },
   {
-    title: (ctx) => `carreira — é só uma prévia, ${ctx.name}`,
+    title: (ctx) => t("onboarding.titulo_carreira", { nome: ctx.name }),
     desc: () =>
-      'área atual e área-meta, interesses profissionais, linha do tempo de posições (empresa, cargo, período), formação acadêmica e evolução salarial com gráfico. cada posição, formação concluída ou salário registrado também vira xp no núcleo — o mesmo padrão que você viu nas outras telas. essa foi só a casca — quando você entrar em cada tela de verdade, mostro dicas específicas de cada botão e widget, direto ali.',
+      t("onboarding.area_atual_e_area_meta"),
     illustration: () => `
       <div class="ob-illus ob-illus--carreira">
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">área atual → meta</span>
-          <span class="ob-attr-xp">dev jr → dev pleno</span>
+          <span class="ob-attr">${t("onboarding.area_atual_meta")}</span>
+          <span class="ob-attr-xp">${t("onboarding.dev_jr_dev_pleno")}</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("check", { size: 9 })} backend developer · acme corp</span>
+          <span class="ob-attr">${icon("check", { size: 9 })} ${t("onboarding.backend_developer_acme_corp")}</span>
           <span class="ob-attr-xp">+80 xp</span>
         </div>
         <div class="ob-illus-row ob-attr-row">
-          <span class="ob-attr">${icon("trending-up", { size: 9 })} evolução salarial</span>
-          <span class="ob-attr-xp">R$ 6.200</span>
+          <span class="ob-attr">${icon("trending-up", { size: 9 })} ${t("onboarding.evolucao_salarial")}</span>
+          <span class="ob-attr-xp">${fmtMoney(6200)}</span>
         </div>
       </div>`,
   },
@@ -266,7 +268,7 @@ function buildModal() {
     <div class="modal ob-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title">
       <div class="modal-head">
         <span class="ob-step-label" id="ob-step-label"></span>
-        <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button>
+        <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button>
       </div>
       <div class="modal-body ob-body">
         <div class="ob-illus-wrap" id="ob-illus-wrap" aria-hidden="true"></div>
@@ -277,11 +279,11 @@ function buildModal() {
       </div>
       <div class="ob-footer">
         <button type="button" class="btn ob-btn-prev" id="ob-btn-prev" style="display:none">
-          ${icon("arrow-left", { size: 13 })} anterior
+          ${icon("arrow-left", { size: 13 })} ${t("onboarding.anterior")}
         </button>
         <div class="ob-dots" id="ob-dots"></div>
         <button type="button" class="btn primary ob-btn-next" id="ob-btn-next">
-          próximo ${icon("arrow-right", { size: 13 })}
+          ${t("tip_sequence.proximo")} ${icon("arrow-right", { size: 13 })}
         </button>
       </div>
     </div>`;
@@ -308,7 +310,7 @@ function renderStep(step) {
 
   const nextBtn = modalEl.querySelector("#ob-btn-next");
   const isLast = step === total - 1;
-  nextBtn.innerHTML = isLast ? `${icon("check", { size: 13 })} começar a usar` : `próximo ${icon("arrow-right", { size: 13 })}`;
+  nextBtn.innerHTML = isLast ? `${icon("check", { size: 13 })} ${t("onboarding.comecar")}` : `${t("tip_sequence.proximo")} ${icon("arrow-right", { size: 13 })}`;
   nextBtn.dataset.last = isLast ? "1" : "";
 }
 
@@ -359,7 +361,7 @@ async function markSeen() {
  * Sempre começa do passo 0 (tanto no boot automático quanto no reabrir manual).
  */
 export function openOnboardingModal() {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   currentStep = 0;
   renderStep(0);
   modalEl.classList.add("open");

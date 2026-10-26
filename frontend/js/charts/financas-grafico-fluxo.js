@@ -2,7 +2,8 @@ import * as financasApi from "../api/financas.js";
 import { attachChartTooltip } from "./chart-tooltip.js";
 import { buildTextAltTable } from "../components/chart-text-alt.js";
 import { listenWhileConnected } from "../components/window-listener.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda, mesesCurtos } from "../components/format.js";
+import { t } from "../i18n.js";
 
 function currentMonthStr() {
   const d = new Date();
@@ -15,10 +16,10 @@ function shiftMonth(monthStr, delta) {
 }
 function monthAbbrev(monthStr) {
   const [, m] = monthStr.split("-").map(Number);
-  return ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][m - 1];
+  return mesesCurtos()[m - 1];
 }
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return fmtMoeda(v, { inteiro: true });
 }
 function escapeAttr(str) {
   return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -29,7 +30,7 @@ const W = 600;
 const H = 150;
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando fluxo…</div>';
+  el.innerHTML = `<div class="empty-state">${t("graf.carregando_fluxo")}</div>`;
 
   async function reload() {
     const currentMonth = currentMonthStr();
@@ -40,7 +41,7 @@ export async function render(el, widget) {
     try {
       data = await Promise.all(months.map((m) => financasApi.getSummary(m)));
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar gráfico: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("graf.erro", { erro: err.message }))}</div>`;
       return;
     }
     draw(months, data);
@@ -58,8 +59,8 @@ export async function render(el, widget) {
       const hOut = (d.total_out / maxValue) * H;
       const xIn = groupX + barGroupW * 0.5 - barW - gap / 2;
       const xOut = groupX + barGroupW * 0.5 + gap / 2;
-      const tipIn = escapeAttr(`${monthAbbrev(months[i])}: entrada ${brl(d.total_in)}`);
-      const tipOut = escapeAttr(`${monthAbbrev(months[i])}: saída ${brl(d.total_out)}`);
+      const tipIn = escapeAttr(t("graf.tip_entrada", { mes: monthAbbrev(months[i]), valor: brl(d.total_in) }));
+      const tipOut = escapeAttr(t("graf.tip_saida", { mes: monthAbbrev(months[i]), valor: brl(d.total_out) }));
       return `
         <rect x="${xIn.toFixed(1)}" y="${(H - hIn).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIn.toFixed(1)}" class="cf-bar entrada" data-tip="${tipIn}"></rect>
         <rect x="${xOut.toFixed(1)}" y="${(H - hOut).toFixed(1)}" width="${barW.toFixed(1)}" height="${hOut.toFixed(1)}" class="cf-bar saida" data-tip="${tipOut}"></rect>
@@ -73,8 +74,8 @@ export async function render(el, widget) {
     el.innerHTML = `
       <div class="chart-fluxo-wrap">
         <div class="chart-legend" aria-hidden="true">
-          <span class="legend-item"><span class="legend-dot entrada"></span>entrada</span>
-          <span class="legend-item"><span class="legend-dot saida"></span>saída</span>
+          <span class="legend-item"><span class="legend-dot entrada"></span>${t("graf.entrada")}</span>
+          <span class="legend-item"><span class="legend-dot saida"></span>${t("graf.saida")}</span>
         </div>
         <div class="chart-fluxo">
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg" aria-hidden="true">
@@ -86,8 +87,8 @@ export async function render(el, widget) {
         </div>
         </div>
         ${buildTextAltTable({
-          caption: "Entradas e saídas por mês nos últimos 6 meses",
-          headers: ["Mês", "Entrada", "Saída"],
+          caption: t("graf.fluxo_caption"),
+          headers: [t("graf.mes"), t("graf.col_entrada"), t("graf.col_saida")],
           rows: data.map((d, i) => [monthAbbrev(months[i]), brl(d.total_in), brl(d.total_out)]),
         })}
       </div>

@@ -23,13 +23,14 @@ Regras de sequência/recorde/grade em app/habitos.py.
 import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.actions import register_action, revert_actions
 from app.database import get_db, new_id, now_iso
 from app.habitos import DIAS_PARA_TRAS, FREQUENCIAS, STATUS, Habito, carregar, dias_da_semana
 from app.limites import Entrada
+from app.mensagens import ErroKami, Texto
 
 router = APIRouter()
 
@@ -95,21 +96,26 @@ def _hoje() -> datetime.date:
 
 def _validar(db, frequencia, dias, atributo, status=None):
     if frequencia is not None and frequencia not in FREQUENCIAS:
-        raise HTTPException(status_code=422, detail="frequência inválida")
+        raise ErroKami(422, "erro.habitos.frequencia_invalida", "frequência inválida")
     if frequencia == "dias" and dias is not None and not dias_da_semana(",".join(map(str, dias))):
-        raise HTTPException(status_code=422, detail="escolha pelo menos um dia da semana")
+        raise ErroKami(422, "erro.comum.escolha_pelo_menos_dia_semana", "escolha pelo menos um dia da semana")
     if dias is not None and any(not 0 <= d <= 6 for d in dias):
-        raise HTTPException(status_code=422, detail="dia da semana inválido")
+        raise ErroKami(422, "erro.habitos.dia_semana_invalido", "dia da semana inválido")
     if atributo is not None and not db.execute("SELECT 1 FROM attributes WHERE name = ?", (atributo,)).fetchone():
-        raise HTTPException(status_code=422, detail=f"atributo desconhecido: '{atributo}'")
+        raise ErroKami(
+            422,
+            "erro.habitos.atributo_desconhecido_atributo",
+            "atributo desconhecido: '{atributo}'",
+            atributo=atributo,
+        )
     if status is not None and status not in STATUS:
-        raise HTTPException(status_code=422, detail="status inválido")
+        raise ErroKami(422, "erro.habitos.status_invalido", "status inválido")
 
 
 def _um(db, habito_id: str) -> Habito:
     hs = carregar(db, "id = ?", (habito_id,))
     if not hs:
-        raise HTTPException(status_code=404, detail="hábito não encontrado")
+        raise ErroKami(404, "erro.habitos.habito_nao_encontrado", "hábito não encontrado")
     return hs[0]
 
 
@@ -141,11 +147,16 @@ def _dia_marcavel(h: Habito, dia_txt: Optional[str], hoje: datetime.date) -> dat
     try:
         dia = datetime.date.fromisoformat(dia_txt) if dia_txt else hoje
     except ValueError:
-        raise HTTPException(status_code=422, detail="dia inválido")
+        raise ErroKami(422, "erro.habitos.dia_invalido", "dia inválido")
     if dia > hoje:
-        raise HTTPException(status_code=422, detail="não dá pra marcar um dia que ainda não chegou")
+        raise ErroKami(422, "erro.habitos.nao_marcar_dia_ainda_nao", "não dá pra marcar um dia que ainda não chegou")
     if (hoje - dia).days > DIAS_PARA_TRAS:
-        raise HTTPException(status_code=422, detail=f"só dá pra mexer até {DIAS_PARA_TRAS} dias atrás")
+        raise ErroKami(
+            422,
+            "erro.habitos.so_mexer_ate_dias_para",
+            "só dá pra mexer até {dias_para_tras} dias atrás",
+            dias_para_tras=DIAS_PARA_TRAS,
+        )
     return dia
 
 
@@ -181,9 +192,9 @@ def editar(habito_id: str, payload: HabitoUpdate, db=Depends(get_db)):
     freq = payload.frequencia if payload.frequencia is not None else h.frequencia
     dias = set(payload.dias_semana) if payload.dias_semana is not None else h.dias
     if freq == "dias" and not dias:
-        raise HTTPException(status_code=422, detail="escolha pelo menos um dia da semana")
+        raise ErroKami(422, "erro.comum.escolha_pelo_menos_dia_semana", "escolha pelo menos um dia da semana")
     if payload.nome is not None and not payload.nome.strip():
-        raise HTTPException(status_code=422, detail="o hábito precisa de um nome")
+        raise ErroKami(422, "erro.habitos.habito_precisa_nome", "o hábito precisa de um nome")
 
     campos, args = [], []
 
@@ -249,9 +260,13 @@ def marcar(habito_id: str, payload: MarcarIn, db=Depends(get_db)):
     hoje = _hoje()
     dia = _dia_marcavel(h, payload.dia, hoje)
     if h.row["status"] != "ativo":
-        raise HTTPException(status_code=409, detail="hábito pausado ou arquivado — retome pra marcar")
+        raise ErroKami(
+            409,
+            "erro.habitos.habito_pausado_ou_arquivado_retome",
+            "hábito pausado ou arquivado — retome pra marcar",
+        )
     if h.frequencia == "dias" and dia.weekday() not in h.dias:
-        raise HTTPException(status_code=422, detail="esse dia não está na programação do hábito")
+        raise ErroKami(422, "erro.habitos.esse_dia_nao_esta_na", "esse dia não está na programação do hábito")
     if dia in h.marcas:
         return _saida(h, hoje)  # já marcado: idempotente, sem xp de novo
     marca_id = new_id()
@@ -263,7 +278,10 @@ def marcar(habito_id: str, payload: MarcarIn, db=Depends(get_db)):
     if db.execute("SELECT 1 FROM habitos_marcas WHERE id = ?", (marca_id,)).fetchone():
         register_action(
             db,
-            description=f"hábito: {h.row['nome']}" + ("" if dia == hoje else f" ({dia.strftime('%d/%m')})"),
+            description=(
+                Texto("log.habito", "hábito: {nome}", nome=h.row["nome"]) if dia == hoje
+                else Texto("log.habito.outro_dia", "hábito: {nome} ({dia})", nome=h.row["nome"], dia=dia.strftime("%d/%m"))
+            ),
             categories=[h.row["atributo"]],
             xp=XP_HABITO,
             source="habitos",

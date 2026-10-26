@@ -16,6 +16,11 @@ ESCOLHER algo acima do nível atual.
 """
 from app.xp import level_from_xp
 
+# I18N: rótulos e descrições em português; o frontend mostra
+# `recompensa.titulo.<chave>`, `recompensa.tema.<chave>` e
+# `recompensa.tema.<chave>.desc` do dicionário do idioma
+# (tests/test_textos_sistema.py confere que o português é o mesmo).
+
 # (nível mínimo, chave, rótulo)
 TITULOS = (
     (1, "iniciante", "iniciante"),
@@ -41,12 +46,17 @@ def nivel_jogador(db) -> int:
     return level_from_xp(total)["level"]
 
 
+def chave_titulo_atual(escolhido, nivel: int) -> str:
+    """Chave do título exibido: o escolhido (se existir) ou o mais alto liberado."""
+    if any(chave == escolhido for _, chave, _ in TITULOS):
+        return escolhido
+    return [chave for minimo, chave, _ in TITULOS if nivel >= minimo][-1]
+
+
 def titulo_atual(escolhido, nivel: int) -> str:
-    """Rótulo do título exibido: o escolhido (se existir) ou o mais alto liberado."""
-    por_chave = {chave: rotulo for _, chave, rotulo in TITULOS}
-    if escolhido in por_chave:
-        return por_chave[escolhido]
-    return [rotulo for minimo, _, rotulo in TITULOS if nivel >= minimo][-1]
+    """Rótulo (em português) do título exibido — o frontend traduz pela chave."""
+    chave = chave_titulo_atual(escolhido, nivel)
+    return next(rotulo for _, c, rotulo in TITULOS if c == chave)
 
 
 def nivel_minimo(catalogo, chave):

@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TYPE_META, isPendingAlertEvent, typeColor } from "../../frontend/js/components/event-types.js";
+import { typeMeta, isPendingAlertEvent, typeColor } from "../../frontend/js/components/event-types.js";
 
 test("typeColor devolve a cor cadastrada e cai pro accent em tipo desconhecido", () => {
-  assert.equal(typeColor("divida"), TYPE_META.divida.color);
+  assert.equal(typeColor("divida"), typeMeta().divida.color);
   assert.equal(typeColor("evento"), "#7fa8d9");
   assert.equal(typeColor("tipo-que-nao-existe"), "var(--accent)");
 });

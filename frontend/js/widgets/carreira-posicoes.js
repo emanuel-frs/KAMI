@@ -5,6 +5,8 @@ import { showConfirmModal } from "../modals/confirm-modal.js";
 import { icon } from "../components/icons.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 import { consumePendingFocus, focusRow } from "../components/pending-focus.js";
+import { t } from "../i18n.js";
+import { rotuloContrato } from "../components/textos-sistema.js";
 
 /**
  * Widget "linha do tempo de posições" (seção 3 do documento de regras
@@ -26,7 +28,7 @@ function formatDate(iso) {
 }
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando linha do tempo…</div>';
+  el.innerHTML = `<div class="empty-state">${t("carreira_posicoes.carregando_linha_do_tempo")}</div>`;
   let positions = [];
   let notasPorPosicao = {}; // ORG-01: "notas (N)" por posição
 
@@ -34,7 +36,7 @@ export async function render(el, widget) {
     try {
       [positions, notasPorPosicao] = await Promise.all([carreiraApi.listCareerPositions(), contarNotas("posicao")]);
     } catch (err) {
-      el.innerHTML = `<div class="empty-state">erro ao carregar posições: ${escapeHtml(err.message)}</div>`;
+      el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_posicoes", { erro: err.message }))}</div>`;
       return;
     }
     draw();
@@ -43,7 +45,7 @@ export async function render(el, widget) {
   function draw() {
     el.innerHTML = `
       <div class="widget-inline-toolbar">
-        <button type="button" class="btn sm" data-action="add-position">+ posição</button>
+        <button type="button" class="btn sm" data-action="add-position">${t("carreira_posicoes.posicao")}</button>
       </div>
       <div class="cp-timeline">
         ${positions.length ? positions.map((p) => `
@@ -52,12 +54,12 @@ export async function render(el, widget) {
             <div class="cp-content">
               <div class="cp-top">
                 <span class="cp-role" data-edit-position="${p.id}" data-tooltip="${escapeHtml(p.role)}">${escapeHtml(p.role)}</span>
-                <span class="cp-remove" data-remove-position="${p.id}" data-tooltip="remover posição" aria-label="remover posição">${icon("x", { size: 11 })}</span>
+                <span class="cp-remove" data-remove-position="${p.id}" data-tooltip="${t("carreira_posicoes.remover_posicao")}" aria-label="${t("carreira_posicoes.remover_posicao")}">${icon("x", { size: 11 })}</span>
               </div>
-              <div class="cp-company">${escapeHtml(p.company)}${p.area ? ` · ${escapeHtml(p.area)}` : ""}${p.employment_type ? ` · ${escapeHtml(p.employment_type)}` : ""}</div>
+              <div class="cp-company">${escapeHtml(p.company)}${p.area ? ` · ${escapeHtml(p.area)}` : ""}${p.employment_type ? ` · ${escapeHtml(rotuloContrato(p.employment_type))}` : ""}</div>
               <div class="cp-dates">${formatDate(p.start_date)} — ${p.end_date ? formatDate(p.end_date) : "atual"} · ${linkNotasHtml("posicao", p.id, `${p.role} — ${p.company}`, notasPorPosicao[p.id] || 0)}</div>
             </div>
-          </div>`).join("") : `<div class="wallet-empty">nenhuma posição registrada ainda.</div>`}
+          </div>`).join("") : `<div class="wallet-empty">${t("carreira_posicoes.nenhuma_posicao_registrada_ainda")}</div>`}
       </div>
     `;
 
@@ -71,7 +73,7 @@ export async function render(el, widget) {
 
     el.querySelectorAll("[data-remove-position]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!(await showConfirmModal("remover essa posição?", { title: "remover posição", confirmText: "remover", danger: true }))) return;
+        if (!(await showConfirmModal(t("carreira_posicoes.remover_essa_posicao"), { title: t("carreira_posicoes.remover_posicao"), confirmText: "remover", danger: true }))) return;
         await carreiraApi.deleteCareerPosition(btn.getAttribute("data-remove-position"));
         await reload();
       });

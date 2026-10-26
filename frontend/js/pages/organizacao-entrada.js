@@ -10,6 +10,7 @@ import { listEntrada, descartarEntrada } from "../api/entrada.js";
 import { converterItem, TIPOS_CONVERSAO } from "../components/captura.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml, fmtDataCurta, localDateKey } from "../components/format.js";
+import { t } from "../i18n.js";
 
 let raiz = null;
 let itens = [];
@@ -27,7 +28,7 @@ function desenhar() {
   aoContar?.(itens.length);
   const lista = raiz.querySelector("#entrada-lista");
   if (!itens.length) {
-    lista.innerHTML = `<div class="empty-state">caixa de entrada vazia. <kbd>Alt</kbd>+<kbd>Q</kbd> anota qualquer coisa de qualquer tela.</div>`;
+    lista.innerHTML = `<div class="empty-state">${t("organizacao_entrada.vazia", { atalho: "<kbd>Alt</kbd>+<kbd>Q</kbd>" })}</div>`;
     return;
   }
   lista.innerHTML = itens
@@ -38,9 +39,9 @@ function desenhar() {
         <div class="entrada-rodape">
           <span class="entrada-quando">${quando(it.criado_em)}</span>
           <span class="entrada-acoes">
-            <span class="entrada-vira">virar:</span>
+            <span class="entrada-vira">${t("organizacao_entrada.virar")}</span>
             ${TIPOS_CONVERSAO.map((t) => `<button type="button" class="btn sm entrada-btn" data-virar="${t.tipo}">${icon(t.icone, { size: 11 })} ${t.rotulo}</button>`).join("")}
-            <button type="button" class="nota-acao perigo" data-descartar data-tooltip="descartar" aria-label="descartar">${icon("x", { size: 12 })}</button>
+            <button type="button" class="nota-acao perigo" data-descartar data-tooltip="${t("organizacao_entrada.descartar")}" aria-label="${t("organizacao_entrada.descartar")}">${icon("x", { size: 12 })}</button>
           </span>
         </div>
       </div>`
@@ -82,9 +83,9 @@ export async function montarEntrada(painel, contar) {
   painel.innerHTML = `
     <div class="card">
       <div class="card-head">
-        caixa de entrada
+        ${t("organizacao_entrada.caixa_de_entrada")}
         <span class="push"></span>
-        <span class="entrada-dica">anote com <kbd>Alt</kbd>+<kbd>Q</kbd></span>
+        <span class="entrada-dica">${t("organizacao_entrada.anote_com", { atalho: "<kbd>Alt</kbd>+<kbd>Q</kbd>" })}</span>
       </div>
       <div class="card-body"><div id="entrada-lista"></div></div>
     </div>`;

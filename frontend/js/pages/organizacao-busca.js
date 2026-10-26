@@ -7,6 +7,7 @@
 import * as api from "../api/organizacao.js";
 import { icon } from "../components/icons.js";
 import { state, rootEl, escapeHtml, escapeAttr } from "./organizacao.js";
+import { t } from "../i18n.js";
 
 /* ==================== busca (tavily, ver ALINHAMENTO.md 4.1) ====================
  * Resumo inline via GET /api/organizacao/search (backend, chave da
@@ -43,14 +44,14 @@ export async function handleSaveSearchKey() {
   const err = rootEl.querySelector("#search-key-error");
   const key = input.value.trim();
   if (!key) {
-    err.textContent = "cole uma chave.";
+    err.textContent = t("organizacao_busca.cole_uma_chave");
     err.style.display = "block";
     return;
   }
   try {
     await api.saveSearchKey(key);
   } catch (e) {
-    err.textContent = e?.message || "chave inválida ou sem permissão.";
+    err.textContent = e?.message || t("organizacao_busca.chave_invalida_ou_sem_permissao");
     err.style.display = "block";
     return;
   }
@@ -98,7 +99,7 @@ export async function orgSearchRun() {
   try {
     state.searchResult = await api.searchWeb(q);
   } catch (e) {
-    state.searchError = { message: e?.message || "erro ao buscar.", query: q };
+    state.searchError = { message: e?.message || t("organizacao_busca.erro_ao_buscar"), query: q };
   }
   state.searching = false;
   renderSearchResults();
@@ -109,7 +110,7 @@ function renderSearchResults() {
   if (!wrap) return;
 
   if (state.searching) {
-    wrap.innerHTML = `<div class="search-panel search-loading">buscando...</div>`;
+    wrap.innerHTML = `<div class="search-panel search-loading">${t("organizacao_busca.buscando")}</div>`;
     return;
   }
 
@@ -119,8 +120,8 @@ function renderSearchResults() {
       <div class="search-panel search-error-panel">
         <div class="search-error-msg">${escapeHtml(message)}</div>
         <div class="search-fallback">
-          ${state.searchKeyConfigured ? "" : `<span class="link-btn" data-action="open-search-key-modal">configurar chave de busca</span> · `}
-          <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">abrir busca no duckduckgo ${icon("external-link", { size: 11 })}</span>
+          ${state.searchKeyConfigured ? "" : `<span class="link-btn" data-action="open-search-key-modal">${t("organizacao_busca.configurar_chave_de_busca")}</span> · `}
+          <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">${t("organizacao_busca.abrir_ddg")} ${icon("external-link", { size: 11 })}</span>
         </div>
       </div>`;
     return;
@@ -142,14 +143,14 @@ function renderSearchResults() {
           ${r.snippet ? `<div class="search-result-snippet">${escapeHtml(r.snippet)}</div>` : ""}
           <div class="search-result-url">${escapeHtml(r.url)}</div>
         </div>`).join("")
-    : `<div class="empty-state">nenhum resultado.</div>`;
+    : `<div class="empty-state">${t("organizacao_busca.nenhum_resultado")}</div>`;
 
   wrap.innerHTML = `
     <div class="search-panel">
       ${answerHtml}
       <div class="search-results-list">${resultsHtml}</div>
       <div class="search-fallback">
-        <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">ver mais no duckduckgo ${icon("external-link", { size: 11 })}</span>
+        <span class="link-btn" data-open-link="${escapeAttr(orgSearchDuckDuckGoUrl(query))}">${t("organizacao_busca.ver_mais_ddg")} ${icon("external-link", { size: 11 })}</span>
       </div>
     </div>`;
 }

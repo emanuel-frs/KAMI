@@ -18,6 +18,7 @@ import {
   maxScaled,
   placeCard,
 } from "./grid.js";
+import { t } from "../i18n.js";
 
 /**
  * Handle de resize (⋰, canto inferior direito) — largura em frações da
@@ -33,15 +34,14 @@ export function attachResizeHandle(card, container, getCommit, pauseObservers, r
 
   const handle = document.createElement("div");
   handle.className = "resize-handle";
-  handle.dataset.tooltip =
-    "arraste pra redimensionar";
-  handle.innerHTML = icon("resize", { size: 12, title: "redimensionar widget" });
+  handle.dataset.tooltip = t("grid.arraste_redimensionar");
+  handle.innerHTML = icon("resize", { size: 12, title: t("grid.redimensionar") });
   card.appendChild(handle);
 
   const reset = document.createElement("div");
   reset.className = "resize-reset";
-  reset.dataset.tooltip = "voltar ao tamanho automático";
-  reset.innerHTML = icon("undo", { size: 11, title: "voltar ao tamanho automático" });
+  reset.dataset.tooltip = t("grid.tamanho_auto");
+  reset.innerHTML = icon("undo", { size: 11, title: t("grid.tamanho_auto") });
   reset.onclick = () => {
     const cols = currentCols(container);
     card.style.height = "";
@@ -141,8 +141,8 @@ export function attachDragHandle(card, container, getCommit, pauseObservers, res
   handle.type = "button";
   handle.className = "drag-handle";
   handle.tabIndex = -1;
-  handle.dataset.tooltip = "arraste pra reordenar";
-  handle.innerHTML = icon("grip", { size: 12, title: "arraste pra reordenar" });
+  handle.dataset.tooltip = t("grid.arraste");
+  handle.innerHTML = icon("grip", { size: 12, title: t("grid.arraste") });
   handle.setAttribute("aria-pressed", "false");
   head.insertBefore(handle, head.firstChild);
 

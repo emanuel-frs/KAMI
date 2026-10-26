@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal genérico de confirmação — substitui confirm(...) nos fluxos de
@@ -28,12 +29,12 @@ function buildModal() {
   wrap.id = "confirm-modal";
   wrap.innerHTML = `
     <div class="modal narrow">
-      <div class="modal-head"><span id="cm-title">confirmar</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span id="cm-title">${t("geral.confirmar")}</span> <button type="button" class="close" data-action="cancel" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <p id="cm-message" class="em-message"></p>
         <div class="form-actions">
-          <button class="btn sm" data-action="cancel">cancelar</button>
-          <button class="btn sm primary" id="cm-confirm-btn" data-action="confirm">confirmar</button>
+          <button class="btn sm" data-action="cancel">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" id="cm-confirm-btn" data-action="confirm">${t("geral.confirmar")}</button>
         </div>
       </div>
     </div>
@@ -62,9 +63,9 @@ function settle(result) {
  * @returns {Promise<boolean>}
  */
 export function showConfirmModal(message, opts = {}) {
-  const { title = "confirmar", confirmText = "confirmar", cancelText = "cancelar", danger = false } = opts;
+  const { title = t("geral.confirmar"), confirmText = t("geral.confirmar"), cancelText = t("geral.cancelar"), danger = false } = opts;
 
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
 
   // se já tinha uma confirmação pendente (não deveria acontecer no uso
   // normal, já que as ações que chamam isso ficam bloqueadas até

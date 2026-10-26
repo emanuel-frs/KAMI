@@ -5,17 +5,13 @@ import { registerScreenShortcuts, clearScreenShortcuts } from "../components/sho
 import { announce } from "../components/a11y.js";
 import { showToast } from "../components/toast.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
+import { t } from "../i18n.js";
 
 /**
  * Nome da tela como aparece em "nesta tela — …" no Alt+H (o `screen` é a
  * chave técnica, sem acento).
  */
-const SCREEN_LABELS = {
-  perfil: "perfil",
-  nucleo: "núcleo",
-  financas: "finanças",
-  carreira: "carreira",
-};
+const screenLabel = (screen) => t(`nav.${screen}`);
 
 /**
  * Dicas do modo de teclado do grid de widgets (widgets/grid.js) pro
@@ -29,14 +25,15 @@ const SCREEN_LABELS = {
  * Se o comportamento de teclado em grid.js mudar (createKeyboardReorder),
  * atualizar também esta lista e modals/widget-shortcuts-modal.js.
  */
-const GRID_KEYBOARD_HINTS = [
-  { combos: [["Ctrl", "D"]], label: "entrar no modo de seleção de widgets" },
-  { combos: [["←"], ["→"], ["↑"], ["↓"]], label: "escolher ou mover o widget" },
-  { combos: [["Enter"]], label: "selecionar o widget · de novo: salvar" },
-  { combos: [["Shift", "←"], ["Shift", "→"]], label: "ajustar a largura" },
-  { combos: [["Shift", "↑"], ["Shift", "↓"]], label: "ajustar a altura" },
-  { combos: [["Esc"]], label: "sair do modo (cancela o que não foi salvo)" },
-  { combos: [["?"]], label: "explicação completa do modo de teclado" },
+// função: os textos saem no idioma de quando a tela monta
+const gridKeyboardHints = () => [
+  { combos: [["Ctrl", "D"]], label: t("grid.kb.entrar") },
+  { combos: [["←"], ["→"], ["↑"], ["↓"]], label: t("grid.kb.escolher") },
+  { combos: [["Enter"]], label: t("grid.kb.selecionar") },
+  { combos: [["Shift", "←"], ["Shift", "→"]], label: t("grid.kb.largura") },
+  { combos: [["Shift", "↑"], ["Shift", "↓"]], label: t("grid.kb.altura") },
+  { combos: [["Esc"]], label: t("grid.kb.sair") },
+  { combos: [["?"]], label: t("grid.kb.explicacao") },
 ];
 
 /**
@@ -120,13 +117,13 @@ export function createDashboardPage(screen, options = {}) {
     // tela antes do registro — e o registro tardio sobrescreveria o da
     // tela nova (clearScreenShortcuts só limpa o token que ainda é o atual).
     shortcutsToken = registerScreenShortcuts({
-      name: SCREEN_LABELS[screen] || screen,
+      name: screenLabel(screen),
       actions: [
         // "N" de "novo", mesma tecla de "nova trilha" em aprendizado.
         // `when`: só vale depois que o botão existe (o mount é assíncrono).
-        { code: "KeyN", label: "adicionar widget (abre a lista)", run: () => openCatalog?.(), when: () => !!openCatalog },
+        { code: "KeyN", label: t("grid.adicionar_lista"), run: () => openCatalog?.(), when: () => !!openCatalog },
       ],
-      hints: GRID_KEYBOARD_HINTS,
+      hints: gridKeyboardHints(),
     });
 
     // precisa estar resolvido antes de qualquer leitura de WIDGET_CATALOG
@@ -150,11 +147,11 @@ export function createDashboardPage(screen, options = {}) {
       ${headHtml}
       <div class="wg-toolbar">
         <button type="button" class="btn sm wg-restore-btn" id="${screen}-restore-layout"
-          data-tooltip="voltar esta tela ao layout padrão (dá pra desfazer)">restaurar padrão</button>
+          data-tooltip="${t("grid.restaurar_dica")}">${t("grid.restaurar")}</button>
         <button type="button" class="btn sm" id="${screen}-add-widget"
           aria-expanded="false" aria-controls="${screen}-catalog-pop" aria-keyshortcuts="Alt+N"
-          data-tooltip="adicionar widget (Alt+N)">+ adicionar widget</button>
-        <div class="wg-catalog-pop" id="${screen}-catalog-pop" role="group" aria-label="widgets disponíveis"></div>
+          data-tooltip="${t("grid.adicionar_dica")}">${t("grid.adicionar")}</button>
+        <div class="wg-catalog-pop" id="${screen}-catalog-pop" role="group" aria-label="${t("grid.disponiveis")}"></div>
       </div>
       <div id="${screen}-grid"></div>
     `;
@@ -187,7 +184,7 @@ export function createDashboardPage(screen, options = {}) {
       // <button> (não <div>): entra na ordem de Tab e Enter/Espaço ativam
       // sem nenhum código extra — antes só o clique do mouse funcionava.
       pop.innerHTML = options.length
-        ? `<div class="wgc-head">adicionar widget</div>${options
+        ? `<div class="wgc-head">${t("grid.adicionar_head")}</div>${options
             .map(
               (w) => `
               <button type="button" class="wg-catalog-item" data-add="${w.type}">
@@ -195,7 +192,7 @@ export function createDashboardPage(screen, options = {}) {
               </button>`
             )
             .join("")}`
-        : `<div class="wgc-head">adicionar widget</div><div class="wg-catalog-empty" tabindex="-1">todos os widgets disponíveis já estão na tela</div>`;
+        : `<div class="wgc-head">${t("grid.adicionar_head")}</div><div class="wg-catalog-empty" tabindex="-1">${t("grid.todos_na_tela")}</div>`;
     }
 
     const popItems = () => [...pop.querySelectorAll(".wg-catalog-item")];
@@ -292,7 +289,7 @@ export function createDashboardPage(screen, options = {}) {
       // o item clicado some junto com a lista — devolve o foco pro botão
       // (senão cai no <body>) e conta pro leitor de tela o que aconteceu.
       closePop({ returnFocus: true });
-      announce(`${catalogEntry.label} adicionado à tela.`);
+      announce(t("grid.adicionado", { widget: catalogEntry.label }));
     });
 
     // LAY-05: restaurar o layout padrão desta tela, com desfazer
@@ -300,29 +297,29 @@ export function createDashboardPage(screen, options = {}) {
     restoreButton.hidden = padrao.length === 0;
     restoreButton.addEventListener("click", async () => {
       const ok = await showConfirmModal(
-        "o layout desta tela volta ao padrão: os widgets, a ordem e os tamanhos. dá pra desfazer logo depois.",
-        { title: "restaurar layout padrão", confirmText: "restaurar" }
+        t("grid.restaurar_confirma"),
+        { title: t("grid.restaurar_titulo"), confirmText: t("grid.restaurar_botao") }
       );
       if (!ok || !grid) return;
       const anterior = currentWidgets.map((w) => ({ ...w }));
       currentWidgets = withRequiredWidgets(padrao.map((w) => ({ ...w }))).widgets;
       grid.resetWidgets(currentWidgets);
       saveLayout(screen, currentWidgets);
-      announce("layout padrão restaurado.");
+      announce(t("grid.restaurado_aria"));
       showToast({
-        title: "layout padrão restaurado",
-        message: "não era isso? dá pra voltar como estava.",
+        title: t("grid.restaurado"),
+        message: t("grid.restaurado_msg"),
         iconName: "undo",
         duration: 15000,
         actions: [
           {
-            label: "desfazer",
+            label: t("geral.desfazer"),
             onClick: () => {
               if (!grid) return true;
               currentWidgets = anterior;
               grid.resetWidgets(currentWidgets);
               saveLayout(screen, currentWidgets);
-              announce("layout anterior de volta.");
+              announce(t("grid.anterior_aria"));
               return true;
             },
           },

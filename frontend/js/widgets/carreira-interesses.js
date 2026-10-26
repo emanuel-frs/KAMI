@@ -2,6 +2,7 @@ import { getCareerInterests, addCareerInterest, deleteCareerInterest } from "../
 import { escapeHtml } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { showErrorModal } from "../modals/err-modal.js";
+import { t } from "../i18n.js";
 
 /**
  * Widget de interesses profissionais (seção 2 do documento de regras
@@ -16,13 +17,13 @@ import { showErrorModal } from "../modals/err-modal.js";
  */
 
 export async function render(el, widget) {
-  el.innerHTML = '<div class="empty-state">carregando…</div>';
+  el.innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
 
   let interests;
   try {
     interests = await getCareerInterests();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar interesses: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_interesses", { erro: err.message }))}</div>`;
     return;
   }
 
@@ -36,16 +37,16 @@ export async function render(el, widget) {
                   (i) => `
               <span class="ci-tag">
                 ${escapeHtml(i.tag)}
-                <span class="ci-tag-remove" data-remove="${i.id}" data-tooltip="remover" aria-label="remover">${icon("x", { size: 10 })}</span>
+                <span class="ci-tag-remove" data-remove="${i.id}" data-tooltip="${t("geral.remover")}" aria-label="${t("geral.remover")}">${icon("x", { size: 10 })}</span>
               </span>`
                 )
                 .join("")
-            : `<div class="empty-state" style="flex:1 1 100%;">nenhum interesse cadastrado ainda.</div>`
+            : `<div class="empty-state" style="flex:1 1 100%;">${t("carreira_interesses.nenhum_interesse_cadastrado_ainda")}</div>`
         }
       </div>
       <div class="ci-add-row">
-        <input type="text" id="ci-new-tag" maxlength="40" placeholder="adicionar interesse (ex: backend, gestão, produto)">
-        <button type="button" class="btn sm" data-action="add" data-tooltip="adicionar" aria-label="adicionar">${icon("plus", { size: 12 })}</button>
+        <input type="text" id="ci-new-tag" maxlength="40" placeholder="${t("carreira_interesses.adicionar_interesse_ex_backend_gestao")}">
+        <button type="button" class="btn sm" data-action="add" data-tooltip="${t("geral.adicionar")}" aria-label="${t("geral.adicionar")}">${icon("plus", { size: 12 })}</button>
       </div>
     `;
     wire();
@@ -62,7 +63,7 @@ export async function render(el, widget) {
         const created = await addCareerInterest(tag);
         interests = [...interests, created];
       } catch (err) {
-        showErrorModal(err.message, "erro ao adicionar interesse");
+        showErrorModal(err.message, t("carreira_interesses.erro_ao_adicionar_interesse"));
         input.disabled = false;
         return;
       }
@@ -84,7 +85,7 @@ export async function render(el, widget) {
         try {
           await deleteCareerInterest(id);
         } catch (err) {
-          showErrorModal(err.message, "erro ao remover interesse");
+          showErrorModal(err.message, t("carreira_interesses.erro_ao_remover_interesse"));
           return;
         }
         interests = interests.filter((i) => i.id !== id);

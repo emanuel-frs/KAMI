@@ -62,3 +62,58 @@ test("lembrete (ORG-05): @ com data e hora, como evento", () => {
   assert.equal(cap("@18h remédio").hora, "18:00");
   assert.equal(cap("@ sexta pagar luz").data, "2026-10-23");
 });
+
+// P-100 — datas e horas no idioma do app (os exemplos do rodapé da captura
+// de cada idioma precisam funcionar)
+const em = (idioma) => (t) => interpretarCaptura(t, HOJE, idioma);
+const dh = (r) => [r.titulo ?? r.descricao, r.data, r.hora ?? null];
+
+test("inglês: tomorrow 9am, 6pm, next friday, the 25th, 10/25, 1,234.56", () => {
+  const c = em("en");
+  assert.deepEqual(dh(c("! tomorrow 9am dentist")), ["dentist", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(c("@ 6pm medicine")), ["medicine", null, "18:00"]);
+  assert.deepEqual(dh(c("! next friday at 14:30 meeting")), ["meeting", "2026-10-23", "14:30"]);
+  assert.equal(c("! the day after tomorrow dinner").data, "2026-10-22");
+  assert.equal(c("! on the 25th checkup").data, "2026-10-25");
+  assert.equal(c("! 11/05 birthday").data, "2026-11-05", "mês primeiro");
+  assert.equal(c("$ 40 groceries yesterday").data, "2026-10-19");
+  assert.equal(c("$ 1,234.56 rent").valor, 1234.56);
+  assert.equal(c("! sat with mom").data, null, "sat não é sábado");
+});
+
+test("espanhol, francês, italiano e alemão", () => {
+  assert.deepEqual(dh(em("es")("! mañana 9h dentista")), ["dentista", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("es")("@ 18h remedio")), ["remedio", null, "18:00"]);
+  assert.equal(em("es")("! pasado mañana cita").data, "2026-10-22");
+  assert.deepEqual(dh(em("es")("! el viernes a las 10 reunión")), ["reunión", "2026-10-23", "10:00"]);
+  assert.deepEqual(dh(em("fr")("! demain 9h dentiste")), ["dentiste", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("fr")("! vendredi prochain 14h30 réunion")), ["réunion", "2026-10-23", "14:30"]);
+  assert.equal(em("fr")("! après-demain dîner").data, "2026-10-22");
+  assert.deepEqual(dh(em("it")("! domani alle 9 dentista")), ["dentista", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("it")("@ alle 18 medicina")), ["medicina", null, "18:00"]);
+  assert.equal(em("it")("! venerdì prossimo cena").data, "2026-10-23");
+  assert.deepEqual(dh(em("de")("! morgen 9 Uhr Zahnarzt")), ["Zahnarzt", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("de")("@ 18 Uhr Medikament")), ["Medikament", null, "18:00"]);
+  assert.deepEqual(dh(em("de")("! am Freitag um 14:30 Meeting")), ["Meeting", "2026-10-23", "14:30"]);
+  assert.equal(em("de")("! übermorgen Termin").data, "2026-10-22");
+});
+
+test("chinês, japonês e coreano: sem espaço entre as palavras", () => {
+  assert.deepEqual(dh(em("zh")("! 明天9点牙医")), ["牙医", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("zh")("@ 下午6点半吃药")), ["吃药", null, "18:30"]);
+  assert.equal(em("zh")("! 下周一开会").data, "2026-10-26");
+  assert.equal(em("zh")("! 11月5日生日").data, "2026-11-05");
+  assert.deepEqual(dh(em("ja")("! 明日9時歯医者")), ["歯医者", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("ja")("@ 午後3時半 薬")), ["薬", null, "15:30"]);
+  assert.equal(em("ja")("! 金曜日 会議").data, "2026-10-23");
+  assert.deepEqual(dh(em("ko")("! 내일 9시 치과")), ["치과", "2026-10-21", "09:00"]);
+  assert.deepEqual(dh(em("ko")("@ 오후 6시 약")), ["약", null, "18:00"]);
+  assert.equal(em("ko")("! 금요일 회의").data, "2026-10-23");
+});
+
+test("hindi: कल é amanhã no evento e ontem no gasto", () => {
+  assert.deepEqual(dh(em("hi")("! कल 9 बजे डेंटिस्ट")), ["डेंटिस्ट", "2026-10-21", "09:00"]);
+  assert.equal(em("hi")("$ 40 खाना कल").data, "2026-10-19");
+  assert.equal(em("hi")("! शुक्रवार को मीटिंग").data, "2026-10-23");
+  assert.deepEqual(dh(em("hi")("@ 18 बजे दवा")), ["दवा", null, "18:00"]);
+});

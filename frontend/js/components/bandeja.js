@@ -1,6 +1,7 @@
 import { executarAntesDeFechar } from "./antes-de-fechar.js";
 import { abrirCaptura } from "./captura.js";
 import { sendNativeNotification } from "./native-notify.js";
+import { t } from "../i18n.js";
 
 /**
  * components/bandeja.js — o lado do frontend da bandeja (ORG-05; Rust em
@@ -31,8 +32,8 @@ export function wireBandeja() {
       /* sem storage: avisa toda vez, sem problema */
     }
     sendNativeNotification({
-      title: "o kami continua na bandeja",
-      body: "os lembretes seguem funcionando. pra sair de vez: ícone da bandeja › sair.",
+      title: t("bandeja.o_kami_continua_na_bandeja"),
+      body: t("bandeja.os_lembretes_seguem_funcionando_pra"),
     });
   });
 }

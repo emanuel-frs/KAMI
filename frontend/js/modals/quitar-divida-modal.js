@@ -1,7 +1,8 @@
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
-import { escapeHtml } from "../components/format.js";
+import { escapeHtml, fmtMoeda } from "../components/format.js";
 import { estaNoDocumento } from "../components/no-documento.js";
+import { t } from "../i18n.js";
 
 /**
  * Modal "quitar dívida" (P-13, CONF-04) — aberto por widgets/dividas.js
@@ -22,7 +23,7 @@ let resolveCb = null;
 let accountsFlat = [];
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 function buildModal() {
@@ -31,23 +32,23 @@ function buildModal() {
   wrap.id = "quitar-divida-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">quitar dívida</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("quitar_divida.quitar_divida")}</span> <button type="button" class="close" data-action="cancel" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <p class="qdm-info" id="qdm-info"></p>
         <div class="field">
-          <label for="qdm-conta">o dinheiro saiu de</label>
+          <label for="qdm-conta">${t("quitar_divida.o_dinheiro_saiu_de")}</label>
           <select id="qdm-conta"></select>
         </div>
         <div class="field" id="qdm-forma-field" style="display:none;">
-          <label for="qdm-forma">forma de pagamento</label>
+          <label for="qdm-forma">${t("quitar_divida.forma_de_pagamento")}</label>
           <select id="qdm-forma">
-            <option value="saldo">saldo</option>
-            <option value="credito">crédito</option>
+            <option value="saldo">${t("quitar_divida.saldo")}</option>
+            <option value="credito">${t("quitar_divida.credito")}</option>
           </select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="cancel">cancelar</button>
-          <button class="btn sm primary" data-action="confirm">quitar</button>
+          <button class="btn sm" data-action="cancel">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="confirm">${t("quitar_divida.quitar")}</button>
         </div>
       </div>
     </div>
@@ -86,7 +87,7 @@ export function openQuitarDividaModal({ debt, accounts = [] }) {
   modalEl.querySelector("#qdm-info").textContent = `${debt.description} — ${brl(debt.amount)}`;
   const select = modalEl.querySelector("#qdm-conta");
   select.innerHTML =
-    `<option value="">nenhuma conta (só marcar como quitada)</option>` +
+    `<option value="">${t("quitar_divida.nenhuma_conta_so_marcar_como")}</option>` +
     accountsFlat.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   // sugestão: a primeira conta COM SALDO — quitar dívida costuma sair da
   // conta corrente, não do cartão (visto no teste: a primeira da lista era

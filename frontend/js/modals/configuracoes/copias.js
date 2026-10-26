@@ -11,35 +11,36 @@ import { icon } from "../../components/icons.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { showErrorModal } from "../err-modal.js";
 import { estado } from "./estado.js";
+import { t } from "../../i18n.js";
 
-const ACOES = {
-  importar: "antes de importar",
-  "apagar-tudo": "antes de apagar tudo",
-  "redefinir-chave": "antes de redefinir a chave",
-  atualizar: "antes de atualizar o app",
-  restaurar: "antes de restaurar",
-};
+const acoes = () => ({
+  importar: t("copias.antes_de_importar"),
+  "apagar-tudo": t("copias.antes_de_apagar_tudo"),
+  "redefinir-chave": t("copias.antes_de_redefinir_a_chave"),
+  atualizar: t("copias.antes_de_atualizar_o_app"),
+  restaurar: t("copias.antes_de_restaurar"),
+});
 
 export function copiasSectionHtml() {
   return `
       <div class="settings-section" id="cfg-copias">
-        <h4>cópias automáticas</h4>
-        <p class="settings-desc">o kami guarda sozinho uma cópia do banco por semana (as 4 últimas) e uma antes de importar, apagar tudo, redefinir a chave, restaurar ou atualizar o app. restaurar volta tudo pra como estava naquela hora — e o estado de agora fica guardado antes.</p>
-        <p class="settings-note">as cópias ficam no mesmo disco do kami: protegem de erro e de banco estragado, <strong>não</strong> de perder o disco. pra isso, use a pasta extra abaixo ou exporte um backup.</p>
-        <ul class="cfg-copias-lista" id="cfg-copias-lista"><li class="settings-desc">carregando…</li></ul>
+        <h4>${t("copias.copias_automaticas")}</h4>
+        <p class="settings-desc">${t("copias.o_kami_guarda_sozinho_uma")}</p>
+        <p class="settings-note">${t("copias.nota_disco")}</p>
+        <ul class="cfg-copias-lista" id="cfg-copias-lista"><li class="settings-desc">${t("geral.carregando")}</li></ul>
         <div class="form-actions">
-          <button class="btn sm" id="cfg-copias-agora">fazer uma cópia agora</button>
+          <button class="btn sm" id="cfg-copias-agora">${t("copias.fazer_uma_copia_agora")}</button>
         </div>
         <p class="settings-status" id="cfg-copias-status"></p>
         <div class="field">
-          <label for="cfg-copias-pasta">pasta extra (opcional) — pendrive, HD externo ou pasta sincronizada (Drive, Dropbox...)</label>
-          <input type="text" id="cfg-copias-pasta" placeholder="ex.: /media/pendrive/kami ou D:\\kami" autocomplete="off" spellcheck="false" maxlength="1000">
+          <label for="cfg-copias-pasta">${t("copias.pasta_extra_opcional_pendrive_hd")}</label>
+          <input type="text" id="cfg-copias-pasta" placeholder="${t("copias.ex_media_pendrive_kami_ou")}" autocomplete="off" spellcheck="false" maxlength="1000">
         </div>
-        <p class="settings-note">a cópia semanal também vai pra lá (o kami só grava e apaga os próprios arquivos kami-semanal-*.db). as senhas salvas vão cifradas com a chave <strong>deste</strong> computador: noutra máquina o resto abre, elas não — pra levar tudo, exporte com senha.</p>
+        <p class="settings-note">${t("copias.nota_pasta")}</p>
         <div class="form-actions">
-          <button class="btn sm" id="cfg-copias-pasta-escolher" hidden>escolher pasta…</button>
-          <button class="btn sm" id="cfg-copias-pasta-salvar">usar esta pasta</button>
-          <button class="btn sm" id="cfg-copias-pasta-tirar" hidden>parar de copiar pra lá</button>
+          <button class="btn sm" id="cfg-copias-pasta-escolher" hidden>${t("copias.escolher_pasta")}</button>
+          <button class="btn sm" id="cfg-copias-pasta-salvar">${t("copias.usar_esta_pasta")}</button>
+          <button class="btn sm" id="cfg-copias-pasta-tirar" hidden>${t("copias.parar_de_copiar_pra_la")}</button>
         </div>
         <p class="settings-status" id="cfg-copias-pasta-status"></p>
       </div>`;
@@ -50,9 +51,9 @@ function tamanho(bytes) {
 }
 
 function descricao(c) {
-  if (c.tipo === "semanal") return "semanal";
-  if (c.tipo === "atualizacao") return `antes da versão ${escapeHtml(c.acao || "nova")}`;
-  return escapeHtml(ACOES[c.acao] || `antes de ${c.acao}`);
+  if (c.tipo === "semanal") return t("copias.semanal");
+  if (c.tipo === "atualizacao") return escapeHtml(t("copias.antes_versao", { versao: c.acao || t("copias.versao_nova") }));
+  return escapeHtml(acoes()[c.acao] || t("copias.antes_de", { acao: c.acao }));
 }
 
 function status(wrap, id, html, erro = false) {
@@ -70,11 +71,11 @@ function render(wrap, dados) {
           (c) => `<li>
             <span class="cfg-copias-quando">${escapeHtml(fmtDataHora(c.quando))}</span>
             <span class="cfg-copias-tipo">${descricao(c)} · ${tamanho(c.tamanho)}</span>
-            <button type="button" class="btn sm" data-restaurar="${escapeHtml(c.nome)}" data-quando="${escapeHtml(fmtDataHora(c.quando))}">restaurar</button>
+            <button type="button" class="btn sm" data-restaurar="${escapeHtml(c.nome)}" data-quando="${escapeHtml(fmtDataHora(c.quando))}">${t("copias.restaurar")}</button>
           </li>`
         )
         .join("")
-    : '<li class="settings-desc">nenhuma cópia ainda — a primeira sai ao abrir o kami.</li>';
+    : `<li class="settings-desc">${t("copias.nenhuma_copia_ainda_a_primeira")}</li>`;
 
   const input = wrap.querySelector("#cfg-copias-pasta");
   if (document.activeElement !== input) input.value = dados.pasta_extra || "";
@@ -87,11 +88,11 @@ function render(wrap, dados) {
     status(
       wrap,
       "#cfg-copias-pasta-status",
-      `<span class="cfg-seg-warn">[!]</span> a pasta não está disponível agora (pendrive ou disco desconectado?)${dados.extra_ok_em ? ` — última cópia lá: ${escapeHtml(fmtDataHora(dados.extra_ok_em))}` : ""}. o kami tenta de novo sozinho.`,
+      `<span class="cfg-seg-warn">[!]</span> ${escapeHtml(t("copias.pasta_indisponivel", { ultima: dados.extra_ok_em ? t("copias.ultima_la_traco", { quando: fmtDataHora(dados.extra_ok_em) }) : "" }))}`,
       dados.extra_atrasada
     );
   } else {
-    status(wrap, "#cfg-copias-pasta-status", `${icon("check", { size: 12 })} última cópia lá: ${escapeHtml(fmtDataHora(dados.extra_ok_em))}`);
+    status(wrap, "#cfg-copias-pasta-status", `${icon("check", { size: 12 })} ${escapeHtml(t("copias.ultima_la", { quando: fmtDataHora(dados.extra_ok_em) }))}`);
   }
 }
 
@@ -109,7 +110,7 @@ export async function carregarCopias(wrap) {
   try {
     await desenharDepois(wrap, getBackups());
   } catch (err) {
-    wrap.querySelector("#cfg-copias-lista").innerHTML = `<li class="settings-desc">não deu pra listar as cópias: ${escapeHtml(err.message)}</li>`;
+    wrap.querySelector("#cfg-copias-lista").innerHTML = `<li class="settings-desc">${escapeHtml(t("copias.erro_listar", { erro: err.message }))}</li>`;
   }
 }
 
@@ -118,7 +119,7 @@ async function salvarPasta(wrap, pasta) {
   estado.busy = true;
   try {
     await desenharDepois(wrap, definirPastaExtra(pasta));
-    if (pasta) status(wrap, "#cfg-copias-pasta-status", `${icon("check", { size: 12 })} pasta salva — a cópia mais recente já foi pra lá`);
+    if (pasta) status(wrap, "#cfg-copias-pasta-status", `${icon("check", { size: 12 })} ${t("copias.pasta_salva")}`);
   } catch (err) {
     status(wrap, "#cfg-copias-pasta-status", escapeHtml(err.message), true);
   } finally {
@@ -129,8 +130,8 @@ async function salvarPasta(wrap, pasta) {
 async function restaurar(wrap, nome, quando) {
   if (estado.busy) return;
   const sim = await showConfirmModal(
-    `volta TODOS os dados do kami pra cópia de ${quando}. o que você fez depois disso sai — mas o estado de agora fica guardado como uma cópia "antes de restaurar", então dá pra voltar atrás.`,
-    { title: "restaurar cópia", confirmText: "sim, restaurar", danger: true }
+    t("copias.restaurar_confirma", { quando }),
+    { title: t("copias.restaurar_copia"), confirmText: t("copias.sim_restaurar"), danger: true }
   );
   if (!sim) return;
   estado.busy = true;
@@ -139,7 +140,7 @@ async function restaurar(wrap, nome, quando) {
     window.location.reload();
   } catch (err) {
     estado.busy = false;
-    showErrorModal(err.message, "não deu pra restaurar a cópia");
+    showErrorModal(err.message, t("copias.nao_deu_pra_restaurar_a"));
   }
 }
 
@@ -151,13 +152,13 @@ async function restaurar(wrap, nome, quando) {
 async function escolherPasta(wrap) {
   try {
     const pasta = await window.__TAURI__.core.invoke("plugin:dialog|open", {
-      options: { directory: true, multiple: false, title: "pasta extra das cópias do kami" },
+      options: { directory: true, multiple: false, title: t("copias.pasta_extra_das_copias_do") },
     });
     if (!pasta) return; // cancelou
     wrap.querySelector("#cfg-copias-pasta").value = pasta;
     salvarPasta(wrap, pasta);
   } catch (err) {
-    status(wrap, "#cfg-copias-pasta-status", `não deu pra abrir o seletor: ${escapeHtml(String(err))} — escreva o caminho no campo`, true);
+    status(wrap, "#cfg-copias-pasta-status", escapeHtml(t("copias.erro_seletor", { erro: String(err) })), true);
   }
 }
 
@@ -173,7 +174,7 @@ export function wireCopias(wrap) {
     estado.busy = true;
     try {
       await desenharDepois(wrap, copiarAgora());
-      status(wrap, "#cfg-copias-status", `${icon("check", { size: 12 })} cópia feita`);
+      status(wrap, "#cfg-copias-status", `${icon("check", { size: 12 })} ${t("copias.feita")}`);
     } catch (err) {
       status(wrap, "#cfg-copias-status", escapeHtml(err.message), true);
     } finally {
@@ -182,7 +183,7 @@ export function wireCopias(wrap) {
   });
   wrap.querySelector("#cfg-copias-pasta-salvar").addEventListener("click", () => {
     const pasta = wrap.querySelector("#cfg-copias-pasta").value.trim();
-    if (!pasta) return status(wrap, "#cfg-copias-pasta-status", "escreva o caminho da pasta", true);
+    if (!pasta) return status(wrap, "#cfg-copias-pasta-status", t("copias.escreva_o_caminho_da_pasta"), true);
     salvarPasta(wrap, pasta);
   });
   wrap.querySelector("#cfg-copias-pasta-tirar").addEventListener("click", () => salvarPasta(wrap, null));

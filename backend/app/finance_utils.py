@@ -25,9 +25,8 @@ tem as duas, valida saldo/limite disponível).
 """
 import datetime
 
-from fastapi import HTTPException
-
 from app.database import new_id
+from app.mensagens import ErroKami, colunas_do_texto
 
 
 def create_saida_transaction(db, conta, amount: float, category: str, description: str,
@@ -44,30 +43,41 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
     nunca crédito — não faz sentido conceitual pagar meta no cartão)."""
     if conta["possui_saldo"] and conta["possui_credito"]:
         if forma_pagamento not in ("saldo", "credito"):
-            raise HTTPException(
-                status_code=422,
-                detail="essa conta tem saldo e crédito — informe 'forma_pagamento' ('saldo' ou 'credito')",
+            raise ErroKami(
+                422,
+                "erro.finance_utils.essa_conta_tem_saldo_credito",
+                "essa conta tem saldo e crédito — informe 'forma_pagamento' ('saldo' ou 'credito')",
             )
     elif conta["possui_credito"]:
         forma_pagamento = "credito"
     elif conta["possui_saldo"]:
         forma_pagamento = "saldo"
     else:
-        raise HTTPException(status_code=422, detail="essa conta não possui saldo nem crédito cadastrado")
+        raise ErroKami(
+            422,
+            "erro.finance_utils.essa_conta_nao_possui_saldo_2",
+            "essa conta não possui saldo nem crédito cadastrado",
+        )
 
     if formas_permitidas is not None and forma_pagamento not in formas_permitidas:
         permitidas_str = " ou ".join(sorted(formas_permitidas))
-        raise HTTPException(
-            status_code=422,
-            detail=f"essa operação só aceita pagamento por {permitidas_str}, não por {forma_pagamento}",
+        raise ErroKami(
+            422,
+            "erro.finance_utils.essa_operacao_so_aceita_pagamento",
+            "essa operação só aceita pagamento por {permitidas_str}, não por {forma_pagamento}",
+            permitidas_str=permitidas_str,
+            forma_pagamento=forma_pagamento,
         )
 
     if forma_pagamento == "saldo":
         saldo_atual = conta["saldo_atual"] or 0
         if amount > saldo_atual:
-            raise HTTPException(
-                status_code=422,
-                detail=f"saldo insuficiente: disponível R$ {saldo_atual:.2f}, tentando gastar R$ {amount:.2f}",
+            raise ErroKami(
+                422,
+                "erro.finance_utils.saldo_insuficiente_disponivel_valor_saldo",
+                "saldo insuficiente: disponível {valor_saldo_atual}, tentando gastar {valor_amount}",
+                valor_saldo_atual=saldo_atual,
+                valor_amount=amount,
             )
         db.execute(
             "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) - ? WHERE id = ?",
@@ -77,9 +87,12 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
         if conta["limite_total"] is not None:
             disponivel = conta["limite_total"] - (conta["fatura_atual"] or 0)
             if amount > disponivel:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"limite insuficiente: disponível R$ {disponivel:.2f}, tentando gastar R$ {amount:.2f}",
+                raise ErroKami(
+                    422,
+                    "erro.finance_utils.limite_insuficiente_disponivel_valor_disponivel",
+                    "limite insuficiente: disponível {valor_disponivel}, tentando gastar {valor_amount}",
+                    valor_disponivel=disponivel,
+                    valor_amount=amount,
                 )
         db.execute(
             "UPDATE wallet_accounts SET fatura_atual = COALESCE(fatura_atual, 0) + ? WHERE id = ?",
@@ -89,9 +102,11 @@ def create_saida_transaction(db, conta, amount: float, category: str, descriptio
     tx_id = new_id()
     db.execute(
         "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, 'saida', ?, ?, ?, NULL, NULL, ?)",
-        (tx_id, description, amount, category, conta["id"], forma_pagamento, date or datetime.date.today().isoformat()),
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date, "
+        "descricao_chave, descricao_vars) "
+        "VALUES (?, ?, ?, 'saida', ?, ?, ?, NULL, NULL, ?, ?, ?)",
+        (tx_id, str(description), amount, category, conta["id"], forma_pagamento, date or datetime.date.today().isoformat(),
+         *colunas_do_texto(description)),
     )
     return tx_id
 
@@ -106,7 +121,11 @@ def create_entrada_transaction(db, conta, amount: float, category: str, descript
     422 se a conta não tiver saldo pra receber (mesma regra de
     POST /financas/transactions)."""
     if not conta["possui_saldo"]:
-        raise HTTPException(status_code=422, detail="essa conta não possui saldo pra receber uma entrada")
+        raise ErroKami(
+            422,
+            "erro.finance_utils.essa_conta_nao_possui_saldo",
+            "essa conta não possui saldo pra receber uma entrada",
+        )
     db.execute(
         "UPDATE wallet_accounts SET saldo_atual = COALESCE(saldo_atual, 0) + ? WHERE id = ?",
         (amount, conta["id"]),
@@ -114,9 +133,11 @@ def create_entrada_transaction(db, conta, amount: float, category: str, descript
     tx_id = new_id()
     db.execute(
         "INSERT INTO transactions "
-        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date) "
-        "VALUES (?, ?, ?, 'entrada', ?, ?, NULL, NULL, NULL, ?)",
-        (tx_id, description, amount, category, conta["id"], date or datetime.date.today().isoformat()),
+        "(id, description, amount, type, category, conta_id, forma_pagamento, conta_destino_id, destino_externo, date, "
+        "descricao_chave, descricao_vars) "
+        "VALUES (?, ?, ?, 'entrada', ?, ?, NULL, NULL, NULL, ?, ?, ?)",
+        (tx_id, str(description), amount, category, conta["id"], date or datetime.date.today().isoformat(),
+         *colunas_do_texto(description)),
     )
     return tx_id
 

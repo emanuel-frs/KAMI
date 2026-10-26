@@ -216,6 +216,11 @@ async function main() {
     // --token=… junto: o token é base64 de URL e às vezes começa com "-",
     // que o argparse leria como outra opção ("expected one argument")
     execSync(`${PYTHON} scripts/seed_demo.py --base-url http://127.0.0.1:${conn.port} --token=${conn.token}`, { stdio: "inherit" });
+    // I18N-01/06: instalação nova segue o idioma e o país do sistema, e os
+    // runners do CI são en-US — o teste confere textos em português
+    // ("hábitos", "PIN errado"…), então fixa português, real e Brasil
+    const perfil = await api("/api/perfil", { method: "PUT", body: JSON.stringify({ idioma: "pt", moeda: "BRL", pais: "BR" }) });
+    if (perfil.body?.idioma !== "pt") fail(`não deu pra fixar o português: ${JSON.stringify(perfil)}`);
     await wd.refresh();
     await waitFor("os widgets do núcleo", () => wd.execute("return document.querySelectorAll('.card').length > 0"), { timeout: 60000 });
     await waitFor("a animação de abertura acabar", async () => !(await wd.execute("return !!document.querySelector('.boot-splash')")), { timeout: 15000 });

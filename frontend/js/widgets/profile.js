@@ -12,6 +12,8 @@ import { listenWhileConnected } from "../components/window-listener.js";
 import { setXpBar } from "../components/xp-bar.js";
 import { rollNumber } from "../components/fx.js";
 import { flameOptions, flameSvg, protectionsSummary, protectionsText } from "../components/streak-flame.js";
+import { nomeAtributo, rotuloTitulo } from "../components/textos-sistema.js";
+import { localeAtual, t, tOu } from "../i18n.js";
 
 /**
  * Widget de perfil (decisão 15 + 17) — não-removível, único widget da
@@ -54,7 +56,7 @@ export async function render(el, widget) {
   stopProgressListener?.();
   stopProgressListener = null;
 
-  el.innerHTML = '<div class="empty-state">carregando perfil…</div>';
+  el.innerHTML = `<div class="empty-state">${t("perfil_w.carregando")}</div>`;
 
   const cardEl = el.closest(".card");
   cardEl?.setAttribute("data-editable", "");
@@ -68,7 +70,7 @@ export async function render(el, widget) {
       getPlayer(),
     ]);
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar perfil: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("perfil_w.erro", { erro: err.message }))}</div>`;
     return;
   }
 
@@ -79,47 +81,48 @@ export async function render(el, widget) {
   // GAM-11: classe vem do atributo com mais xp (backend, nucleo.py::_player_class);
   // "destaque" virou o tooltip dela
   const classTip = player.player_class
-    ? `atributo mais forte: ${top?.name ?? "—"} · a classe vem dele; polímata quando os dois maiores estão a menos de 15% um do outro`
-    : "a classe aparece com o primeiro xp — vem do atributo mais forte";
-  const streakLabel = player.streak_current === 1 ? "1 dia" : `${player.streak_current} dias`;
-  const streakTip = `recorde: ${player.streak_best} ${player.streak_best === 1 ? "dia" : "dias"}${
-    player.streak_current > 0 && !player.active_today ? " · registre algo hoje pra não perder a sequência" : ""
+    ? t("perfil_w.classe_dica", { atributo: top ? nomeAtributo(top.name) : "—" })
+    : t("perfil_w.classe_sem");
+  const streakLabel = t("geral.dias", { n: player.streak_current });
+  const streakTip = `${t("perfil_w.recorde", { dias: t("geral.dias", { n: player.streak_best }) })}${
+    player.streak_current > 0 && !player.active_today ? t("perfil_w.nao_perca") : ""
   }`;
+  const classe = player.player_class_key ? tOu(`classe.${player.player_class_key}`, player.player_class) : player.player_class;
 
   el.innerHTML = `
     <div class="view-mode">
-      <div class="pw-avatar-btn" data-tooltip="ver/editar avatar" aria-label="ver/editar avatar">
-        <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? "sem avatar\nainda")}</pre>
+      <div class="pw-avatar-btn" data-tooltip="${t("perfil_w.avatar")}" aria-label="${t("perfil_w.avatar")}">
+        <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? t("perfil_w.sem_avatar"))}</pre>
       </div>
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <span class="pw-name-wrap">
             <b style="color:var(--text-bright); font-size:15px;">${escapeHtml(profile.display_name)}</b>
-            <span class="pw-title" data-tooltip="título liberado pelo nível — troque em configurações › aparência">« ${escapeHtml(player.player_title ?? "iniciante")} »</span>
+            <span class="pw-title" data-tooltip="${t("perfil_w.titulo_dica")}">« ${escapeHtml(rotuloTitulo(player.player_title_key, player.player_title ?? "iniciante"))} »</span>
           </span>
           <div style="display:flex; gap:6px;">
-            <button type="button" class="btn sm" data-action="retro" data-tooltip="o resumo de cada mês que passou">retrospectivas</button>
-            <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} editar perfil</button>
+            <button type="button" class="btn sm" data-action="retro" data-tooltip="${t("perfil_w.retro_dica")}">${t("perfil_w.retro")}</button>
+            <button type="button" class="btn sm" data-action="edit" style="display:flex; align-items:center; gap:5px;">${icon("pencil", { size: 11 })} ${t("perfil_w.editar")}</button>
           </div>
         </div>
         <div style="display:flex; gap:20px; margin-top:14px; flex-wrap:wrap;">
-          <div class="vm-row" data-tooltip="${escapeHtml(`${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}`)}"><span class="k">nível</span><span class="v" data-roll="level">${player.level}</span></div>
-          <div class="vm-row"><span class="k">xp total</span><span class="v" data-roll="xp">${player.total_xp.toLocaleString("pt-BR")}</span></div>
-          <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">sequência</span><span class="v">${streakLabel}</span></div>
-          <div class="vm-row"><span class="k">conquistas</span><span class="v" data-roll="achievements">${player.achievements_unlocked}/${player.achievements_total}</span></div>
-          <div class="vm-row" data-tooltip="${escapeHtml(classTip)}"><span class="k">classe</span><span class="v">${escapeHtml(player.player_class ?? "—")}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(t("perfil_w.xp_pro_nivel", { atual: player.current_level_xp, proximo: player.xp_for_next_level, nivel: player.level + 1 }))}"><span class="k">${t("perfil_w.nivel")}</span><span class="v" data-roll="level">${player.level}</span></div>
+          <div class="vm-row"><span class="k">${t("perfil_w.xp_total")}</span><span class="v" data-roll="xp">${player.total_xp.toLocaleString(localeAtual())}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(streakTip)}"><span class="k">${t("perfil_w.sequencia")}</span><span class="v">${streakLabel}</span></div>
+          <div class="vm-row"><span class="k">${t("perfil_w.conquistas")}</span><span class="v" data-roll="achievements">${player.achievements_unlocked}/${player.achievements_total}</span></div>
+          <div class="vm-row" data-tooltip="${escapeHtml(classTip)}"><span class="k">${t("perfil_w.classe")}</span><span class="v">${escapeHtml(classe ?? "—")}</span></div>
         </div>
-        <div class="pw-xp" aria-label="${player.pct}% do caminho pro nível ${player.level + 1}">
+        <div class="pw-xp" aria-label="${t("perfil_w.caminho_aria", { pct: player.pct, nivel: player.level + 1 })}">
           <span class="pw-xp-bar" aria-hidden="true"></span>
-          <span class="pw-xp-text">${player.pct}% · ${player.current_level_xp}/${player.xp_for_next_level} xp pro nível ${player.level + 1}</span>
+          <span class="pw-xp-text">${player.pct}% · ${t("perfil_w.xp_pro_nivel", { atual: player.current_level_xp, proximo: player.xp_for_next_level, nivel: player.level + 1 })}</span>
         </div>
         <div class="pw-streak">
           ${flameSvg(player.streak_current, flameOptions(player))}
           <div class="pw-streak-info">
-            <div><span class="k">sequência</span> ${streakLabel} · recorde ${player.streak_best}</div>
+            <div><span class="k">${t("perfil_w.sequencia")}</span> ${streakLabel} · ${t("perfil_w.recorde_curto", { n: player.streak_best })}</div>
             <div data-tooltip="${escapeHtml(protectionsSummary(player))}" aria-label="${escapeHtml(protectionsSummary(player))}">
-              <span class="k">proteções</span> <span class="pw-protections">[${protectionsText(player.streak_protections, player.streak_protections_max)}]</span>${
-                player.streak_protected_yesterday ? ' <span class="pw-protected">· ontem protegido</span>' : ""
+              <span class="k">${t("perfil_w.protecoes")}</span> <span class="pw-protections">[${protectionsText(player.streak_protections, player.streak_protections_max)}]</span>${
+                player.streak_protected_yesterday ? ` <span class="pw-protected">${t("perfil_w.ontem_protegido")}</span>` : ""
               }
             </div>
           </div>
@@ -133,7 +136,7 @@ export async function render(el, widget) {
   rollNumber(el.querySelector('[data-roll="level"]'), player.level, { key: "profile-level" });
   rollNumber(el.querySelector('[data-roll="xp"]'), player.total_xp, {
     key: "profile-xp",
-    format: (n) => n.toLocaleString("pt-BR"),
+    format: (n) => n.toLocaleString(localeAtual()),
   });
   rollNumber(el.querySelector('[data-roll="achievements"]'), player.achievements_unlocked, {
     key: "profile-achievements",
@@ -149,7 +152,7 @@ export async function render(el, widget) {
   // ainda não computado) não pode impedir o listener abaixo de anexar.
   const avatarPre = el.querySelector("#pw-avatar-ascii");
   try {
-    fitAsciiText(avatarPre, profile.avatar_ascii ?? "sem avatar\nainda", {
+    fitAsciiText(avatarPre, profile.avatar_ascii ?? t("perfil_w.sem_avatar"), {
       container: avatarPre.parentElement,
       maxHeight: 136, // acompanha o box maior do avatar (148x148, ver widgets.css .pw-avatar-btn)
       maxFont: 8,
@@ -177,7 +180,7 @@ export async function render(el, widget) {
         try {
           await updateAvatar(ascii);
         } catch (err) {
-          showErrorModal(err.message, "erro ao salvar avatar");
+          showErrorModal(err.message, t("perfil_w.erro_avatar"));
           return;
         }
         // propaga via store — o próprio subscribe abaixo cuida de

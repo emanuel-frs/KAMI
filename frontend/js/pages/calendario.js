@@ -1,8 +1,8 @@
 import { listEvents, rescheduleEvento, deleteEvento } from "../api/calendario.js";
-import { escapeHtml, fmtMoney, fmtDataCompacta } from "../components/format.js";
+import { escapeHtml, fmtDataCompacta, fmtMoney, nomeDiaSemana, nomeMes } from "../components/format.js";
 import { icon } from "../components/icons.js";
 import { setPendingFocus, consumePendingFocus } from "../components/pending-focus.js";
-import { TYPE_META } from "../components/event-types.js";
+import { typeMeta } from "../components/event-types.js";
 import { openCalendarioEventoModal } from "../modals/calendario-evento-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { store } from "../state/store.js";
@@ -12,8 +12,10 @@ import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/s
 import { announce } from "../components/a11y.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { listLembretes } from "../api/lembretes.js";
-import { openLembreteModal, REPETICOES, VINCULO_ROTULO } from "../modals/lembrete-modal.js";
-import { DIAS_CURTOS } from "../components/habito-linha.js";
+import { openLembreteModal, repeticoes, vinculoRotulo } from "../modals/lembrete-modal.js";
+import { diasCurtos } from "../components/habito-linha.js";
+import { nomeAtributo, textoDoRegistro } from "../components/textos-sistema.js";
+import { t } from "../i18n.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -21,7 +23,7 @@ const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-hel
  * na grade do mês, no filtro do dia, na lista de eventos e na legenda, só
  * variando o tamanho do ícone via `size`. */
 function typeBadge(type, size = 14) {
-  const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
+  const meta = typeMeta()[type] || { ...FALLBACK_META, label: type };
   return `<span class="cal-chip" style="--type-color:${meta.color}">${icon(meta.icon, { size })}</span>`;
 }
 
@@ -30,8 +32,9 @@ function typeBadge(type, size = 14) {
 // Aprendizado já usa pra destacar esses dias (ver pages/aprendizado.js).
 // Aqui a gente reaproveita a checagem pra dar um tratamento visual
 // diferenciado (estrelinha âmbar) sem precisar de nada novo no backend.
+// texto gravado no banco (log do marco, em português) — não é texto de tela
 const MILESTONE_PREFIX = "concluiu marco:";
-const MILESTONE_META = { label: "marco", color: "var(--amber)", icon: "star" };
+const milestoneMeta = () => ({ label: t("calendario.marco"), color: "var(--amber)", icon: "star" });
 
 function isMilestoneEvent(e) {
   return e.type === "acao" && typeof e.title === "string" && e.title.startsWith(MILESTONE_PREFIX);
@@ -50,6 +53,9 @@ function isEventoEvent(e) {
   return e.type === "evento";
 }
 
+// I18N: ação do núcleo gravada pelo sistema vem com a chave do texto
+const tituloDoEvento = (e) => (e.type === "acao" ? textoDoRegistro({ ...e, description: e.title }) : e.title);
+
 function eventoRecordId(e) {
   return e.id.split(":")[1] || "";
 }
@@ -67,20 +73,18 @@ function toEventoRecord(e) {
   };
 }
 
-const STATUS_LABELS = {
+const statusLabels = () => ({
   aberta: "aberta",
   pendente: "pendente",
   paga: "paga",
   ativa: "ativa",
-  concluida: "concluída",
-};
+  concluida: t("calendario.concluida"),
+});
 
-const WEEKDAY_LABELS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-const WEEKDAY_LONG_LABELS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
-const MONTH_LABELS = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-];
+// curtos do dicionário (segunda primeiro) reordenados pra domingo primeiro
+const weekdayLabels = () => { const d = diasCurtos(); return [d[6], ...d.slice(0, 6)]; };
+const weekdayLongLabels = () => [0, 1, 2, 3, 4, 5, 6].map(nomeDiaSemana);
+const monthLabels = () => Array.from({ length: 12 }, (_, i) => nomeMes(i));
 
 // ─── estado ──────────────────────────────────────────────────────────────
 let containerEl = null;
@@ -138,7 +142,7 @@ async function loadMonth() {
   } catch (err) {
     if (token !== loadToken) return;
     eventsByDate = new Map();
-    gridEl.innerHTML = `<div class="empty-state">erro ao carregar eventos: ${escapeHtml(err.message)}</div>`;
+    gridEl.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_eventos", { erro: err.message }))}</div>`;
     gridEl.classList.remove("loading");
     renderDayPanel();
     return;
@@ -172,14 +176,14 @@ function handleEditEventoClick(evtRow) {
 
 // ─── ORG-05: lembretes (aba do painel + criar/editar) ─────────────────────
 function rotuloRepeticao(l) {
-  if (l.repeticao === "dias") return l.dias_semana.map((d) => DIAS_CURTOS[d]).join(", ");
-  return REPETICOES.find(([v]) => v === l.repeticao)?.[1] ?? l.repeticao;
+  if (l.repeticao === "dias") return l.dias_semana.map((d) => diasCurtos()[d]).join(", ");
+  return repeticoes().find(([v]) => v === l.repeticao)?.[1] ?? l.repeticao;
 }
 
 function quandoLegivel(iso) {
-  if (!iso) return "encerrado";
+  if (!iso) return t("calendario.encerrado");
   const [dia, hora] = iso.split("T");
-  return `${fmtDataCompacta(dia)} às ${hora}`;
+  return t("calendario.data_hora", { data: fmtDataCompacta(dia), hora });
 }
 
 async function renderLembretes() {
@@ -189,11 +193,11 @@ async function renderLembretes() {
   try {
     lista = await listLembretes();
   } catch (err) {
-    el.innerHTML = `<div class="empty-state">erro ao carregar lembretes: ${escapeHtml(err.message)}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(t("erro.erro_ao_carregar_lembretes", { erro: err.message }))}</div>`;
     return;
   }
   el.innerHTML = `
-    <button type="button" class="btn sm cal-lembrete-novo" data-novo-lembrete>${icon("plus", { size: 12 })}&nbsp;novo lembrete</button>
+    <button type="button" class="btn sm cal-lembrete-novo" data-novo-lembrete>${icon("plus", { size: 12 })}&nbsp;${t("calendario.novo_lembrete")}</button>
     ${lista.length
       ? lista
           .map(
@@ -201,12 +205,12 @@ async function renderLembretes() {
       <button type="button" class="cal-lembrete${l.proxima || l.adiado_para ? "" : " encerrado"}" data-lembrete-id="${l.id}">
         <span class="cal-lembrete-titulo">${escapeHtml(l.titulo)}</span>
         <span class="cal-lembrete-meta">${icon("bell-ring", { size: 10 })} ${escapeHtml(quandoLegivel(l.adiado_para || l.proxima))}${l.adiado_para ? " (adiado)" : ""} · ${escapeHtml(rotuloRepeticao(l))}${
-              l.vinculo ? ` · ${escapeHtml(VINCULO_ROTULO[l.vinculo.tipo] || l.vinculo.tipo)} «${escapeHtml(l.vinculo.nome)}»` : ""
+              l.vinculo ? ` · ${escapeHtml(vinculoRotulo()[l.vinculo.tipo] || l.vinculo.tipo)} «${escapeHtml(l.vinculo.nome)}»` : ""
             }</span>
       </button>`,
           )
           .join("")
-      : `<div class="empty-state">nenhum lembrete — crie um aqui, pelo "lembrar" de uma nota, conta, meta, hábito ou evento, ou com <kbd>Alt</kbd>+<kbd>Q</kbd> e "@ amanhã 9h …".</div>`}`;
+      : `<div class="empty-state">${t("calendario.nenhum_lembrete_crie_um_aqui")} <kbd>Alt</kbd>+<kbd>Q</kbd> ${t("calendario.e_amanha_9h")}</div>`}`;
 }
 
 async function editarLembrete(id) {
@@ -214,7 +218,7 @@ async function editarLembrete(id) {
     const l = (await listLembretes()).find((x) => x.id === id);
     if (l) openLembreteModal({ lembrete: l });
   } catch (err) {
-    showErrorModal(err.message, "lembretes");
+    showErrorModal(err.message, t("calendario.lembretes"));
   }
 }
 
@@ -241,7 +245,7 @@ async function handleEventoDrop(eventoId, newDate) {
   try {
     await rescheduleEvento(eventoId, newDate);
   } catch (err) {
-    showErrorModal(err.message, "erro ao reagendar evento");
+    showErrorModal(err.message, t("calendario.erro_ao_reagendar_evento"));
     return;
   }
   await loadMonth();
@@ -251,7 +255,7 @@ async function handleEventoDrop(eventoId, newDate) {
 function renderGrid() {
   const gridEl = containerEl.querySelector("#cal-grid");
   const labelEl = containerEl.querySelector("#cal-month-label");
-  labelEl.textContent = `${MONTH_LABELS[viewMonth - 1]} ${viewYear}`;
+  labelEl.textContent = `${monthLabels()[viewMonth - 1]} ${viewYear}`;
 
   const today = todayParts();
   const isCurrentMonth = today.year === viewYear && today.month === viewMonth;
@@ -283,26 +287,26 @@ function renderGrid() {
     }
     const chips = [...grouped.entries()]
       .map(([type, evts]) => {
-        const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
-        const tip = evts.length > 1 ? `${meta.label} (${evts.length})` : `${meta.label}: ${evts[0].title}`;
+        const meta = typeMeta()[type] || { ...FALLBACK_META, label: type };
+        const tip = evts.length > 1 ? `${meta.label} (${evts.length})` : `${meta.label}: ${tituloDoEvento(evts[0])}`;
         return `<span class="cal-chip" style="--type-color:${meta.color}" data-tooltip="${escapeHtml(tip)}">${icon(meta.icon, { size: 14 })}</span>`;
       })
       .join("")
       + (milestoneEvts.length
-        ? `<span class="cal-chip milestone" style="--type-color:${MILESTONE_META.color}" data-tooltip="${escapeHtml(
+        ? `<span class="cal-chip milestone" style="--type-color:${milestoneMeta().color}" data-tooltip="${escapeHtml(
             milestoneEvts.length > 1
-              ? `${milestoneEvts.length} marcos concluídos`
-              : `marco concluído: ${milestoneName(milestoneEvts[0])}`
-          )}">${icon(MILESTONE_META.icon, { size: 14 })}</span>`
+              ? t("calendario.marcos_concluidos", { n: milestoneEvts.length })
+              : t("calendario.marco_concluido", { nome: milestoneName(milestoneEvts[0]) })
+          )}">${icon(milestoneMeta().icon, { size: 14 })}</span>`
         : "");
 
     const dow = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
     const isWeekend = dow === 0 || dow === 6;
 
     const dow2 = new Date(Date.UTC(viewYear, viewMonth - 1, day)).getUTCDay();
-    const ariaLabel = `${WEEKDAY_LONG_LABELS[dow2]}, ${day} de ${MONTH_LABELS[viewMonth - 1]}` +
-      (isToday ? " — hoje" : "") +
-      (dayEvents.length ? `, ${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : ", sem eventos");
+    const ariaLabel = t("calendario.dia_aria", { semana: weekdayLongLabels()[dow2], dia: day, mes: monthLabels()[viewMonth - 1] }) +
+      (isToday ? ` — ${t("calendario.hoje")}` : "") +
+      (dayEvents.length ? t("calendario.n_eventos", { n: dayEvents.length }) : t("calendario.sem_eventos"));
     html += `
       <div class="cal-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length ? " has-events" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateStr}"
         role="button" tabindex="-1" aria-label="${escapeHtml(ariaLabel)}"${isToday ? ' aria-current="date"' : ""}>
@@ -441,7 +445,7 @@ function onGridKeydown(e) {
 // ─── render: painel do dia selecionado ──────────────────────────────────
 function fmtSelectedDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return `${d} de ${MONTH_LABELS[m - 1]}`;
+  return t("calendario.data_label", { dia: d, mes: monthLabels()[m - 1] });
 }
 
 function renderDayPanel() {
@@ -450,9 +454,9 @@ function renderDayPanel() {
   const listEl = containerEl.querySelector("#cal-day-events");
 
   if (!selectedDate) {
-    headEl.textContent = "selecione um dia";
+    headEl.textContent = t("calendario.selecione_um_dia");
     filtersEl.innerHTML = "";
-    listEl.innerHTML = `<div class="empty-state">clique em um dia do calendário pra ver os detalhes.</div>`;
+    listEl.innerHTML = `<div class="empty-state">${t("calendario.clique_em_um_dia_do")}</div>`;
     return;
   }
 
@@ -460,14 +464,14 @@ function renderDayPanel() {
   const dayEvents = eventsByDate.get(selectedDate) || [];
   // quem está no teclado tem o foco na grade, não no painel — sem isso não
   // saberia que o painel ao lado mudou de conteúdo até tabular até lá.
-  announce(`${fmtSelectedDateLabel(selectedDate)}: ${dayEvents.length ? `${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : "nenhum evento"}.`);
+  announce(`${fmtSelectedDateLabel(selectedDate)}: ${dayEvents.length ? `${dayEvents.length} evento${dayEvents.length === 1 ? "" : "s"}` : t("calendario.nenhum_evento")}.`);
 
   if (!dayEvents.length) {
     filtersEl.innerHTML = "";
     activeFilters.clear();
     listEl.innerHTML = `
-      <div class="empty-state">nenhum evento nesse dia.</div>
-      <button type="button" class="btn sm cal-day-quick-add" id="cal-day-quick-add">${icon("plus", { size: 11 })}&nbsp;adicionar evento</button>
+      <div class="empty-state">${t("calendario.nenhum_evento_nesse_dia")}</div>
+      <button type="button" class="btn sm cal-day-quick-add" id="cal-day-quick-add">${icon("plus", { size: 11 })}&nbsp;${t("calendario.adicionar_evento")}</button>
     `;
     listEl.querySelector("#cal-day-quick-add").addEventListener("click", handleNewEventClick);
     return;
@@ -485,7 +489,7 @@ function renderDayPanel() {
   if (typesPresent.length > 1) {
     filtersEl.innerHTML = typesPresent
       .map((type) => {
-        const meta = TYPE_META[type] || { ...FALLBACK_META, label: type };
+        const meta = typeMeta()[type] || { ...FALLBACK_META, label: type };
         const isActive = activeFilters.has(type);
         return `<button type="button" class="cal-filter-btn${isActive ? " active" : ""}" data-type="${escapeHtml(type)}">${typeBadge(type, 14)}${escapeHtml(meta.label)}</button>`;
       })
@@ -513,22 +517,22 @@ function renderDayPanel() {
     : dayEvents;
 
   if (!visibleEvents.length) {
-    listEl.innerHTML = `<div class="empty-state">nenhum evento para o filtro selecionado.</div>`;
+    listEl.innerHTML = `<div class="empty-state">${t("calendario.nenhum_evento_para_o_filtro")}</div>`;
     return;
   }
 
   listEl.innerHTML = visibleEvents
     .map((e) => {
       const milestone = isMilestoneEvent(e);
-      const meta = milestone ? MILESTONE_META : (TYPE_META[e.type] || { ...FALLBACK_META, label: e.type });
-      const title = milestone ? milestoneName(e) : e.title;
+      const meta = milestone ? milestoneMeta() : (typeMeta()[e.type] || { ...FALLBACK_META, label: e.type });
+      const title = milestone ? milestoneName(e) : tituloDoEvento(e);
       const statusHtml = e.status
-        ? `<span class="cal-event-status">${escapeHtml(STATUS_LABELS[e.status] || e.status)}</span>`
+        ? `<span class="cal-event-status">${escapeHtml(statusLabels()[e.status] || e.status)}</span>`
         : "";
       const amountHtml = e.amount != null ? `<span class="cal-event-amount">${fmtMoney(e.amount)}</span>` : "";
       const xpHtml = e.xp != null ? `<span class="cal-event-xp">+${e.xp} xp</span>` : "";
       const categoriesHtml = e.categories?.length
-        ? `<div class="cal-event-categories">${e.categories.map((c) => `<span class="cal-event-category-tag">${escapeHtml(c)}</span>`).join("")}</div>`
+        ? `<div class="cal-event-categories">${e.categories.map((c) => `<span class="cal-event-category-tag">${escapeHtml(nomeAtributo(c))}</span>`).join("")}</div>`
         : "";
       const recordId = e.id.split(":")[1] || "";
       const draggableAttr = isEventoEvent(e) ? ` draggable="true" data-evento-id="${escapeHtml(recordId)}"` : "";
@@ -622,10 +626,10 @@ export function preload() {
 
 // ─── legenda ─────────────────────────────────────────────────────────────
 function renderLegend() {
-  const typeItems = Object.entries(TYPE_META)
+  const typeItems = Object.entries(typeMeta())
     .map(([type, m]) => `<span class="cal-legend-item">${typeBadge(type, 14)}${escapeHtml(m.label)}</span>`)
     .join("");
-  const milestoneItem = `<span class="cal-legend-item"><span class="cal-chip milestone" style="--type-color:${MILESTONE_META.color}">${icon(MILESTONE_META.icon, { size: 14 })}</span>${escapeHtml(MILESTONE_META.label)}</span>`;
+  const milestoneItem = `<span class="cal-legend-item"><span class="cal-chip milestone" style="--type-color:${milestoneMeta().color}">${icon(milestoneMeta().icon, { size: 14 })}</span>${escapeHtml(milestoneMeta().label)}</span>`;
   return typeItems + milestoneItem;
 }
 
@@ -638,28 +642,28 @@ export async function mount(container) {
   // handleNewEventClick/goToToday direto, que por sua vez buscam os
   // elementos quando rodam, não agora), então não precisa de `when`.
   shortcutsToken = registerScreenShortcuts({
-    name: "calendário",
+    name: t("calendario.calendario"),
     actions: [
       // "N" de "novo", mesma tecla de "nova trilha"/"novo widget" nas
       // outras telas (aprendizado.js, dashboard.js).
-      { code: "KeyN", label: "novo evento", run: () => handleNewEventClick() },
+      { code: "KeyN", label: t("calendario.novo_evento"), run: () => handleNewEventClick() },
       // "T" de "today/hoje" — pula pro mês/dia atual sem PageUp/PageDown repetido.
-      { code: "KeyT", label: "ir para hoje", run: () => goToToday() },
+      { code: "KeyT", label: t("calendario.ir_para_hoje"), run: () => goToToday() },
       // ORG-05: "L" de lembrete
-      { code: "KeyL", label: "novo lembrete", run: () => novoLembrete() },
+      { code: "KeyL", label: t("calendario.novo_lembrete"), run: () => novoLembrete() },
     ],
     hints: [
-      { combos: [["←"], ["→"], ["↑"], ["↓"]], label: "na grade: mover o cursor entre os dias" },
-      { combos: [["Home"], ["End"]], label: "na grade: ir ao primeiro/último dia da semana" },
-      { combos: [["Page Up"], ["Page Down"]], label: "na grade: mês anterior/próximo" },
-      { combos: [["Enter"], ["Espaço"]], label: "na grade: selecionar o dia focado" },
+      { combos: [["←"], ["→"], ["↑"], ["↓"]], label: t("calendario.na_grade_mover_o_cursor") },
+      { combos: [["Home"], ["End"]], label: t("calendario.na_grade_ir_ao_primeiro") },
+      { combos: [[t("calendario.page_up")], [t("calendario.page_down")]], label: t("calendario.na_grade_mes_anterior_proximo") },
+      { combos: [["Enter"], [t("calendario.espaco")]], label: t("calendario.na_grade_selecionar_o_dia") },
     ],
   });
 
-  const t = todayParts();
-  viewYear = t.year;
-  viewMonth = t.month;
-  selectedDate = `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+  const hoje = todayParts();
+  viewYear = hoje.year;
+  viewMonth = hoje.month;
+  selectedDate = `${hoje.year}-${pad2(hoje.month)}-${pad2(hoje.day)}`;
   // ORG-03: evento escolhido na busca (Ctrl+K) — abre no mês/dia dele
   const dataPedida = consumePendingFocus("data");
   if (/^\d{4}-\d{2}-\d{2}$/.test(dataPedida || "")) {
@@ -673,32 +677,32 @@ export async function mount(container) {
   container.innerHTML = `
     <div class="cal-toolbar">
       <div class="cal-nav">
-        <button type="button" class="btn icon-btn-square" id="cal-prev" data-tooltip="mês anterior">${icon("arrow-left", { size: 13 })}</button>
+        <button type="button" class="btn icon-btn-square" id="cal-prev" data-tooltip="${t("calendario.mes_anterior")}">${icon("arrow-left", { size: 13 })}</button>
         <div class="cal-month-label" id="cal-month-label"></div>
-        <button type="button" class="btn icon-btn-square" id="cal-next" data-tooltip="próximo mês">${icon("arrow-right", { size: 13 })}</button>
+        <button type="button" class="btn icon-btn-square" id="cal-next" data-tooltip="${t("calendario.proximo_mes")}">${icon("arrow-right", { size: 13 })}</button>
       </div>
       <div class="cal-toolbar-actions">
-        <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;novo evento</button>
-        <button type="button" class="btn sm" id="cal-new-lembrete-btn">${icon("bell-ring", { size: 12 })}&nbsp;novo lembrete</button>
-        <button type="button" class="btn sm" id="cal-today-btn">hoje</button>
+        <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;${t("calendario.novo_evento")}</button>
+        <button type="button" class="btn sm" id="cal-new-lembrete-btn">${icon("bell-ring", { size: 12 })}&nbsp;${t("calendario.novo_lembrete")}</button>
+        <button type="button" class="btn sm" id="cal-today-btn">${t("calendario.hoje")}</button>
       </div>
     </div>
 
     <div class="cal-body">
       <div class="cal-grid-wrap">
         <div class="cal-weekdays">
-          ${WEEKDAY_LABELS.map((w) => `<div>${w}</div>`).join("")}
+          ${weekdayLabels().map((w) => `<div>${w}</div>`).join("")}
         </div>
         <div class="cal-grid" id="cal-grid"></div>
       </div>
 
       <div class="cal-day-panel">
         <div class="tabs cal-painel-abas">
-          <div class="tab on" data-painel="dia">dia</div>
-          <div class="tab" data-painel="lembretes">lembretes</div>
+          <div class="tab on" data-painel="dia">${t("calendario.dia")}</div>
+          <div class="tab" data-painel="lembretes">${t("calendario.lembretes")}</div>
         </div>
         <div id="cal-painel-dia">
-          <div class="card-head" id="cal-day-panel-head">selecione um dia</div>
+          <div class="card-head" id="cal-day-panel-head">${t("calendario.selecione_um_dia")}</div>
           <div class="cal-day-filters" id="cal-day-filters"></div>
           <div class="cal-day-events" id="cal-day-events"></div>
         </div>

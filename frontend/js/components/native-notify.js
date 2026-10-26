@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 /**
  * Ponte pra notificação nativa do SO via plugin oficial do Tauri
  * (@tauri-apps/plugin-notification). Mesma filosofia de titlebar.js:
@@ -75,11 +76,6 @@ const COLUNA_POR_TIPO = {
   vencimentos: "notif_fora_vencimentos",
   eventos: "notif_fora_eventos",
 };
-const TEXTO_OCULTO = {
-  lembretes: "você tem um lembrete — abra o kami pra ver",
-  vencimentos: "tem coisa vencendo — abra o kami pra ver",
-  eventos: "você tem um evento — abra o kami pra ver",
-};
 
 /**
  * Notificação do sistema conforme as preferências do perfil.
@@ -90,7 +86,7 @@ const TEXTO_OCULTO = {
 export function notificarFora(tipo, { title, body = "" }, perfil) {
   if (perfil && perfil[COLUNA_POR_TIPO[tipo]] === false) return Promise.resolve(false);
   if (perfil?.notif_ocultar_texto) {
-    return sendNativeNotification({ title: "kami", body: TEXTO_OCULTO[tipo] });
+    return sendNativeNotification({ title: "kami", body: t(`native_notify.oculto.${tipo}`) });
   }
   return sendNativeNotification({ title, body });
 }

@@ -1,6 +1,8 @@
 import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual, t } from "../i18n.js";
+import { fmtMoeda } from "../components/format.js";
 
 /**
  * Modal "marcar como paga/pago" — usado por widgets/contas-fixas.js e
@@ -23,7 +25,7 @@ let resolveCb = null;
 let currentConta = null;
 
 function brl(v) {
-  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return fmtMoeda(v);
 }
 
 function buildModal() {
@@ -32,23 +34,23 @@ function buildModal() {
   wrap.id = "pay-period-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">marcar como paga</span> <button type="button" class="close" data-action="cancel" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("pay_period.marcar_como_paga")}</span> <button type="button" class="close" data-action="cancel" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="ppm-valor">valor pago</label><input type="number" id="ppm-valor" placeholder="0.00"></div>
+        <div class="field"><label for="ppm-valor">${t("pay_period.valor_pago")}</label><input type="number" id="ppm-valor" placeholder="0.00"></div>
         <p class="ppm-conta-info" id="ppm-conta-info"></p>
         <label class="account-flag" id="ppm-gerar-wrap">
-          <input type="checkbox" id="ppm-gerar" checked> descontar automaticamente da conta
+          <input type="checkbox" id="ppm-gerar" checked> ${t("pay_period.descontar_automaticamente_da_conta")}
         </label>
         <div class="field" id="ppm-forma-field" style="display:none;">
-          <label for="ppm-forma">forma de pagamento</label>
+          <label for="ppm-forma">${t("pay_period.forma_de_pagamento")}</label>
           <select id="ppm-forma">
-            <option value="saldo">saldo</option>
-            <option value="credito">crédito</option>
+            <option value="saldo">${t("pay_period.saldo")}</option>
+            <option value="credito">${t("pay_period.credito")}</option>
           </select>
         </div>
         <div class="form-actions">
-          <button class="btn sm" data-action="cancel">cancelar</button>
-          <button class="btn sm primary" data-action="confirm">confirmar</button>
+          <button class="btn sm" data-action="cancel">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="confirm">${t("geral.confirmar")}</button>
         </div>
       </div>
     </div>
@@ -96,15 +98,15 @@ function wireModal(wrap) {
  */
 export function openPayPeriodModal({ nome, valorEsperado, conta }) {
   if (!conta) {
-    showErrorModal("essa conta fixa/assinatura não tem conta vinculada.", "erro interno");
+    showErrorModal(t("pay_period.essa_conta_fixa_assinatura_nao"), t("pay_period.erro_interno"));
     return Promise.resolve(null);
   }
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   currentConta = conta;
 
-  modalEl.querySelector(".modal-head-title").textContent = `marcar "${nome}" como paga`;
+  modalEl.querySelector(".modal-head-title").textContent = t("pagar.titulo", { nome });
   modalEl.querySelector("#ppm-valor").value = valorEsperado ?? "";
-  modalEl.querySelector("#ppm-conta-info").textContent = `descontado de: ${conta.bankNome} — ${conta.nome}`;
+  modalEl.querySelector("#ppm-conta-info").textContent = t("pay_period.descontado_de", { banco: conta.bankNome, conta: conta.nome });
   modalEl.querySelector("#ppm-gerar").checked = true;
   modalEl.querySelector("#ppm-forma").value = conta.possui_credito ? "credito" : "saldo";
   updateVisibility(modalEl);

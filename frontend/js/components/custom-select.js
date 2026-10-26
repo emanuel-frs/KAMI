@@ -280,6 +280,27 @@ function commitActive(ui, select, opts) {
   render(select, opts);
 }
 
+/** Digitar com a lista aberta pula pra primeira opção que começa com o
+ *  que foi digitado (como o <select> nativo) — listas longas, tipo moeda
+ *  e país (I18N-06). As letras somam por 700 ms; sem acento e caixa. */
+const semAcento = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function typeahead(ui, letra) {
+  clearTimeout(ui.buscaTimer);
+  ui.busca = (ui.busca || "") + semAcento(letra);
+  ui.buscaTimer = setTimeout(() => (ui.busca = ""), 700);
+  const items = ui.itemEls;
+  const n = items.length;
+  // mesma letra de novo: anda pras próximas que começam com ela
+  const inicio = ui.busca.length === 1 ? ui.activeIndex + 1 : ui.activeIndex;
+  for (let k = 0; k < n; k++) {
+    const i = (Math.max(inicio, 0) + k) % n;
+    if (!items[i].classList.contains("disabled") && semAcento(items[i].textContent.trim()).startsWith(ui.busca)) {
+      highlightIndex(ui, i);
+      return;
+    }
+  }
+}
+
 /** Navegação por teclado no trigger. O <button> nativo já dispara "click"
  *  sozinho em Enter/Espaço — deixamos isso abrir a lista quando fechada
  *  (mesmo handler do clique do mouse) e só interceptamos aqui pra
@@ -330,6 +351,11 @@ function onTriggerKeydown(e, ui, select, opts) {
       }
       break;
     default:
+      if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        if (!isOpen) openUi(ui);
+        typeahead(ui, e.key);
+      }
       break;
   }
 }

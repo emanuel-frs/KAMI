@@ -25,7 +25,7 @@ Ver app/crypto.py pro funcionamento do cofre e app/pin.py pro PIN.
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from typing import Optional
@@ -33,6 +33,7 @@ from typing import Optional
 from app import backup_auto, crypto, pin
 from app.database import get_db, now_iso
 from app.limites import Entrada
+from app.mensagens import ErroKami, erro_de
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +63,11 @@ def get_chave(db=Depends(get_db)):
 @router.post("/chave/redefinir")
 def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     if payload.confirmation != REDEFINIR_CONFIRMATION_WORD:
-        raise HTTPException(
-            status_code=422,
-            detail=f"confirmação inválida; envie confirmation='{REDEFINIR_CONFIRMATION_WORD}' pra prosseguir",
+        raise ErroKami(
+            422,
+            "erro.seguranca.confirmacao_invalida_envie_confirmation_redefinir",
+            "confirmação inválida; envie confirmation='{redefinir_confirmation_word}' pra prosseguir",
+            redefinir_confirmation_word=REDEFINIR_CONFIRMATION_WORD,
         )
     apagados = _segredos_salvos(db)
     backup_auto.copia_antes_de(db, "redefinir-chave")  # CONF-08
@@ -114,8 +117,8 @@ class InatividadeIn(Entrada):
 
 def _erro_de_pin(exc: Exception):
     if isinstance(exc, pin.Esperando):
-        return HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": str(exc.segundos)})
-    return HTTPException(status_code=422, detail=str(exc))
+        return erro_de(exc, 429, headers={"Retry-After": str(exc.segundos)})
+    return erro_de(exc, 422)
 
 
 @router.get("/pin")
@@ -171,7 +174,7 @@ def recuperar_pin(payload: RecuperarPinIn):
     try:
         codigo = pin.recuperar(payload.codigo, payload.pin_novo)
     except pin.PinErrado as exc:
-        raise HTTPException(status_code=422, detail="código de recuperação errado") from exc
+        raise ErroKami(422, "erro.seguranca.codigo_recuperacao_errado", "código de recuperação errado") from exc
     except (ValueError, pin.Esperando) as exc:
         raise _erro_de_pin(exc) from exc
     logger.warning("PIN redefinido pelo código de recuperação")

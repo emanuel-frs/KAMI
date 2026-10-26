@@ -145,17 +145,24 @@ _PT_MESSAGES = {
 @app.exception_handler(RequestValidationError)
 def validation_exception_handler(request, exc):
     errors = []
+    # I18N-06: cada erro também com a chave (erro.validacao.<tipo>) e as
+    # variáveis, pro app mostrar no idioma da pessoa; `detail` segue em pt
+    traduziveis = []
     for e in exc.errors():
         field = ".".join(str(p) for p in e["loc"] if p != "body")
         err_type = e.get("type", "")
-        ctx = e.get("ctx", {})
+        ctx = {k: v for k, v in (e.get("ctx") or {}).items() if isinstance(v, (str, int, float))}
         template = _PT_MESSAGES.get(err_type)
         if template:
             msg = f"{field}: {template.format(**ctx)}" if ctx else f"{field}: {template}"
+            traduziveis.append({"campo": field, "chave": f"erro.validacao.{err_type}", "vars": ctx})
         else:
             msg = f"{field}: {e.get('msg', 'valor inválido')}"
         errors.append(msg)
-    return JSONResponse(status_code=422, content={"detail": "; ".join(errors), "codigo": "validacao"})
+    corpo = {"detail": "; ".join(errors), "codigo": "validacao"}
+    if len(traduziveis) == len(errors):
+        corpo["erros"] = traduziveis
+    return JSONResponse(status_code=422, content=corpo)
 
 
 # formato único de erro (CONF-01, ver app/erros.py): HTTPException das

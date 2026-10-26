@@ -3,6 +3,7 @@ import { showToast } from "./toast.js";
 import { copyText } from "./clipboard.js";
 import { watchdogHandlesConnection } from "./backend-watchdog.js";
 import { estaNoDocumento } from "./no-documento.js";
+import { t } from "../i18n.js";
 
 /**
  * Aviso de erro global (CONF-01) — nenhum erro sem aviso.
@@ -50,6 +51,9 @@ export function setTelaAtual(name) {
   telaAtual = name || "";
 }
 
+/** A tela aberta agora — pra quem espera algo assíncrono conferir que ainda está nela. */
+export const getTelaAtual = () => telaAtual;
+
 /**
  * Pra err-modal.js: o toast de erro já mostrou exatamente esta mensagem
  * agora há pouco? (aí o modal não abre por cima com o mesmo texto)
@@ -80,7 +84,8 @@ async function appVersion() {
   }
 }
 
-/** Texto do "copiar detalhes" — pra colar num relato de problema. Sem dado do usuário. */
+/** Texto do "copiar detalhes" — pra colar num relato de problema. Sem dado do
+ * usuário; fica em português (quem lê é quem mantém o kami). */
 export async function buildDetails({ method, path, status, codigo, errorId, message }) {
   const lines = [
     `Kami v${await appVersion()} — ${stamp()}`,
@@ -108,8 +113,8 @@ function noticeKey({ codigo, method, path, status }) {
 }
 
 function titleFor({ status, method }) {
-  if (status === 0) return "sem conexão com o backend do kami";
-  return method === "GET" ? "algo deu errado ao carregar" : "algo deu errado ao salvar";
+  if (status === 0) return t("error_notice.sem_conexao_com_o_backend");
+  return method === "GET" ? t("error_notice.algo_deu_errado_ao_carregar") : t("error_notice.algo_deu_errado_ao_salvar");
 }
 
 function onApiError(e) {
@@ -130,17 +135,17 @@ function onApiError(e) {
     title: titleFor(detail),
     message:
       detail.status === 0
-        ? "o app não está conseguindo falar com o backend. se continuar, feche e abra o kami de novo."
+        ? t("error_notice.o_app_nao_esta_conseguindo")
         : detail.message,
     duration: 0,
     actions: [
       {
-        label: "copiar detalhes",
+        label: t("error_notice.copiar_detalhes"),
         onClick(btn) {
           buildDetails(detail)
             .then(copyText)
             .then((ok) => {
-              btn.textContent = ok ? "copiado ✓" : "não deu pra copiar";
+              btn.textContent = ok ? `${t("geral.copiado")} ✓` : t("error_notice.nao_deu_pra_copiar");
             });
         },
       },
@@ -182,8 +187,8 @@ function reportScriptError({ tipo, mensagem, origem, linha, coluna, pilha }) {
   showToast({
     variant: "erro",
     iconName: "x",
-    title: "algo deu errado nesta tela",
-    message: "o erro foi registrado no log do kami. se algo não funcionar, troque de tela e volte.",
+    title: t("error_notice.algo_deu_errado_nesta_tela"),
+    message: t("error_notice.o_erro_foi_registrado_no"),
     duration: 0,
   });
 }
@@ -206,7 +211,7 @@ function onUnhandledRejection(e) {
     // inesperado → já virou toast pelo kami:api-error. Esperado (4xx)
     // que ninguém tratou: pelo menos aparece, em vez de sumir
     if (!reason.inesperado && !isRepeat(`toast:4xx:${reason.message}`)) {
-      showToast({ variant: "erro", iconName: "x", title: "não deu certo", message: reason.message, duration: 0 });
+      showToast({ variant: "erro", iconName: "x", title: t("error_notice.nao_deu_certo"), message: reason.message, duration: 0 });
     }
     return;
   }

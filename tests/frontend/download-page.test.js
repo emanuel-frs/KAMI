@@ -5,12 +5,13 @@ import { JSDOM } from "jsdom";
 
 const htmlUrl = new URL("../../docs/index.html", import.meta.url);
 
-async function openPage(platform, fetchImpl) {
+async function openPage(platform, fetchImpl, languages = ["pt-BR"]) {
   const html = await readFile(htmlUrl, "utf8");
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
     beforeParse(window) {
       Object.defineProperty(window.navigator, "platform", { value: platform });
+      Object.defineProperty(window.navigator, "languages", { value: languages });
       window.fetch = fetchImpl;
     },
   });
@@ -104,4 +105,32 @@ test("página de download apresenta o instalador Windows", async (t) => {
   const link = dom.window.document.querySelector("#downloads a");
   assert.equal(link.textContent, "Baixar para Windows (.exe)");
   assert.equal(link.href, "https://example.test/kami-setup.exe");
+});
+
+
+// I18N-05: resumo no idioma do navegador (os 10 do app; fora deles, português)
+test("página de download fala o idioma do navegador e aponta o guia em inglês", async (t) => {
+  const dom = await openPage("Win32", async () => ({
+    ok: true,
+    json: async () => ({
+      tag_name: "v1.15.0",
+      assets: [{ name: "kami-1.15.0-windows-x64-setup.exe", browser_download_url: "https://example.test/kami.exe" }],
+    }),
+  }), ["de-AT", "en"]);
+  t.after(() => dom.window.close());
+  const doc = dom.window.document;
+  assert.equal(doc.documentElement.lang, "de");
+  assert.equal(doc.querySelector("h1").textContent, "Kami herunterladen");
+  assert.match(doc.querySelector("#status").textContent, /Neueste Version: v1\.15\.0/);
+  assert.equal(doc.querySelector("#downloads a").textContent, "Für Windows herunterladen (.exe)");
+  assert.match(doc.querySelector("#instrucoes").href, /INSTALACAO\.en\.md$/);
+});
+
+test("página de download em idioma fora dos 10 fica em português", async (t) => {
+  const dom = await openPage("Linux x86_64", async () => {
+    throw new Error("offline");
+  }, ["ru-RU"]);
+  t.after(() => dom.window.close());
+  assert.equal(dom.window.document.querySelector("h1").textContent, "Baixar Kami");
+  assert.match(dom.window.document.querySelector("#instrucoes").href, /INSTALACAO\.md$/);
 });

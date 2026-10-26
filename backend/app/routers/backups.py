@@ -18,12 +18,13 @@ Endpoints:
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app import backup_auto
 from app.database import get_connection, get_db
 from app.limites import Entrada
+from app.mensagens import ErroKami, erro_de
 
 router = APIRouter()
 
@@ -87,22 +88,24 @@ def definir_pasta_extra(payload: PastaExtraIn, db=Depends(get_db)):
     try:
         backup_auto.definir_pasta_extra(db, payload.pasta)
     except backup_auto.PastaInvalida as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise erro_de(exc, 422) from exc
     return backup_auto.status(db)
 
 
 @router.post("/restaurar", response_model=BackupsOut)
 def restaurar(payload: RestaurarIn, db=Depends(get_db)):
     if payload.confirmation != RESTAURAR_CONFIRMATION_WORD:
-        raise HTTPException(
-            status_code=422,
-            detail=f"confirmação inválida; envie confirmation='{RESTAURAR_CONFIRMATION_WORD}' pra prosseguir",
+        raise ErroKami(
+            422,
+            "erro.confirmacao_invalida",
+            "confirmação inválida; envie confirmation='{palavra}' pra prosseguir",
+            palavra=RESTAURAR_CONFIRMATION_WORD,
         )
     db.close()  # a restauração abre as próprias conexões
     try:
         backup_auto.restaurar(payload.nome)
     except backup_auto.CopiaDesconhecida as exc:
-        raise HTTPException(status_code=404, detail="essa cópia não existe na pasta de backups") from exc
+        raise ErroKami(404, "erro.backups.copia_inexistente", "essa cópia não existe na pasta de backups") from exc
     conn = get_connection()
     try:
         return backup_auto.status(conn)

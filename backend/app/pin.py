@@ -36,6 +36,7 @@ import time
 
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from app.mensagens import Texto
 from app.paths import get_data_dir
 
 PIN_PATH = get_data_dir() / "pin.json"
@@ -71,7 +72,7 @@ class PinErrado(ValueError):
 
 class Esperando(Exception):
     def __init__(self, segundos: int):
-        super().__init__(f"muitas tentativas erradas — espere {segundos} s")
+        super().__init__(Texto("erro.pin.esperando", "muitas tentativas erradas — espere {segundos} s", segundos=segundos))
         self.segundos = segundos
 
 
@@ -139,7 +140,7 @@ def estado() -> dict:
 
 def validar_pin(pin: str) -> None:
     if not isinstance(pin, str) or not PIN_RE.match(pin):
-        raise ValueError("o PIN tem de 4 a 8 dígitos (só números)")
+        raise ValueError(Texto("erro.pin.tamanho_numeros", "o PIN tem de 4 a 8 dígitos (só números)"))
 
 
 def novo_codigo_recuperacao() -> str:
@@ -168,7 +169,7 @@ def _tentativa(dados: dict, conferir) -> None:
     if excesso >= 0:
         dados["espera_ate"] = time.time() + min(ESPERA_INICIAL_S * 2**excesso, ESPERA_MAX_S)
     _gravar(dados)
-    raise PinErrado("PIN errado")
+    raise PinErrado(Texto("erro.pin.errado", "PIN errado"))
 
 
 # ── ações ──────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ def ativar(pin: str) -> str:
     codigo = novo_codigo_recuperacao()
     with _lock:
         if ativo():
-            raise ValueError("o PIN já está ligado")
+            raise ValueError(Texto("erro.pin.ja_ligado", "o PIN já está ligado"))
         _gravar({"versao": 1, "pin": _hash(pin), "recuperacao": _hash(normalizar_codigo(codigo)),
                  "inatividade_min": None, "erros": 0})
         _desbloqueado = True  # quem ligou está usando o app agora
@@ -206,7 +207,7 @@ def conferir(pin: str) -> None:
     with _lock:
         dados = _ler()
         if dados is None:
-            raise ValueError("o PIN não está ligado")
+            raise ValueError(Texto("erro.pin.desligado", "o PIN não está ligado"))
         _tentativa(dados, lambda: isinstance(pin, str) and _confere(pin, dados["pin"]))
 
 
@@ -226,7 +227,7 @@ def trocar(pin_atual: str, pin_novo: str) -> None:
     with _lock:
         dados = _ler()
         if dados is None:
-            raise ValueError("o PIN não está ligado")
+            raise ValueError(Texto("erro.pin.desligado", "o PIN não está ligado"))
         _exigir_pin_atual(dados, pin_atual)
         dados["pin"] = _hash(pin_novo)
         _gravar(dados)
@@ -250,7 +251,7 @@ def recuperar(codigo: str, pin_novo: str) -> str:
     with _lock:
         dados = _ler()
         if dados is None:
-            raise ValueError("o PIN não está ligado")
+            raise ValueError(Texto("erro.pin.desligado", "o PIN não está ligado"))
         _tentativa(dados, lambda: _confere(normalizar_codigo(codigo), dados["recuperacao"]))
         novo = novo_codigo_recuperacao()
         dados["pin"] = _hash(pin_novo)
@@ -262,11 +263,11 @@ def recuperar(codigo: str, pin_novo: str) -> str:
 
 def definir_inatividade(minutos: int | None) -> None:
     if minutos is not None and minutos not in INATIVIDADE_OPCOES:
-        raise ValueError(f"tempo de inatividade inválido (use {', '.join(map(str, INATIVIDADE_OPCOES))} ou desligado)")
+        raise ValueError(Texto("erro.pin.inatividade", "tempo de inatividade inválido (use {opcoes} ou desligado)", opcoes=", ".join(map(str, INATIVIDADE_OPCOES))))
     with _lock:
         dados = _ler()
         if dados is None:
-            raise ValueError("o PIN não está ligado")
+            raise ValueError(Texto("erro.pin.desligado", "o PIN não está ligado"))
         dados["inatividade_min"] = minutos
         _gravar(dados)
 

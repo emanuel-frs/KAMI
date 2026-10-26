@@ -3,6 +3,7 @@ import { escapeHtml } from "../components/format.js";
 import * as carteiraApi from "../api/carteira.js";
 import { showErrorModal } from "./err-modal.js";
 import { icon } from "../components/icons.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova conta" / "editar conta" (decisão 18 — modais são o padrão
@@ -33,28 +34,28 @@ function buildModal() {
   wrap.id = "account-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova conta</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("conta.nova_conta")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field" id="am-bank-field">
-          <label>banco</label>
+          <label>${t("conta.banco")}</label>
           <div class="bank-pick-list" id="am-bank-pick-list"></div>
         </div>
         <div class="field" id="am-bank-readonly" style="display:none;">
-          <label>banco</label>
+          <label>${t("conta.banco")}</label>
           <div class="am-bank-readonly-value"></div>
         </div>
         <div class="bank-new-fields" id="am-bank-new-fields">
           <div class="field">
-            <label for="am-nb-name">nome do banco</label>
-            <input type="text" id="am-nb-name" placeholder="ex: inter, c6, will bank...">
+            <label for="am-nb-name">${t("conta.nome_do_banco")}</label>
+            <input type="text" id="am-nb-name" placeholder="${t("conta.ex_inter_c6_will_bank")}">
           </div>
           <div class="field">
-            <label for="am-nb-file">imagem / logo (vira ícone em ascii)</label>
+            <label for="am-nb-file">${t("conta.imagem_logo_vira_icone_em")}</label>
             <div class="al-drop" id="am-nb-drop">
-              <div class="al-preview" id="am-nb-preview"><span class="ph">sem<br>imagem</span></div>
+              <div class="al-preview" id="am-nb-preview"><span class="ph">${t("conta.sem")}<br>${t("conta.imagem")}</span></div>
               <div style="flex:1; min-width:0;">
                 <input type="file" id="am-nb-file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp" style="width:100%; font-size:10.5px; color:var(--text-dim);">
-                <div class="al-hint">arraste uma imagem ou clique pra escolher. convertida localmente pra ascii.</div>
+                <div class="al-hint">${t("conta.arraste_uma_imagem_ou_clique")}</div>
               </div>
             </div>
           </div>
@@ -62,29 +63,29 @@ function buildModal() {
 
         <hr class="rule">
         <div class="field">
-          <label for="am-na-name">nome da conta</label>
-          <input type="text" id="am-na-name" placeholder="ex: conta corrente, cartão físico...">
+          <label for="am-na-name">${t("conta.nome_da_conta")}</label>
+          <input type="text" id="am-na-name" placeholder="${t("conta.ex_conta_corrente_cartao_fisico")}">
         </div>
 
         <div class="account-flags">
-          <label class="account-flag"><input type="checkbox" id="am-na-possui-saldo"> possui saldo</label>
-          <label class="account-flag"><input type="checkbox" id="am-na-possui-credito"> possui crédito</label>
+          <label class="account-flag"><input type="checkbox" id="am-na-possui-saldo"> ${t("conta.possui_saldo")}</label>
+          <label class="account-flag"><input type="checkbox" id="am-na-possui-credito"> ${t("conta.possui_credito")}</label>
         </div>
 
         <div class="account-saldo-fields" id="am-account-saldo-fields">
-          <div class="field"><label for="am-na-saldo">saldo atual</label><input type="number" id="am-na-saldo" placeholder="0"></div>
+          <div class="field"><label for="am-na-saldo">${t("conta.saldo_atual")}</label><input type="number" id="am-na-saldo" placeholder="0"></div>
         </div>
         <div class="account-credito-fields" id="am-account-credito-fields">
           <div class="field-row">
-            <div class="field"><label for="am-na-fatura">fatura atual</label><input type="number" id="am-na-fatura" placeholder="0"></div>
-            <div class="field"><label for="am-na-limite">limite total</label><input type="number" id="am-na-limite" placeholder="1000"></div>
+            <div class="field"><label for="am-na-fatura">${t("conta.fatura_atual")}</label><input type="number" id="am-na-fatura" placeholder="0"></div>
+            <div class="field"><label for="am-na-limite">${t("conta.limite_total")}</label><input type="number" id="am-na-limite" placeholder="1000"></div>
           </div>
-          <div class="field"><label for="am-na-venc">dia de vencimento</label><input type="number" id="am-na-venc" min="1" max="31" placeholder="10"></div>
+          <div class="field"><label for="am-na-venc">${t("conta.dia_de_vencimento")}</label><input type="number" id="am-na-venc" min="1" max="31" placeholder="10"></div>
         </div>
 
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar conta</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("conta.adicionar_conta")}</button>
         </div>
       </div>
     </div>
@@ -110,7 +111,7 @@ function renderBankPickList(wrap, banks) {
     const on = pendingBankId === b.id && !pendingBankIsNew ? " on" : "";
     return `<div class="bank-pick-item${on}" data-pick-bank="${b.id}"><span class="bp-icon">${iconInner}</span><span>${escapeHtml(b.nome)}</span></div>`;
   }).join("");
-  const newBtn = `<div class="bank-pick-item new-toggle${pendingBankIsNew ? " on" : ""}" data-pick-new-bank>+ novo banco</div>`;
+  const newBtn = `<div class="bank-pick-item new-toggle${pendingBankIsNew ? " on" : ""}" data-pick-new-bank>${t("conta.novo_banco")}</div>`;
   list.innerHTML = existing + newBtn;
   wrap.querySelector("#am-bank-new-fields").classList.toggle("show", pendingBankIsNew);
 
@@ -150,13 +151,13 @@ function loadBankIconFile(wrap, file) {
       pre.textContent = ascii;
       fitAsciiText(pre, ascii, { container: prev, maxHeight: 36, maxFont: 6, minFont: 0.35, paddingX: 4, paddingY: 4 });
     },
-    onInvalid: () => showErrorModal("não consegui abrir esse arquivo como imagem — tente outro.", "atenção"),
+    onInvalid: () => showErrorModal(t("conta.nao_consegui_abrir_esse_arquivo"), t("geral.atencao")),
   });
 }
 
 async function submitAccount(wrap) {
   const nome = wrap.querySelector("#am-na-name").value.trim();
-  if (!nome) { showErrorModal("dá um nome pra conta.", "atenção"); return; }
+  if (!nome) { showErrorModal(t("conta.da_um_nome_pra_conta"), t("geral.atencao")); return; }
 
   const possuiSaldo = wrap.querySelector("#am-na-possui-saldo").checked;
   const possuiCredito = wrap.querySelector("#am-na-possui-credito").checked;
@@ -174,7 +175,7 @@ async function submitAccount(wrap) {
     try {
       await carteiraApi.updateAccount(editingAccount.id, payload);
     } catch (err) {
-      showErrorModal(err.message, "erro ao salvar conta");
+      showErrorModal(err.message, t("conta.erro_ao_salvar_conta"));
       return;
     }
     closeContaModal();
@@ -185,21 +186,21 @@ async function submitAccount(wrap) {
   let bankId = pendingBankId;
   if (pendingBankIsNew) {
     const bankNome = wrap.querySelector("#am-nb-name").value.trim();
-    if (!bankNome) { showErrorModal("dá um nome pro banco.", "atenção"); return; }
+    if (!bankNome) { showErrorModal(t("conta.da_um_nome_pro_banco"), t("geral.atencao")); return; }
     try {
       const bank = await carteiraApi.createBank({ nome: bankNome, icon_ascii: pendingIconAscii });
       bankId = bank.id;
     } catch (err) {
-      showErrorModal(err.message, "erro ao criar banco");
+      showErrorModal(err.message, t("conta.erro_ao_criar_banco"));
       return;
     }
   }
-  if (!bankId) { showErrorModal("escolhe um banco.", "atenção"); return; }
+  if (!bankId) { showErrorModal(t("conta.escolhe_um_banco"), t("geral.atencao")); return; }
 
   try {
     await carteiraApi.createAccount(bankId, payload);
   } catch (err) {
-    showErrorModal(err.message, "erro ao criar conta");
+    showErrorModal(err.message, t("conta.erro_ao_criar_conta"));
     return;
   }
   closeContaModal();
@@ -231,7 +232,7 @@ function wireModal(wrap) {
  *   exibição (o banco da conta não é editável por aqui).
  */
 export function openContaModal({ banks, account = null, bankName = "", onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   pendingIconAscii = null;
   editingAccount = account || null;
@@ -242,16 +243,16 @@ export function openContaModal({ banks, account = null, bankName = "", onSaved }
   const saveBtn = modalEl.querySelector('[data-action="save"]');
 
   if (editingAccount) {
-    titleEl.textContent = "editar conta";
-    saveBtn.textContent = "salvar alterações";
+    titleEl.textContent = t("conta.editar_conta");
+    saveBtn.textContent = t("conta.salvar_alteracoes");
     bankField.style.display = "none";
     bankReadonly.style.display = "block";
     bankReadonly.querySelector(".am-bank-readonly-value").textContent = bankName || "—";
     pendingBankId = null;
     pendingBankIsNew = false;
   } else {
-    titleEl.textContent = "nova conta";
-    saveBtn.textContent = "+ adicionar conta";
+    titleEl.textContent = t("conta.nova_conta");
+    saveBtn.textContent = t("conta.adicionar_conta");
     bankField.style.display = "";
     bankReadonly.style.display = "none";
     pendingBankId = banks?.length ? banks[0].id : null;
@@ -260,7 +261,7 @@ export function openContaModal({ banks, account = null, bankName = "", onSaved }
 
   modalEl.querySelector("#am-nb-name").value = "";
   modalEl.querySelector("#am-nb-file").value = "";
-  modalEl.querySelector("#am-nb-preview").innerHTML = '<span class="ph">sem<br>imagem</span>';
+  modalEl.querySelector("#am-nb-preview").innerHTML = `<span class="ph">${t("conta.sem")}<br>${t("conta.imagem")}</span>`;
   modalEl.querySelector("#am-na-name").value = editingAccount?.nome || "";
   modalEl.querySelector("#am-na-possui-saldo").checked = editingAccount?.possui_saldo || false;
   modalEl.querySelector("#am-na-possui-credito").checked = editingAccount?.possui_credito || false;

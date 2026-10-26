@@ -1,5 +1,6 @@
 import { verificarBackups } from "../api/backups.js";
 import { showToast } from "./toast.js";
+import { t } from "../i18n.js";
 
 /**
  * Cópias automáticas do banco (CONF-08) — o lado do app aberto.
@@ -28,14 +29,14 @@ async function conferir() {
   if (status.extra_atrasada && !avisou) {
     avisou = true;
     showToast({
-      title: "cópia na pasta extra atrasada",
-      message: "faz mais de 30 dias que o kami não consegue copiar o banco pra sua pasta extra (pendrive ou disco desconectado?)",
+      title: t("copias_automaticas.copia_na_pasta_extra_atrasada"),
+      message: t("copias_automaticas.faz_mais_de_30_dias"),
       iconName: "triangle-alert",
       variant: "aviso",
       duration: 0,
       actions: [
         {
-          label: "ver cópias",
+          label: t("copias_automaticas.ver_copias"),
           onClick: async () => {
             const { openConfiguracoesModal } = await import("../modals/configuracoes-modal.js");
             openConfiguracoesModal("backup");

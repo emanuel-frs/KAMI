@@ -3,6 +3,7 @@ import { showErrorModal } from "./err-modal.js";
 import { refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "nova fonte de renda" / "editar fonte de renda" — mesmo padrão
@@ -32,21 +33,21 @@ let modalEl = null;
 let onSavedCb = null;
 let editingSource = null;
 
-const TIPO_DATA_BY_FREQ = {
+const tipoDataByFreq = () => ({
   mensal: [
-    { value: "dia_fixo", label: "dia fixo do mês" },
-    { value: "dia_util", label: "N-ésimo dia útil do mês" },
-    { value: "offset_fonte", label: "depende de outra fonte" },
+    { value: "dia_fixo", label: t("fonte_renda.dia_fixo_do_mes") },
+    { value: "dia_util", label: t("fonte_renda.n_esimo_dia_util_do") },
+    { value: "offset_fonte", label: t("fonte_renda.depende_de_outra_fonte") },
   ],
   quinzenal: [
-    { value: "intervalo_dias", label: "a cada N dias" },
-    { value: "offset_fonte", label: "depende de outra fonte" },
+    { value: "intervalo_dias", label: t("fonte_renda.a_cada_n_dias") },
+    { value: "offset_fonte", label: t("fonte_renda.depende_de_outra_fonte") },
   ],
   semanal: [
-    { value: "intervalo_dias", label: "a cada N dias" },
-    { value: "offset_fonte", label: "depende de outra fonte" },
+    { value: "intervalo_dias", label: t("fonte_renda.a_cada_n_dias") },
+    { value: "offset_fonte", label: t("fonte_renda.depende_de_outra_fonte") },
   ],
-};
+});
 
 const DEFAULT_INTERVALO = { quinzenal: 14, semanal: 7 };
 
@@ -56,63 +57,63 @@ function buildModal() {
   wrap.id = "income-source-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span class="modal-head-title">nova fonte de renda</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span class="modal-head-title">${t("fonte_renda.nova_fonte_de_renda")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
-        <div class="field"><label for="ism-nome">nome</label><input type="text" id="ism-nome" placeholder="ex: salário, freelance..."></div>
-        <div class="field"><label for="ism-valor">valor</label><input type="number" id="ism-valor" placeholder="0.00"></div>
+        <div class="field"><label for="ism-nome">${t("fonte_renda.nome")}</label><input type="text" id="ism-nome" placeholder="${t("fonte_renda.ex_salario_freelance")}"></div>
+        <div class="field"><label for="ism-valor">${t("fonte_renda.valor")}</label><input type="number" id="ism-valor" placeholder="0.00"></div>
 
         <div class="field">
-          <label for="ism-frequencia">frequência</label>
+          <label for="ism-frequencia">${t("fonte_renda.frequencia")}</label>
           <select id="ism-frequencia">
-            <option value="mensal">mensal</option>
-            <option value="quinzenal">quinzenal</option>
-            <option value="semanal">semanal</option>
-            <option value="avulsa">avulsa (só essa vez)</option>
+            <option value="mensal">${t("fonte_renda.mensal")}</option>
+            <option value="quinzenal">${t("fonte_renda.quinzenal")}</option>
+            <option value="semanal">${t("fonte_renda.semanal")}</option>
+            <option value="avulsa">${t("fonte_renda.avulsa_so_essa_vez")}</option>
           </select>
         </div>
 
         <div class="field" id="ism-tipo-data-field">
-          <label for="ism-tipo-data">como calcular a data</label>
+          <label for="ism-tipo-data">${t("fonte_renda.como_calcular_a_data")}</label>
           <select id="ism-tipo-data"></select>
         </div>
 
         <div class="field" id="ism-dia-mes-field" style="display:none;">
-          <label for="ism-dia-mes">dia do mês</label>
+          <label for="ism-dia-mes">${t("fonte_renda.dia_do_mes")}</label>
           <input type="number" id="ism-dia-mes" min="1" max="31" placeholder="5">
         </div>
 
         <div class="field" id="ism-nth-dia-util-field" style="display:none;">
-          <label for="ism-nth-dia-util">N-ésimo dia útil</label>
+          <label for="ism-nth-dia-util">${t("fonte_renda.n_esimo_dia_util")}</label>
           <input type="number" id="ism-nth-dia-util" min="1" placeholder="5">
         </div>
 
         <div class="field-row" id="ism-intervalo-fields" style="display:none;">
-          <div class="field"><label for="ism-intervalo-dias">a cada quantos dias</label><input type="number" id="ism-intervalo-dias" min="1" placeholder="7"></div>
-          <div class="field"><label for="ism-data-base">a partir de</label><input type="date" id="ism-data-base"></div>
+          <div class="field"><label for="ism-intervalo-dias">${t("fonte_renda.a_cada_quantos_dias")}</label><input type="number" id="ism-intervalo-dias" min="1" placeholder="7"></div>
+          <div class="field"><label for="ism-data-base">${t("fonte_renda.a_partir_de")}</label><input type="date" id="ism-data-base"></div>
         </div>
 
         <div class="field-row" id="ism-offset-fields" style="display:none;">
           <div class="field">
-            <label for="ism-fonte-referencia">depende de</label>
+            <label for="ism-fonte-referencia">${t("fonte_renda.depende_de")}</label>
             <select id="ism-fonte-referencia"></select>
           </div>
-          <div class="field"><label for="ism-offset-dias">+ dias úteis</label><input type="number" id="ism-offset-dias" min="0" placeholder="15"></div>
+          <div class="field"><label for="ism-offset-dias">${t("fonte_renda.dias_uteis")}</label><input type="number" id="ism-offset-dias" min="0" placeholder="15"></div>
         </div>
 
         <div class="field" id="ism-data-avulsa-field" style="display:none;">
-          <label for="ism-data-avulsa">data</label>
+          <label for="ism-data-avulsa">${t("fonte_renda.data")}</label>
           <input type="date" id="ism-data-avulsa">
         </div>
 
         <div class="field">
-          <label for="ism-conta">conta vinculada (opcional — habilita creditar automaticamente)</label>
-          <select id="ism-conta"><option value="">— nenhuma, só lembrete —</option></select>
+          <label for="ism-conta">${t("fonte_renda.conta_vinculada_opcional_habilita_creditar")}</label>
+          <select id="ism-conta"><option value="">${t("fonte_renda.nenhuma_so_lembrete")}</option></select>
         </div>
-        <div class="field"><label for="ism-categoria">categoria (opcional)</label><input type="text" id="ism-categoria" placeholder="ex: salário, freelance..."></div>
-        <label class="account-flag"><input type="checkbox" id="ism-active" checked> ativa</label>
+        <div class="field"><label for="ism-categoria">${t("fonte_renda.categoria_opcional")}</label><input type="text" id="ism-categoria" placeholder="${t("fonte_renda.ex_salario_freelance")}"></div>
+        <label class="account-flag"><input type="checkbox" id="ism-active" checked> ${t("fonte_renda.ativa")}</label>
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ adicionar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("fonte_renda.adicionar")}</button>
         </div>
       </div>
     </div>
@@ -134,7 +135,7 @@ function updateTipoDataOptions(wrap, { keepValue = null } = {}) {
     return;
   }
 
-  const options = TIPO_DATA_BY_FREQ[frequencia] || TIPO_DATA_BY_FREQ.mensal;
+  const options = tipoDataByFreq()[frequencia] || tipoDataByFreq().mensal;
   const tipoSelect = wrap.querySelector("#ism-tipo-data");
   tipoSelect.innerHTML = options.map((o) => `<option value="${o.value}">${o.label}</option>`).join("");
   if (keepValue && options.some((o) => o.value === keepValue)) {
@@ -163,7 +164,7 @@ function populateFonteReferenciaOptions(wrap, sources) {
   const options = (sources || []).filter((s) => !editingSource || s.id !== editingSource.id);
   select.innerHTML = options.length
     ? options.map((s) => `<option value="${s.id}">${escapeHtml(s.nome)}</option>`).join("")
-    : `<option value="">— nenhuma outra fonte cadastrada —</option>`;
+    : `<option value="">${t("fonte_renda.nenhuma_outra_fonte_cadastrada")}</option>`;
   refreshCustomSelect(select);
 }
 
@@ -171,7 +172,7 @@ async function submitIncomeSource(wrap) {
   const nome = wrap.querySelector("#ism-nome").value.trim();
   const valor = Number(wrap.querySelector("#ism-valor").value);
   const frequencia = wrap.querySelector("#ism-frequencia").value;
-  if (!nome || !valor) { showErrorModal("preenche nome e valor.", "atenção"); return; }
+  if (!nome || !valor) { showErrorModal(t("fonte_renda.preenche_nome_e_valor"), t("geral.atencao")); return; }
 
   const payload = {
     nome,
@@ -192,7 +193,7 @@ async function submitIncomeSource(wrap) {
 
   if (frequencia === "avulsa") {
     const dataAvulsa = wrap.querySelector("#ism-data-avulsa").value;
-    if (!dataAvulsa) { showErrorModal("informa a data dessa renda avulsa.", "atenção"); return; }
+    if (!dataAvulsa) { showErrorModal(t("fonte_renda.informa_a_data_dessa_renda"), t("geral.atencao")); return; }
     payload.data_avulsa = dataAvulsa;
   } else {
     const tipoData = wrap.querySelector("#ism-tipo-data").value;
@@ -200,22 +201,22 @@ async function submitIncomeSource(wrap) {
 
     if (tipoData === "dia_fixo") {
       const diaMes = Number(wrap.querySelector("#ism-dia-mes").value);
-      if (!diaMes) { showErrorModal("informa o dia do mês.", "atenção"); return; }
+      if (!diaMes) { showErrorModal(t("fonte_renda.informa_o_dia_do_mes"), t("geral.atencao")); return; }
       payload.dia_mes = diaMes;
     } else if (tipoData === "dia_util") {
       const nth = Number(wrap.querySelector("#ism-nth-dia-util").value);
-      if (!nth) { showErrorModal("informa o N-ésimo dia útil.", "atenção"); return; }
+      if (!nth) { showErrorModal(t("fonte_renda.informa_o_n_esimo_dia"), t("geral.atencao")); return; }
       payload.nth_dia_util = nth;
     } else if (tipoData === "intervalo_dias") {
       const intervalo = Number(wrap.querySelector("#ism-intervalo-dias").value);
       const dataBase = wrap.querySelector("#ism-data-base").value;
-      if (!intervalo || !dataBase) { showErrorModal("informa o intervalo em dias e a data-base.", "atenção"); return; }
+      if (!intervalo || !dataBase) { showErrorModal(t("fonte_renda.informa_o_intervalo_em_dias"), t("geral.atencao")); return; }
       payload.intervalo_dias = intervalo;
       payload.data_base = dataBase;
     } else if (tipoData === "offset_fonte") {
       const fonteRef = wrap.querySelector("#ism-fonte-referencia").value;
       const offsetDias = wrap.querySelector("#ism-offset-dias").value;
-      if (!fonteRef || offsetDias === "") { showErrorModal("escolhe de qual fonte essa depende e quantos dias úteis depois.", "atenção"); return; }
+      if (!fonteRef || offsetDias === "") { showErrorModal(t("fonte_renda.escolhe_de_qual_fonte_essa"), t("geral.atencao")); return; }
       payload.fonte_referencia_id = fonteRef;
       payload.offset_dias_uteis = Number(offsetDias);
     }
@@ -228,7 +229,7 @@ async function submitIncomeSource(wrap) {
       await financasApi.createIncomeSource(payload);
     }
   } catch (err) {
-    showErrorModal(err.message, editingSource ? "erro ao salvar fonte de renda" : "erro ao criar fonte de renda");
+    showErrorModal(err.message, editingSource ? t("fonte_renda.erro_ao_salvar_fonte_de") : t("fonte_renda.erro_ao_criar_fonte_de"));
     return;
   }
   closeFonteRendaModal();
@@ -253,14 +254,14 @@ function wireModal(wrap) {
  *   em fixed-bill-modal.js.
  */
 export function openFonteRendaModal({ source = null, sources = [], accounts = [], onSaved } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   editingSource = source || null;
 
   const titleEl = modalEl.querySelector(".modal-head-title");
   const saveBtn = modalEl.querySelector('[data-action="save"]');
-  titleEl.textContent = editingSource ? "editar fonte de renda" : "nova fonte de renda";
-  saveBtn.textContent = editingSource ? "salvar alterações" : "+ adicionar";
+  titleEl.textContent = editingSource ? t("fonte_renda.editar_fonte_de_renda") : t("fonte_renda.nova_fonte_de_renda");
+  saveBtn.textContent = editingSource ? t("fonte_renda.salvar_alteracoes") : "+ adicionar";
 
   modalEl.querySelector("#ism-nome").value = editingSource?.nome || "";
   modalEl.querySelector("#ism-valor").value = editingSource?.valor ?? "";
@@ -282,7 +283,7 @@ export function openFonteRendaModal({ source = null, sources = [], accounts = []
   updateTipoDataOptions(modalEl, { keepValue: editingSource?.tipo_data });
 
   modalEl.querySelector("#ism-conta").innerHTML =
-    `<option value="">— nenhuma, só lembrete —</option>` +
+    `<option value="">${t("fonte_renda.nenhuma_so_lembrete")}</option>` +
     (accounts || []).map((a) => `<option value="${a.id}">${escapeHtml(a.bankNome)} — ${escapeHtml(a.nome)}</option>`).join("");
   modalEl.querySelector("#ism-conta").value = editingSource?.conta_id || "";
   refreshCustomSelect(modalEl.querySelector("#ism-conta"));

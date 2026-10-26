@@ -3,6 +3,7 @@ import { showErrorModal } from "./err-modal.js";
 import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 import { icon } from "../components/icons.js";
 import { escapeHtml, localDateKey } from "../components/format.js";
+import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
  * Modal "novo lançamento" — entrada/saída/transferência. Recebe as
@@ -23,58 +24,58 @@ function buildModal() {
   wrap.id = "transaction-modal";
   wrap.innerHTML = `
     <div class="modal">
-      <div class="modal-head"><span id="tm-title">novo lançamento</span> <button type="button" class="close" data-action="close" aria-label="fechar">${icon("x")}</button></div>
+      <div class="modal-head"><span id="tm-title">${t("transacao.novo_lancamento")}</span> <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body">
         <div class="field">
-          <label for="tm-type">tipo</label>
+          <label for="tm-type">${t("transacao.tipo")}</label>
           <select id="tm-type">
-            <option value="entrada">entrada</option>
-            <option value="saida">saída</option>
-            <option value="transferencia">transferência</option>
+            <option value="entrada">${t("transacao.entrada")}</option>
+            <option value="saida">${t("transacao.saida")}</option>
+            <option value="transferencia">${t("transacao.transferencia")}</option>
           </select>
         </div>
         <div class="field">
-          <label for="tm-desc">descrição</label>
-          <input type="text" id="tm-desc" placeholder="ex: mercado, salário...">
+          <label for="tm-desc">${t("transacao.descricao")}</label>
+          <input type="text" id="tm-desc" placeholder="${t("transacao.ex_mercado_salario")}">
         </div>
         <div class="field-row">
-          <div class="field"><label for="tm-amount">valor</label><input type="number" id="tm-amount" placeholder="0.00"></div>
-          <div class="field"><label for="tm-date">data</label><input type="date" id="tm-date"></div>
+          <div class="field"><label for="tm-amount">${t("transacao.valor")}</label><input type="number" id="tm-amount" placeholder="0.00"></div>
+          <div class="field"><label for="tm-date">${t("transacao.data")}</label><input type="date" id="tm-date"></div>
         </div>
         <div class="field" id="tm-category-field">
-          <label for="tm-category">categoria</label>
-          <input type="text" id="tm-category" placeholder="ex: alimentacao, transporte...">
+          <label for="tm-category">${t("transacao.categoria")}</label>
+          <input type="text" id="tm-category" placeholder="${t("transacao.ex_alimentacao_transporte")}">
         </div>
         <div class="field">
-          <label for="tm-conta">conta</label>
+          <label for="tm-conta">${t("transacao.conta")}</label>
           <select id="tm-conta"></select>
         </div>
         <div class="field" id="tm-forma-pagamento-field" style="display:none;">
-          <label for="tm-forma-pagamento">forma de pagamento</label>
+          <label for="tm-forma-pagamento">${t("transacao.forma_de_pagamento")}</label>
           <select id="tm-forma-pagamento">
-            <option value="saldo">saldo</option>
-            <option value="credito">crédito</option>
+            <option value="saldo">${t("transacao.saldo")}</option>
+            <option value="credito">${t("transacao.credito")}</option>
           </select>
         </div>
         <div class="field" id="tm-destino-tipo-field" style="display:none;">
-          <label for="tm-destino-tipo">destino</label>
+          <label for="tm-destino-tipo">${t("transacao.destino")}</label>
           <select id="tm-destino-tipo">
-            <option value="interna">conta cadastrada</option>
-            <option value="externa">externo (pix, saque...)</option>
+            <option value="interna">${t("transacao.conta_cadastrada")}</option>
+            <option value="externa">${t("transacao.externo_pix_saque")}</option>
           </select>
         </div>
         <div class="field" id="tm-conta-destino-field" style="display:none;">
-          <label for="tm-conta-destino">conta de destino</label>
+          <label for="tm-conta-destino">${t("transacao.conta_de_destino")}</label>
           <select id="tm-conta-destino"></select>
         </div>
         <div class="field" id="tm-destino-externo-field" style="display:none;">
-          <label for="tm-destino-externo">destino (texto livre)</label>
-          <input type="text" id="tm-destino-externo" placeholder="ex: fulano, saque...">
+          <label for="tm-destino-externo">${t("transacao.destino_texto_livre")}</label>
+          <input type="text" id="tm-destino-externo" placeholder="${t("transacao.ex_fulano_saque")}">
         </div>
 
         <div class="form-actions">
-          <button class="btn sm" data-action="close">cancelar</button>
-          <button class="btn sm primary" data-action="save">+ lançar</button>
+          <button class="btn sm" data-action="close">${t("geral.cancelar")}</button>
+          <button class="btn sm primary" data-action="save">${t("transacao.lancar")}</button>
         </div>
       </div>
     </div>
@@ -123,8 +124,8 @@ async function submitTransaction(wrap) {
     date: wrap.querySelector("#tm-date").value,
     conta_id: wrap.querySelector("#tm-conta").value,
   };
-  if (!payload.conta_id) { showErrorModal("cadastre uma conta antes de lançar.", "atenção"); return; }
-  if (!payload.description || !payload.amount) { showErrorModal("preenche descrição e valor.", "atenção"); return; }
+  if (!payload.conta_id) { showErrorModal(t("transacao.cadastre_uma_conta_antes_de"), t("geral.atencao")); return; }
+  if (!payload.description || !payload.amount) { showErrorModal(t("transacao.preenche_descricao_e_valor"), t("geral.atencao")); return; }
 
   if (type === "saida" && wrap.querySelector("#tm-forma-pagamento-field").style.display !== "none") {
     payload.forma_pagamento = wrap.querySelector("#tm-forma-pagamento").value;
@@ -140,7 +141,7 @@ async function submitTransaction(wrap) {
     if (editingId) await financasApi.updateTransaction(editingId, payload);
     else await financasApi.createTransaction(payload);
   } catch (err) {
-    showErrorModal(err.message, editingId ? "erro ao corrigir" : "erro ao lançar");
+    showErrorModal(err.message, editingId ? t("transacao.erro_ao_corrigir") : t("transacao.erro_ao_lancar"));
     return;
   }
   closeTransacaoModal();
@@ -167,12 +168,12 @@ function wireModal(wrap) {
  *   preenchido e salvar chama PUT /transactions/{id}.
  */
 export function openTransacaoModal({ accounts, onSaved, editing = null, inicial = null } = {}) {
-  modalEl = modalEl || buildModal();
+  modalEl = noIdiomaAtual(modalEl, buildModal);
   onSavedCb = onSaved;
   accountsFlat = accounts || [];
   editingId = editing?.id || null;
-  modalEl.querySelector("#tm-title").textContent = editing ? "corrigir lançamento" : "novo lançamento";
-  modalEl.querySelector('[data-action="save"]').textContent = editing ? "salvar correção" : "+ lançar";
+  modalEl.querySelector("#tm-title").textContent = editing ? t("transacao.corrigir_lancamento") : t("transacao.novo_lancamento");
+  modalEl.querySelector('[data-action="save"]').textContent = editing ? t("transacao.salvar_correcao") : t("transacao.lancar");
 
   modalEl.querySelector("#tm-type").value = "entrada";
   refreshCustomSelect(modalEl.querySelector("#tm-type"));
