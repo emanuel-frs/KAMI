@@ -2331,5 +2331,8 @@
     "other": "{n} 封新邮件"
   },
   "organizacao_email.lido": "已读",
-  "organizacao_email.item_aria": "{estado}：{assunto}，来自 {nome}"
+  "organizacao_email.item_aria": "{estado}：{assunto}，来自 {nome}",
+  "atualizacao.rpm_como": "kami 会下载 .rpm，请求系统密码进行安装，然后重新打开",
+  "atualizacao.rpm_senha": "系统会要求输入你的密码来安装软件包。",
+  "notificacoes.atualizando": "正在更新…"
 }

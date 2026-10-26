@@ -2331,5 +2331,8 @@
     "other": "새 이메일 {n}개"
   },
   "organizacao_email.lido": "읽음",
-  "organizacao_email.item_aria": "{estado}: {assunto}, 보낸 사람 {nome}"
+  "organizacao_email.item_aria": "{estado}: {assunto}, 보낸 사람 {nome}",
+  "atualizacao.rpm_como": "kami가 .rpm을 다운로드하고, 설치를 위해 시스템 비밀번호를 요청한 뒤 다시 엽니다",
+  "atualizacao.rpm_senha": "패키지를 설치하려면 시스템이 비밀번호를 요청합니다.",
+  "notificacoes.atualizando": "업데이트 중…"
 }

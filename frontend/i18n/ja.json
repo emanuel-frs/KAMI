@@ -2331,5 +2331,8 @@
     "other": "新着メール {n} 件"
   },
   "organizacao_email.lido": "既読",
-  "organizacao_email.item_aria": "{estado}：{assunto}、差出人 {nome}"
+  "organizacao_email.item_aria": "{estado}：{assunto}、差出人 {nome}",
+  "atualizacao.rpm_como": "kami が .rpm をダウンロードし、インストールのためにシステムのパスワードを求めてから再起動します",
+  "atualizacao.rpm_senha": "パッケージのインストールにシステムがパスワードを求めます。",
+  "notificacoes.atualizando": "更新中…"
 }

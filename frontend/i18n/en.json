@@ -2362,5 +2362,8 @@
     "other": "{n} new e-mails"
   },
   "organizacao_email.lido": "read",
-  "organizacao_email.item_aria": "{estado}: {assunto}, from {nome}"
+  "organizacao_email.item_aria": "{estado}: {assunto}, from {nome}",
+  "atualizacao.rpm_como": "kami downloads the .rpm, asks for your system password to install it and reopens",
+  "atualizacao.rpm_senha": "the system will ask for your password to install the package.",
+  "notificacoes.atualizando": "updating…"
 }

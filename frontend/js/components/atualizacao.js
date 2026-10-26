@@ -32,7 +32,7 @@ const INTERVALO = 24 * 60 * 60 * 1000;
 const RELEASES = "https://github.com/emanuel-frs/KAMI/releases";
 const NO_WINDOWS = /windows/i.test(navigator.userAgent);
 
-let disponivel = null; // { versao, atual, notas, data, instalavel }
+let disponivel = null; // { versao, atual, notas, data, instalavel, pacote }
 let ultimaConsulta = null; // Date da última consulta que respondeu
 let timer = null;
 let instalando = false;
@@ -121,6 +121,7 @@ export function verNovidades(versao = disponivel?.versao) {
 /** Texto curto de como essa instalação é atualizada (sino e sobre). */
 export function comoAtualiza(d = disponivel) {
   if (!d) return "";
+  if (d.instalavel && d.pacote === "rpm") return t("atualizacao.rpm_como");
   if (d.instalavel) return NO_WINDOWS ? t("atualizacao.o_kami_baixa_instala_e") : t("atualizacao.o_kami_troca_o_appimage");
   return t("atualizacao.esta_instalacao_e_atualizada_pelo");
 }
@@ -131,7 +132,9 @@ export async function atualizarAgora() {
   if (!disponivel?.instalavel || instalando) return;
   const { versao } = disponivel;
   const ok = await showConfirmModal(
-    t("atualizacao.confirmar", { versao }) + (NO_WINDOWS ? ` ${t("atualizacao.o_windows_pode_mostrar_o")}` : ""),
+    t("atualizacao.confirmar", { versao }) +
+      (NO_WINDOWS ? ` ${t("atualizacao.o_windows_pode_mostrar_o")}` : "") +
+      (disponivel.pacote === "rpm" ? ` ${t("atualizacao.rpm_senha")}` : ""),
     { title: t("atualizacao.atualizar_para", { versao }), confirmText: t("atualizacao.atualizar_agora") }
   );
   if (!ok) return;

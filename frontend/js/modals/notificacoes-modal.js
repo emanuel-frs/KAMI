@@ -359,7 +359,7 @@ function renderAtualizacao() {
         </div>
         <div class="notif-lembrete-acoes">
           <button type="button" class="btn sm" data-atualizacao="novidades">${t("notificacoes.ver_novidades")}</button>
-          ${instalavel ? `<button type="button" class="btn sm primary" data-atualizacao="agora"${instalando ? " disabled" : ""}>${instalando ? "atualizando…" : t("notificacoes.atualizar_agora")}</button>` : ""}
+          ${instalavel ? `<button type="button" class="btn sm primary" data-atualizacao="agora"${instalando ? " disabled" : ""}>${instalando ? t("notificacoes.atualizando") : t("notificacoes.atualizar_agora")}</button>` : ""}
           <button type="button" class="btn sm" data-atualizacao="pular">${t("notificacoes.pular_esta_versao")}</button>
         </div>
       </div>

@@ -2359,5 +2359,8 @@
     "other": "{n} e-mails novos"
   },
   "organizacao_email.lido": "lido",
-  "organizacao_email.item_aria": "{estado}: {assunto}, de {nome}"
+  "organizacao_email.item_aria": "{estado}: {assunto}, de {nome}",
+  "atualizacao.rpm_como": "o kami baixa o .rpm, pede a senha do sistema pra instalar e abre de novo",
+  "atualizacao.rpm_senha": "o sistema vai pedir sua senha pra instalar o pacote.",
+  "notificacoes.atualizando": "atualizando…"
 }

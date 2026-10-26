@@ -304,10 +304,19 @@ fn autostart_com_tryexec() {
 #[cfg(not(target_os = "linux"))]
 fn autostart_com_tryexec() {}
 
+/// O programa é um build do `cargo` (…/target/debug/kami, …/target/release/kami)?
+#[cfg(target_os = "linux")]
+fn e_build_de_dev(programa: &str) -> bool {
+    programa.contains("/target/debug/") || programa.contains("/target/release/")
+}
+
 /// Na abertura: o autostart aponta pra um programa que não existe mais
 /// (trocou o .deb pelo AppImage, moveu o AppImage) → reescreve pro
 /// executável atual. Só quando o de lá SUMIU: um build de desenvolvimento
-/// aberto não toma o autostart da versão instalada.
+/// aberto não toma o autostart da versão instalada. O contrário vale: a
+/// versão instalada retoma o autostart que aponta pra um build de
+/// desenvolvimento (`target/debug|release`) — ligado num `tauri dev`, ele
+/// abria com o sistema a versão do repositório em vez da instalada.
 pub fn conferir_autostart(app: &AppHandle) {
     #[cfg(target_os = "linux")]
     {
@@ -317,7 +326,8 @@ pub fn conferir_autostart(app: &AppHandle) {
             return; // não é o nosso
         }
         let sumiu = programa_do_exec(&texto).map(|p| !std::path::Path::new(p).exists()).unwrap_or(false);
-        if sumiu && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
+        let de_dev = !cfg!(debug_assertions) && programa_do_exec(&texto).is_some_and(e_build_de_dev);
+        if (sumiu || de_dev) && inicio_com_sistema(app).is_ok_and(|a| a.enable().is_ok()) {
             autostart_com_tryexec();
         }
     }
@@ -337,6 +347,14 @@ pub fn desligar_autostart(app: &AppHandle) {
 #[cfg(all(test, target_os = "linux"))]
 mod testes {
     use super::*;
+
+    #[test]
+    fn build_de_dev_no_autostart() {
+        assert!(e_build_de_dev("/home/x/KAMI/src-tauri/target/debug/kami"));
+        assert!(e_build_de_dev("/home/x/KAMI/src-tauri/target/release/kami"));
+        assert!(!e_build_de_dev("/usr/bin/kami"));
+        assert!(!e_build_de_dev("/opt/kami/Kami.AppImage"));
+    }
 
     #[test]
     fn autostart_ganha_tryexec_uma_vez() {

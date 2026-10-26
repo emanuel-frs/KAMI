@@ -2362,5 +2362,8 @@
     "other": "{n} नए ईमेल"
   },
   "organizacao_email.lido": "पढ़ा हुआ",
-  "organizacao_email.item_aria": "{estado}: {assunto}, {nome} से"
+  "organizacao_email.item_aria": "{estado}: {assunto}, {nome} से",
+  "atualizacao.rpm_como": "kami .rpm डाउनलोड करता है, इंस्टॉल के लिए सिस्टम पासवर्ड माँगता है और फिर खुलता है",
+  "atualizacao.rpm_senha": "पैकेज इंस्टॉल करने के लिए सिस्टम आपका पासवर्ड माँगेगा।",
+  "notificacoes.atualizando": "अपडेट हो रहा है…"
 }
