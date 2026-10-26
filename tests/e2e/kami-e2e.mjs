@@ -508,7 +508,10 @@ async function main() {
       await focar("#lock-pin");
       await wd.keys("1111", { texto: true });
       await wd.keys("Enter");
-      await waitFor("o aviso de PIN errado", () => wd.execute("return /errado/.test(document.querySelector('.lock-msg')?.textContent || '')"), { timeout: 8000 });
+      // pela classe, não pelo texto: a tela de PIN vem antes do perfil e,
+      // sem o idioma guardado no navegador (o msedgedriver abre o WebView2
+      // com perfil novo a cada sessão), sai no idioma do sistema (en-US)
+      await waitFor("o aviso de PIN errado", () => wd.execute("const m = document.querySelector('.lock-msg.lock-msg--erro'); return !!m && m.textContent.trim().length > 0"), { timeout: 8000 });
       await focar("#lock-pin");
       await wd.execute("document.getElementById('lock-pin').value = ''");
       await wd.keys(PIN, { texto: true });
@@ -523,13 +526,16 @@ async function main() {
       await waitFor("a nota na lista", () => visivel(`[data-nt-abrir="${notaId}"]`), { timeout: 8000 });
       await clicar(`[data-nt-abrir="${notaId}"]`);
       await waitFor("a nota aberta", () => visivel('[data-nt="trancar"]'), { timeout: 5000 });
+      const rotuloTrancar = await wd.execute(`return document.querySelector('[data-nt="trancar"]').getAttribute('aria-label')`);
       await clicar('[data-nt="trancar"]');
       await waitFor("a confirmação", () => visivel("#cm-confirm-btn"), { timeout: 5000 });
       await clicar("#cm-confirm-btn");
       await waitFor("a nota trancada", async () => (await api(`/api/organizacao/notas/${notaId}`)).body?.trancada === true, { timeout: 8000 });
       const fechada = (await api(`/api/organizacao/notas/${notaId}`)).body;
       if (fechada.conteudo?.includes("primeira linha")) throw new Error("a nota trancada ainda devolve o texto");
-      await waitFor("o botão destrancar", () => wd.execute(`return document.querySelector('[data-nt="trancar"]')?.getAttribute('aria-label') === 'destrancar'`), { timeout: 8000 });
+      // o rótulo vira "destrancar" (comparado com o de antes: vale em qualquer idioma)
+      await waitFor("o botão destrancar", () =>
+        wd.execute(`const r = document.querySelector('[data-nt="trancar"]')?.getAttribute('aria-label'); return !!r && r !== ${JSON.stringify(rotuloTrancar)}`), { timeout: 8000 });
       await print("nota-trancada");
       await clicar('[data-nt="trancar"]');
       await waitFor("o pedido do PIN", () => visivel("#pm-input"), { timeout: 5000 });
