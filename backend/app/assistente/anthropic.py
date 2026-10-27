@@ -76,9 +76,13 @@ def _corpo(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Fe
     return corpo
 
 
-def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None) -> Iterator:
+def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None,
+              cancelamento: Optional[transporte.Cancelamento] = None) -> Iterator:
     timeout = transporte.TIMEOUT_LOCAL if p.local else transporte.TIMEOUT_NUVEM
-    with transporte.abrir_stream(f"{p.url_base}/messages", _cabecalhos(p), _corpo(p, mensagens, ferramentas), timeout, p.chave) as stream:
+    stream = transporte.abrir_stream(f"{p.url_base}/messages", _cabecalhos(p), _corpo(p, mensagens, ferramentas), timeout, p.chave)
+    if cancelamento:
+        cancelamento.registrar(stream)
+    with stream:
         yield from _ler(stream)
 
 

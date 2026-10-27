@@ -46,6 +46,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app import backup_auto
+from app.assistente import conversas
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
 from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
@@ -67,6 +68,9 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
     # IA-01: config aponta pro provedor em uso, então sai antes dele
+    "assistente_mensagens",
+    "assistente_conversas",
+    "assistente_envios",
     "assistente_config",
     "assistente_uso",
     "assistente_provedores",
@@ -383,6 +387,7 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
             raise ValueError(f"referências quebradas no backup: {detail}")
 
         db.commit()
+        conversas.esquecer_memoria()  # IA-02: os dados de antes saíram, as conversas na memória também
     except Exception as exc:
         db.rollback()
         # antes essa exceção era totalmente engolida — só sobrava "400
@@ -463,6 +468,7 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
             continue
         db.execute(f"DELETE FROM {table}")  # _TABLES_DELETE_ORDER é uma constante fixa do código, não input externo
     db.commit()
+    conversas.esquecer_memoria()  # IA-02: conversas do "não guardar" também
 
     _seed_defaults(db)
     from app.achievements import seed_achievements

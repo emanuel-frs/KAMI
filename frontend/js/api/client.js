@@ -169,6 +169,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Backend fora do ar (ou conexão caída no meio de um streaming). */
+function erroSemConexao(detail = "não foi possível conectar ao backend do Kami") {
+  return new ApiError(0, { detail, chave: "erro.sem_conexao" });
+}
+
 async function doFetch(path, options) {
   let baseUrl;
   try {
@@ -204,7 +209,7 @@ async function doFetch(path, options) {
     });
   } catch (networkErr) {
     // backend fora do ar / ainda subindo — caso comum logo após abrir o app
-    throw new ApiError(0, { detail: "não foi possível conectar ao backend do Kami", chave: "erro.sem_conexao" });
+    throw erroSemConexao();
   }
 
   if (!res.ok) {
@@ -300,6 +305,79 @@ async function requestInner(path, options, method) {
   });
   _getCache.set(path, { expiresAt: Date.now() + GET_CACHE_TTL_MS, promise });
   return promise;
+}
+
+/**
+ * IA-02: POST cuja resposta chega aos poucos em SSE (o chat do
+ * assistente). EventSource não serve (só faz GET e não manda o token),
+ * então lê o corpo do fetch pedaço a pedaço e entrega cada evento já
+ * decodificado a `onEvento({tipo, ...})`.
+ *
+ * - Recusa antes do streaming (4xx com JSON) vira ApiError, igual às
+ *   outras chamadas — inclusive o aviso de erro inesperado e o PIN.
+ * - `signal` (AbortController) é o botão parar: abortar fecha a conexão,
+ *   e o backend corta a chamada ao provedor (app/routers/assistente.py).
+ *   Abortado, resolve sem erro.
+ * - Avisa `kami:data-changed` no fim, como os outros POST (o uso do dia
+ *   mudou).
+ */
+export async function postStream(path, data, { signal, onEvento } = {}) {
+  let baseUrl;
+  try {
+    baseUrl = await getBaseUrl();
+  } catch (startErr) {
+    throw new ApiError(0, { detail: startErr.message });
+  }
+  const headers = { "Content-Type": "application/json", Accept: "text/event-stream" };
+  if (_sessionToken) headers["X-Kami-Token"] = _sessionToken;
+  let res;
+  try {
+    res = await fetch(`${baseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(data), cache: "no-store", signal });
+  } catch (networkErr) {
+    if (signal?.aborted) return;
+    const err = erroSemConexao(String(networkErr?.message || networkErr));
+    announceUnexpected(err, "POST", path);
+    throw err;
+  }
+  if (!res.ok) {
+    const err = new ApiError(res.status, await res.json().catch(() => null));
+    announceUnexpected(err, "POST", path);
+    announceLocked(err);
+    throw err;
+  }
+  const leitor = res.body.getReader();
+  const decoder = new TextDecoder();
+  let resto = "";
+  try {
+    for (;;) {
+      const { value, done } = await leitor.read();
+      if (done) break;
+      resto += decoder.decode(value, { stream: true });
+      let fim;
+      while ((fim = resto.indexOf("\n\n")) >= 0) {
+        const bloco = resto.slice(0, fim);
+        resto = resto.slice(fim + 2);
+        const dados = bloco
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => l.slice(5).replace(/^ /, ""))
+          .join("\n");
+        if (!dados) continue;
+        try {
+          onEvento?.(JSON.parse(dados));
+        } catch (e) {
+          console.error("postStream: JSON do evento", e);
+        }
+      }
+    }
+  } catch (err) {
+    if (!signal?.aborted) throw erroSemConexao(String(err?.message || err));
+  } finally {
+    clearGetCache();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kami:data-changed", { detail: { method: "POST", path } }));
+    }
+  }
 }
 
 export const get = (path) => request(path);

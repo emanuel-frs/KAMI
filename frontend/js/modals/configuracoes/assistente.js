@@ -13,14 +13,17 @@
  *   de um provedor com chave salva apaga a chave (P-109) — o formulário
  *   avisa antes de salvar.
  *
- * O chat (painel, Alt+A) é do IA-02; esta aba só configura.
+ * O chat (painel, Alt+A) é do IA-02 (components/assistente-painel.js);
+ * aqui fica a parte de guardar conversas (P-105) e o "apagar tudo".
  */
 import {
   apagarProvedor,
+  apagarTodasConversas,
   criarProvedor,
   editarProvedor,
   getAssistente,
   getCatalogo,
+  getConversas,
   getProvedores,
   listarModelos,
   salvarConfigAssistente,
@@ -85,6 +88,24 @@ export function buildAssistentePanel() {
           <button type="button" class="btn sm" id="cfg-ia-limites-ok">${t("assistente.salvar_limites")}</button>
         </div>
         <p class="settings-status" id="cfg-ia-limites-status" role="status"></p>
+      </div>
+
+      <div class="settings-section">
+        <h4>${t("assistente.conversas")}</h4>
+        <p class="settings-desc">${t("assistente.conversas_desc")}</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-ia-guardar">
+          ${icon("archive", { size: 12 })}
+          <span>${t("assistente.guardar_conversas")} <small>${t("assistente.guardar_conversas_dica")}</small></span>
+        </label>
+        <div class="field-row">
+          <div class="field"><label for="cfg-ia-dias">${t("assistente.apagar_depois_de_dias")}</label><input type="number" id="cfg-ia-dias" min="1" max="3650" step="1"></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn sm" id="cfg-ia-dias-ok">${t("assistente.salvar_prazo")}</button>
+          <button type="button" class="btn sm danger" id="cfg-ia-limpar-conversas">${t("assistente.chat.apagar_tudo")}</button>
+        </div>
+        <p class="settings-status" id="cfg-ia-conversas-status" role="status"></p>
       </div>
     </div>`;
 }
@@ -165,6 +186,8 @@ function renderEstado(wrap) {
   wrap.querySelector("#cfg-ia-teto-chamadas").value = e.config.teto_chamadas;
   wrap.querySelector("#cfg-ia-teto-tokens").value = e.config.teto_tokens;
   wrap.querySelector("#cfg-ia-rodadas").value = e.config.max_rodadas;
+  wrap.querySelector("#cfg-ia-guardar").checked = e.config.guardar_conversas;
+  wrap.querySelector("#cfg-ia-dias").value = e.config.dias_historico;
 }
 
 // ── lista de provedores ────────────────────────────────────────────────
@@ -574,6 +597,55 @@ export function wireAssistenteTab(wrap) {
       "cfg-ia-limites-status"
     )
   );
+  // IA-02 (P-105): conversas
+  // Desligar "guardar" vale pras conversas novas; as que JÁ estão guardadas
+  // ficariam lá — e quem desliga espera que nada fique (teste do Emanuel,
+  // 2026-10-27). Então pergunta na hora. Esc/fechar = "só desligar" (a
+  // opção que não apaga nada).
+  wrap.querySelector("#cfg-ia-guardar").addEventListener("change", async (e) => {
+    const guardar = e.target.checked;
+    if (!guardar) {
+      let guardadas = 0;
+      try {
+        guardadas = (await getConversas()).filter((c) => c.guardada).length;
+      } catch {
+        guardadas = 0;
+      }
+      if (guardadas) {
+        const apagar = await showConfirmModal(t("assistente.desligar_guardar_pergunta", { n: guardadas }), {
+          title: t("assistente.desligar_guardar_titulo"),
+          confirmText: t("assistente.desligar_e_apagar"),
+          cancelText: t("assistente.so_desligar"),
+          danger: true,
+        });
+        if (apagar) {
+          try {
+            await apagarTodasConversas();
+          } catch (err) {
+            status(wrap, "cfg-ia-conversas-status", textoDoErro(err), true);
+          }
+        }
+      }
+    }
+    salvarConfig(wrap, { guardar_conversas: guardar }, "cfg-ia-conversas-status");
+  });
+  wrap.querySelector("#cfg-ia-dias-ok").addEventListener("click", () =>
+    salvarConfig(wrap, { dias_historico: Number(wrap.querySelector("#cfg-ia-dias").value) }, "cfg-ia-conversas-status")
+  );
+  wrap.querySelector("#cfg-ia-limpar-conversas").addEventListener("click", async () => {
+    const ok = await showConfirmModal(t("assistente.chat.apagar_tudo_confirma"), {
+      title: t("assistente.chat.apagar_tudo"),
+      confirmText: t("geral.remover"),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await apagarTodasConversas();
+      status(wrap, "cfg-ia-conversas-status", `${icon("check", { size: 12 })} ${escapeHtml(t("assistente.conversas_apagadas"))}`);
+    } catch (err) {
+      status(wrap, "cfg-ia-conversas-status", textoDoErro(err), true);
+    }
+  });
   const lista = wrap.querySelector("#cfg-ia-lista");
   lista.addEventListener("click", (e) => {
     const el = e.target.closest("[data-ia-acao]");

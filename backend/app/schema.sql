@@ -798,6 +798,57 @@ CREATE TABLE IF NOT EXISTS assistente_uso (
     estimado       INTEGER NOT NULL DEFAULT 0
 );
 
+-- IA-02: conversas do chat. Só são gravadas aqui com "guardar conversas"
+-- ligado (P-105; desligado, ficam só na memória do backend até fechar o
+-- app — app/assistente/conversas.py) e somem sozinhas depois de
+-- `dias_historico`. O modelo nunca recebe uma conversa ANTIGA: cada
+-- conversa é um contexto separado (princípio 1).
+CREATE TABLE IF NOT EXISTS assistente_conversas (
+    id            TEXT PRIMARY KEY,
+    titulo        TEXT NOT NULL,      -- começo da 1ª mensagem (sem chamada extra ao modelo)
+    tela          TEXT,               -- tela em que começou
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+-- papel: usuario | assistente | ferramenta (IA-03 em diante). `chamadas`
+-- é o JSON dos pedidos de ferramenta da resposta; `erro_chave` guarda o
+-- erro que interrompeu a resposta (mostrado no idioma da pessoa).
+CREATE TABLE IF NOT EXISTS assistente_mensagens (
+    id             TEXT PRIMARY KEY,
+    conversa_id    TEXT NOT NULL REFERENCES assistente_conversas(id) ON DELETE CASCADE,
+    papel          TEXT NOT NULL CHECK (papel IN ('usuario', 'assistente', 'ferramenta')),
+    texto          TEXT NOT NULL DEFAULT '',
+    chamadas       TEXT,
+    id_chamada     TEXT,
+    nome_ferramenta TEXT,
+    provedor       TEXT,
+    modelo         TEXT,
+    interrompida   INTEGER NOT NULL DEFAULT 0,
+    erro_chave     TEXT,
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assistente_mensagens_conversa ON assistente_mensagens(conversa_id, created_at);
+
+-- Princípio 3: "o que foi enviado pra IA", uma linha por chamada ao
+-- provedor — pra onde foi, com qual modelo, e SÓ o que era novo naquela
+-- chamada (`itens`, JSON: a mensagem da pessoa, resultado de ferramenta,
+-- a versão das instruções; o histórico repetido entra como contagem).
+-- Mesma regra de guarda das conversas; "apagar tudo" apaga junto.
+CREATE TABLE IF NOT EXISTS assistente_envios (
+    id             TEXT PRIMARY KEY,
+    conversa_id    TEXT,
+    provedor       TEXT NOT NULL,
+    modelo         TEXT,
+    destino        TEXT NOT NULL,      -- host do provedor
+    local          INTEGER NOT NULL DEFAULT 0,
+    itens          TEXT NOT NULL,
+    tokens_entrada INTEGER,
+    tokens_saida   INTEGER,
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assistente_envios_data ON assistente_envios(created_at);
+
 -- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
 -- versão do app que atualizou o banco por último — ao abrir uma versão
 -- nova, o backend copia o banco pra backups/ ANTES de migrar (ver

@@ -111,7 +111,8 @@ def _argumentos(bruto: str) -> dict:
     return dado if isinstance(dado, dict) else {"_invalido": bruto[:500]}
 
 
-def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None) -> Iterator:
+def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None,
+              cancelamento: Optional[transporte.Cancelamento] = None) -> Iterator:
     corpo = {"model": p.modelo, "messages": _mensagens(mensagens), "stream": True,
              "stream_options": {"include_usage": True}}
     if ferramentas:
@@ -124,6 +125,8 @@ def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list
             raise
         corpo.pop("stream_options")
         stream = transporte.abrir_stream(url, _cabecalhos(p), corpo, _timeout(p), p.chave)
+    if cancelamento:
+        cancelamento.registrar(stream)
     with stream:
         yield from _ler(stream, {f.nome for f in ferramentas or []})
 

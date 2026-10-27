@@ -26,6 +26,7 @@ Regras que valem pra TODA chamada a provedor:
 import json
 import socket
 import ssl
+import threading
 import urllib.error
 import urllib.request
 from typing import Iterator, Optional
@@ -176,6 +177,7 @@ class Stream:
     def __init__(self, resp, segredo: Optional[str]):
         self._resp = resp
         self._segredo = segredo
+        self.fechado = False
 
     def __enter__(self):
         return self
@@ -184,6 +186,7 @@ class Stream:
         self.fechar()
 
     def fechar(self):
+        self.fechado = True
         try:
             self._resp.close()
         except Exception:  # noqa: BLE001
@@ -212,13 +215,53 @@ class Stream:
                     dados.append(valor)
             if dados:
                 yield nome or "message", "\n".join(dados)
-        except (socket.timeout, TimeoutError):
-            raise ErroProvedor("tempo_esgotado") from None
-        except (urllib.error.URLError, OSError) as e:
-            raise _erro_de_rede(e) from None
+        except (socket.timeout, TimeoutError, urllib.error.URLError, OSError, ValueError, AttributeError) as e:
+            # fechado por fora (Cancelamento) no meio da leitura: o erro
+            # do socket é consequência do parar, não falha do provedor
+            if self.fechado:
+                raise Cancelado() from None
+            if isinstance(e, (socket.timeout, TimeoutError)):
+                raise ErroProvedor("tempo_esgotado") from None
+            if isinstance(e, (urllib.error.URLError, OSError)):
+                raise _erro_de_rede(e) from None
+            raise
+        if self.fechado:
+            raise Cancelado()
 
     def mensagem_de_erro(self, dados: str) -> str:
         return _limpar(_mensagem_do_corpo(dados.encode("utf-8")), self._segredo)
+
+
+class Cancelamento:
+    """
+    Botão parar / tela fechada (IA-02). A leitura do streaming fica
+    bloqueada numa thread esperando o próximo pedaço; fechar a conexão
+    por FORA (de outra thread) é o que destrava na hora — e corta a
+    geração que seria cobrada. Quem lê registra o stream aberto aqui;
+    `cancelar()` fecha o que estiver aberto e impede abrir outro.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._stream: Optional[Stream] = None
+        self.cancelado = False
+
+    def registrar(self, stream: "Stream") -> None:
+        with self._lock:
+            if self.cancelado:
+                stream.fechar()
+                raise Cancelado()
+            self._stream = stream
+
+    def cancelar(self) -> None:
+        with self._lock:
+            self.cancelado = True
+            if self._stream is not None:
+                self._stream.fechar()
+
+
+class Cancelado(Exception):
+    """A leitura foi interrompida de propósito (não é erro do provedor)."""
 
 
 def abrir_stream(url: str, headers: dict, corpo: dict, timeout: float, segredo: Optional[str] = None) -> Stream:

@@ -1,6 +1,6 @@
 """
-Módulo Assistente (Sprint 8 — IA-01: camada de provedores). O chat entra
-no IA-02; as ferramentas de leitura e a proteção, no IA-03/SEG-07.
+Módulo Assistente (Sprint 8 — IA-01: camada de provedores; IA-02: chat).
+As ferramentas de leitura e a proteção entram no IA-03/SEG-07.
 
 Endpoints:
   GET    /api/assistente                       estado: ligado? pronto? o que
@@ -20,6 +20,16 @@ Endpoints:
   POST   /api/assistente/provedores/{id}/testar
                                                uma chamada de teste (conta no
                                                teto): conexão + ferramentas
+  POST   /api/assistente/mensagens             chat (IA-02): resposta em
+                                               streaming (SSE); sem
+                                               conversa_id começa uma nova
+  GET    /api/assistente/conversas             histórico (P-105)
+  GET    /api/assistente/conversas/{id}        mensagens de uma conversa
+  DELETE /api/assistente/conversas/{id}
+  DELETE /api/assistente/conversas             apagar tudo (conversas +
+                                               registro do que foi enviado)
+  GET    /api/assistente/envios                o que foi enviado pra IA
+  DELETE /api/assistente/envios                (princípio 3)
   POST   /api/assistente/modelos               lista os modelos do provedor
                                                (/models) — com a chave
                                                digitada, sem salvar, ou com a
@@ -30,13 +40,20 @@ A chave da API nunca volta pra tela (`tem_chave`). Erro do provedor nunca
 modelo, endereço), então sai como 4xx com a chave `erro.assistente.*` e o
 texto que o provedor mandou em `vars.detalhe` (ver ERROS_PROVEDOR).
 """
+import asyncio
+import json
 import logging
+import threading
 from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import Field
+from starlette.concurrency import run_in_threadpool
+from starlette.responses import StreamingResponse
 
-from app.assistente import catalogo, config, provedores, transporte, uso
+from app import database
+from app.assistente import catalogo, chat, config, conversas, instrucoes, provedores, transporte, uso
+from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
 from app.database import get_db, new_id, now_iso
@@ -46,73 +63,6 @@ from app.mensagens import ErroKami
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Erro do provedor → resposta. Uma ErroKami literal por código (o teste
-# tests/test_mensagens.py confere chave e texto contra o pt.json). Em
-# `vars`: `detalhe` é o que o provedor disse (cortado, sem a chave da
-# API), `http` o status dele, `local` o endereço de um redirecionamento.
-def erro_do_provedor(e: transporte.ErroProvedor) -> ErroKami:
-    v = {"detalhe": e.detalhe, "http": e.status, "local": e.local_redirecionado}
-    c = e.codigo
-    if c == "chave_invalida":
-        return ErroKami(422, "erro.assistente.provedor.chave_invalida",
-                        "o provedor recusou a chave — confira se colou a chave inteira e se ela ainda está ativa", **v)
-    if c == "sem_credito":
-        return ErroKami(422, "erro.assistente.provedor.sem_credito", "a conta no provedor está sem crédito ou cota", **v)
-    if c == "limite":
-        return ErroKami(429, "erro.assistente.provedor.limite",
-                        "o provedor pediu pra esperar: muitas chamadas em pouco tempo", **v)
-    if c == "modelo_indisponivel":
-        return ErroKami(422, "erro.assistente.provedor.modelo_indisponivel",
-                        "esse modelo não está disponível nesse provedor — escolha outro da lista", **v)
-    if c == "sem_ferramentas":
-        return ErroKami(422, "erro.assistente.provedor.sem_ferramentas",
-                        "esse modelo não aceita ferramentas — escolha outro da lista", **v)
-    if c == "url_errada":
-        return ErroKami(422, "erro.assistente.provedor.url_errada",
-                        "o endereço não respondeu como uma API de IA — confira a URL", **v)
-    if c == "redirecionado":
-        return ErroKami(422, "erro.assistente.provedor.redirecionado",
-                        "o endereço mandou pra outro lugar ({local}) — por segurança o Kami não segue; confira a URL", **v)
-    if c == "sem_conexao":
-        return ErroKami(424, "erro.assistente.provedor.sem_conexao",
-                        "não deu pra conectar ao provedor — confira a internet ou, se for local, se o programa está aberto", **v)
-    if c == "tempo_esgotado":
-        return ErroKami(424, "erro.assistente.provedor.tempo_esgotado", "o provedor demorou demais pra responder", **v)
-    if c == "servidor":
-        return ErroKami(424, "erro.assistente.provedor.servidor",
-                        "o provedor está com problema agora — tente de novo daqui a pouco", **v)
-    if c == "recusado":
-        return ErroKami(422, "erro.assistente.provedor.recusado", "o provedor recusou o pedido", **v)
-    return ErroKami(424, "erro.assistente.provedor.resposta_invalida", "o provedor respondeu algo que o Kami não entendeu", **v)
-
-
-def _url(url: str) -> tuple[str, bool]:
-    try:
-        return provedores.normalizar_url(url)
-    except provedores.UrlInvalida as e:
-        m = e.motivo
-    if m == "vazia":
-        raise ErroKami(422, "erro.assistente.url.vazia", "informe o endereço da API")
-    if m == "esquema":
-        raise ErroKami(422, "erro.assistente.url.esquema", "o endereço precisa começar com https://")
-    if m == "credenciais":
-        raise ErroKami(422, "erro.assistente.url.credenciais", "o endereço não pode ter usuário ou senha")
-    if m == "consulta":
-        raise ErroKami(422, "erro.assistente.url.consulta", "o endereço não pode ter ? nem #")
-    if m == "http_fora_da_rede":
-        raise ErroKami(422, "erro.assistente.url.http_fora_da_rede",
-                       "http:// só vale pra este computador ou a rede local — use https://")
-    raise ErroKami(422, "erro.assistente.url.host", "endereço inválido")
-
-
-def _falta(falta: str) -> ErroKami:
-    if falta == "modelo":
-        return ErroKami(422, "erro.assistente.falta.modelo", "escolha um modelo antes")
-    if falta == "chave":
-        return ErroKami(422, "erro.assistente.falta.chave", "cole a chave da API antes")
-    return ErroKami(422, "erro.assistente.falta.provedor", "configure um provedor antes")
-
 
 def _provedor_ou_404(db, provedor_id: str):
     row = config.obter_provedor(db, provedor_id)
@@ -127,19 +77,6 @@ def _montar(row) -> Provedor:
     except ValueError:
         raise ErroKami(422, "erro.assistente.chave_ilegivel",
                        "a chave salva deste provedor não pôde ser lida — cole a chave de novo")
-
-
-def _teto(db, local: bool):
-    try:
-        uso.conferir(db, config.obter(db), local)
-    except uso.TetoAtingido as e:
-        if e.qual == "chamadas":
-            raise ErroKami(429, "erro.assistente.teto.chamadas",
-                           "o assistente chegou ao teto de {teto} chamadas de hoje — dá pra mudar em configurações › assistente",
-                           usado=e.usado, teto=e.teto)
-        raise ErroKami(429, "erro.assistente.teto.tokens",
-                       "o assistente chegou ao teto de {teto} tokens de hoje — dá pra mudar em configurações › assistente",
-                       usado=e.usado, teto=e.teto)
 
 
 # ── estado e configuração ───────────────────────────────────────────────
@@ -345,3 +282,117 @@ def listar_modelos(payload: ModelosIn, db=Depends(get_db)):
         logger.info("assistente: listar modelos falhou (%s, http %s)", e.codigo, e.status)
         raise erro_do_provedor(e)
     return {"modelos": modelos}
+
+
+# ── chat (IA-02) ─────────────────────────────────────────────────────────
+
+class MensagemIn(Entrada):
+    texto: str = Field(..., max_length=chat.TEXTO_MAX)
+    conversa_id: Optional[str] = Field(None, max_length=40)
+    tela: Optional[str] = Field(None, max_length=40)
+    idioma: Optional[str] = Field(None, max_length=10)
+
+
+def _checar_antes(conversa_id: Optional[str]) -> None:
+    """O que dá pra recusar ANTES de abrir o streaming sai como resposta
+    comum (4xx): desligado, falta provedor/modelo/chave, teto, conversa
+    que não existe. Conexão própria: roda no threadpool."""
+    conn = database.get_connection()
+    try:
+        chat.preparar(conn)
+        if conversa_id and conversas.obter(conn, conversa_id) is None:
+            raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
+    finally:
+        conn.close()
+
+
+@router.post("/mensagens")
+async def enviar_mensagem(payload: MensagemIn):
+    """
+    Uma mensagem → a resposta em streaming (text/event-stream; eventos em
+    app/assistente/chat.py). A conversa nova nasce aqui (sem conversa_id).
+
+    A leitura do provedor roda numa thread própria (o urllib bloqueia) e
+    passa os eventos por uma fila; se a tela desconectar (botão parar,
+    painel fechado, app fechado), o `finally` cancela — fecha a conexão
+    com o provedor na hora, e a resposta parcial fica guardada como
+    interrompida.
+    """
+    texto = payload.texto.strip()
+    if not texto:
+        raise ErroKami(422, "erro.assistente.texto_vazio", "escreva uma mensagem")
+    idioma = payload.idioma if payload.idioma in instrucoes.IDIOMAS else "pt"
+    await run_in_threadpool(_checar_antes, payload.conversa_id)
+
+    cancelamento = transporte.Cancelamento()
+    fila: asyncio.Queue = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+
+    def entregar(ev):
+        loop.call_soon_threadsafe(fila.put_nowait, ev)
+
+    def produzir():
+        conn = database.get_connection()
+        try:
+            for ev in chat.turno(conn, payload.conversa_id, texto, idioma, payload.tela, cancelamento):
+                entregar(ev)
+        except ErroKami as e:  # condição mudou entre a checagem e aqui (ex.: teto)
+            entregar({"tipo": "falha", "status": e.status_code, "chave": e.chave, "detail": e.detail, "vars": e.vars})
+        except Exception:  # noqa: BLE001 — a tela precisa saber que acabou
+            logger.exception("assistente: erro inesperado no chat")
+            entregar({"tipo": "falha", "status": 500, "chave": "erro.erro_interno", "detail": "erro inesperado", "vars": {}})
+        finally:
+            conn.close()
+            entregar(None)
+
+    threading.Thread(target=produzir, name="assistente-chat", daemon=True).start()
+
+    async def corpo():
+        try:
+            while True:
+                ev = await fila.get()
+                if ev is None:
+                    break
+                yield f"event: {ev['tipo']}\ndata: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
+        finally:
+            cancelamento.cancelar()
+
+    return StreamingResponse(corpo(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+@router.get("/conversas")
+def get_conversas(db=Depends(get_db)):
+    return conversas.listar(db)
+
+
+@router.get("/conversas/{conversa_id}")
+def get_conversa(conversa_id: str, db=Depends(get_db)):
+    c = conversas.obter(db, conversa_id)
+    if c is None:
+        raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
+    # a tela mostra o que a pessoa e o assistente disseram; os resultados
+    # das ferramentas ficam no registro do que foi enviado
+    c["mensagens"] = [m for m in c["mensagens"] if m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"])]
+    return c
+
+
+@router.delete("/conversas/{conversa_id}", status_code=204)
+def apagar_conversa(conversa_id: str, db=Depends(get_db)):
+    if not conversas.apagar(db, conversa_id):
+        raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
+
+
+@router.delete("/conversas", status_code=204)
+def apagar_todas_conversas(db=Depends(get_db)):
+    conversas.apagar_tudo(db)
+
+
+@router.get("/envios")
+def get_envios(db=Depends(get_db)):
+    return conversas.listar_envios(db)
+
+
+@router.delete("/envios", status_code=204)
+def apagar_envios(db=Depends(get_db)):
+    conversas.apagar_envios(db)

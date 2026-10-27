@@ -27,6 +27,10 @@ function backendFalso() {
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
     },
     ia: {
+      conversas: [
+        { id: "c1", titulo: "guardada", guardada: true, updated_at: "2026-10-27T11:34:00-03:00" },
+        { id: "c2", titulo: "só na memória", guardada: false, updated_at: "2026-10-27T11:35:00-03:00" },
+      ],
       provedores: [],
       config: { ativo: false, escondido: false, provedor_id: null, teto_chamadas: 150, teto_tokens: 200000, max_rodadas: 6, guardar_conversas: true, dias_historico: 30 },
     },
@@ -91,6 +95,8 @@ function backendFalso() {
       return { ok: true, ferramentas: true, ms: 1234, provedor: p, uso_hoje: { chamadas: 1, tokens: 40, estimado: false } };
     },
     "PUT /api/assistente/config": (b) => ((estado.ia.config = { ...estado.ia.config, ...b }), estadoIa()),
+    "GET /api/assistente/conversas": () => estado.ia.conversas,
+    "DELETE /api/assistente/conversas": () => ((estado.ia.conversas = []), {}),
   };
   function estadoIa() {
     const p = estado.ia.provedores.find((x) => x.id === estado.ia.config.provedor_id) || null;
@@ -410,6 +416,30 @@ test(
       assert.ok($("#cfg-ia-form-status").classList.contains("cfg-ia-falha"));
       $("#cfg-ia-form-voltar").click();
       assert.equal($("#cfg-ia-form").hidden, true);
+    });
+
+    await t.test("assistente (IA-02): desligar 'guardar conversas' pergunta se apaga as já guardadas", async () => {
+      const guardar = $("#cfg-ia-guardar");
+      assert.equal(guardar.checked, true);
+      guardar.checked = false;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.match($("#cm-message").textContent, /1 conversa guardada/, "conta só as guardadas");
+      assert.match($("#cm-confirm-btn").textContent, /desligar e apagar/);
+      await confirma();
+      assert.equal(pedidos("DELETE", "/api/assistente/conversas").length, 1);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: false });
+      // religar não pergunta nada
+      guardar.checked = true;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: true });
+      // sem conversa guardada, desliga direto
+      guardar.checked = false;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.equal(pedidos("DELETE", "/api/assistente/conversas").length, 1);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: false });
     });
 
     await t.test("fechar e reabrir em outra aba", async () => {

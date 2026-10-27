@@ -52,6 +52,7 @@ import { navigateTo } from "./navigate.js";
 import { openConfiguracoesModal } from "../modals/configuracoes-modal.js";
 import { openNotaRapida } from "../modals/nota-rapida-modal.js";
 import { abrirCaptura } from "./captura.js";
+import { alternarAssistente } from "./assistente-painel.js";
 import { t } from "../i18n.js";
 
 // mesma ordem visual de index.html (#nav-tree). ORG-04 (P-55): hábitos
@@ -85,5 +86,6 @@ export function wireGlobalShortcuts() {
     comRotulo({ code: "KeyQ", run: () => abrirCaptura() }, "atalhos.captura"),
     comRotulo({ code: "Space", group: "apelido", run: () => abrirCaptura() }, "atalhos.captura_curta"),
     comRotulo({ code: "KeyB", run: () => navigateTo("organizacao", { focusSearch: true }) }, "atalhos.focar_busca"),
+    comRotulo({ code: "KeyA", run: () => alternarAssistente() }, "atalhos.assistente"), // IA-02
   ]);
 }

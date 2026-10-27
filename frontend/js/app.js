@@ -42,6 +42,7 @@ import { setTelaAtual, wireErrorNotice } from "./components/error-notice.js";
 import { startBackendWatchdog } from "./components/backend-watchdog.js";
 import { wireNotasVinculadas } from "./components/notas-vinculadas.js";
 import { wirePaleta } from "./components/paleta.js";
+import { wireAssistente } from "./components/assistente-painel.js";
 import { definirFormatoData, definirMoeda, formatoData, moeda } from "./components/format.js";
 import { moedaDoPais, paisDoSistema } from "./components/pais.js";
 import { avisarSeFaltarFonte } from "./components/fonte-idioma.js";
@@ -442,6 +443,7 @@ async function boot() {
   wireGlobalShortcuts();
   wireNotasVinculadas(); // ORG-01: "notas (N)" em metas/trilhas/eventos/posições
   wirePaleta(); // ORG-03: Ctrl+K, busca global e comandos
+  wireAssistente(); // IA-02: painel do assistente (item do menu, Alt+A)
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();
