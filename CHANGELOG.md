@@ -4,7 +4,7 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [1.16.0] - em desenvolvimento
+## [1.16.0] - 2026-10-27
 
 _Assistente de IA opcional, desligado por padrão: um chat que lê os seus dados (só lê) com o provedor que você escolher, na nuvem ou no seu computador, mostrando tudo o que foi enviado._
 
