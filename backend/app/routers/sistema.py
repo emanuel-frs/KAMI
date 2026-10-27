@@ -27,7 +27,8 @@ Endpoints:
                              pessoais (CONF-06)
 
 Nota sobre /import: no backup SEM senha, `email_accounts.app_password_enc`,
-`github_settings.token_enc` e `search_settings.api_key_enc` saem
+`github_settings.token_enc`, `search_settings.api_key_enc` e
+`assistente_provedores.chave_enc` (chave da API de IA, IA-01) saem
 cifrados com a chave local da máquina (app/crypto.py — no cofre do
 sistema desde a 1.11): importado em outra instalação, esses três não
 abrem, só o resto. No backup COM senha eles vão decifrados dentro do
@@ -65,6 +66,10 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # (defesa em profundidade — get_connection() já liga isso, mas um
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
+    # IA-01: config aponta pro provedor em uso, então sai antes dele
+    "assistente_config",
+    "assistente_uso",
+    "assistente_provedores",
     "calendar_events",
     "screen_tips_seen",
     "dicas_vistas",
@@ -146,6 +151,7 @@ SEGREDOS = [
     ("github_settings", "token_enc"),
     ("search_settings", "api_key_enc"),
     ("notas", "conteudo_cifrado"),  # ORG-01: texto da nota trancada
+    ("assistente_provedores", "chave_enc"),  # IA-01: chave da API do provedor de IA
 ]
 
 

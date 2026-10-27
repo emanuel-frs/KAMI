@@ -746,6 +746,58 @@ CREATE INDEX IF NOT EXISTS idx_wallet_accounts_bank ON wallet_accounts(bank_id);
 CREATE INDEX IF NOT EXISTS idx_email_cache_account ON email_cache(account_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_screen ON dashboard_widgets(screen);
 
+-- ---------------- ASSISTENTE (IA-01, Sprint 8) ----------------
+-- Desligado por padrão (princípio 6): nada aqui é criado na instalação —
+-- a linha de assistente_config nasce na primeira leitura (app/assistente/
+-- config.py) com os padrões do código, e só vira "ativo" quando a pessoa
+-- liga com um provedor pronto.
+CREATE TABLE IF NOT EXISTS assistente_config (
+    id                 TEXT PRIMARY KEY,           -- linha única
+    ativo              INTEGER NOT NULL DEFAULT 0,
+    escondido          INTEGER NOT NULL DEFAULT 0, -- P-110: some o botão do assistente
+    provedor_id        TEXT REFERENCES assistente_provedores(id) ON DELETE SET NULL,
+    teto_chamadas      INTEGER NOT NULL DEFAULT 150,    -- P-104: por dia
+    teto_tokens        INTEGER NOT NULL DEFAULT 200000, -- P-104: entrada + saída, por dia
+    max_rodadas        INTEGER NOT NULL DEFAULT 6,      -- P-104: idas às ferramentas por mensagem
+    guardar_conversas  INTEGER NOT NULL DEFAULT 1,      -- P-105
+    dias_historico     INTEGER NOT NULL DEFAULT 30,     -- P-105
+    updated_at         TEXT
+);
+
+-- Um provedor configurado pela pessoa. Pode haver vários (ex.: Gemini e
+-- Ollama) e só um em uso (assistente_config.provedor_id). `catalogo` é o
+-- id do provedor conhecido (app/assistente/provedores.json) que
+-- pré-preencheu os campos, ou 'outro'; `tipo` é o formato da API
+-- ('openai' = compatível com OpenAI, 'anthropic' = API Messages).
+-- `chave_enc` é cifrada como os outros segredos (app/crypto.py) e NUNCA
+-- volta pro frontend; trocar `url_base` com chave salva apaga a chave
+-- (P-109) — a chave só vai pro endereço em que a pessoa a colou.
+CREATE TABLE IF NOT EXISTS assistente_provedores (
+    id             TEXT PRIMARY KEY,
+    catalogo       TEXT NOT NULL,
+    nome           TEXT NOT NULL,
+    tipo           TEXT NOT NULL CHECK (tipo IN ('openai', 'anthropic')),
+    url_base       TEXT NOT NULL,
+    modelo         TEXT,
+    chave_enc      TEXT,
+    teste_em       TEXT,     -- último "testar conexão"
+    teste_ok       INTEGER,  -- 1/0; NULL = nunca testado
+    ferramentas_ok INTEGER,  -- o modelo chamou a ferramenta de teste? 1/0/NULL
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
+
+-- Uso por dia (teto do P-104 e o contador visível). Tokens são os que o
+-- provedor informa; quando ele não informa (alguns locais), estimativa
+-- por tamanho do texto (app/assistente/uso.py), marcada em `estimado`.
+CREATE TABLE IF NOT EXISTS assistente_uso (
+    dia            TEXT PRIMARY KEY,  -- 'YYYY-MM-DD' local
+    chamadas       INTEGER NOT NULL DEFAULT 0,
+    tokens_entrada INTEGER NOT NULL DEFAULT 0,
+    tokens_saida   INTEGER NOT NULL DEFAULT 0,
+    estimado       INTEGER NOT NULL DEFAULT 0
+);
+
 -- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
 -- versão do app que atualizou o banco por último — ao abrir uma versão
 -- nova, o backend copia o banco pra backups/ ANTES de migrar (ver

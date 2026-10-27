@@ -1,0 +1,117 @@
+{
+  "_sobre": "Provedores conhecidos do assistente (IA-01). Só PRÉ-PREENCHEM o formulário: a pessoa pode editar URL e modelo, e os modelos vêm sempre da API do provedor (princípio 8 — nada de lista fixa de modelos aqui). 'selo' = testado de verdade com a suíte do IA-08 (data + modelo) ou null ('deve funcionar'). Editar este arquivo não exige mexer em código.",
+  "provedores": [
+    {
+      "id": "gemini",
+      "nome": "Google Gemini",
+      "tipo": "openai",
+      "url_base": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "local": false,
+      "chave": "obrigatoria",
+      "gratuito": "limitado",
+      "links": {
+        "chave": "https://aistudio.google.com/apikey",
+        "privacidade": "https://ai.google.dev/gemini-api/terms",
+        "site": "https://ai.google.dev"
+      },
+      "selo": null
+    },
+    {
+      "id": "groq",
+      "nome": "Groq",
+      "tipo": "openai",
+      "url_base": "https://api.groq.com/openai/v1",
+      "local": false,
+      "chave": "obrigatoria",
+      "gratuito": "limitado",
+      "links": {
+        "chave": "https://console.groq.com/keys",
+        "privacidade": "https://groq.com/privacy-policy",
+        "site": "https://groq.com"
+      },
+      "selo": null
+    },
+    {
+      "id": "openrouter",
+      "nome": "OpenRouter",
+      "tipo": "openai",
+      "url_base": "https://openrouter.ai/api/v1",
+      "local": false,
+      "chave": "obrigatoria",
+      "gratuito": "limitado",
+      "links": {
+        "chave": "https://openrouter.ai/settings/keys",
+        "privacidade": "https://openrouter.ai/privacy",
+        "site": "https://openrouter.ai"
+      },
+      "selo": null
+    },
+    {
+      "id": "openai",
+      "nome": "OpenAI",
+      "tipo": "openai",
+      "url_base": "https://api.openai.com/v1",
+      "local": false,
+      "chave": "obrigatoria",
+      "gratuito": "nao",
+      "links": {
+        "chave": "https://platform.openai.com/api-keys",
+        "privacidade": "https://openai.com/policies/privacy-policy",
+        "site": "https://platform.openai.com"
+      },
+      "selo": null
+    },
+    {
+      "id": "anthropic",
+      "nome": "Anthropic (Claude)",
+      "tipo": "anthropic",
+      "url_base": "https://api.anthropic.com/v1",
+      "local": false,
+      "chave": "obrigatoria",
+      "gratuito": "nao",
+      "links": {
+        "chave": "https://console.anthropic.com/settings/keys",
+        "privacidade": "https://www.anthropic.com/legal/privacy",
+        "site": "https://console.anthropic.com"
+      },
+      "selo": null
+    },
+    {
+      "id": "ollama",
+      "nome": "Ollama",
+      "tipo": "openai",
+      "url_base": "http://localhost:11434/v1",
+      "local": true,
+      "chave": "nenhuma",
+      "gratuito": "sim",
+      "links": {
+        "site": "https://ollama.com"
+      },
+      "selo": null
+    },
+    {
+      "id": "lmstudio",
+      "nome": "LM Studio",
+      "tipo": "openai",
+      "url_base": "http://localhost:1234/v1",
+      "local": true,
+      "chave": "nenhuma",
+      "gratuito": "sim",
+      "links": {
+        "site": "https://lmstudio.ai"
+      },
+      "selo": null
+    },
+    {
+      "id": "outro",
+      "nome": "outro (compatível com OpenAI)",
+      "tipo": "openai",
+      "url_base": "",
+      "local": false,
+      "chave": "opcional",
+      "gratuito": null,
+      "links": {},
+      "selo": null
+    }
+  ]
+}

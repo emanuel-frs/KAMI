@@ -117,6 +117,7 @@ import {
   wireChavesTab,
 } from "./configuracoes/chaves.js";
 import { buildSegurancaPanel, wireSegurancaTab } from "./configuracoes/seguranca.js";
+import { buildAssistentePanel, wireAssistenteTab, carregarAssistente, fecharForm as fecharFormAssistente } from "./configuracoes/assistente.js";
 import { buildBackupPanel, wireBackupTab } from "./configuracoes/backup.js";
 import { buildSobrePanel, wireSobreTab } from "./configuracoes/sobre.js";
 import { carregarCopias } from "./configuracoes/copias.js";
@@ -127,6 +128,7 @@ const tabs = () => [
   { id: "perfil", label: t("configuracoes.perfil"), iconName: "user" },
   { id: "notificacoes", label: t("configuracoes.notificacoes"), iconName: "bell" },
   { id: "chaves", label: t("configuracoes.chaves"), iconName: "key" },
+  { id: "assistente", label: t("configuracoes.assistente"), iconName: "terminal" }, // IA-01
   { id: "seguranca", label: t("configuracoes.seguranca"), iconName: "shield" },
   { id: "backup", label: t("configuracoes.backup_e_dados"), iconName: "download" },
   { id: "sobre", label: t("configuracoes.sobre"), iconName: "circle-help" },
@@ -172,6 +174,7 @@ function buildModal() {
           ${buildPerfilPanel()}
           ${buildNotificacoesPanel()}
           ${buildChavesPanel()}
+          ${buildAssistentePanel()}
           ${buildSegurancaPanel()}
           ${buildBackupPanel()}
           ${buildSobrePanel()}
@@ -206,6 +209,7 @@ function wireModal(wrap) {
   wirePerfilTab(wrap);
   wireNotificacoesTab(wrap);
   wireChavesTab(wrap);
+  wireAssistenteTab(wrap); // IA-01
   wrap.querySelector("#cfg-effects").addEventListener("change", (e) => selectEffectsMode(wrap, e.target.value));
   wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
   wireIdioma(wrap); // I18N-01
@@ -286,6 +290,10 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
 
   estado.modalEl.classList.add("open");
   if (tabId === "backup") carregarCopias(estado.modalEl); // CONF-08 (aberto direto na aba, sem o clique)
+  // IA-01: formulário de provedor nunca sobrevive de uma abertura pra outra
+  // (chave digitada pela metade); aberta direto na aba, carrega sem o clique
+  fecharFormAssistente(estado.modalEl);
+  if (tabId === "assistente") carregarAssistente(estado.modalEl);
 
   // busca o perfil atual toda vez que o modal abre — pode ter mudado
   // desde a última abertura (accent_color, nome, avatar), e tanto os

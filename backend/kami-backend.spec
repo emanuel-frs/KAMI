@@ -32,6 +32,8 @@ a = Analysis(
     binaries=[],
     datas=[
         ('app/schema.sql', 'app'),
+        # IA-01: provedores conhecidos do assistente (só pré-preenchem)
+        ('app/assistente/provedores.json', 'app/assistente'),
         # arquivo de versão (fonte de verdade única, raiz do repo, um
         # nível acima de backend/) — ver app/version.py
         ('../VERSION', '.'),

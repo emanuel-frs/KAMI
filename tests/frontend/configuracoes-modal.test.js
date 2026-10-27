@@ -26,6 +26,10 @@ function backendFalso() {
       copias: [{ nome: "kami-antes-de-apagar-tudo-20261021-090000.db", tipo: "antes", acao: "apagar-tudo", quando: "2026-10-21T09:00:00-03:00", tamanho: 2048 }],
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
     },
+    ia: {
+      provedores: [],
+      config: { ativo: false, escondido: false, provedor_id: null, teto_chamadas: 150, teto_tokens: 200000, max_rodadas: 6, guardar_conversas: true, dias_historico: 30 },
+    },
   };
   const rotas = {
     "GET /api/perfil": () => estado.perfil,
@@ -67,7 +71,32 @@ function backendFalso() {
       return estado.backups;
     },
     "POST /api/backups/restaurar": () => estado.backups,
+    // IA-01: assistente (a chave nunca volta — só tem_chave)
+    "GET /api/assistente/catalogo": () => [
+      { id: "groq", nome: "Groq", tipo: "openai", url_base: "https://api.groq.com/openai/v1", local: false, chave: "obrigatoria", gratuito: "limitado", links: { chave: "https://console.groq.com/keys" }, selo: null },
+      { id: "ollama", nome: "Ollama", tipo: "openai", url_base: "http://localhost:11434/v1", local: true, chave: "nenhuma", gratuito: "sim", links: { site: "https://ollama.com" }, selo: null },
+    ],
+    "GET /api/assistente": () => estadoIa(),
+    "GET /api/assistente/provedores": () => estado.ia.provedores,
+    "POST /api/assistente/modelos": (b) => (b.url_base.includes("11434") ? { modelos: ["llama3.1:8b", "qwen2.5:7b"] } : { __status: 422, detail: "x", chave: "erro.assistente.falta.chave", vars: {} }),
+    "POST /api/assistente/provedores": (b) => {
+      const p = { id: `ia${estado.ia.provedores.length + 1}`, catalogo: b.catalogo, nome: b.catalogo === "ollama" ? "Ollama" : "Groq", tipo: "openai", url_base: b.url_base, modelo: b.modelo, tem_chave: Boolean(b.api_key), local: b.catalogo === "ollama", chave_exigida: b.catalogo !== "ollama", links: {}, selo: null, teste_ok: null, ferramentas_ok: null, teste_em: null };
+      estado.ia.provedores.push(p);
+      estado.ia.config.provedor_id = estado.ia.config.provedor_id || p.id;
+      return p;
+    },
+    "POST /api/assistente/provedores/ia1/testar": () => {
+      const p = estado.ia.provedores[0];
+      Object.assign(p, { teste_ok: true, ferramentas_ok: true, teste_em: "2026-10-26T21:00:00-03:00" });
+      return { ok: true, ferramentas: true, ms: 1234, provedor: p, uso_hoje: { chamadas: 1, tokens: 40, estimado: false } };
+    },
+    "PUT /api/assistente/config": (b) => ((estado.ia.config = { ...estado.ia.config, ...b }), estadoIa()),
   };
+  function estadoIa() {
+    const p = estado.ia.provedores.find((x) => x.id === estado.ia.config.provedor_id) || null;
+    const falta = !p ? "provedor" : !p.modelo ? "modelo" : estado.ia.config.ativo ? null : "desligado";
+    return { config: { ...estado.ia.config }, provedor: p, pronto: falta === null, falta, uso_hoje: { chamadas: 0, tokens: 0, estimado: false } };
+  }
   const fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const metodo = (opts.method || "GET").toUpperCase();
@@ -120,11 +149,11 @@ test(
       await espera(60);
     };
 
-    await t.test("abre em aparência com o perfil carregado; as 7 abas existem", async () => {
+    await t.test("abre em aparência com o perfil carregado; as 8 abas existem", async () => {
       await openConfiguracoesModal();
       await espera(60);
       assert.ok($("#settings-modal").classList.contains("open"));
-      assert.equal(doc.querySelectorAll(".cfg-tab").length, 7);
+      assert.equal(doc.querySelectorAll(".cfg-tab").length, 8);
       assert.ok($('.cfg-panel[data-panel="aparencia"]').classList.contains("on"));
       assert.equal(doc.querySelectorAll("#cfg-accent-swatches .ki-swatch").length > 0, true);
       assert.match($("#cfg-rewards-desc").textContent, /nível 3/);
@@ -333,6 +362,54 @@ test(
       $("#cfg-diag-copy").click();
       await espera(60);
       assert.match($("#cfg-diag-status").textContent, /copiado|copie à mão/);
+    });
+
+    await t.test("assistente (IA-01): começa desligado; cadastrar o Ollama, buscar modelos, salvar e testar, ligar", async () => {
+      await aba("assistente");
+      await espera(60);
+      assert.equal($("#cfg-ia-ativo").disabled, true, "sem provedor não dá pra ligar");
+      assert.match($("#cfg-ia-falta").textContent, /provedor/);
+      $("#cfg-ia-novo").click();
+      const sel = $("#cfg-ia-catalogo");
+      sel.value = "ollama";
+      sel.dispatchEvent(new dom.window.Event("change"));
+      assert.equal($("#cfg-ia-url").value, "http://localhost:11434/v1");
+      assert.equal($("#cfg-ia-chave-campo").hidden, true, "local não pede chave");
+      $("#cfg-ia-form-ok").click();
+      await espera();
+      assert.equal(pedidos("POST", "/api/assistente/provedores").length, 0, "sem modelo não salva");
+      $("#cfg-ia-buscar").click();
+      await espera(60);
+      const opcoes = [...doc.querySelectorAll("#cfg-ia-modelos [data-modelo]")].map((li) => li.dataset.modelo);
+      assert.deepEqual(opcoes, ["llama3.1:8b", "qwen2.5:7b"]);
+      digita($("#cfg-ia-modelo"), "qwen");
+      assert.deepEqual([...doc.querySelectorAll("#cfg-ia-modelos [data-modelo]")].map((li) => li.dataset.modelo), ["qwen2.5:7b"]);
+      doc.querySelector("#cfg-ia-modelos [data-modelo]").click();
+      assert.equal($("#cfg-ia-modelo").value, "qwen2.5:7b");
+      $("#cfg-ia-form-ok").click();
+      await espera(400);
+      assert.deepEqual(pedidos("POST", "/api/assistente/provedores").at(-1).corpo, { catalogo: "ollama", url_base: "http://localhost:11434/v1", modelo: "qwen2.5:7b" });
+      assert.equal(pedidos("POST", "/api/assistente/provedores/ia1/testar").length, 1, "salvar já testa");
+      assert.match($(".cfg-ia-prov").textContent, /Ollama/);
+      assert.match($(".cfg-ia-prov-status").textContent, /1,2|1\.2/);
+      assert.equal($("#cfg-ia-ativo").disabled, false);
+      $("#cfg-ia-ativo").click();
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { ativo: true });
+      assert.match($("#cfg-ia-em-uso").textContent, /qwen2\.5:7b/);
+    });
+
+    await t.test("assistente (IA-01): na nuvem sem chave, buscar modelos mostra o erro sem quebrar", async () => {
+      $("#cfg-ia-novo").click();
+      const sel = $("#cfg-ia-catalogo");
+      sel.value = "groq";
+      sel.dispatchEvent(new dom.window.Event("change"));
+      assert.equal($("#cfg-ia-chave-campo").hidden, false);
+      $("#cfg-ia-buscar").click();
+      await espera(60);
+      assert.ok($("#cfg-ia-form-status").classList.contains("cfg-ia-falha"));
+      $("#cfg-ia-form-voltar").click();
+      assert.equal($("#cfg-ia-form").hidden, true);
     });
 
     await t.test("fechar e reabrir em outra aba", async () => {
