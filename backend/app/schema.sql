@@ -761,6 +761,7 @@ CREATE TABLE IF NOT EXISTS assistente_config (
     max_rodadas        INTEGER NOT NULL DEFAULT 6,      -- P-104: idas às ferramentas por mensagem
     guardar_conversas  INTEGER NOT NULL DEFAULT 1,      -- P-105
     dias_historico     INTEGER NOT NULL DEFAULT 30,     -- P-105
+    permissoes         TEXT,                            -- P-113: JSON {área: bool}; NULL = padrão (config.py)
     updated_at         TEXT
 );
 
@@ -826,6 +827,7 @@ CREATE TABLE IF NOT EXISTS assistente_mensagens (
     modelo         TEXT,
     interrompida   INTEGER NOT NULL DEFAULT 0,
     erro_chave     TEXT,
+    aviso          TEXT,              -- IA-03: JSON — {"tipo": "cuidado", ...}: o Kami respondeu sozinho (P-111)
     created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assistente_mensagens_conversa ON assistente_mensagens(conversa_id, created_at);

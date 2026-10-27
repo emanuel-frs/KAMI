@@ -47,6 +47,7 @@ def _msg_de_row(row) -> dict:
     d = dict(row)
     d["chamadas"] = json.loads(d["chamadas"]) if d.get("chamadas") else []
     d["interrompida"] = bool(d["interrompida"])
+    d["aviso"] = json.loads(d["aviso"]) if d.get("aviso") else None
     d.pop("conversa_id", None)
     return d
 
@@ -105,7 +106,7 @@ def adicionar_mensagem(conn, conversa_id: str, papel: str, texto: str = "", **ex
         "chamadas": extra.get("chamadas") or [], "id_chamada": extra.get("id_chamada"),
         "nome_ferramenta": extra.get("nome_ferramenta"), "provedor": extra.get("provedor"),
         "modelo": extra.get("modelo"), "interrompida": bool(extra.get("interrompida")),
-        "erro_chave": extra.get("erro_chave"), "created_at": now_iso(),
+        "erro_chave": extra.get("erro_chave"), "aviso": extra.get("aviso"), "created_at": now_iso(),
     }
     with _lock:
         mem = _memoria_conversas.get(conversa_id)
@@ -115,14 +116,28 @@ def adicionar_mensagem(conn, conversa_id: str, papel: str, texto: str = "", **ex
             return msg
     conn.execute(
         "INSERT INTO assistente_mensagens (id, conversa_id, papel, texto, chamadas, id_chamada, nome_ferramenta, "
-        "provedor, modelo, interrompida, erro_chave, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "provedor, modelo, interrompida, erro_chave, aviso, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (msg["id"], conversa_id, papel, texto, json.dumps(msg["chamadas"], ensure_ascii=False) if msg["chamadas"] else None,
          msg["id_chamada"], msg["nome_ferramenta"], msg["provedor"], msg["modelo"], int(msg["interrompida"]),
-         msg["erro_chave"], msg["created_at"]),
+         msg["erro_chave"], json.dumps(msg["aviso"], ensure_ascii=False) if msg["aviso"] else None, msg["created_at"]),
     )
     conn.execute("UPDATE assistente_conversas SET updated_at = ? WHERE id = ?", (msg["created_at"], conversa_id))
     conn.commit()
     return msg
+
+
+def remover_mensagens(conn, conversa_id: str, ids: list[str]) -> None:
+    """Continuar/refazer (retorno do teste da F3): a resposta refeita sai
+    da conversa; o registro do que foi enviado continua (aquilo saiu)."""
+    if not ids:
+        return
+    with _lock:
+        mem = _memoria_conversas.get(conversa_id)
+        if mem:
+            mem["mensagens"] = [m for m in mem["mensagens"] if m["id"] not in ids]
+            return
+    conn.executemany("DELETE FROM assistente_mensagens WHERE conversa_id = ? AND id = ?", [(conversa_id, i) for i in ids])
+    conn.commit()
 
 
 def apagar(conn, conversa_id: str) -> bool:

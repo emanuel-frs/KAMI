@@ -44,7 +44,7 @@ import asyncio
 import json
 import logging
 import threading
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import Field
@@ -99,11 +99,17 @@ class ConfigIn(Entrada):
     max_rodadas: Optional[int] = None
     guardar_conversas: Optional[bool] = None
     dias_historico: Optional[int] = None
+    permissoes: Optional[dict[str, bool]] = None  # P-113: {área: pode ler?}
 
 
 @router.put("/config")
 def put_config(payload: ConfigIn, db=Depends(get_db)):
     campos = payload.model_dump(exclude_none=True)
+    novas_permissoes = campos.pop("permissoes", None)
+    if novas_permissoes is not None:
+        if set(novas_permissoes) - set(config.AREAS):
+            raise ErroKami(422, "erro.assistente.area_desconhecida", "área desconhecida")
+        config.salvar_permissoes(db, novas_permissoes)
     for nome, (minimo, maximo) in config.LIMITES.items():
         if nome in campos and not (minimo <= campos[nome] <= maximo):
             raise ErroKami(422, "erro.assistente.fora_do_limite", "valor fora do limite: use entre {min} e {max}",
@@ -287,21 +293,28 @@ def listar_modelos(payload: ModelosIn, db=Depends(get_db)):
 # ── chat (IA-02) ─────────────────────────────────────────────────────────
 
 class MensagemIn(Entrada):
-    texto: str = Field(..., max_length=chat.TEXTO_MAX)
+    texto: str = Field("", max_length=chat.TEXTO_MAX)  # vazio só com `acao`
+    acao: Optional[Literal["continuar", "refazer"]] = None  # sobre a última resposta da conversa
     conversa_id: Optional[str] = Field(None, max_length=40)
     tela: Optional[str] = Field(None, max_length=40)
     idioma: Optional[str] = Field(None, max_length=10)
 
 
-def _checar_antes(conversa_id: Optional[str]) -> None:
+def _checar_antes(conversa_id: Optional[str], acao: Optional[str] = None) -> None:
     """O que dá pra recusar ANTES de abrir o streaming sai como resposta
     comum (4xx): desligado, falta provedor/modelo/chave, teto, conversa
-    que não existe. Conexão própria: roda no threadpool."""
+    que não existe, nada pra continuar/refazer. Conexão própria: roda no
+    threadpool."""
     conn = database.get_connection()
     try:
         chat.preparar(conn)
-        if conversa_id and conversas.obter(conn, conversa_id) is None:
+        conversa = conversas.obter(conn, conversa_id) if conversa_id else None
+        if conversa_id and conversa is None:
             raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
+        if acao:
+            if conversa is None:
+                raise ErroKami(409, "erro.assistente.nada_pra_refazer", "não há resposta pra refazer")
+            chat.alvo(conversa, acao)
     finally:
         conn.close()
 
@@ -319,10 +332,10 @@ async def enviar_mensagem(payload: MensagemIn):
     interrompida.
     """
     texto = payload.texto.strip()
-    if not texto:
+    if not texto and not payload.acao:
         raise ErroKami(422, "erro.assistente.texto_vazio", "escreva uma mensagem")
     idioma = payload.idioma if payload.idioma in instrucoes.IDIOMAS else "pt"
-    await run_in_threadpool(_checar_antes, payload.conversa_id)
+    await run_in_threadpool(_checar_antes, payload.conversa_id, payload.acao)
 
     cancelamento = transporte.Cancelamento()
     fila: asyncio.Queue = asyncio.Queue()
@@ -334,7 +347,7 @@ async def enviar_mensagem(payload: MensagemIn):
     def produzir():
         conn = database.get_connection()
         try:
-            for ev in chat.turno(conn, payload.conversa_id, texto, idioma, payload.tela, cancelamento):
+            for ev in chat.turno(conn, payload.conversa_id, texto, idioma, payload.tela, cancelamento, payload.acao):
                 entregar(ev)
         except ErroKami as e:  # condição mudou entre a checagem e aqui (ex.: teto)
             entregar({"tipo": "falha", "status": e.status_code, "chave": e.chave, "detail": e.detail, "vars": e.vars})
@@ -373,7 +386,7 @@ def get_conversa(conversa_id: str, db=Depends(get_db)):
         raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
     # a tela mostra o que a pessoa e o assistente disseram; os resultados
     # das ferramentas ficam no registro do que foi enviado
-    c["mensagens"] = [m for m in c["mensagens"] if m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"])]
+    c["mensagens"] = [m for m in c["mensagens"] if m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso"))]
     return c
 
 

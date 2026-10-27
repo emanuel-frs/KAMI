@@ -318,8 +318,9 @@ async function requestInner(path, options, method) {
  * - `signal` (AbortController) é o botão parar: abortar fecha a conexão,
  *   e o backend corta a chamada ao provedor (app/routers/assistente.py).
  *   Abortado, resolve sem erro.
- * - Avisa `kami:data-changed` no fim, como os outros POST (o uso do dia
- *   mudou).
+ * - NÃO avisa `kami:data-changed`: o assistente só lê (IA-03) — avisar
+ *   recarregava a tela aberta a cada resposta, à toa. O uso do dia vem
+ *   no evento "fim".
  */
 export async function postStream(path, data, { signal, onEvento } = {}) {
   let baseUrl;
@@ -374,9 +375,6 @@ export async function postStream(path, data, { signal, onEvento } = {}) {
     if (!signal?.aborted) throw erroSemConexao(String(err?.message || err));
   } finally {
     clearGetCache();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("kami:data-changed", { detail: { method: "POST", path } }));
-    }
   }
 }
 

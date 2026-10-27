@@ -32,12 +32,13 @@ import {
 } from "../api/assistente.js";
 import { ApiError } from "../api/client.js";
 import { announce, prefersReducedMotion } from "./a11y.js";
+import { copyText } from "./clipboard.js";
 import { getTelaAtual } from "./error-notice.js";
 import { escapeHtml, fmtDataHora } from "./format.js";
 import { icon } from "./icons.js";
 import { markdownParaDom } from "./nota-markdown.js";
 import { openExternal } from "./open-external.js";
-import { idiomaAtual, localeAtual, t } from "../i18n.js";
+import { idiomaAtual, localeAtual, t, tOu } from "../i18n.js";
 
 const TEXTO_MAX = 4000;
 
@@ -69,6 +70,8 @@ function montar() {
   el.setAttribute("aria-labelledby", "ia-titulo");
   el.dataset.idioma = idiomaAtual();
   el.innerHTML = `
+    <div class="ia-alca" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="ia-painel"
+      aria-label="${escapeHtml(t("assistente.chat.largura"))}" data-tooltip="${escapeHtml(t("assistente.chat.largura_dica"))}"></div>
     <header class="ia-cab">
       <h2 id="ia-titulo"><span class="ia-sinal">kami&gt;</span> ${escapeHtml(t("assistente.chat.titulo"))}</h2>
       <div class="ia-cab-acoes">
@@ -89,7 +92,78 @@ function montar() {
     </form>`;
   document.body.appendChild(el);
   ligarEventos(el);
+  ligarLargura(el);
   return el;
+}
+
+// ── largura (retorno do teste da F3): arrastar a borda, até metade da tela ─
+
+const LARGURA_PADRAO = 440;
+const LARGURA_MIN = 360;
+const CHAVE_LARGURA = "kami.assistente.largura";
+
+function larguraMax() {
+  return Math.max(LARGURA_MIN, Math.min(Math.floor(window.innerWidth / 2), window.innerWidth - 48));
+}
+
+function aplicarLargura(el, px, guardar = false) {
+  const largura = Math.round(Math.min(Math.max(px, LARGURA_MIN), larguraMax()));
+  el.style.setProperty("--ia-largura", `${largura}px`);
+  const alca = el.querySelector(".ia-alca");
+  alca.setAttribute("aria-valuemin", String(LARGURA_MIN));
+  alca.setAttribute("aria-valuemax", String(larguraMax()));
+  alca.setAttribute("aria-valuenow", String(largura));
+  if (guardar) {
+    try {
+      localStorage.setItem(CHAVE_LARGURA, String(largura));
+    } catch {
+      /* sem localStorage: vale até fechar o app */
+    }
+  }
+  return largura;
+}
+
+function larguraGuardada() {
+  try {
+    return Number(localStorage.getItem(CHAVE_LARGURA)) || LARGURA_PADRAO;
+  } catch {
+    return LARGURA_PADRAO;
+  }
+}
+
+function ligarLargura(el) {
+  const alca = el.querySelector(".ia-alca");
+  let desejada = larguraGuardada(); // a janela encolher não perde a escolha
+  aplicarLargura(el, desejada);
+  window.addEventListener("resize", () => aplicarLargura(el, desejada));
+  alca.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    alca.setPointerCapture?.(e.pointerId);
+    document.body.classList.add("ia-arrastando");
+    const mover = (ev) => {
+      desejada = aplicarLargura(el, window.innerWidth - ev.clientX);
+    };
+    const soltar = () => {
+      alca.removeEventListener("pointermove", mover);
+      document.body.classList.remove("ia-arrastando");
+      desejada = aplicarLargura(el, desejada, true);
+    };
+    alca.addEventListener("pointermove", mover);
+    alca.addEventListener("pointerup", soltar, { once: true });
+    alca.addEventListener("pointercancel", soltar, { once: true });
+  });
+  alca.addEventListener("dblclick", () => {
+    desejada = aplicarLargura(el, LARGURA_PADRAO, true);
+  });
+  alca.addEventListener("keydown", (e) => {
+    const atual = Number(alca.getAttribute("aria-valuenow"));
+    const passo = e.shiftKey ? 96 : 24;
+    const nova = { ArrowLeft: atual + passo, ArrowRight: atual - passo, Home: LARGURA_MIN, End: larguraMax() }[e.key];
+    if (nova === undefined) return;
+    e.preventDefault();
+    desejada = aplicarLargura(el, nova, true);
+  });
 }
 
 function botaoIcone(acao, nome, rotulo) {
@@ -149,7 +223,28 @@ function renderVazio() {
       <p class="ia-linha"><span class="ia-sinal">kami&gt;</span> ${escapeHtml(t("assistente.chat.pronto"))}</p>
       <p class="ia-nota">${escapeHtml(t("assistente.chat.o_que_faz"))}</p>
       <p class="ia-nota">${escapeHtml(onde)}</p>
+      <div class="ia-sugestoes" role="group" aria-label="${escapeHtml(t("assistente.chat.sugestoes"))}">
+        ${sugestoes().map((k) => `<button type="button" class="ia-sugestao" data-ia="sugestao" data-texto="${escapeHtml(t(k))}">${escapeHtml(t(k))}</button>`).join("")}
+      </div>
     </div>`;
+}
+
+// IA-03: sugestões rápidas pela tela aberta (a última é sempre sobre o app)
+const SUGESTOES = {
+  financas: ["sugestao.resuma_mes", "sugestao.contas_semana", "sugestao.onde_gastei_mais"],
+  metas: ["sugestao.metas_perto", "sugestao.metas_prazo"],
+  aprendizado: ["sugestao.trilhas_paradas", "sugestao.proximo_marco"],
+  habitos: ["sugestao.habitos_hoje", "sugestao.habitos_semana"],
+  calendario: ["sugestao.agenda_semana", "sugestao.contas_semana"],
+  organizacao: ["sugestao.caixa_entrada", "sugestao.links"],
+  nucleo: ["sugestao.resuma_mes", "sugestao.meu_progresso", "sugestao.como_missoes"],
+  perfil: ["sugestao.meu_progresso", "sugestao.como_missoes"],
+  carreira: ["sugestao.como_carreira"],
+};
+
+function sugestoes() {
+  const lista = SUGESTOES[getTelaAtual()] || ["sugestao.meu_progresso", "sugestao.resuma_mes"];
+  return [...lista, "sugestao.como_usar"].map((k) => `assistente.${k}`);
 }
 
 function htmlErro(erro) {
@@ -159,6 +254,42 @@ function htmlErro(erro) {
     ? ` <button type="button" class="ia-link" data-ia="configurar">${escapeHtml(t("assistente.chat.ir_para_configuracoes"))}</button>`
     : "";
   return `${icon("triangle-alert", { size: 11 })} ${escapeHtml(texto)}${configurar}${detalhe}`;
+}
+
+/**
+ * P-111: a resposta de cuidado é do PRÓPRIO Kami (nada foi pro provedor):
+ * texto fixo, traduzido, com o serviço de ajuda do país escolhido em
+ * aparência — ou findahelpline.com quando o país não está na tabela.
+ */
+function noCuidado(servico) {
+  const box = document.createElement("div");
+  box.className = "ia-cuidado";
+  box.setAttribute("role", "note");
+  const p1 = document.createElement("p");
+  p1.textContent = t("assistente.cuidado.acolhimento");
+  const p2 = document.createElement("p");
+  p2.className = "ia-cuidado-servico";
+  if (servico && !servico.reserva) {
+    p2.textContent = servico.telefone
+      ? t("assistente.cuidado.ligue", { nome: servico.nome, telefone: servico.telefone })
+      : servico.nome;
+  } else {
+    p2.textContent = t("assistente.cuidado.reserva");
+  }
+  box.append(p1, p2);
+  if (servico?.site) {
+    const a = document.createElement("a");
+    a.href = servico.site;
+    a.textContent = servico.site.replace(/^https:\/\//, "").replace(/\/$/, "");
+    const linha = document.createElement("p");
+    linha.append(a);
+    box.append(linha);
+  }
+  const p3 = document.createElement("p");
+  p3.className = "ia-nota";
+  p3.textContent = t("assistente.cuidado.volta");
+  box.append(p3);
+  return box;
 }
 
 function noMensagem(m, i) {
@@ -176,9 +307,25 @@ function noMensagem(m, i) {
     div.append(sinal, txt);
     return div;
   }
+  if (m.ferramentas?.length) {
+    // IA-03: o que o assistente consultou pra responder (transparência)
+    const consulta = document.createElement("p");
+    consulta.className = "ia-consulta";
+    consulta.textContent = t("assistente.chat.consultou", {
+      lista: [...new Set(m.ferramentas)].map((n) => tOu(`assistente.ferramenta.${n}`, n)).join(", "),
+    });
+    div.append(consulta);
+  }
+  if (m.aviso?.tipo === "cuidado") {
+    div.append(noCuidado(m.aviso.servico));
+    return div;
+  }
   const txt = document.createElement("div");
   txt.className = "ia-msg-texto nota-md";
-  if (m.texto) txt.append(markdownParaDom(m.texto));
+  if (m.texto) {
+    txt.append(markdownParaDom(m.texto));
+    enfeitarCodigo(txt);
+  }
   div.append(txt);
   if (m.carregando) {
     const cursor = document.createElement("span");
@@ -199,7 +346,61 @@ function noMensagem(m, i) {
     e.innerHTML = htmlErro(m.erro);
     div.append(e);
   }
+  if (!m.carregando) {
+    const acoes = noAcoes(m, i);
+    if (acoes) div.append(acoes);
+  }
   return div;
+}
+
+/** Bloco de código: cabeçalho com a linguagem e "copiar" (diagrama em
+ *  texto também vem em bloco de código — instrucoes.py). */
+function enfeitarCodigo(txt) {
+  for (const pre of txt.querySelectorAll("pre")) {
+    const caixa = document.createElement("div");
+    caixa.className = "ia-codigo";
+    const cab = document.createElement("div");
+    cab.className = "ia-codigo-cab";
+    const lang = document.createElement("span");
+    lang.textContent = pre.dataset.lang || "";
+    cab.append(lang, botaoAcao("copiar-codigo", "assistente.chat.copiar"));
+    pre.replaceWith(caixa);
+    caixa.append(cab, pre);
+  }
+}
+
+function botaoAcao(acao, chave) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ia-acao";
+  b.dataset.ia = acao;
+  b.dataset.rotulo = chave;
+  b.textContent = t(chave);
+  return b;
+}
+
+/** Copiar em toda resposta; continuar/refazer só na última (é o que o
+ *  backend sabe refazer), e nunca enquanto outra está chegando. */
+function noAcoes(m, i) {
+  const botoes = [];
+  if (m.texto) botoes.push(botaoAcao("copiar", "assistente.chat.copiar"));
+  if (i === mensagens.length - 1 && conversaId && !enviando) {
+    if (m.interrompida && m.texto) botoes.push(botaoAcao("continuar", "assistente.chat.continuar"));
+    botoes.push(botaoAcao("refazer", "assistente.chat.refazer"));
+  }
+  if (!botoes.length) return null;
+  const nav = document.createElement("div");
+  nav.className = "ia-acoes";
+  nav.append(...botoes);
+  return nav;
+}
+
+async function copiar(botao, texto) {
+  const ok = await copyText(texto);
+  botao.textContent = ok ? `${t("geral.copiado")} ✓` : t("error_notice.nao_deu_pra_copiar");
+  setTimeout(() => {
+    if (botao.isConnected) botao.textContent = t(botao.dataset.rotulo);
+  }, 1500);
 }
 
 function renderConversa() {
@@ -272,12 +473,32 @@ async function renderHistorico() {
   corpo().focus();
 }
 
+/** O resultado como saiu (<dados …> + JSON + aviso), com o JSON indentado
+ *  pra dar pra ler — o conteúdo é o mesmo, só muda o espaçamento. */
+function dadosLegiveis(resultado) {
+  const m = /^(<dados [^>]*>)\n([\s\S]*)\n(<\/dados>[\s\S]*)$/.exec(resultado || "");
+  if (!m) return resultado || "";
+  try {
+    return `${m[1]}\n${JSON.stringify(JSON.parse(m[2]), null, 2)}\n${m[3]}`;
+  } catch {
+    return resultado;
+  }
+}
+
 function htmlItemEnviado(item) {
-  if (item.tipo === "mensagem") return `<li><b>${escapeHtml(t("assistente.chat.enviado_mensagem"))}</b> ${escapeHtml(item.texto)}</li>`;
+  if (item.tipo === "mensagem") {
+    const refeita = item.refeita ? ` <span class="ia-item-meta">${escapeHtml(t("assistente.chat.enviado_refeita"))}</span>` : "";
+    return `<li><b>${escapeHtml(t("assistente.chat.enviado_mensagem"))}</b> ${escapeHtml(item.texto)}${refeita}</li>`;
+  }
+  if (item.tipo === "continuar") return `<li>${escapeHtml(t("assistente.chat.enviado_continuar"))}</li>`;
   if (item.tipo === "historico") return `<li>${escapeHtml(t("assistente.chat.enviado_historico", { n: item.mensagens }))}</li>`;
   if (item.tipo === "instrucoes") return `<li>${escapeHtml(t("assistente.chat.enviado_instrucoes", { versao: item.versao }))}</li>`;
   if (item.tipo === "ferramenta") {
-    return `<li><b>${escapeHtml(t("assistente.chat.enviado_ferramenta", { nome: item.nome }))}</b> <code>${escapeHtml(item.resultado)}</code></li>`;
+    const nome = tOu(`assistente.ferramenta.${item.nome}`, item.nome);
+    const args = Object.entries(item.argumentos || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
+    return `<li><details class="ia-dados"><summary><b>${escapeHtml(t("assistente.chat.enviado_ferramenta", { nome }))}</b>${args ? ` (${escapeHtml(args)})` : ""}
+      <span class="ia-item-meta">· ${escapeHtml(t("assistente.chat.caracteres", { n: num((item.resultado || "").length) }))}</span></summary>
+      <pre>${escapeHtml(dadosLegiveis(item.resultado))}</pre></details></li>`;
   }
   return `<li>${escapeHtml(JSON.stringify(item))}</li>`;
 }
@@ -330,17 +551,41 @@ async function enviar() {
   const texto = campo.value.trim();
   if (!texto || enviando) return;
   campo.value = "";
-  vista = "conversa";
   mensagens.push({ papel: "usuario", texto });
   const resposta = { papel: "assistente", texto: "", carregando: true };
   mensagens.push(resposta);
+  await responder({ texto }, resposta);
+}
+
+/** Refazer: some a última resposta e a mesma pergunta vai de novo. */
+async function refazer() {
+  if (enviando || !conversaId) return;
+  const u = mensagens.findLastIndex((m) => m.papel === "usuario");
+  if (u < 0) return;
+  mensagens.splice(u + 1);
+  const resposta = { papel: "assistente", texto: "", carregando: true };
+  mensagens.push(resposta);
+  await responder({ acao: "refazer" }, resposta);
+}
+
+/** Continuar: o texto novo é emendado na resposta cortada. */
+async function continuar() {
+  const resposta = mensagens.at(-1);
+  if (enviando || !conversaId || !resposta?.interrompida || !resposta.texto) return;
+  Object.assign(resposta, { interrompida: false, erro: null, carregando: true });
+  await responder({ acao: "continuar" }, resposta);
+}
+
+async function responder({ texto = "", acao }, resposta) {
+  const campo = painel.querySelector("#ia-texto");
+  vista = "conversa";
   renderConversa();
   modoEnviando(true);
   announce(t("assistente.chat.respondendo"));
   enviando = new AbortController();
   try {
     await enviarMensagem(
-      { texto, conversa_id: conversaId, tela: getTelaAtual() || null, idioma: idiomaAtual() },
+      { texto, acao, conversa_id: conversaId, tela: getTelaAtual() || null, idioma: idiomaAtual() },
       {
         signal: enviando.signal,
         onEvento: (ev) => {
@@ -348,9 +593,15 @@ async function enviar() {
           else if (ev.tipo === "texto") {
             resposta.texto += ev.delta;
             atualizarUltima();
+          } else if (ev.tipo === "ferramenta") {
+            resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
+            atualizarUltima();
+          } else if (ev.tipo === "cuidado") {
+            resposta.aviso = { tipo: "cuidado", servico: ev.servico };
+            atualizarUltima();
           } else if (ev.tipo === "fim" || ev.tipo === "falha") {
             if (ev.tipo === "falha") resposta.erro = ev;
-            if (ev.motivo === "parado") resposta.interrompida = true;
+            if (ev.motivo === "parado" || ev.motivo === "limite") resposta.interrompida = true;
             if (ev.uso_hoje && estadoIa) estadoIa = { ...estadoIa, uso_hoje: ev.uso_hoje };
           }
         },
@@ -362,7 +613,7 @@ async function enviar() {
     }
   } catch (err) {
     resposta.erro = err instanceof ApiError && err.body?.chave ? err.body : { detail: err.message };
-    if (!conversaId) mensagens.splice(mensagens.length - 2, 1); // a pergunta não chegou a lugar nenhum
+    if (!conversaId && !acao) mensagens.splice(mensagens.length - 2, 1); // a pergunta não chegou a lugar nenhum
   } finally {
     resposta.carregando = false;
     enviando = null;
@@ -399,6 +650,7 @@ async function abrirConversa(id) {
       texto: m.texto,
       interrompida: m.interrompida,
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
+      aviso: m.aviso?.tipo === "cuidado" && m.papel === "assistente" ? m.aviso : null,
     }));
     vista = "conversa";
     renderConversa();
@@ -460,7 +712,7 @@ async function irParaConfiguracoes() {
 function ligarEventos(el) {
   el.addEventListener("click", async (e) => {
     // link na resposta do modelo: nunca navega o app — abre no navegador
-    const link = e.target.closest(".ia-msg-texto a[href]");
+    const link = e.target.closest(".ia-msg-texto a[href], .ia-cuidado a[href]");
     if (link) {
       e.preventDefault();
       openExternal(link.href);
@@ -475,7 +727,15 @@ function ligarEventos(el) {
     else if (acao === "envios") renderEnvios();
     else if (acao === "voltar") voltarPraConversa();
     else if (acao === "configurar") irParaConfiguracoes();
+    else if (acao === "refazer") refazer();
+    else if (acao === "continuar") continuar();
+    else if (acao === "copiar") copiar(alvo, mensagens[Number(alvo.closest(".ia-msg").dataset.i)]?.texto || "");
+    else if (acao === "copiar-codigo") copiar(alvo, alvo.closest(".ia-codigo").querySelector("pre").textContent);
     else if (acao === "abrir") abrirConversa(alvo.dataset.id);
+    else if (acao === "sugestao") {
+      painel.querySelector("#ia-texto").value = alvo.dataset.texto;
+      enviar();
+    }
     else if (acao === "remover") {
       await apagarConversa(alvo.dataset.id).catch(() => {});
       if (alvo.dataset.id === conversaId) {

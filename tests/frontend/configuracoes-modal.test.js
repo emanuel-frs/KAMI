@@ -27,6 +27,7 @@ function backendFalso() {
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
     },
     ia: {
+      permissoes: { financas: true, metas: true, agenda: true, habitos: true, aprendizado: true, progresso: true, entrada: true, links: true, github: true, notas: false },
       conversas: [
         { id: "c1", titulo: "guardada", guardada: true, updated_at: "2026-10-27T11:34:00-03:00" },
         { id: "c2", titulo: "só na memória", guardada: false, updated_at: "2026-10-27T11:35:00-03:00" },
@@ -94,14 +95,19 @@ function backendFalso() {
       Object.assign(p, { teste_ok: true, ferramentas_ok: true, teste_em: "2026-10-26T21:00:00-03:00" });
       return { ok: true, ferramentas: true, ms: 1234, provedor: p, uso_hoje: { chamadas: 1, tokens: 40, estimado: false } };
     },
-    "PUT /api/assistente/config": (b) => ((estado.ia.config = { ...estado.ia.config, ...b }), estadoIa()),
+    "PUT /api/assistente/config": (b) => {
+      const { permissoes, ...resto } = b;
+      estado.ia.config = { ...estado.ia.config, ...resto };
+      estado.ia.permissoes = { ...estado.ia.permissoes, ...(permissoes || {}) };
+      return estadoIa();
+    },
     "GET /api/assistente/conversas": () => estado.ia.conversas,
     "DELETE /api/assistente/conversas": () => ((estado.ia.conversas = []), {}),
   };
   function estadoIa() {
     const p = estado.ia.provedores.find((x) => x.id === estado.ia.config.provedor_id) || null;
     const falta = !p ? "provedor" : !p.modelo ? "modelo" : estado.ia.config.ativo ? null : "desligado";
-    return { config: { ...estado.ia.config }, provedor: p, pronto: falta === null, falta, uso_hoje: { chamadas: 0, tokens: 0, estimado: false } };
+    return { config: { ...estado.ia.config }, permissoes: { ...estado.ia.permissoes }, provedor: p, pronto: falta === null, falta, uso_hoje: { chamadas: 0, tokens: 0, estimado: false } };
   }
   const fetch = async (url, opts = {}) => {
     const u = new URL(url);
@@ -416,6 +422,18 @@ test(
       assert.ok($("#cfg-ia-form-status").classList.contains("cfg-ia-falha"));
       $("#cfg-ia-form-voltar").click();
       assert.equal($("#cfg-ia-form").hidden, true);
+    });
+
+    await t.test("assistente (IA-03): permissões por área — notas começam desligadas e ligam com um clique", async () => {
+      const notas = $('[data-ia-area="notas"]');
+      assert.equal(doc.querySelectorAll("[data-ia-area]").length, 10);
+      assert.equal(notas.checked, false);
+      assert.equal($('[data-ia-area="financas"]').checked, true);
+      notas.checked = true;
+      notas.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { permissoes: { notas: true } });
+      assert.equal($('[data-ia-area="notas"]').checked, true);
     });
 
     await t.test("assistente (IA-02): desligar 'guardar conversas' pergunta se apaga as já guardadas", async () => {

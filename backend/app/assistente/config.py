@@ -15,6 +15,8 @@ recebe `tem_chave`.
 + chave salva quando o provedor exige. Cada falta tem um código, e a tela
 mostra o que falta (P-11, P-110).
 """
+import json
+
 from app.assistente import catalogo, provedores
 from app.assistente.tipos import Provedor
 from app.crypto import decrypt_password
@@ -30,6 +32,29 @@ PADROES = {
     "guardar_conversas": 1,
     "dias_historico": 30,
 }
+
+# P-113: o que o assistente pode ler, por área (ferramentas.py liga cada
+# ferramenta a uma área). Tudo ligado menos as NOTAS — o dado mais pessoal
+# do app; a pessoa liga se quiser. Nota trancada nunca, nem com a área ligada.
+AREAS = ("financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas")
+PERMISSOES_PADRAO = {a: a != "notas" for a in AREAS}
+
+
+def permissoes(cfg: dict) -> dict:
+    try:
+        salvas = json.loads(cfg.get("permissoes") or "{}")
+    except ValueError:
+        salvas = {}
+    return {a: bool(salvas.get(a, PERMISSOES_PADRAO[a])) for a in AREAS}
+
+
+def salvar_permissoes(db, novas: dict) -> None:
+    atual = obter(db)
+    junto = {**permissoes(atual), **{k: bool(v) for k, v in novas.items() if k in AREAS}}
+    db.execute("UPDATE assistente_config SET permissoes = ?, updated_at = ? WHERE id = ?",
+               (json.dumps(junto), now_iso(), atual["id"]))
+    db.commit()
+
 
 # limites dos campos editáveis (a tela e a API usam os mesmos)
 LIMITES = {
@@ -129,6 +154,7 @@ def estado(db) -> dict:
         falta = "desligado"
     return {
         "config": {k: (bool(cfg[k]) if k in ("ativo", "escondido", "guardar_conversas") else cfg[k]) for k in PADROES},
+        "permissoes": permissoes(cfg),
         "provedor": _publico(row) if row else None,
         "pronto": falta is None,
         "falta": falta,

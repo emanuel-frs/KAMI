@@ -34,6 +34,9 @@ a = Analysis(
         ('app/schema.sql', 'app'),
         # IA-01: provedores conhecidos do assistente (só pré-preenchem)
         ('app/assistente/provedores.json', 'app/assistente'),
+        # IA-03: serviços de ajuda por país (fluxo de cuidado) e o guia do Kami
+        ('app/assistente/ajuda.json', 'app/assistente'),
+        ('app/assistente/guia/guia.md', 'app/assistente/guia'),
         # arquivo de versão (fonte de verdade única, raiz do repo, um
         # nível acima de backend/) — ver app/version.py
         ('../VERSION', '.'),

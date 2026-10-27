@@ -389,3 +389,7 @@
 .cfg-ia-uso { margin: 6px 0 8px; font-size: 11px; color: var(--text); }
 .cfg-ia-uso small { color: var(--text-faint); }
 .cfg-seg-chave small { color: var(--text-dim); }
+
+/* IA-03: áreas que o assistente pode ler — duas colunas quando cabe */
+.cfg-ia-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+.cfg-ia-areas .cfg-toggle + .cfg-toggle { margin-top: 0; border-top: 0; }

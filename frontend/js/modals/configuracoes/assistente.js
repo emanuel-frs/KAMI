@@ -45,6 +45,9 @@ let editando = null; // provedor salvo em edição, ou null (novo)
 
 const num = (n) => new Intl.NumberFormat(localeAtual()).format(n);
 
+// P-113: áreas que o assistente pode ler (mesma lista de backend/app/assistente/config.py::AREAS)
+const AREAS = ["financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas"];
+
 export function buildAssistentePanel() {
   return `
     <div class="cfg-panel" data-panel="assistente">
@@ -73,6 +76,20 @@ export function buildAssistentePanel() {
           <button type="button" class="btn sm" id="cfg-ia-novo">${t("assistente.adicionar_provedor")}</button>
         </div>
         <div id="cfg-ia-form" class="cfg-ia-form" hidden></div>
+      </div>
+
+      <div class="settings-section">
+        <h4>${t("assistente.pode_ler")}</h4>
+        <p class="settings-desc">${t("assistente.pode_ler_desc")}</p>
+        <div class="cfg-ia-areas" id="cfg-ia-areas">
+          ${AREAS.map((a) => `
+          <label class="cfg-toggle">
+            <input type="checkbox" data-ia-area="${a}">
+            <span>${t(`assistente.area.${a}`)}</span>
+          </label>`).join("")}
+        </div>
+        <p class="settings-note">${t("assistente.pode_ler_nota")}</p>
+        <p class="settings-status" id="cfg-ia-areas-status" role="status"></p>
       </div>
 
       <div class="settings-section">
@@ -187,6 +204,7 @@ function renderEstado(wrap) {
   wrap.querySelector("#cfg-ia-teto-tokens").value = e.config.teto_tokens;
   wrap.querySelector("#cfg-ia-rodadas").value = e.config.max_rodadas;
   wrap.querySelector("#cfg-ia-guardar").checked = e.config.guardar_conversas;
+  wrap.querySelectorAll("[data-ia-area]").forEach((cb) => (cb.checked = Boolean(e.permissoes?.[cb.dataset.iaArea])));
   wrap.querySelector("#cfg-ia-dias").value = e.config.dias_historico;
 }
 
@@ -597,6 +615,11 @@ export function wireAssistenteTab(wrap) {
       "cfg-ia-limites-status"
     )
   );
+  // IA-03 (P-113): o que pode ler
+  wrap.querySelector("#cfg-ia-areas").addEventListener("change", (e) => {
+    const cb = e.target.closest("[data-ia-area]");
+    if (cb) salvarConfig(wrap, { permissoes: { [cb.dataset.iaArea]: cb.checked } }, "cfg-ia-areas-status");
+  });
   // IA-02 (P-105): conversas
   // Desligar "guardar" vale pras conversas novas; as que JÁ estão guardadas
   // ficariam lá — e quem desliga espera que nada fique (teste do Emanuel,
