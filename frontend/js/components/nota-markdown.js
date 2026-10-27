@@ -151,10 +151,12 @@ export function markdownParaDom(md, doc = document) {
     // bloco de código
     if (/^```/.test(linha)) {
       const corpo = [];
+      const lang = /^```\s*([\w#+.-]{1,20})\s*$/.exec(linha)?.[1];
       i++;
       while (i < linhas.length && !/^```\s*$/.test(linhas[i])) corpo.push(linhas[i++]);
       i++; // fecha
       const pre = doc.createElement("pre");
+      if (lang) pre.dataset.lang = lang; // ```python — a linguagem volta no salvar
       const code = doc.createElement("code");
       code.textContent = corpo.join("\n");
       pre.append(code);
@@ -392,7 +394,7 @@ function blocosMd(raiz, saida) {
         saida.push(linhas);
       }
     } else if (tag === "pre") {
-      saida.push("```\n" + no.textContent.replace(/\n$/, "") + "\n```");
+      saida.push("```" + (no.dataset?.lang || "") + "\n" + no.textContent.replace(/\n$/, "") + "\n```");
     } else if (tag === "table") {
       const linhas = [...no.querySelectorAll("tr")].map((tr) =>
         [...tr.children].map((c) => linhasDeTexto(c).join(" ").trim().replace(/\|/g, "\\|"))

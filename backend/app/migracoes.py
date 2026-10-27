@@ -819,3 +819,18 @@ def _migrate_transacao_referencia(conn: sqlite3.Connection) -> None:
                 (fila.pop(0), log["id"]),
             )
     conn.commit()
+
+
+def _migrate_assistente_colunas(conn: sqlite3.Connection) -> None:
+    """
+    IA-03: permissões por área (P-113) e o aviso de cuidado (P-111). As
+    tabelas do assistente nasceram nesta mesma versão (1.16), mas quem
+    testou as fases anteriores já tem as tabelas sem as colunas novas.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(assistente_config)").fetchall()}
+    if cols and "permissoes" not in cols:
+        conn.execute("ALTER TABLE assistente_config ADD COLUMN permissoes TEXT")
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(assistente_mensagens)").fetchall()}
+    if cols and "aviso" not in cols:
+        conn.execute("ALTER TABLE assistente_mensagens ADD COLUMN aviso TEXT")
+    conn.commit()

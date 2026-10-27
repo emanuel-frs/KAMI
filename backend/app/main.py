@@ -40,6 +40,7 @@ from app.routers import calendario
 from app.routers import carreira
 from app.routers import seguranca
 from app.routers import backups
+from app.routers import assistente
 
 # data/hora em toda linha do log (AJU-05, ver app/logs.py) — aqui no
 # import pra valer também no modo dev (`uvicorn app.main:app`), em que o
@@ -197,3 +198,4 @@ app.include_router(calendario.router, prefix="/api/calendario", tags=["calendari
 app.include_router(carreira.router, prefix="/api/carreira", tags=["carreira"])
 app.include_router(seguranca.router, prefix="/api/seguranca", tags=["seguranca"])
 app.include_router(backups.router, prefix="/api/backups", tags=["backups"])
+app.include_router(assistente.router, prefix="/api/assistente", tags=["assistente"])

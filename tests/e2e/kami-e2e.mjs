@@ -15,6 +15,9 @@
  *      lembrete criado por ela que tem que disparar; dicas revistas pela
  *      ajuda (Ctrl+K não abre por baixo, Esc fecha); paleta (Ctrl+K); nota
  *      criada e editada; formato das datas; cópia automática + restaurar;
+ *      assistente (IA-02/IA-04, P-121) com um provedor FALSO subido aqui
+ *      (nenhuma chave de verdade no CI): passo a passo, pergunta (Alt+A),
+ *      resposta, parar, continuar, refazer, histórico e o que foi enviado;
  *   5. derruba o backend e confere que o vigia (CONF-02) o traz de volta
  *      sozinho, sem fechar o app;
  *   6. PIN: liga → fecha e reabre o app → tela de bloqueio (print nos 3
@@ -51,6 +54,7 @@
  *   WAYLAND_DISPLAY=kami-e2e KAMI_E2E_APP=src-tauri/target/debug/kami node tests/e2e/kami-e2e.mjs
  */
 import { spawn, execSync, execFileSync } from "node:child_process";
+import { createServer } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -143,6 +147,50 @@ function killBackend() {
     }
     if (env.split("\0").includes(`KAMI_DATA_DIR=${DATA_DIR}`)) execSync(`kill -9 ${pid}`, { stdio: "ignore" });
   }
+}
+
+/**
+ * Provedor de IA falso (P-121): compatível com OpenAI, em 127.0.0.1 numa
+ * porta livre. Pergunta com "devagar" recebe uma resposta longa, em
+ * pedaços lentos (dá tempo de apertar "parar"); o resto, uma curta.
+ */
+function provedorFalso() {
+  const pedidos = [];
+  const sse = (res, pedacos, atraso) => {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    let i = 0;
+    const manda = () => {
+      if (res.destroyed) return;
+      if (i < pedacos.length) {
+        res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: pedacos[i++] }, finish_reason: null }] })}\n\n`);
+        setTimeout(manda, atraso);
+        return;
+      }
+      res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`);
+      res.write(`data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 40, completion_tokens: pedacos.length } })}\n\n`);
+      res.end("data: [DONE]\n\n");
+    };
+    manda();
+  };
+  const srv = createServer((req, res) => {
+    let corpo = "";
+    req.on("data", (c) => (corpo += c));
+    req.on("end", () => {
+      const json = corpo ? JSON.parse(corpo) : null;
+      pedidos.push({ caminho: req.url, json });
+      if (req.url.endsWith("/models")) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "falso-e2e" }] }));
+      } else if (req.url.endsWith("/chat/completions")) {
+        const ultima = json?.messages?.filter((m) => m.role === "user").at(-1)?.content || "";
+        if (/devagar/.test(ultima)) sse(res, Array.from({ length: 120 }, (_, k) => `parte${k} `), 60);
+        else sse(res, ["resposta do ", "**provedor falso**", " do e2e."], 20);
+      } else {
+        res.writeHead(404).end();
+      }
+    });
+  });
+  return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok({ srv, pedidos, url: `http://127.0.0.1:${srv.address().port}/v1` })));
 }
 
 // sem passar pelo cmd (execFileSync com argumentos): nada de aspas escapadas
@@ -472,6 +520,87 @@ async function main() {
         return Array.isArray(itens) && !itens.some((i) => i.texto === "depois da cópia") && itens.some((i) => i.texto === "ideia guardada pelo e2e");
       }, { timeout: 30000 });
       await waitFor("as telas carregadas de novo", () => wd.execute("return document.querySelectorAll('.card').length > 0"), { timeout: 30000 });
+    });
+
+    await etapa("assistente: passo a passo, pergunta, parar, continuar, refazer, histórico e enviados (IA-02/IA-04)", async () => {
+      const falso = await provedorFalso();
+      const ultimaResposta = () => wd.execute("return document.querySelector('.ia-msg--kami:last-child .ia-msg-texto')?.innerText || ''");
+      const respondeu = (o_que) => waitFor(o_que, () => wd.execute("return document.querySelector('#ia-form')?.getAttribute('aria-busy') === 'false'"), { timeout: 30000, every: 300 });
+      const perguntar = async (texto) => {
+        await focar("#ia-texto");
+        await wd.keys(texto, { texto: true });
+        await wd.keys("Enter");
+        await sleep(300);
+      };
+      try {
+        // sem provedor: o painel oferece o passo a passo, que abre em configurações
+        await wd.keys("Alt+a");
+        await waitFor("o painel do assistente", () => visivel("#ia-painel"), { timeout: 5000 });
+        await waitFor("o botão do passo a passo", () => visivel('[data-ia="guia"]'), { timeout: 5000 });
+        await clicar('[data-ia="guia"]');
+        await waitFor("o passo a passo aberto", () => visivel('[data-guia="caminho"][data-valor="local"]'), { timeout: 8000 });
+        await clicar('[data-guia="caminho"][data-valor="local"]');
+        await clicar('[data-guia="provedor"][data-valor="ollama"]');
+        await print("assistente-passo-a-passo");
+        await clicar('[data-guia="usar"]');
+        await waitFor("o formulário no Ollama", () => wd.execute("return document.querySelector('#cfg-ia-catalogo')?.value === 'ollama'"), { timeout: 5000 });
+        await wd.keys("Escape");
+        await waitFor("configurações fechar", async () => !(await visivel("#settings-modal.open")), { timeout: 5000 }).catch(() => {});
+        // o provedor falso entra pela API (o formulário já tem teste próprio)
+        const p = await api("/api/assistente/provedores", { method: "POST", body: JSON.stringify({ catalogo: "ollama", url_base: falso.url, modelo: "falso-e2e" }) });
+        if (p.status !== 201 && p.status !== 200) throw new Error(`cadastrar o provedor falso: ${p.status} ${JSON.stringify(p.body)}`);
+        const cfg = await api("/api/assistente/config", { method: "PUT", body: JSON.stringify({ ativo: true }) });
+        if (!cfg.body?.pronto) throw new Error(`assistente não ficou pronto: ${JSON.stringify(cfg.body)}`);
+        await wd.refresh();
+        await waitFor("as telas de novo", () => wd.execute("return document.querySelectorAll('.card').length > 0"), { timeout: 30000 });
+        await tirarAvisos();
+
+        await wd.keys("Alt+a");
+        await waitFor("o painel pronto", () => visivel("#ia-texto"), { timeout: 8000 });
+        await perguntar("oi do e2e");
+        await respondeu("a resposta");
+        if (!/provedor falso/.test(await ultimaResposta())) throw new Error(`resposta inesperada: ${await ultimaResposta()}`);
+        await print("assistente-resposta");
+
+        await perguntar("responde devagar");
+        await waitFor("a resposta começar a chegar", async () => /parte3/.test(await ultimaResposta()), { timeout: 15000, every: 200 });
+        await clicar("#ia-enviar"); // parar
+        await respondeu("parar");
+        if (!(await visivel(".ia-msg--kami:last-child .ia-interrompida"))) throw new Error("a resposta parada não ficou marcada como interrompida");
+        const cortada = (await ultimaResposta()).length;
+        await clicar('.ia-msg--kami:last-child [data-ia="continuar"]');
+        await sleep(300);
+        await respondeu("o continuar"); // o texto novo vem emendado na MESMA resposta
+        const emendada = await ultimaResposta();
+        if (!(emendada.length > cortada && /^parte0 /.test(emendada))) throw new Error(`continuar não emendou: ${cortada} → ${emendada.length}`);
+
+        await clicar('.ia-msg--kami:last-child [data-ia="refazer"]');
+        await respondeu("o refazer");
+        const msgs = await wd.execute("return [document.querySelectorAll('.ia-msg--usuario').length, document.querySelectorAll('.ia-msg--kami').length]");
+        if (msgs[0] !== 2 || msgs[1] !== 2) throw new Error(`refazer mexeu nas perguntas: ${JSON.stringify(msgs)}`);
+        if (/interrompida/.test(await wd.execute("return document.querySelector('.ia-msg--kami:last-child').innerText"))) throw new Error("a resposta refeita ainda está marcada como interrompida");
+
+        await clicar('[data-ia="historico"]');
+        await waitFor("o histórico", () => visivel('.ia-item[data-ia="abrir"]'), { timeout: 5000 });
+        await clicar('.ia-item[data-ia="abrir"]');
+        await waitFor("a conversa reaberta", async () => (await wd.execute("return document.querySelectorAll('.ia-msg--usuario').length")) === 2, { timeout: 5000 });
+
+        await clicar('[data-ia="envios"]');
+        await waitFor("o que foi enviado", () => visivel(".ia-envios"), { timeout: 5000 });
+        const enviados = await wd.execute("return document.querySelectorAll('.ia-envios > li').length");
+        // oi + devagar + continuar (+ o que mais o parar deixou contar) + refazer
+        if (enviados < 4) throw new Error(`só ${enviados} envios no registro`);
+        if (falso.pedidos.filter((r) => r.caminho.endsWith("/chat/completions")).length < 4) throw new Error("o provedor falso recebeu menos chamadas que o esperado");
+        await print("assistente-enviados");
+        await wd.keys("Escape");
+        await wd.keys("Escape");
+      } finally {
+        // desliga e tira o provedor: as etapas seguintes (PIN, remover tudo) não dependem dele
+        const lista = (await api("/api/assistente/provedores")).body || [];
+        for (const p of lista) await api(`/api/assistente/provedores/${p.id}`, { method: "DELETE" });
+        await wd.execute("document.querySelector('#ia-painel')?.setAttribute('hidden', '')").catch(() => {});
+        falso.srv.close();
+      }
     });
 
     // 5. derruba o backend → o vigia traz de volta

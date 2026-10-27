@@ -104,9 +104,13 @@ A personal project, maintained by one person. Built for my own use and published
 - **Security:** an optional PIN to open the app (with a recovery code and an inactivity lock), backups
   exported with a password, and saved passwords protected by a key in the system keyring. Details and
   limits in [SECURITY.md](./SECURITY.md).
-
-Kami **does not use artificial intelligence** today. The "kami assistant" in the sidebar is marked
-"soon" and doesn't do anything yet.
+- **AI assistant (optional, off by default):** a chat in the side panel (Alt+A) that answers about your
+  data and about using Kami: it sums up your month, tells you what's due, explains missions. It works
+  with a provider of your own, in the cloud (Gemini, Groq, OpenRouter, OpenAI, Anthropic) or on your
+  computer (Ollama, LM Studio), with a step-by-step guide to connect. In this version it only reads: it
+  doesn't create or delete anything; you choose which areas it can read and see everything that was
+  sent. No key ships with the app. What leaves your computer and the limits are in
+  [SECURITY.md](./SECURITY.md#assistente-de-ia) (in Portuguese).
 
 ## Install
 
@@ -157,6 +161,7 @@ and to check for a new version (you can turn that off). There's no telemetry and
 | `api.tavily.com` | only if you add a search key | your searches and the key |
 | `duckduckgo.com` | only when you click "open search" | the search, opened in your browser |
 | `github.com` (Kami Releases) | on launch and once a day, with "check for updates" on (default; turn it off in settings › about) | only the request for the versions file (`latest.json`), nothing of yours; and the download of the new version, if you ask to "update now" |
+| The AI provider you choose | only with the assistant on, when you ask something | your message, the earlier ones in the same conversation and the data it looked up in the areas you allowed, with e-mails, cards, ID numbers, keys and phone numbers replaced by `[removido]`. With Ollama or LM Studio, nothing leaves your computer |
 | Microsoft (Windows) | only during install, if WebView2 is missing | runtime download |
 
 App passwords and tokens are encrypted in the database, with the key in the system keyring (Credential
@@ -230,8 +235,9 @@ plan is:
   nothing behind, automated tests covering every screen, and big files split up.
 - ~~**Languages:**~~ done in 1.15: Portuguese, English, Spanish, French, Italian, German, Chinese,
   Japanese, Korean and Hindi, with your choice of currency and holiday country.
-- **AI assistant (optional, off by default):** chat, actions always with a preview and confirmation,
-  notices, and local AI running on your computer. No key ships with the app.
+- **AI assistant (optional, off by default):** the chat that reads your data shipped in 1.16; still to
+  come: actions always with a preview and confirmation, notices, and installing local AI from the app
+  itself. No key ships with the app.
 - **Encrypted database on disk**, optional.
 
 Left out, at least until 2.0:

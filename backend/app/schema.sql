@@ -746,6 +746,111 @@ CREATE INDEX IF NOT EXISTS idx_wallet_accounts_bank ON wallet_accounts(bank_id);
 CREATE INDEX IF NOT EXISTS idx_email_cache_account ON email_cache(account_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_screen ON dashboard_widgets(screen);
 
+-- ---------------- ASSISTENTE (IA-01, Sprint 8) ----------------
+-- Desligado por padrão (princípio 6): nada aqui é criado na instalação —
+-- a linha de assistente_config nasce na primeira leitura (app/assistente/
+-- config.py) com os padrões do código, e só vira "ativo" quando a pessoa
+-- liga com um provedor pronto.
+CREATE TABLE IF NOT EXISTS assistente_config (
+    id                 TEXT PRIMARY KEY,           -- linha única
+    ativo              INTEGER NOT NULL DEFAULT 0,
+    escondido          INTEGER NOT NULL DEFAULT 0, -- P-110: some o botão do assistente
+    provedor_id        TEXT REFERENCES assistente_provedores(id) ON DELETE SET NULL,
+    teto_chamadas      INTEGER NOT NULL DEFAULT 150,    -- P-104: por dia
+    teto_tokens        INTEGER NOT NULL DEFAULT 200000, -- P-104: entrada + saída, por dia
+    max_rodadas        INTEGER NOT NULL DEFAULT 6,      -- P-104: idas às ferramentas por mensagem
+    guardar_conversas  INTEGER NOT NULL DEFAULT 1,      -- P-105
+    dias_historico     INTEGER NOT NULL DEFAULT 30,     -- P-105
+    permissoes         TEXT,                            -- P-113: JSON {área: bool}; NULL = padrão (config.py)
+    updated_at         TEXT
+);
+
+-- Um provedor configurado pela pessoa. Pode haver vários (ex.: Gemini e
+-- Ollama) e só um em uso (assistente_config.provedor_id). `catalogo` é o
+-- id do provedor conhecido (app/assistente/provedores.json) que
+-- pré-preencheu os campos, ou 'outro'; `tipo` é o formato da API
+-- ('openai' = compatível com OpenAI, 'anthropic' = API Messages).
+-- `chave_enc` é cifrada como os outros segredos (app/crypto.py) e NUNCA
+-- volta pro frontend; trocar `url_base` com chave salva apaga a chave
+-- (P-109) — a chave só vai pro endereço em que a pessoa a colou.
+CREATE TABLE IF NOT EXISTS assistente_provedores (
+    id             TEXT PRIMARY KEY,
+    catalogo       TEXT NOT NULL,
+    nome           TEXT NOT NULL,
+    tipo           TEXT NOT NULL CHECK (tipo IN ('openai', 'anthropic')),
+    url_base       TEXT NOT NULL,
+    modelo         TEXT,
+    chave_enc      TEXT,
+    teste_em       TEXT,     -- último "testar conexão"
+    teste_ok       INTEGER,  -- 1/0; NULL = nunca testado
+    ferramentas_ok INTEGER,  -- o modelo chamou a ferramenta de teste? 1/0/NULL
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
+
+-- Uso por dia (teto do P-104 e o contador visível). Tokens são os que o
+-- provedor informa; quando ele não informa (alguns locais), estimativa
+-- por tamanho do texto (app/assistente/uso.py), marcada em `estimado`.
+CREATE TABLE IF NOT EXISTS assistente_uso (
+    dia            TEXT PRIMARY KEY,  -- 'YYYY-MM-DD' local
+    chamadas       INTEGER NOT NULL DEFAULT 0,
+    tokens_entrada INTEGER NOT NULL DEFAULT 0,
+    tokens_saida   INTEGER NOT NULL DEFAULT 0,
+    estimado       INTEGER NOT NULL DEFAULT 0
+);
+
+-- IA-02: conversas do chat. Só são gravadas aqui com "guardar conversas"
+-- ligado (P-105; desligado, ficam só na memória do backend até fechar o
+-- app — app/assistente/conversas.py) e somem sozinhas depois de
+-- `dias_historico`. O modelo nunca recebe uma conversa ANTIGA: cada
+-- conversa é um contexto separado (princípio 1).
+CREATE TABLE IF NOT EXISTS assistente_conversas (
+    id            TEXT PRIMARY KEY,
+    titulo        TEXT NOT NULL,      -- começo da 1ª mensagem (sem chamada extra ao modelo)
+    tela          TEXT,               -- tela em que começou
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+-- papel: usuario | assistente | ferramenta (IA-03 em diante). `chamadas`
+-- é o JSON dos pedidos de ferramenta da resposta; `erro_chave` guarda o
+-- erro que interrompeu a resposta (mostrado no idioma da pessoa).
+CREATE TABLE IF NOT EXISTS assistente_mensagens (
+    id             TEXT PRIMARY KEY,
+    conversa_id    TEXT NOT NULL REFERENCES assistente_conversas(id) ON DELETE CASCADE,
+    papel          TEXT NOT NULL CHECK (papel IN ('usuario', 'assistente', 'ferramenta')),
+    texto          TEXT NOT NULL DEFAULT '',
+    chamadas       TEXT,
+    id_chamada     TEXT,
+    nome_ferramenta TEXT,
+    provedor       TEXT,
+    modelo         TEXT,
+    interrompida   INTEGER NOT NULL DEFAULT 0,
+    erro_chave     TEXT,
+    aviso          TEXT,              -- IA-03: JSON — {"tipo": "cuidado", ...}: o Kami respondeu sozinho (P-111)
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assistente_mensagens_conversa ON assistente_mensagens(conversa_id, created_at);
+
+-- Princípio 3: "o que foi enviado pra IA", uma linha por chamada ao
+-- provedor — pra onde foi, com qual modelo, e SÓ o que era novo naquela
+-- chamada (`itens`, JSON: a mensagem da pessoa, resultado de ferramenta,
+-- a versão das instruções; o histórico repetido entra como contagem).
+-- Mesma regra de guarda das conversas; "apagar tudo" apaga junto.
+CREATE TABLE IF NOT EXISTS assistente_envios (
+    id             TEXT PRIMARY KEY,
+    conversa_id    TEXT,
+    provedor       TEXT NOT NULL,
+    modelo         TEXT,
+    destino        TEXT NOT NULL,      -- host do provedor
+    local          INTEGER NOT NULL DEFAULT 0,
+    itens          TEXT NOT NULL,
+    tokens_entrada INTEGER,
+    tokens_saida   INTEGER,
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assistente_envios_data ON assistente_envios(created_at);
+
 -- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
 -- versão do app que atualizou o banco por último — ao abrir uma versão
 -- nova, o backend copia o banco pra backups/ ANTES de migrar (ver
