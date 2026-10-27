@@ -324,3 +324,112 @@
 .cfg-copias-quando { color: var(--text); white-space: nowrap; }
 .cfg-copias-tipo { color: var(--text-dim); flex: 1; min-width: 0; }
 .cfg-copias-lista .btn { flex-shrink: 0; }
+
+/* ── IA-01: aba assistente ───────────────────────────────────────────── */
+.cfg-ia-prov { align-items: flex-start; }
+.cfg-ia-prov.is-em-uso { box-shadow: inset 2px 0 0 var(--accent); padding-left: 8px; }
+.cfg-ia-prov .org-account-info { flex: 1; }
+.cfg-ia-prov .org-account-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.cfg-ia-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border-soft);
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--text-dim);
+  vertical-align: 1px;
+}
+.cfg-ia-tag--uso { border-color: var(--accent); color: var(--accent); }
+.cfg-ia-teste svg { vertical-align: -1px; }
+.cfg-ia-teste--ok { color: var(--accent); }
+.cfg-ia-teste--aviso { color: var(--amber); }
+.cfg-ia-teste--falha { color: var(--red); }
+.settings-status.cfg-ia-falha { color: var(--red); }
+.cfg-ia-prov-status { margin: 4px 0 0; }
+.cfg-ia-form {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+.cfg-ia-form .cfg-subhead { margin-top: 0; }
+.cfg-ia-dica { color: var(--text-faint); font-size: 9.5px; }
+.cfg-ia-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.cfg-ia-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.cfg-ia-aviso-url { color: var(--amber); }
+.cfg-ia-modelo-linha { display: flex; gap: 6px; }
+.cfg-ia-modelo-linha input { flex: 1; min-width: 0; }
+.cfg-ia-modelo-linha .btn { flex-shrink: 0; }
+/* dentro de .field o label vira bloco e a caixa ia pra cima do texto */
+.field .cfg-ia-so-gratis { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+/* .cfg-toggle é display:flex e venceria o [hidden] (mesmo caso do calendário, Sprint 5) */
+.cfg-ia-form [hidden] { display: none; }
+.cfg-ia-modelos {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-alt);
+}
+.cfg-ia-modelos li {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.cfg-ia-modelos li[aria-selected="true"] { color: var(--accent); }
+.cfg-ia-modelos li[data-modelo]:hover,
+.cfg-ia-modelos li[data-modelo]:focus { background: var(--bg); color: var(--accent); outline: none; }
+.cfg-ia-modelos .cfg-ia-modelos-vazio { color: var(--text-faint); cursor: default; }
+.cfg-ia-detalhe { color: var(--text-faint); overflow-wrap: anywhere; }
+.cfg-ia-uso { margin: 6px 0 8px; font-size: 11px; color: var(--text); }
+.cfg-ia-uso small { color: var(--text-faint); }
+.cfg-seg-chave small { color: var(--text-dim); }
+
+/* IA-03: áreas que o assistente pode ler — duas colunas quando cabe */
+.cfg-ia-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+.cfg-ia-areas .cfg-toggle + .cfg-toggle { margin-top: 0; border-top: 0; }
+
+/* ── passo a passo de conexão (IA-04, configuracoes/assistente-guia.js) ── */
+.cfg-ia-guia-abrir { align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.cfg-ia-guia-abrir small { color: var(--text-faint); font-size: 10px; flex: 1 1 220px; }
+.cfg-ia-guia-abrir[hidden], .cfg-ia-guia-abrir .btn[hidden] { display: none; }
+.cfg-ia-guia {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--accent);
+  background: var(--bg);
+}
+.cfg-ia-guia[hidden] { display: none; }
+.cfg-ia-guia .cfg-subhead { margin-top: 0; outline: none; }
+.cfg-ia-guia-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 8px 0; }
+.cfg-ia-guia-opcao {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.cfg-ia-guia-opcao b { color: var(--text-bright); font-weight: 600; }
+.cfg-ia-guia-opcao span { color: var(--text-dim); font-size: 10.5px; line-height: 1.5; }
+.cfg-ia-guia-opcao:hover, .cfg-ia-guia-opcao:focus-visible { border-color: var(--accent); outline: none; }
+.cfg-ia-guia-opcao:hover b, .cfg-ia-guia-opcao:focus-visible b { color: var(--accent); }
+.cfg-ia-guia-item { margin: 0 0 8px; }
+.cfg-ia-guia-item b { display: block; color: var(--text-bright); font-size: 11px; font-weight: 600; }
+.cfg-ia-guia-item p { margin: 2px 0 0; color: var(--text-dim); font-size: 11px; line-height: 1.55; }
+/* o que acontece com os dados: em destaque (P-118, transparência) */
+.cfg-ia-guia-item--dados { padding-left: 8px; border-left: 2px solid var(--amber); }
+.cfg-ia-guia-passos { margin: 4px 0 0; padding-left: 1.4em; color: var(--text); font-size: 11px; line-height: 1.6; }
+.cfg-ia-guia-passos li::marker { color: var(--accent); }
+/* a dica embaixo de "usar este" ficava colada nos botões (teste do Emanuel) */
+.cfg-ia-guia .form-actions + .settings-note { margin-top: 10px; }

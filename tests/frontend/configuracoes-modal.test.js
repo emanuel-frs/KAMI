@@ -8,6 +8,9 @@
 // na ordem.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const CATALOGO = JSON.parse(readFileSync(new URL("../../backend/app/assistente/provedores.json", import.meta.url), "utf8")).provedores;
 import { withDom } from "./helpers/dom.js";
 
 const PERFIL = {
@@ -25,6 +28,15 @@ function backendFalso() {
     backups: {
       copias: [{ nome: "kami-antes-de-apagar-tudo-20261021-090000.db", tipo: "antes", acao: "apagar-tudo", quando: "2026-10-21T09:00:00-03:00", tamanho: 2048 }],
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
+    },
+    ia: {
+      permissoes: { financas: true, metas: true, agenda: true, habitos: true, aprendizado: true, progresso: true, entrada: true, links: true, github: true, notas: false },
+      conversas: [
+        { id: "c1", titulo: "guardada", guardada: true, updated_at: "2026-10-27T11:34:00-03:00" },
+        { id: "c2", titulo: "só na memória", guardada: false, updated_at: "2026-10-27T11:35:00-03:00" },
+      ],
+      provedores: [],
+      config: { ativo: false, escondido: false, provedor_id: null, teto_chamadas: 150, teto_tokens: 200000, max_rodadas: 6, guardar_conversas: true, dias_historico: 30 },
     },
   };
   const rotas = {
@@ -67,7 +79,37 @@ function backendFalso() {
       return estado.backups;
     },
     "POST /api/backups/restaurar": () => estado.backups,
+    // IA-01: assistente (a chave nunca volta — só tem_chave)
+    // o catálogo de verdade (IA-04: o passo a passo usa os caminhos e links dele)
+    "GET /api/assistente/catalogo": () => CATALOGO,
+    "GET /api/assistente": () => estadoIa(),
+    "GET /api/assistente/provedores": () => estado.ia.provedores,
+    "POST /api/assistente/modelos": (b) => (b.url_base.includes("11434") ? { modelos: ["llama3.1:8b", "qwen2.5:7b"] } : { __status: 422, detail: "x", chave: "erro.assistente.falta.chave", vars: {} }),
+    "POST /api/assistente/provedores": (b) => {
+      const p = { id: `ia${estado.ia.provedores.length + 1}`, catalogo: b.catalogo, nome: b.catalogo === "ollama" ? "Ollama" : "Groq", tipo: "openai", url_base: b.url_base, modelo: b.modelo, tem_chave: Boolean(b.api_key), local: b.catalogo === "ollama", chave_exigida: b.catalogo !== "ollama", links: {}, selo: null, teste_ok: null, ferramentas_ok: null, teste_em: null };
+      estado.ia.provedores.push(p);
+      estado.ia.config.provedor_id = estado.ia.config.provedor_id || p.id;
+      return p;
+    },
+    "POST /api/assistente/provedores/ia1/testar": () => {
+      const p = estado.ia.provedores[0];
+      Object.assign(p, { teste_ok: true, ferramentas_ok: true, teste_em: "2026-10-26T21:00:00-03:00" });
+      return { ok: true, ferramentas: true, ms: 1234, provedor: p, uso_hoje: { chamadas: 1, tokens: 40, estimado: false } };
+    },
+    "PUT /api/assistente/config": (b) => {
+      const { permissoes, ...resto } = b;
+      estado.ia.config = { ...estado.ia.config, ...resto };
+      estado.ia.permissoes = { ...estado.ia.permissoes, ...(permissoes || {}) };
+      return estadoIa();
+    },
+    "GET /api/assistente/conversas": () => estado.ia.conversas,
+    "DELETE /api/assistente/conversas": () => ((estado.ia.conversas = []), {}),
   };
+  function estadoIa() {
+    const p = estado.ia.provedores.find((x) => x.id === estado.ia.config.provedor_id) || null;
+    const falta = !p ? "provedor" : !p.modelo ? "modelo" : estado.ia.config.ativo ? null : "desligado";
+    return { config: { ...estado.ia.config }, permissoes: { ...estado.ia.permissoes }, provedor: p, pronto: falta === null, falta, uso_hoje: { chamadas: 0, tokens: 0, estimado: false } };
+  }
   const fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const metodo = (opts.method || "GET").toUpperCase();
@@ -120,11 +162,11 @@ test(
       await espera(60);
     };
 
-    await t.test("abre em aparência com o perfil carregado; as 7 abas existem", async () => {
+    await t.test("abre em aparência com o perfil carregado; as 8 abas existem", async () => {
       await openConfiguracoesModal();
       await espera(60);
       assert.ok($("#settings-modal").classList.contains("open"));
-      assert.equal(doc.querySelectorAll(".cfg-tab").length, 7);
+      assert.equal(doc.querySelectorAll(".cfg-tab").length, 8);
       assert.ok($('.cfg-panel[data-panel="aparencia"]').classList.contains("on"));
       assert.equal(doc.querySelectorAll("#cfg-accent-swatches .ki-swatch").length > 0, true);
       assert.match($("#cfg-rewards-desc").textContent, /nível 3/);
@@ -333,6 +375,133 @@ test(
       $("#cfg-diag-copy").click();
       await espera(60);
       assert.match($("#cfg-diag-status").textContent, /copiado|copie à mão/);
+    });
+
+    await t.test("assistente (IA-01): começa desligado; cadastrar o Ollama, buscar modelos, salvar e testar, ligar", async () => {
+      await aba("assistente");
+      await espera(60);
+      assert.equal($("#cfg-ia-ativo").disabled, true, "sem provedor não dá pra ligar");
+      assert.match($("#cfg-ia-falta").textContent, /provedor/);
+      $("#cfg-ia-novo").click();
+      const sel = $("#cfg-ia-catalogo");
+      sel.value = "ollama";
+      sel.dispatchEvent(new dom.window.Event("change"));
+      assert.equal($("#cfg-ia-url").value, "http://localhost:11434/v1");
+      assert.equal($("#cfg-ia-chave-campo").hidden, true, "local não pede chave");
+      $("#cfg-ia-form-ok").click();
+      await espera();
+      assert.equal(pedidos("POST", "/api/assistente/provedores").length, 0, "sem modelo não salva");
+      $("#cfg-ia-buscar").click();
+      await espera(60);
+      const opcoes = [...doc.querySelectorAll("#cfg-ia-modelos [data-modelo]")].map((li) => li.dataset.modelo);
+      assert.deepEqual(opcoes, ["llama3.1:8b", "qwen2.5:7b"]);
+      digita($("#cfg-ia-modelo"), "qwen");
+      assert.deepEqual([...doc.querySelectorAll("#cfg-ia-modelos [data-modelo]")].map((li) => li.dataset.modelo), ["qwen2.5:7b"]);
+      doc.querySelector("#cfg-ia-modelos [data-modelo]").click();
+      assert.equal($("#cfg-ia-modelo").value, "qwen2.5:7b");
+      $("#cfg-ia-form-ok").click();
+      await espera(400);
+      assert.deepEqual(pedidos("POST", "/api/assistente/provedores").at(-1).corpo, { catalogo: "ollama", url_base: "http://localhost:11434/v1", modelo: "qwen2.5:7b" });
+      assert.equal(pedidos("POST", "/api/assistente/provedores/ia1/testar").length, 1, "salvar já testa");
+      assert.match($(".cfg-ia-prov").textContent, /Ollama/);
+      assert.match($(".cfg-ia-prov-status").textContent, /1,2|1\.2/);
+      assert.equal($("#cfg-ia-ativo").disabled, false);
+      $("#cfg-ia-ativo").click();
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { ativo: true });
+      assert.match($("#cfg-ia-em-uso").textContent, /qwen2\.5:7b/);
+    });
+
+    await t.test("assistente (IA-01): na nuvem sem chave, buscar modelos mostra o erro sem quebrar", async () => {
+      $("#cfg-ia-novo").click();
+      const sel = $("#cfg-ia-catalogo");
+      sel.value = "groq";
+      sel.dispatchEvent(new dom.window.Event("change"));
+      assert.equal($("#cfg-ia-chave-campo").hidden, false);
+      $("#cfg-ia-buscar").click();
+      await espera(60);
+      assert.ok($("#cfg-ia-form-status").classList.contains("cfg-ia-falha"));
+      $("#cfg-ia-form-voltar").click();
+      assert.equal($("#cfg-ia-form").hidden, true);
+    });
+
+    await t.test("assistente (IA-03): permissões por área — notas começam desligadas e ligam com um clique", async () => {
+      const notas = $('[data-ia-area="notas"]');
+      assert.equal(doc.querySelectorAll("[data-ia-area]").length, 10);
+      assert.equal(notas.checked, false);
+      assert.equal($('[data-ia-area="financas"]').checked, true);
+      notas.checked = true;
+      notas.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { permissoes: { notas: true } });
+      assert.equal($('[data-ia-area="notas"]').checked, true);
+    });
+
+    await t.test("assistente (IA-02): desligar 'guardar conversas' pergunta se apaga as já guardadas", async () => {
+      const guardar = $("#cfg-ia-guardar");
+      assert.equal(guardar.checked, true);
+      guardar.checked = false;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.match($("#cm-message").textContent, /1 conversa guardada/, "conta só as guardadas");
+      assert.match($("#cm-confirm-btn").textContent, /desligar e apagar/);
+      await confirma();
+      assert.equal(pedidos("DELETE", "/api/assistente/conversas").length, 1);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: false });
+      // religar não pergunta nada
+      guardar.checked = true;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: true });
+      // sem conversa guardada, desliga direto
+      guardar.checked = false;
+      guardar.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.equal(pedidos("DELETE", "/api/assistente/conversas").length, 1);
+      assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: false });
+    });
+
+    await t.test("assistente (IA-04): passo a passo — gratuita › OpenRouter, com o aviso de dados, e 'usar este' abre o formulário", async () => {
+      $("#cfg-ia-guia-btn").click();
+      await espera(60);
+      const opcoes = () => [...$("#cfg-ia-guia").querySelectorAll("[data-guia]")].map((b) => `${b.dataset.guia}:${b.dataset.valor || ""}`);
+      assert.deepEqual(opcoes(), ["caminho:paga", "caminho:gratuita", "caminho:local", "sair:"]);
+      assert.equal($("#cfg-ia-guia-btn").hidden, true);
+      $('[data-guia="caminho"][data-valor="gratuita"]').click();
+      assert.deepEqual(opcoes(), ["provedor:gemini", "provedor:groq", "provedor:openrouter", "provedor:outro", "voltar:"]);
+      $('[data-guia="provedor"][data-valor="openrouter"]').click();
+      const ficha = $("#cfg-ia-guia").textContent;
+      assert.match(ficha, /guardam ou usam o que você envia/, "aviso de dados (P-118)");
+      assert.match(ficha, /deixe "só os gratuitos" marcado/, "passo cita o rótulo da tela");
+      assert.doesNotMatch(ficha, /\{\w+\}/, "nenhuma variável sem trocar");
+      const links = [...$("#cfg-ia-guia").querySelectorAll("[data-open-link]")].map((l) => l.dataset.openLink);
+      assert.ok(links.includes("https://openrouter.ai/settings/privacy") && links.includes("https://openrouter.ai/settings/keys"));
+      $('[data-guia="usar"]').click();
+      await espera(20);
+      assert.equal($("#cfg-ia-guia").hidden, true);
+      assert.equal($("#cfg-ia-catalogo").value, "openrouter");
+      assert.equal($("#cfg-ia-url").value, "https://openrouter.ai/api/v1");
+      $("#cfg-ia-form-voltar").click();
+      // no computador: requisitos e nada de aviso de nuvem
+      $("#cfg-ia-guia-btn").click();
+      $('[data-guia="caminho"][data-valor="local"]').click();
+      assert.deepEqual(opcoes(), ["provedor:ollama", "provedor:lmstudio", "provedor:outro", "voltar:"]);
+      $('[data-guia="provedor"][data-valor="ollama"]').click();
+      assert.match($("#cfg-ia-guia").textContent, /8 GB/);
+      assert.equal($("#cfg-ia-guia").querySelector(".cfg-ia-guia-item--dados"), null);
+      $('[data-guia="voltar"]').click();
+      $('[data-guia="voltar"]').click();
+      $('[data-guia="sair"]').click();
+      assert.equal($("#cfg-ia-guia").hidden, true);
+      assert.equal($("#cfg-ia-guia-btn").hidden, false);
+    });
+
+    await t.test("assistente (IA-04): aberto pelo painel já cai no passo a passo", async () => {
+      closeConfiguracoesModal();
+      await openConfiguracoesModal("assistente", { guia: true });
+      await espera(80);
+      assert.equal($("#cfg-ia-guia").hidden, false);
+      assert.ok($('[data-guia="caminho"][data-valor="paga"]'));
     });
 
     await t.test("fechar e reabrir em outra aba", async () => {

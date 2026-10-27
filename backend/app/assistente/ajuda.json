@@ -1,0 +1,21 @@
+{
+  "_sobre": "Serviços de apoio emocional / prevenção do suicídio por país (IA-03, P-111), usados quando a pessoa demonstra risco. Só entram números conferidos em fonte oficial ou de imprensa (2026-10-27); país fora da lista recebe findahelpline.com, que é mantido por gente que confere os números. Ao mudar um número, conferir de novo e anotar a data aqui.",
+  "reserva": {"nome": "Find A Helpline", "telefone": null, "site": "https://findahelpline.com"},
+  "paises": {
+    "BR": {"nome": "CVV — Centro de Valorização da Vida", "telefone": "188", "site": "https://cvv.org.br"},
+    "US": {"nome": "988 Suicide & Crisis Lifeline", "telefone": "988", "site": "https://988lifeline.org"},
+    "CA": {"nome": "9-8-8 Suicide Crisis Helpline", "telefone": "988", "site": "https://988.ca"},
+    "GB": {"nome": "Samaritans", "telefone": "116 123", "site": "https://www.samaritans.org"},
+    "IE": {"nome": "Samaritans", "telefone": "116 123", "site": "https://www.samaritans.org"},
+    "AU": {"nome": "Lifeline", "telefone": "13 11 14", "site": "https://www.lifeline.org.au"},
+    "ES": {"nome": "Línea 024 de atención a la conducta suicida", "telefone": "024", "site": "https://www.sanidad.gob.es/linea024"},
+    "MX": {"nome": "Línea de la Vida", "telefone": "800 911 2000", "site": null},
+    "AR": {"nome": "Centro de Asistencia al Suicida", "telefone": "135", "site": "https://www.casbuenosaires.com.ar"},
+    "FR": {"nome": "3114 — numéro national de prévention du suicide", "telefone": "3114", "site": "https://3114.fr"},
+    "IT": {"nome": "Telefono Amico Italia", "telefone": "02 2327 2327", "site": "https://www.telefonoamico.it"},
+    "DE": {"nome": "TelefonSeelsorge", "telefone": "0800 111 0 111", "site": "https://www.telefonseelsorge.de"},
+    "JP": {"nome": "よりそいホットライン", "telefone": "0120-279-338", "site": "https://www.since2011.net/yorisoi/"},
+    "KR": {"nome": "자살예방상담전화", "telefone": "109", "site": null},
+    "IN": {"nome": "Tele MANAS", "telefone": "14416", "site": "https://telemanas.mohfw.gov.in"}
+  }
+}

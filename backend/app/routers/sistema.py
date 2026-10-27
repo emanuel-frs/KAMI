@@ -27,7 +27,8 @@ Endpoints:
                              pessoais (CONF-06)
 
 Nota sobre /import: no backup SEM senha, `email_accounts.app_password_enc`,
-`github_settings.token_enc` e `search_settings.api_key_enc` saem
+`github_settings.token_enc`, `search_settings.api_key_enc` e
+`assistente_provedores.chave_enc` (chave da API de IA, IA-01) saem
 cifrados com a chave local da máquina (app/crypto.py — no cofre do
 sistema desde a 1.11): importado em outra instalação, esses três não
 abrem, só o resto. No backup COM senha eles vão decifrados dentro do
@@ -45,6 +46,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app import backup_auto
+from app.assistente import conversas
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
 from app.backup_cifrado import SENHA_MIN, ArquivoInvalido, SenhaErrada, cifrar, decifrar
@@ -65,6 +67,13 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # (defesa em profundidade — get_connection() já liga isso, mas um
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
+    # IA-01: config aponta pro provedor em uso, então sai antes dele
+    "assistente_mensagens",
+    "assistente_conversas",
+    "assistente_envios",
+    "assistente_config",
+    "assistente_uso",
+    "assistente_provedores",
     "calendar_events",
     "screen_tips_seen",
     "dicas_vistas",
@@ -146,6 +155,7 @@ SEGREDOS = [
     ("github_settings", "token_enc"),
     ("search_settings", "api_key_enc"),
     ("notas", "conteudo_cifrado"),  # ORG-01: texto da nota trancada
+    ("assistente_provedores", "chave_enc"),  # IA-01: chave da API do provedor de IA
 ]
 
 
@@ -377,6 +387,7 @@ def import_data(payload: ImportIn, db=Depends(get_db)):
             raise ValueError(f"referências quebradas no backup: {detail}")
 
         db.commit()
+        conversas.esquecer_memoria()  # IA-02: os dados de antes saíram, as conversas na memória também
     except Exception as exc:
         db.rollback()
         # antes essa exceção era totalmente engolida — só sobrava "400
@@ -457,6 +468,7 @@ def reset_data(payload: ResetIn, db=Depends(get_db)):
             continue
         db.execute(f"DELETE FROM {table}")  # _TABLES_DELETE_ORDER é uma constante fixa do código, não input externo
     db.commit()
+    conversas.esquecer_memoria()  # IA-02: conversas do "não guardar" também
 
     _seed_defaults(db)
     from app.achievements import seed_achievements

@@ -8,7 +8,7 @@ Endpoints:
   POST /api/seguranca/chave/redefinir  gera uma chave nova e APAGA os
                                        segredos cifrados com a antiga
                                        (senha de app do e-mail, token do
-                                       GitHub, chave da busca) — saída de
+                                       GitHub, chave da busca, chave da IA) — saída de
                                        quando o cofre perdeu a chave
 
   GET  /api/seguranca/pin              PIN ligado? bloqueado? espera?
@@ -52,6 +52,7 @@ def _segredos_salvos(db) -> int:
         + db.execute("SELECT COUNT(*) FROM github_settings WHERE token_enc IS NOT NULL AND token_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM search_settings WHERE api_key_enc IS NOT NULL AND api_key_enc <> ''").fetchone()[0]
         + db.execute("SELECT COUNT(*) FROM notas WHERE conteudo_cifrado IS NOT NULL").fetchone()[0]
+        + db.execute("SELECT COUNT(*) FROM assistente_provedores WHERE chave_enc IS NOT NULL").fetchone()[0]
     )
 
 
@@ -84,6 +85,9 @@ def redefinir_chave(payload: RedefinirChaveIn, db=Depends(get_db)):
     )
     db.execute("UPDATE github_settings SET token_enc = NULL")
     db.execute("UPDATE search_settings SET api_key_enc = NULL")
+    # IA-01: chave da API de IA — o provedor fica (endereço, modelo), só a
+    # chave precisa ser colada de novo; sem ela o assistente não está pronto
+    db.execute("UPDATE assistente_provedores SET chave_enc = NULL, teste_ok = NULL, teste_em = NULL, ferramentas_ok = NULL")
     # ORG-01: o texto das notas trancadas também era cifrado com a chave
     # antiga — perdido (a tela de trancar avisa disso). Título e o resto ficam.
     db.execute("UPDATE notas SET conteudo_cifrado = NULL WHERE trancada = 1")

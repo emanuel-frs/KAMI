@@ -4,6 +4,32 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.16.0] - 2026-10-27
+
+_Assistente de IA opcional, desligado por padrão: um chat que lê os seus dados (só lê) com o provedor que você escolher, na nuvem ou no seu computador, mostrando tudo o que foi enviado._
+
+### Adicionado
+- assistente de IA no painel lateral (item "assistente kami" do menu ou `Alt+A`), no visual de terminal: responde sobre os seus dados e sobre como usar o Kami — resume o mês (todas as áreas), diz o que vence, mostra os maiores gastos, explica as missões. As respostas chegam aos poucos, com tabelas, listas, blocos de código e diagramas em texto; dá para parar, continuar uma resposta cortada, refazer e copiar. O painel tem a largura que você quiser, até metade da tela
+- o assistente funciona com um provedor seu: Google Gemini, Groq, OpenRouter, OpenAI, Anthropic, outro compatível, ou no seu computador com Ollama ou LM Studio. Nenhuma chave vem com o app; a chave fica cifrada, protegida pelo cofre do sistema, e nunca volta para a tela. Os modelos vêm da lista do próprio provedor
+- passo a passo para conectar (configurações › assistente): "tenho uma IA paga", "quero uma gratuita" ou "quero rodar no meu computador", com o que é cada provedor, quanto custa, o que acontece com os seus dados (inclusive quando o plano gratuito usa o que você envia), os passos e os links oficiais; "usar este" já preenche o formulário
+- você escolhe o que o assistente pode ler (finanças, metas, agenda, hábitos, aprendizado, progresso, caixa de entrada, links, GitHub, notas). As notas começam desligadas e nota trancada nunca é lida. Antes de sair do computador, e-mails, cartões, documentos, dados bancários, chaves e telefones nos dados viram `[removido]`
+- "o que foi enviado": cada chamada ao provedor, com o destino, o modelo, os tokens e os dados consultados
+- teto diário de chamadas e de tokens para provedor na nuvem, com o uso do dia à vista
+- conversas guardadas só no computador e apagadas sozinhas depois de 30 dias (prazo ajustável), ou nem guardadas; "apagar tudo"
+- se você escrever sobre se machucar, quem responde é o próprio Kami, com o serviço de ajuda do seu país, e nada vai para o provedor
+
+### Segurança
+- o assistente só lê: não existe ferramenta que crie, altere ou apague nada, e ele não acessa a internet. Texto vindo dos seus dados (uma nota, um link) chega ao modelo marcado como dado, nunca como ordem — testado com tentativas de injeção em notas, links, caixa de entrada e lançamentos
+- SECURITY.md ganhou a seção do assistente: o que sai, para onde, o que nunca sai, como desligar e os limites honestos
+
+### Corrigido
+- em chinês, japonês e coreano, desenhos em texto com linhas de caixa (┌─┐) saíam desalinhados: blocos de texto fixo agora usam a fonte do app
+- blocos de código das notas guardam a linguagem (` ```python `)
+- trocar o idioma e voltar podia gerar um aviso de erro nas telas com widgets (núcleo, finanças, perfil, carreira): a montagem da tela antiga continuava depois de a tela sair
+
+### Testes
+- o teste ponta a ponta do app compilado passa pelo assistente com um provedor falso: passo a passo, pergunta, parar, continuar, refazer, histórico e o que foi enviado
+
 ## [1.15.0] - 2026-10-26
 
 _O Kami em 10 idiomas, com a moeda e o país dos feriados escolhidos por você._
