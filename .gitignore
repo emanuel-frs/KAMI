@@ -37,6 +37,10 @@ node_modules/
 backend/build/
 backend/dist/
 
+# ── testes e2e (tests/e2e/) ───────────────────────────────────────
+# prints e log de cada rodada local; no CI eles viram artefato do job
+e2e-output/
+
 # ── dados locais do usuário (nunca versionar) ─────────────────────
 # Já estão em backend/.gitignore; repetido aqui por segurança, caso o
 # backend seja rodado a partir de outra pasta.
