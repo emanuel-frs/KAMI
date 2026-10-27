@@ -8,6 +8,9 @@
 // na ordem.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const CATALOGO = JSON.parse(readFileSync(new URL("../../backend/app/assistente/provedores.json", import.meta.url), "utf8")).provedores;
 import { withDom } from "./helpers/dom.js";
 
 const PERFIL = {
@@ -77,10 +80,8 @@ function backendFalso() {
     },
     "POST /api/backups/restaurar": () => estado.backups,
     // IA-01: assistente (a chave nunca volta — só tem_chave)
-    "GET /api/assistente/catalogo": () => [
-      { id: "groq", nome: "Groq", tipo: "openai", url_base: "https://api.groq.com/openai/v1", local: false, chave: "obrigatoria", gratuito: "limitado", links: { chave: "https://console.groq.com/keys" }, selo: null },
-      { id: "ollama", nome: "Ollama", tipo: "openai", url_base: "http://localhost:11434/v1", local: true, chave: "nenhuma", gratuito: "sim", links: { site: "https://ollama.com" }, selo: null },
-    ],
+    // o catálogo de verdade (IA-04: o passo a passo usa os caminhos e links dele)
+    "GET /api/assistente/catalogo": () => CATALOGO,
     "GET /api/assistente": () => estadoIa(),
     "GET /api/assistente/provedores": () => estado.ia.provedores,
     "POST /api/assistente/modelos": (b) => (b.url_base.includes("11434") ? { modelos: ["llama3.1:8b", "qwen2.5:7b"] } : { __status: 422, detail: "x", chave: "erro.assistente.falta.chave", vars: {} }),
@@ -458,6 +459,49 @@ test(
       await espera(60);
       assert.equal(pedidos("DELETE", "/api/assistente/conversas").length, 1);
       assert.deepEqual(pedidos("PUT", "/api/assistente/config").at(-1).corpo, { guardar_conversas: false });
+    });
+
+    await t.test("assistente (IA-04): passo a passo — gratuita › OpenRouter, com o aviso de dados, e 'usar este' abre o formulário", async () => {
+      $("#cfg-ia-guia-btn").click();
+      await espera(60);
+      const opcoes = () => [...$("#cfg-ia-guia").querySelectorAll("[data-guia]")].map((b) => `${b.dataset.guia}:${b.dataset.valor || ""}`);
+      assert.deepEqual(opcoes(), ["caminho:paga", "caminho:gratuita", "caminho:local", "sair:"]);
+      assert.equal($("#cfg-ia-guia-btn").hidden, true);
+      $('[data-guia="caminho"][data-valor="gratuita"]').click();
+      assert.deepEqual(opcoes(), ["provedor:gemini", "provedor:groq", "provedor:openrouter", "provedor:outro", "voltar:"]);
+      $('[data-guia="provedor"][data-valor="openrouter"]').click();
+      const ficha = $("#cfg-ia-guia").textContent;
+      assert.match(ficha, /guardam ou usam o que você envia/, "aviso de dados (P-118)");
+      assert.match(ficha, /deixe "só os gratuitos" marcado/, "passo cita o rótulo da tela");
+      assert.doesNotMatch(ficha, /\{\w+\}/, "nenhuma variável sem trocar");
+      const links = [...$("#cfg-ia-guia").querySelectorAll("[data-open-link]")].map((l) => l.dataset.openLink);
+      assert.ok(links.includes("https://openrouter.ai/settings/privacy") && links.includes("https://openrouter.ai/settings/keys"));
+      $('[data-guia="usar"]').click();
+      await espera(20);
+      assert.equal($("#cfg-ia-guia").hidden, true);
+      assert.equal($("#cfg-ia-catalogo").value, "openrouter");
+      assert.equal($("#cfg-ia-url").value, "https://openrouter.ai/api/v1");
+      $("#cfg-ia-form-voltar").click();
+      // no computador: requisitos e nada de aviso de nuvem
+      $("#cfg-ia-guia-btn").click();
+      $('[data-guia="caminho"][data-valor="local"]').click();
+      assert.deepEqual(opcoes(), ["provedor:ollama", "provedor:lmstudio", "provedor:outro", "voltar:"]);
+      $('[data-guia="provedor"][data-valor="ollama"]').click();
+      assert.match($("#cfg-ia-guia").textContent, /8 GB/);
+      assert.equal($("#cfg-ia-guia").querySelector(".cfg-ia-guia-item--dados"), null);
+      $('[data-guia="voltar"]').click();
+      $('[data-guia="voltar"]').click();
+      $('[data-guia="sair"]').click();
+      assert.equal($("#cfg-ia-guia").hidden, true);
+      assert.equal($("#cfg-ia-guia-btn").hidden, false);
+    });
+
+    await t.test("assistente (IA-04): aberto pelo painel já cai no passo a passo", async () => {
+      closeConfiguracoesModal();
+      await openConfiguracoesModal("assistente", { guia: true });
+      await espera(80);
+      assert.equal($("#cfg-ia-guia").hidden, false);
+      assert.ok($('[data-guia="caminho"][data-valor="paga"]'));
     });
 
     await t.test("fechar e reabrir em outra aba", async () => {

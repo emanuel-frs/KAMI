@@ -211,7 +211,10 @@ function renderFalta() {
     <div class="ia-vazio">
       <p class="ia-linha"><span class="ia-sinal">kami&gt;</span> ${escapeHtml(t(FALTA[estadoIa.falta] || FALTA.provedor))}</p>
       <p class="ia-nota">${escapeHtml(t("assistente.chat.opcional"))}</p>
-      <div class="form-actions"><button type="button" class="btn sm" data-ia="configurar">${escapeHtml(t("assistente.chat.ir_para_configuracoes"))}</button></div>
+      <div class="form-actions">
+        ${estadoIa.falta === "provedor" ? `<button type="button" class="btn sm primary" data-ia="guia">${escapeHtml(t("assistente.guia.abrir"))}</button>` : ""}
+        <button type="button" class="btn sm" data-ia="configurar">${escapeHtml(t("assistente.chat.ir_para_configuracoes"))}</button>
+      </div>
     </div>`;
 }
 
@@ -704,9 +707,9 @@ export function alternarAssistente() {
   else abrirAssistente();
 }
 
-async function irParaConfiguracoes() {
+async function irParaConfiguracoes({ guia = false } = {}) {
   const { openConfiguracoesModal } = await import("../modals/configuracoes-modal.js");
-  openConfiguracoesModal("assistente");
+  openConfiguracoesModal("assistente", { guia });
 }
 
 function ligarEventos(el) {
@@ -727,6 +730,7 @@ function ligarEventos(el) {
     else if (acao === "envios") renderEnvios();
     else if (acao === "voltar") voltarPraConversa();
     else if (acao === "configurar") irParaConfiguracoes();
+    else if (acao === "guia") irParaConfiguracoes({ guia: true }); // IA-04: sem provedor, o passo a passo
     else if (acao === "refazer") refazer();
     else if (acao === "continuar") continuar();
     else if (acao === "copiar") copiar(alvo, mensagens[Number(alvo.closest(".ia-msg").dataset.i)]?.texto || "");

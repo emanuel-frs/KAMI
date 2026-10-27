@@ -55,6 +55,12 @@ export function createDashboardPage(screen, options = {}) {
   let onDocClick = null;
   let shortcutsToken = null;
   let openCatalog = null; // abre o popover "+ adicionar widget" (Alt+N); só existe com a tela montada
+  // cada mount ganha um número; unmount (ou um mount mais novo) invalida o
+  // anterior. Sem isso, a tela desmontada no meio dos awaits (trocar o
+  // idioma remonta a tela) continuava: reescrevia o container da tela
+  // nova e chamava onReady de novo — a assinatura do perfil que sobrava
+  // chamava as dicas com o grid já desmontado (container null)
+  let montagem = 0;
 
   /**
    * Widgets com removable:false pro `screen` atual precisam SEMPRE
@@ -111,6 +117,7 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   async function mount(container) {
+    const minha = ++montagem;
     // Registrado ANTES do primeiro await de propósito: as dicas são
     // estáticas (não dependem do grid já montado) e, se ficassem depois
     // do await, uma navegação rápida poderia rodar o unmount() desta
@@ -131,6 +138,7 @@ export function createDashboardPage(screen, options = {}) {
     // registry.js, então navegar entre perfil/núcleo/finanças não refaz
     // a requisição depois da primeira vez
     await loadWidgetCatalog();
+    if (minha !== montagem) return; // desmontada enquanto carregava
 
     const headHtml = title
       ? `
@@ -166,6 +174,7 @@ export function createDashboardPage(screen, options = {}) {
       // aqui não impede a tela de abrir — cai no tamanho do catálogo)
       getLayoutPadrao(screen).catch(() => []),
     ]);
+    if (minha !== montagem) return;
     const { widgets: withRequired, changed } = withRequiredWidgets(loaded);
     currentWidgets = withRequired;
     if (changed) saveLayout(screen, currentWidgets);
@@ -339,6 +348,7 @@ export function createDashboardPage(screen, options = {}) {
   }
 
   function unmount() {
+    montagem++;
     clearScreenShortcuts(shortcutsToken);
     shortcutsToken = null;
     openCatalog = null;

@@ -51,6 +51,22 @@ def test_comeca_desligado_e_sem_provedor(client):
     assert e["uso_hoje"]["chamadas"] == 0
 
 
+def test_catalogo_cobre_os_caminhos_do_passo_a_passo(client):
+    """IA-04 (P-117): cada caminho tem provedores de verdade + "outro";
+    local não pede chave e tem link pra baixar; todo link é https."""
+    cat = client.get("/api/assistente/catalogo").json()
+    por = {c: [p["id"] for p in cat if c in p.get("caminhos", [])] for c in ("paga", "gratuita", "local")}
+    assert por == {"paga": ["gemini", "openrouter", "openai", "anthropic", "outro"],
+                   "gratuita": ["gemini", "groq", "openrouter", "outro"],
+                   "local": ["ollama", "lmstudio", "outro"]}
+    for p in cat:
+        assert all(u.startswith("https://") for u in p["links"].values()), p["id"]
+        if p["local"]:
+            assert p["chave"] == "nenhuma" and p["links"].get("baixar")
+        elif p["id"] != "outro":
+            assert p["links"].get("chave") and p["links"].get("privacidade") and p["links"].get("docs")
+
+
 def test_catalogo_sem_lista_de_modelos(client):
     cat = client.get("/api/assistente/catalogo").json()
     ids = [p["id"] for p in cat]

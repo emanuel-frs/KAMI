@@ -15,6 +15,7 @@
  *
  * O chat (painel, Alt+A) é do IA-02 (components/assistente-painel.js);
  * aqui fica a parte de guardar conversas (P-105) e o "apagar tudo".
+ * O passo a passo de conexão (IA-04) fica em assistente-guia.js.
  */
 import {
   apagarProvedor,
@@ -33,6 +34,7 @@ import {
 import { escapeHtml, fmtDataHora } from "../../components/format.js";
 import { enhanceSelect, destroyCustomSelect } from "../../components/custom-select.js";
 import { showConfirmModal } from "../confirm-modal.js";
+import { abrirGuia, fecharGuia } from "./assistente-guia.js";
 import { icon } from "../../components/icons.js";
 import { localeAtual, t } from "../../i18n.js";
 
@@ -66,6 +68,11 @@ export function buildAssistentePanel() {
         </label>
         <p class="cfg-seg-chave" id="cfg-ia-em-uso" hidden></p>
         <p class="settings-status" id="cfg-ia-status" role="status"></p>
+        <div class="form-actions cfg-ia-guia-abrir">
+          <button type="button" class="btn sm" id="cfg-ia-guia-btn">${icon("terminal", { size: 12 })} ${t("assistente.guia.abrir")}</button>
+          <small>${t("assistente.guia.abrir_dica")}</small>
+        </div>
+        <div id="cfg-ia-guia" class="cfg-ia-guia" hidden></div>
       </div>
 
       <div class="settings-section">
@@ -344,9 +351,9 @@ function infoDoCatalogo(c) {
   return `${escapeHtml(partes.join(" · "))}${links.length ? ` · ${links.join(" · ")}` : ""}`;
 }
 
-function formHtml(p) {
+function formHtml(p, catalogoId = "gemini") {
   const opcoes = catalogo
-    .map((c) => `<option value="${escapeHtml(c.id)}"${(p ? p.catalogo : "gemini") === c.id ? " selected" : ""}>${escapeHtml(c.id === "outro" ? t("assistente.outro_compativel") : c.nome)}</option>`)
+    .map((c) => `<option value="${escapeHtml(c.id)}"${(p ? p.catalogo : catalogoId) === c.id ? " selected" : ""}>${escapeHtml(c.id === "outro" ? t("assistente.outro_compativel") : c.nome)}</option>`)
     .join("");
   return `
     <h5 class="cfg-subhead">${escapeHtml(p ? t("assistente.editar_provedor", { nome: p.nome }) : t("assistente.novo_provedor"))}</h5>
@@ -497,11 +504,11 @@ async function salvar(wrap) {
   }
 }
 
-function abrirForm(wrap, p = null) {
+function abrirForm(wrap, p = null, catalogoId = undefined) {
   editando = p;
   const box = wrap.querySelector("#cfg-ia-form");
   box.querySelectorAll("select").forEach(destroyCustomSelect);
-  box.innerHTML = formHtml(p);
+  box.innerHTML = formHtml(p, catalogoId);
   box.hidden = false;
   wrap.querySelector("#cfg-ia-novo").hidden = true;
   const select = box.querySelector("#cfg-ia-catalogo");
@@ -558,7 +565,43 @@ function abrirForm(wrap, p = null) {
   (p ? box.querySelector("#cfg-ia-modelo") : box.querySelector("#cfg-ia-catalogo"))?.focus?.();
 }
 
+// ── passo a passo (IA-04) ─────────────────────────────────────────────────
+
+export async function abrirGuiaAssistente(wrap) {
+  if (!catalogo.length) {
+    try {
+      catalogo = await getCatalogo();
+    } catch (err) {
+      status(wrap, "cfg-ia-status", textoDoErro(err), true);
+      return;
+    }
+  }
+  const box = wrap.querySelector("#cfg-ia-guia");
+  wrap.querySelector("#cfg-ia-guia-btn").hidden = true;
+  const fechar = () => {
+    fecharGuia(box);
+    wrap.querySelector("#cfg-ia-guia-btn").hidden = false;
+  };
+  abrirGuia(box, catalogo, {
+    onFechar: () => {
+      fechar();
+      wrap.querySelector("#cfg-ia-guia-btn").focus();
+    },
+    // "usar este": formulário já no provedor escolhido (falta chave e modelo)
+    onUsar: (id) => {
+      fechar();
+      abrirForm(wrap, null, id);
+      wrap.querySelector("#cfg-ia-form").scrollIntoView?.({ block: "start" });
+    },
+  });
+  box.scrollIntoView?.({ block: "start" });
+}
+
 export function fecharForm(wrap) {
+  if (wrap.querySelector("#cfg-ia-guia-btn")) {
+    fecharGuia(wrap.querySelector("#cfg-ia-guia"));
+    wrap.querySelector("#cfg-ia-guia-btn").hidden = false;
+  }
   editando = null;
   modelosCarregados = [];
   const box = wrap.querySelector("#cfg-ia-form");
@@ -604,6 +647,7 @@ export function wireAssistenteTab(wrap) {
   wrap.querySelector("#cfg-ia-ativo").addEventListener("change", (e) => salvarConfig(wrap, { ativo: e.target.checked }));
   wrap.querySelector("#cfg-ia-escondido").addEventListener("change", (e) => salvarConfig(wrap, { escondido: e.target.checked }));
   wrap.querySelector("#cfg-ia-novo").addEventListener("click", () => abrirForm(wrap));
+  wrap.querySelector("#cfg-ia-guia-btn").addEventListener("click", () => abrirGuiaAssistente(wrap));
   wrap.querySelector("#cfg-ia-limites-ok").addEventListener("click", () =>
     salvarConfig(
       wrap,

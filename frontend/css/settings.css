@@ -393,3 +393,43 @@
 /* IA-03: áreas que o assistente pode ler — duas colunas quando cabe */
 .cfg-ia-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
 .cfg-ia-areas .cfg-toggle + .cfg-toggle { margin-top: 0; border-top: 0; }
+
+/* ── passo a passo de conexão (IA-04, configuracoes/assistente-guia.js) ── */
+.cfg-ia-guia-abrir { align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.cfg-ia-guia-abrir small { color: var(--text-faint); font-size: 10px; flex: 1 1 220px; }
+.cfg-ia-guia-abrir[hidden], .cfg-ia-guia-abrir .btn[hidden] { display: none; }
+.cfg-ia-guia {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--accent);
+  background: var(--bg);
+}
+.cfg-ia-guia[hidden] { display: none; }
+.cfg-ia-guia .cfg-subhead { margin-top: 0; outline: none; }
+.cfg-ia-guia-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 8px 0; }
+.cfg-ia-guia-opcao {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.cfg-ia-guia-opcao b { color: var(--text-bright); font-weight: 600; }
+.cfg-ia-guia-opcao span { color: var(--text-dim); font-size: 10.5px; line-height: 1.5; }
+.cfg-ia-guia-opcao:hover, .cfg-ia-guia-opcao:focus-visible { border-color: var(--accent); outline: none; }
+.cfg-ia-guia-opcao:hover b, .cfg-ia-guia-opcao:focus-visible b { color: var(--accent); }
+.cfg-ia-guia-item { margin: 0 0 8px; }
+.cfg-ia-guia-item b { display: block; color: var(--text-bright); font-size: 11px; font-weight: 600; }
+.cfg-ia-guia-item p { margin: 2px 0 0; color: var(--text-dim); font-size: 11px; line-height: 1.55; }
+/* o que acontece com os dados: em destaque (P-118, transparência) */
+.cfg-ia-guia-item--dados { padding-left: 8px; border-left: 2px solid var(--amber); }
+.cfg-ia-guia-passos { margin: 4px 0 0; padding-left: 1.4em; color: var(--text); font-size: 11px; line-height: 1.6; }
+.cfg-ia-guia-passos li::marker { color: var(--accent); }
+/* a dica embaixo de "usar este" ficava colada nos botões (teste do Emanuel) */
+.cfg-ia-guia .form-actions + .settings-note { margin-top: 10px; }

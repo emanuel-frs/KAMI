@@ -1,6 +1,12 @@
 /* Reset + shell da aplicação — portado de kami_telas_final.html */
 
 * { box-sizing: border-box; }
+/* o navegador dá "monospace" genérico pra pre/code — em zh/ja/ko isso vira
+   uma fonte CJK em que ─ │ ┌ → têm largura dupla e o desenho em texto
+   (diagrama do assistente, ASCII das notas e da retrospectiva) desalinha.
+   Herdando, vale a --font do app: latim e caixas na fonte do terminal,
+   ideogramas na CJK (tokens.css) */
+pre, code, kbd, samp { font-family: inherit; }
 html, body { height: 100%; }
 body {
   margin: 0;

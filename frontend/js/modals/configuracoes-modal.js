@@ -117,7 +117,7 @@ import {
   wireChavesTab,
 } from "./configuracoes/chaves.js";
 import { buildSegurancaPanel, wireSegurancaTab } from "./configuracoes/seguranca.js";
-import { buildAssistentePanel, wireAssistenteTab, carregarAssistente, fecharForm as fecharFormAssistente } from "./configuracoes/assistente.js";
+import { buildAssistentePanel, wireAssistenteTab, carregarAssistente, abrirGuiaAssistente, fecharForm as fecharFormAssistente } from "./configuracoes/assistente.js";
 import { buildBackupPanel, wireBackupTab } from "./configuracoes/backup.js";
 import { buildSobrePanel, wireSobreTab } from "./configuracoes/sobre.js";
 import { carregarCopias } from "./configuracoes/copias.js";
@@ -242,7 +242,7 @@ function wireModal(wrap) {
  *   Default "aparencia" (primeira aba). backup-reminder.js passa
  *   "backup" explicitamente pra levar direto à seção de export.
  */
-export async function openConfiguracoesModal(tabId = "aparencia") {
+export async function openConfiguracoesModal(tabId = "aparencia", { guia = false } = {}) {
   estado.modalEl = estado.modalEl || buildModal();
 
   switchTab(estado.modalEl, tabs().some((t) => t.id === tabId) ? tabId : "aparencia");
@@ -293,7 +293,10 @@ export async function openConfiguracoesModal(tabId = "aparencia") {
   // IA-01: formulário de provedor nunca sobrevive de uma abertura pra outra
   // (chave digitada pela metade); aberta direto na aba, carrega sem o clique
   fecharFormAssistente(estado.modalEl);
-  if (tabId === "assistente") carregarAssistente(estado.modalEl);
+  if (tabId === "assistente") {
+    // IA-04 (P-116): vindo do "falta configurar" do painel, abre já no passo a passo
+    carregarAssistente(estado.modalEl).then(() => guia && abrirGuiaAssistente(estado.modalEl));
+  }
 
   // busca o perfil atual toda vez que o modal abre — pode ter mudado
   // desde a última abertura (accent_color, nome, avatar), e tanto os
