@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.17.0] - em desenvolvimento
+
+_Sprint 9 da evolução — IA: ações e avisos (IA-05a, IA-05b, IA-06, IA-08): o assistente passa a propor ações (notas, lembretes, eventos, hábitos, lançamentos, metas e planos) com prévia, aplicar em parte e desfazer o lote; avisos proativos por regras no código; e qualidade medida por provedor. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.16.0] - 2026-10-27
 
 _Assistente de IA opcional, desligado por padrão: um chat que lê os seus dados (só lê) com o provedor que você escolher, na nuvem ou no seu computador, mostrando tudo o que foi enviado._
