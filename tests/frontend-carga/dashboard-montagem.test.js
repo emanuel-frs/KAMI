@@ -3,9 +3,12 @@
 // container da tela nova, nem chamar onReady de novo (a assinatura do
 // perfil que sobrava chamava as dicas com o grid já desmontado:
 // "null is not an object (evaluating 'container.querySelectorAll')").
+//
+// Fica em frontend-carga/ (fora da medição de cobertura): importar o
+// dashboard puxa o grid inteiro, e o Node conta todo arquivo importado.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { withDom } from "./helpers/dom.js";
+import { withDom } from "../frontend/helpers/dom.js";
 
 test(
   "dashboard: montagem interrompida pelo unmount não segue nem chama onReady",
