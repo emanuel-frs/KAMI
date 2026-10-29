@@ -367,7 +367,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     -- I18N: descrição criada pelo sistema ("conta fixa: aluguel"), ver
     -- app/mensagens.py::Texto; editar a descrição à mão zera a chave
     descricao_chave   TEXT,
-    descricao_vars    TEXT
+    descricao_vars    TEXT,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 -- ---------------- APRENDIZADO ----------------
@@ -377,7 +378,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     general_goal TEXT,
     status       TEXT NOT NULL DEFAULT 'ativa',  -- 'ativa' | 'pausada' | 'parada'
     position     INTEGER NOT NULL DEFAULT 0,     -- ordem manual na sidebar (drag-and-drop, item 3.2)
-    created_at   TEXT NOT NULL
+    created_at   TEXT NOT NULL,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 CREATE TABLE IF NOT EXISTS milestones (
@@ -393,12 +395,13 @@ CREATE TABLE IF NOT EXISTS milestones (
     last_activity_at  TEXT,
     xp_awarded         INTEGER,            -- XP creditado ao concluir este marco especifico — usado
                                             -- pra estornar o valor exato se o marco for desmarcado
-    was_ever_stale     INTEGER NOT NULL DEFAULT 0  -- 1 se este marco já passou por 'esquecido' em
+    was_ever_stale     INTEGER NOT NULL DEFAULT 0,  -- 1 se este marco já passou por 'esquecido' em
                                             -- algum momento da vida dele (marcado por _apply_staleness),
                                             -- mesmo que depois tenha sido reaberto/concluído — nunca
                                             -- volta a 0; usado pelo achievement 'milestone_completed'
                                             -- ("trilha em dia": concluir um marco sem nunca ter ficado
                                             -- esquecido)
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 -- ---------------- ORGANIZAÇÃO ----------------
@@ -419,7 +422,8 @@ CREATE TABLE IF NOT EXISTS notas (
     vinculo_tipo      TEXT,              -- 'meta' | 'trilha' | 'evento' | 'posicao' (opcional)
     vinculo_id        TEXT,              -- id na tabela do tipo; item apagado = vínculo some na leitura
     criada_em         TEXT NOT NULL,
-    atualizada_em     TEXT NOT NULL
+    atualizada_em     TEXT NOT NULL,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 CREATE TABLE IF NOT EXISTS notas_tags (
     nota_id  TEXT NOT NULL REFERENCES notas(id) ON DELETE CASCADE,
@@ -458,7 +462,8 @@ CREATE TABLE IF NOT EXISTS lembretes (
     pendente_quando  TEXT,                       -- a ocorrência que disparou
     pendente_atrasado INTEGER NOT NULL DEFAULT 0, -- disparou com o app fechado (P-65)
     criado_em        TEXT NOT NULL,
-    atualizado_em    TEXT NOT NULL
+    atualizado_em    TEXT NOT NULL,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 -- ---------------- HÁBITOS (ORG-04) ----------------
@@ -477,7 +482,8 @@ CREATE TABLE IF NOT EXISTS habitos (
     status        TEXT NOT NULL DEFAULT 'ativo',
     posicao       INTEGER NOT NULL DEFAULT 0,
     criado_em     TEXT NOT NULL,
-    atualizado_em TEXT NOT NULL
+    atualizado_em TEXT NOT NULL,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 -- um dia feito de um hábito (no máximo uma marca por dia)
@@ -580,7 +586,8 @@ CREATE TABLE IF NOT EXISTS goals (
     weight               TEXT NOT NULL DEFAULT 'medio',  -- 'baixo' | 'medio' | 'alto' | 'epico' — multiplica o xp
     linked_conta_id      TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,      -- só 'financeira'
     linked_track_id      TEXT REFERENCES tracks(id) ON DELETE SET NULL,               -- só 'aprendizado'
-    linked_education_id  TEXT REFERENCES career_educations(id) ON DELETE SET NULL     -- só 'academica'
+    linked_education_id  TEXT REFERENCES career_educations(id) ON DELETE SET NULL,     -- só 'academica'
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 CREATE TABLE IF NOT EXISTS goal_contributions (
@@ -642,7 +649,8 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     reminder_minutes_before INTEGER,         -- NULL = sem lembrete
     color                   TEXT,            -- NULL = usa --accent
     created_at              TEXT NOT NULL,
-    updated_at              TEXT NOT NULL
+    updated_at              TEXT NOT NULL,
+    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
 
@@ -828,6 +836,7 @@ CREATE TABLE IF NOT EXISTS assistente_mensagens (
     interrompida   INTEGER NOT NULL DEFAULT 0,
     erro_chave     TEXT,
     aviso          TEXT,              -- IA-03: JSON — {"tipo": "cuidado", ...}: o Kami respondeu sozinho (P-111)
+    proposta       TEXT,              -- IA-05: JSON da proposta de ações (só no resultado de propose_actions)
     created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assistente_mensagens_conversa ON assistente_mensagens(conversa_id, created_at);
@@ -850,6 +859,23 @@ CREATE TABLE IF NOT EXISTS assistente_envios (
     created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assistente_envios_data ON assistente_envios(created_at);
+
+-- IA-05 (P-123..P-127): um lote = as ações de uma proposta que a pessoa
+-- aplicou. `itens` (JSON) diz o que foi criado (tipo, id, título, como
+-- estava ao criar — pra saber se a pessoa mexeu depois) e o que saiu da
+-- caixa de entrada (pra voltar no desfazer). Fica no banco mesmo com
+-- "não guardar conversas": é sobre os dados da pessoa, não sobre o chat.
+-- `copia` = arquivo da cópia feita antes de aplicar (backup_auto).
+CREATE TABLE IF NOT EXISTS assistente_lotes (
+    id           TEXT PRIMARY KEY,
+    conversa_id  TEXT,
+    mensagem_id  TEXT,
+    itens        TEXT NOT NULL,
+    aplicado_em  TEXT NOT NULL,
+    desfeito_em  TEXT,
+    copia        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_assistente_lotes_data ON assistente_lotes(aplicado_em);
 
 -- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
 -- versão do app que atualizou o banco por último — ao abrir uma versão

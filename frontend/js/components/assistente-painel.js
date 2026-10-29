@@ -19,6 +19,8 @@
  * - Desligado ou sem provedor: o painel diz o que falta e leva pra
  *   configurações › assistente (P-110: o botão aparece mesmo assim, a
  *   menos que a pessoa esconda).
+ * - Ações (IA-05): a proposta do modelo vira um cartão dentro da resposta
+ *   (assistente-proposta.js); nada é gravado antes do clique da pessoa.
  */
 import {
   apagarConversa,
@@ -32,10 +34,12 @@ import {
 } from "../api/assistente.js";
 import { ApiError } from "../api/client.js";
 import { announce, prefersReducedMotion } from "./a11y.js";
+import { noProposta } from "./assistente-proposta.js";
 import { copyText } from "./clipboard.js";
 import { getTelaAtual } from "./error-notice.js";
 import { escapeHtml, fmtDataHora } from "./format.js";
 import { icon } from "./icons.js";
+import { navigateTo } from "./navigate.js";
 import { markdownParaDom } from "./nota-markdown.js";
 import { openExternal } from "./open-external.js";
 import { idiomaAtual, localeAtual, t, tOu } from "../i18n.js";
@@ -45,7 +49,7 @@ const TEXTO_MAX = 4000;
 let painel = null;
 let estadoIa = null;
 let conversaId = null;
-let mensagens = []; // [{papel, texto, interrompida, erro}] da conversa aberta
+let mensagens = []; // [{papel, texto, interrompida, erro, proposta?}] da conversa aberta
 let enviando = null; // AbortController da resposta em andamento
 let vista = "conversa"; // conversa | historico | envios
 let focoAntes = null;
@@ -330,6 +334,7 @@ function noMensagem(m, i) {
     enfeitarCodigo(txt);
   }
   div.append(txt);
+  if (m.proposta) div.append(noProposta(m.proposta, { conversaId, carregando: m.carregando, aoMudar: depoisDaProposta }));
   if (m.carregando) {
     const cursor = document.createElement("span");
     cursor.className = "ia-cursor";
@@ -389,7 +394,9 @@ function noAcoes(m, i) {
   if (m.texto) botoes.push(botaoAcao("copiar", "assistente.chat.copiar"));
   if (i === mensagens.length - 1 && conversaId && !enviando) {
     if (m.interrompida && m.texto) botoes.push(botaoAcao("continuar", "assistente.chat.continuar"));
-    botoes.push(botaoAcao("refazer", "assistente.chat.refazer"));
+    // refazer apagaria o cartão de uma proposta já aplicada (o lote fica,
+    // mas a pessoa perde o "desfazer" daqui)
+    if (!m.proposta || m.proposta.estado === "pendente") botoes.push(botaoAcao("refazer", "assistente.chat.refazer"));
   }
   if (!botoes.length) return null;
   const nav = document.createElement("div");
@@ -421,6 +428,39 @@ function renderConversa() {
   rolarProFim();
 }
 
+/** Aplicou/desfez/descartou no cartão: redesenha a conversa e, se o banco
+ *  mudou, a tela de trás (a lista de notas, o calendário… mostram o que foi
+ *  criado ou apagado) e o sino/caixa de entrada. */
+function depoisDaProposta(p) {
+  renderConversaSemRolar();
+  if (p.estado === "descartada") return;
+  atualizarTelaAtras();
+}
+
+export function atualizarTelaAtras() {
+  window.dispatchEvent(new CustomEvent("kami:entrada-mudou"));
+  const tela = getTelaAtual();
+  if (tela) navigateTo(tela, { remontar: true });
+}
+
+/** Depois de aplicar/desfazer no cartão: os botões da resposta mudam, a
+ *  rolagem fica onde a pessoa estava. */
+function renderConversaSemRolar() {
+  const c = corpo();
+  const topo = c.scrollTop;
+  const lista = c.querySelector(".ia-mensagens");
+  if (!lista) return;
+  const novo = document.createElement("div");
+  novo.className = lista.className;
+  novo.setAttribute("role", "log");
+  novo.setAttribute("aria-label", t("assistente.chat.conversa"));
+  mensagens.forEach((m, i) => novo.append(noMensagem(m, i)));
+  const foco = document.activeElement?.closest?.(".ia-msg")?.dataset.i;
+  lista.replaceWith(novo);
+  c.scrollTop = topo;
+  if (foco != null) novo.querySelector(`.ia-msg[data-i="${foco}"] .ia-proposta button:not([disabled])`)?.focus();
+}
+
 /** Redesenha só a última mensagem (a que está chegando aos poucos). */
 let quadroPendente = false;
 function atualizarUltima() {
@@ -431,7 +471,7 @@ function atualizarUltima() {
     const lista = corpo().querySelector(".ia-mensagens");
     if (!lista) return renderConversa();
     const i = mensagens.length - 1;
-    const velho = lista.querySelector(`[data-i="${i}"]`);
+    const velho = lista.querySelector(`:scope > .ia-msg[data-i="${i}"]`);
     const novo = noMensagem(mensagens[i], i);
     if (velho) velho.replaceWith(novo);
     else lista.append(novo);
@@ -599,6 +639,9 @@ async function responder({ texto = "", acao }, resposta) {
           } else if (ev.tipo === "ferramenta") {
             resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
             atualizarUltima();
+          } else if (ev.tipo === "proposta") {
+            resposta.proposta = { ...ev.proposta, mensagem_id: ev.mensagem_id };
+            atualizarUltima();
           } else if (ev.tipo === "cuidado") {
             resposta.aviso = { tipo: "cuidado", servico: ev.servico };
             atualizarUltima();
@@ -644,17 +687,43 @@ async function carregarEstado() {
   return estadoIa;
 }
 
-async function abrirConversa(id) {
-  try {
-    const c = await getConversa(id);
-    conversaId = c.id;
-    mensagens = c.mensagens.map((m) => ({
+/** Mensagens guardadas → as da tela. A proposta (resultado da ferramenta,
+ *  IA-05) entra na resposta que vem logo depois dela, como ao vivo. */
+export function deConversa(lista) {
+  const saida = [];
+  let proposta = null;
+  // resposta depois da proposta sem texto (o modelo não disse nada) não é
+  // guardada: o cartão fica sozinho numa resposta do kami
+  const sozinha = () => saida.push({ papel: "assistente", texto: "", interrompida: false, erro: null, aviso: null, proposta });
+  for (const m of lista) {
+    if (m.proposta) {
+      if (proposta) sozinha();
+      proposta = { ...m.proposta, mensagem_id: m.id };
+      continue;
+    }
+    if (proposta && m.papel === "usuario") {
+      sozinha();
+      proposta = null;
+    }
+    saida.push({
       papel: m.papel,
       texto: m.texto,
       interrompida: m.interrompida,
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
       aviso: m.aviso?.tipo === "cuidado" && m.papel === "assistente" ? m.aviso : null,
-    }));
+      ...(proposta && m.papel === "assistente" ? { proposta } : {}),
+    });
+    if (m.papel === "assistente") proposta = null;
+  }
+  if (proposta) sozinha();
+  return saida;
+}
+
+async function abrirConversa(id) {
+  try {
+    const c = await getConversa(id);
+    conversaId = c.id;
+    mensagens = deConversa(c.mensagens);
     vista = "conversa";
     renderConversa();
     painel.querySelector("#ia-texto").focus();

@@ -68,6 +68,7 @@ IMPORT_CONFIRMATION_WORD = "importar"
 # DELETE explícito na ordem certa não depende disso pra funcionar).
 _TABLES_DELETE_ORDER = [
     # IA-01: config aponta pro provedor em uso, então sai antes dele
+    "assistente_lotes",
     "assistente_mensagens",
     "assistente_conversas",
     "assistente_envios",

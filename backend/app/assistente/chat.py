@@ -6,6 +6,7 @@ frontend em SSE.
     {"tipo": "inicio", "conversa_id", "provedor", "modelo", "local"}
     {"tipo": "texto", "delta"}                       pedaço da resposta
     {"tipo": "ferramenta", "nome"}                   o modelo pediu dados (IA-03)
+    {"tipo": "proposta", "mensagem_id", "proposta"}  IA-05: cartão de prévia de ações
     {"tipo": "cuidado", "servico"}                   P-111: o Kami respondeu sozinho
     {"tipo": "fim", "motivo", "uso_hoje"}            fim | limite | parado | rodadas | cuidado | outro
     {"tipo": "falha", "status", "chave", "detail", "vars", "uso_hoje"}
@@ -24,16 +25,22 @@ manda a resposta cortada no histórico + um pedido escondido pra seguir
 de onde parou, e o texto novo é emendado nela. Nenhum dos dois cria
 mensagem da pessoa.
 
+Ações (IA-05): `propose_actions` não grava nada — vira uma proposta
+guardada no resultado da ferramenta e um cartão na tela (acoes.py). No
+máximo uma por resposta; no histórico, o resultado leva junto o que a
+pessoa fez com ela depois (aplicou, descartou, desfez).
+
 Histórico: só desta conversa (princípio 1 — conversa antiga nunca vai pro
 modelo), cortado pelo fim até HISTORICO_MAX_CARACTERES, pra uma conversa
 longa não gastar cada vez mais.
 """
+import json
 from dataclasses import asdict
 from typing import Iterator
 from urllib.parse import urlsplit
 
 from app import pin
-from app.assistente import config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
 from app.assistente import ferramentas as ferramentas_mod
 from app.assistente.tipos import Chamada, ChamadaFerramenta, Fim, Mensagem, TextoDelta, Uso
 from app.database import local_now
@@ -71,7 +78,8 @@ def _historico(mensagens: list[dict]) -> list[Mensagem]:
             continue  # P-111: o que passou pelo fluxo de cuidado nunca vai pro provedor
         if m["papel"] == "assistente" and not m["texto"] and not m["chamadas"]:
             continue  # resposta que falhou antes do 1º pedaço
-        saida.append(Mensagem(m["papel"], m["texto"], [ChamadaFerramenta(**c) for c in m["chamadas"]],
+        texto = m["texto"] + (acoes.estado_pro_modelo(m["proposta"]) if m.get("proposta") else "")
+        saida.append(Mensagem(m["papel"], texto, [ChamadaFerramenta(**c) for c in m["chamadas"]],
                               id_chamada=m.get("id_chamada"), nome_ferramenta=m.get("nome_ferramenta")))
     return saida
 
@@ -122,6 +130,20 @@ def _cuidado(conn, cid: str, texto: str) -> dict:
     return {"tipo": "cuidado", "servico": servico}
 
 
+def _propor(conn, chamada: ChamadaFerramenta, ja_feitas: int) -> tuple[str, dict | None]:
+    """(resultado pro modelo, proposta | None). Erro volta como texto pro
+    modelo se corrigir — a conversa não quebra."""
+    if ja_feitas:
+        return json.dumps({"error": "only one proposal per answer: it is already in the card"}), None
+    if "_invalido" in chamada.argumentos:
+        return json.dumps({"error": "arguments were not valid JSON"}), None
+    try:
+        itens = acoes.propor(conn, chamada.argumentos)
+    except ValueError as e:
+        return json.dumps({"error": str(e)}), None
+    return acoes.resultado_pro_modelo(itens), {"itens": itens, "estado": "pendente"}
+
+
 def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | None,
           cancelamento: transporte.Cancelamento, acao: str | None = None) -> Iterator[dict]:
     cfg, row, p = preparar(conn)
@@ -161,7 +183,7 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
     permitidas = ferramentas_mod.disponiveis(cfg)
     desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
     sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), perfil["moeda"], desligadas))
-    ferramentas = [l.ferramenta() for l in permitidas]
+    ferramentas = [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
     mensagens = [sistema, *historico, pergunta]
     novos = [{"tipo": "instrucoes", "versao": instrucoes.VERSAO, "idioma": idioma, "tela": tela},
              {"tipo": "historico", "mensagens": len(historico)}, item]
@@ -174,6 +196,7 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
     # chamada que começou a responder e foi cortada (parar, erro no meio)
     # também é cobrada pelo provedor: conta com estimativa
     em_andamento = None  # (envio_id, caracteres enviados) enquanto a volta não foi contada
+    propostas = 0
     try:
         for _rodada in range(cfg["max_rodadas"] + 1):
             if pin.bloqueado():
@@ -214,6 +237,17 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
             texto_rodada = ""
             novos = []
             for c in chamadas:
+                if c.nome == acoes.NOME:
+                    resultado, proposta = _propor(conn, c, propostas)
+                    msg = conversas.adicionar_mensagem(conn, cid, "ferramenta", resultado, id_chamada=c.id,
+                                                       nome_ferramenta=c.nome, proposta=proposta)
+                    mensagens.append(Mensagem("ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome))
+                    if proposta:
+                        propostas += 1
+                        yield {"tipo": "proposta", "mensagem_id": msg["id"], "proposta": proposta}
+                    novos.append({"tipo": "ferramenta", "nome": c.nome, "argumentos": filtro.limpar_dado(c.argumentos),
+                                  "resultado": resultado})
+                    continue
                 yield {"tipo": "ferramenta", "nome": c.nome}
                 resultado = ferramentas_mod.executar(conn, c, cfg)
                 mensagens.append(Mensagem("ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome))

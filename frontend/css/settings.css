@@ -55,6 +55,13 @@
 }
 .cfg-tab .icon { flex-shrink: 0; }
 .cfg-tab:hover { color: var(--text-bright); }
+/* foco no desenho do Kami (igual ao menu lateral) — sem isso o WebKitGTK
+   desenha o contorno padrão dele, uma caixa clara em volta da aba */
+.cfg-tab:focus { outline: none; }
+.cfg-tab:focus-visible {
+  outline: 1px solid var(--accent-dim);
+  outline-offset: -1px;
+}
 .cfg-tab.on {
   color: var(--accent);
   border-left-color: var(--accent);
@@ -433,3 +440,13 @@
 .cfg-ia-guia-passos li::marker { color: var(--accent); }
 /* a dica embaixo de "usar este" ficava colada nos botões (teste do Emanuel) */
 .cfg-ia-guia .form-actions + .settings-note { margin-top: 10px; }
+
+/* IA-05: ações do assistente (lotes aplicados, com desfazer) */
+.cfg-ia-lotes { margin: 0; padding: 0; list-style: none; }
+.cfg-ia-lote { padding: 8px 0; border-top: 1px dashed var(--border-soft); }
+.cfg-ia-lote:first-child { border-top: none; padding-top: 0; }
+.cfg-ia-lote-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text-dim); outline: none; }
+.cfg-ia-lote-estado { color: var(--text-faint); font-size: 10.5px; }
+.cfg-ia-lote-itens { margin: 4px 0 0; padding-left: 1.2em; font-size: 11px; color: var(--text); }
+.cfg-ia-lote-itens small { color: var(--text-faint); }
+.cfg-ia-lote .ia-prop-confirma { margin-top: 6px; }

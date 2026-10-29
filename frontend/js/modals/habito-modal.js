@@ -5,6 +5,7 @@ import { icon } from "../components/icons.js";
 import { ATRIBUTOS, diasCurtos } from "../components/habito-linha.js";
 import { nomeAtributo } from "../components/textos-sistema.js";
 import { t } from "../i18n.js";
+import { marcaNoCabecalho } from "../components/marca-assistente.js";
 
 /**
  * Modal "novo hábito" / "editar hábito" (ORG-04) — mesmo padrão singleton
@@ -111,6 +112,7 @@ export function openHabitoModal({ habito = null, onSaved = null } = {}) {
   onSavedCb = onSaved;
   editando = habito;
   modalEl.querySelector("#hbm-head").textContent = habito ? t("habito.editar_habito") : t("habito.novo_habito");
+  marcaNoCabecalho(modalEl.querySelector("#hbm-head"), habito);
   modalEl.querySelector('[data-action="save"]').textContent = habito ? t("habito.salvar_alteracoes") : t("habito.criar");
   modalEl.querySelector("#hbm-nome").value = habito?.nome || "";
   modalEl.querySelector("#hbm-freq").value = habito?.frequencia || "diario";

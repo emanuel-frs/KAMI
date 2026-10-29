@@ -252,3 +252,63 @@
 .ia-cuidado p { margin: 0 0 6px; }
 .ia-cuidado .ia-cuidado-servico { color: var(--text-bright); font-weight: 600; }
 .ia-cuidado a { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; }
+
+/* IA-05: cartão da proposta de ações — a IA propõe, a pessoa marca, edita
+   e aplica. Linhas em vez de tabela: cabe no painel estreito (360px) e
+   cada tipo tem campos diferentes. */
+.ia-proposta {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--accent);
+  background: var(--bg-alt);
+}
+.ia-proposta--aplicada { border-style: solid; }
+.ia-proposta--descartada, .ia-proposta--desfeita { border-color: var(--border-soft); }
+.ia-prop-cab { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 11px; }
+.ia-prop-cab b { color: var(--accent); font-weight: 600; }
+.ia-prop-cab span { color: var(--text-faint); }
+.ia-prop-itens { margin: 0 0 8px; padding: 0; list-style: none; }
+.ia-prop-item { padding: 8px 0; border-top: 1px dashed var(--border-soft); }
+.ia-prop-item--fora .ia-prop-campos { opacity: 0.5; }
+.ia-prop-marca { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.ia-prop-marca input { margin: 0; accent-color: var(--accent); }
+.ia-prop-tipo { color: var(--text-bright); font-size: 10.5px; font-weight: 600; }
+.ia-prop-tipo::before { content: "+ "; color: var(--accent); }
+.ia-prop-campos { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
+.ia-prop-campo { display: flex; flex: 1 1 120px; flex-direction: column; gap: 2px; min-width: 0; }
+.ia-prop-campo--largo { flex-basis: 100%; }
+.ia-prop-campo > span { color: var(--text-faint); font-size: 10px; }
+.ia-prop-campo input, .ia-prop-campo select, .ia-prop-campo textarea { padding: 4px 6px; font-size: 11px; }
+/* o WebKitGTK arredonda o select nativo; no resto do app ele é o
+   custom-select (quadrado) */
+.ia-prop-campo select { padding-right: 22px; border-radius: 0; }
+.ia-prop-campo input, .ia-prop-campo textarea { border-radius: 0; }
+.ia-prop-campo textarea { resize: vertical; min-height: 3.6em; }
+.ia-prop-campo .hb-dias { gap: 3px; }
+.ia-prop-campo .hb-dia { padding: 3px 7px; }
+.ia-prop-entrada { margin: 4px 0 0; color: var(--text-faint); font-size: 10px; overflow-wrap: anywhere; }
+.ia-prop-problema { margin: 4px 0 0; color: var(--red); font-size: 10.5px; }
+.ia-prop-problema::before { content: "! "; font-weight: 600; }
+.ia-prop-item--problema { border-left: 2px solid var(--red); padding-left: 8px; }
+.ia-proposta .form-actions { margin-top: 0; justify-content: flex-start; flex-wrap: wrap; }
+.ia-prop-fim { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 10.5px; }
+.ia-prop-confirma p { margin: 0 0 6px; color: var(--text); font-size: 11px; line-height: 1.5; }
+
+/* IA-05 (P-126): marca discreta do que o assistente criou */
+.ia-marca { margin-left: 6px; color: var(--text-faint); font-size: 10px; font-weight: 400; white-space: nowrap; }
+/* proposta fechada: uma linha de informação por item (não é mais formulário) */
+.ia-prop-item--resumo {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 2px 8px;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 11px;
+}
+.ia-prop-item--resumo .ia-prop-tipo::before { content: none; }
+.ia-prop-sinal { color: var(--accent); }
+.ia-prop-item--fora .ia-prop-sinal { color: var(--text-faint); }
+.ia-prop-principal { min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+.ia-prop-detalhe { grid-column: 3; color: var(--text-faint); font-size: 10.5px; }
+.ia-prop-item--resumo.ia-prop-item--fora { opacity: 0.55; }
+.ia-proposta--desfeita .ia-prop-principal, .ia-proposta--descartada .ia-prop-principal { text-decoration: line-through; }

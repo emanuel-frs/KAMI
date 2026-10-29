@@ -84,6 +84,7 @@ class LembreteOut(BaseModel):
     pendente: bool = False
     pendente_quando: Optional[str] = None
     atrasado: bool = False
+    criado_por: Optional[str] = None  # IA-05 (P-126): 'assistente'
 
 
 # ==================== helpers ====================
@@ -158,6 +159,7 @@ def _saida(db, row) -> dict:
         "pendente": row["pendente_desde"] is not None,
         "pendente_quando": row["pendente_quando"],
         "atrasado": bool(row["pendente_atrasado"]),
+        "criado_por": row["criado_por"],
     }
 
 

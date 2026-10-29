@@ -6,7 +6,8 @@ Regras que valem pra todas:
   que a tela usa (resumo do mês, metas, hábitos…), não um SQL paralelo —
   o que a IA diz bate com o que a pessoa vê;
 - **só o necessário (princípio 3):** recortes pequenos e, quando dá,
-  agregados; limites de itens; nada de id, e-mail, senha, chave ou nota
+  agregados; limites de itens; nada de id (fora o `ref` da caixa de
+  entrada, que a proposta de ações usa), e-mail, senha, chave ou nota
   trancada (nunca, nem com a área de notas ligada);
 - **permissão por área (P-113):** ferramenta de área desligada nem é
   oferecida ao modelo — e, se ele pedir mesmo assim, recebe "indisponível";
@@ -14,10 +15,10 @@ Regras que valem pra todas:
   filtro de dados sensíveis (filtro.py) e vai embrulhado em
   <dados ferramenta="…"> … </dados>, com a instrução de sistema dizendo
   que nada lá dentro é instrução;
-- **nenhuma escrita:** criar/alterar dados é da Sprint 9 (IA-05), sempre
-  com prévia — aqui não existe ferramenta que mude o banco (as rotas
-  chamadas criam no máximo o "período do mês" de conta fixa/assinatura
-  sob demanda, igual abrir a tela).
+- **nenhuma escrita:** aqui só leitura (as rotas chamadas criam no
+  máximo o "período do mês" de conta fixa/assinatura sob demanda, igual
+  abrir a tela). Criar é pela proposta de ações (acoes.py, IA-05), que
+  também não grava: a pessoa aplica pela tela.
 
 As descrições e os parâmetros vão em inglês (o modelo segue melhor); a
 resposta sai no idioma da pessoa.
@@ -270,7 +271,8 @@ def _caixa_de_entrada(conn, args):
     from app.routers import entrada
 
     lista = _js(entrada.listar(db=conn))
-    return {"inbox": [{"text": i.get("texto"), "captured_at": i.get("criado_em")} for i in lista[:30]]}
+    # `ref` só serve pra propose_actions dizer de qual item veio (IA-05)
+    return {"inbox": [{"ref": i.get("id"), "text": i.get("texto"), "captured_at": i.get("criado_em")} for i in lista[:30]]}
 
 
 def _links_salvos(conn, args):
