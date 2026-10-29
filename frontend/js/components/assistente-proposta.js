@@ -13,15 +13,21 @@
  *
  * O estado mora no objeto da proposta (`p`), não no DOM: o painel
  * redesenha as mensagens inteiras a cada resposta, e o cartão volta igual.
- *   p = {mensagem_id, itens, estado, aplicados?, lote_id?, marcados?, erros?, confirmando?}
+ *   p = {mensagem_id, itens, estado, aplicados?, lote_id?, marcados?, erros?, confirmando?,
+ *        contas?, conta_id?, forma?}
+ *
+ * F2 (IA-05b): lançamentos usam a conta e a forma do topo do cartão (uma
+ * pro lote, P-136); marco e meta do plano dependem da trilha (`depende`)
+ * — desmarcar a trilha desmarca e trava os dois (P-138); item com `aviso`
+ * (parece repetido, P-129) pode ir, mas vem desmarcado.
  */
 import { aplicarProposta, desfazerLote, descartarProposta, getLote } from "../api/assistente.js";
-import { ApiError } from "../api/client.js";
+import { ApiError, varsLegiveis } from "../api/client.js";
 import { announce } from "./a11y.js";
-import { escapeHtml, fmtData } from "./format.js";
+import { escapeHtml, fmtData, fmtMoeda } from "./format.js";
 import { ATRIBUTOS, diasCurtos, rotuloFrequencia } from "./habito-linha.js";
 import { nomeAtributo } from "./textos-sistema.js";
-import { t, tOu } from "../i18n.js";
+import { localeAtual, t, tOu } from "../i18n.js";
 
 const REPETE_LEMBRETE = () => [
   ["nao", t("lembrete.nao_repete")], ["diario", t("lembrete.todo_dia")], ["dias", t("lembrete.dias_da_semana")],
@@ -32,17 +38,45 @@ const REPETE_EVENTO = () => [
   ["weekly", t("calendario_evento.semanalmente")], ["monthly", t("calendario_evento.mensalmente")],
   ["yearly", t("calendario_evento.anualmente")],
 ];
+const TIPO_LANCAMENTO = () => [["saida", t("transacao.saida")], ["entrada", t("transacao.entrada")]];
+const FORMA = () => [["saldo", t("transacao.saldo")], ["credito", t("transacao.credito")]];
+const TIPOS_META = ["livre", "financeira", "saude", "leitura", "habito"];
+const PESOS = () => [["baixo", t("metas.baixo")], ["medio", t("metas.medio")], ["alto", t("metas.alto")], ["epico", t("metas.epico")]];
+// problemas que dependem da conta/forma do topo: trocar lá limpa (o backend confere de novo)
+// (pelo fim da chave — a chave inteira começa com a palavra que a catraca
+// de textos soltos procura)
+const DA_CONTA = [".escolha_a_conta", ".escolha_a_forma", ".conta_sem_saldo"];
 const FREQUENCIA = () => [
   ["diario", t("habito.todo_dia")], ["dias", t("habito.dias_fixos_da_semana")], ["semana", t("habito.x_vezes_por_semana")],
 ];
 
 function marcados(p) {
-  if (!p.marcados) p.marcados = p.itens.map((item) => !item.problema);
+  if (!p.marcados) p.marcados = p.itens.map((item) => !item.problema && !item.aviso);
   return p.marcados;
 }
 
+/** Dependente (marco/meta do plano) cuja trilha está desmarcada. */
+function semTrilha(p, item) {
+  return item.depende != null && !marcados(p)[item.depende];
+}
+
+function nomeConta(c) {
+  return `${c.banco} · ${c.nome}`;
+}
+
+// valor no formato do idioma (vírgula em pt), sem separador de milhar —
+// campo de texto (um type=number recusa "99,9")
+const valorTexto = (n) =>
+  Number.isFinite(n) ? new Intl.NumberFormat(localeAtual(), { maximumFractionDigits: 2, useGrouping: false }).format(n) : "";
+const lerValor = (texto) => Number(String(texto).trim().replace(/\s/g, "").replace(",", ".")) || 0;
+
+function campoValor(i, campo, rotulo, valor, travado) {
+  return `<label class="ia-prop-campo"><span>${escapeHtml(rotulo)}</span>
+    <input type="text" inputmode="decimal" id="${id(i, campo)}" data-campo="${campo}" value="${escapeHtml(valorTexto(valor))}" ${travado ? "disabled" : ""}></label>`;
+}
+
 function msgErro(chave, vars) {
-  return tOu(chave, t("assistente.proposta.problema"), vars || {});
+  return tOu(chave, t("assistente.proposta.problema"), varsLegiveis(vars));
 }
 
 // ── campos de cada tipo ──────────────────────────────────────────────────
@@ -78,8 +112,36 @@ function campoDias(i, dias, travado) {
   </div>`;
 }
 
-function campos(item, i, travado) {
+function campos(p, item, i, travado) {
   const d = item.dados;
+  if (item.tipo === "lancamento") {
+    return campoTexto(i, "descricao", t("transacao.descricao"), d.descricao, { travado })
+      + campoValor(i, "valor", t("transacao.valor"), d.valor, travado)
+      + campoEscolha(i, "tipo", t("transacao.tipo"), TIPO_LANCAMENTO(), d.tipo, travado)
+      + campoTexto(i, "categoria", t("transacao.categoria"), d.categoria, { max: 60, travado }).replace("ia-prop-campo--largo", "")
+      + campoTipo(i, "data", t("assistente.proposta.campo.data"), "date", d.data, travado);
+  }
+  if (item.tipo === "meta") {
+    const plano = d.tipo === "aprendizado";
+    return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
+      + (plano ? "" : campoEscolha(i, "tipo", t("metas.tipo"), TIPOS_META.map((k) => [k, t(`metas.${k}`)]), d.tipo, travado))
+      + (plano ? "" : campoValor(i, "alvo", t("metas.alvo"), d.alvo, travado))
+      + (plano || d.tipo === "financeira" ? "" : campoTexto(i, "rotulo", t("metas.unidade_opcional"), d.rotulo, { max: 30, travado }).replace("ia-prop-campo--largo", ""))
+      + campoTipo(i, "prazo", t("metas.prazo_opcional"), "date", d.prazo, travado)
+      + campoEscolha(i, "peso", t("metas.peso_xp"), PESOS(), d.peso, travado)
+      + (d.tipo === "financeira" && p.contas?.length
+        ? campoEscolha(i, "conta_id", t("assistente.proposta.campo.conta_meta"), [["", "—"], ...p.contas.map((c) => [c.id, nomeConta(c)])], d.conta_id, travado)
+        : "");
+  }
+  if (item.tipo === "trilha") {
+    return campoTexto(i, "nome", t("assistente.proposta.campo.titulo"), d.nome, { max: 120, travado })
+      + campoTexto(i, "objetivo", t("assistente.proposta.campo.objetivo"), d.objetivo, { max: 500, area: true, travado });
+  }
+  if (item.tipo === "marco") {
+    return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
+      + campoTipo(i, "data", t("assistente.proposta.campo.data_opcional"), "date", d.data, travado)
+      + (d.descricao ? campoTexto(i, "descricao", t("assistente.proposta.campo.texto"), d.descricao, { max: 2000, area: true, travado }) : "");
+  }
   if (item.tipo === "tarefa") return campoTexto(i, "texto", t("assistente.proposta.campo.tarefa"), d.texto, { max: 500, travado });
   if (item.tipo === "nota") {
     return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
@@ -131,13 +193,23 @@ function resumo(item) {
     return [d.titulo, quando(d.data, d.hora), rep];
   }
   if (item.tipo === "evento") return [d.titulo, quando(d.data, d.hora), rotuloDe(REPETE_EVENTO(), d.repeticao)];
+  if (item.tipo === "lancamento") {
+    const sinal = d.tipo === "entrada" ? "+" : "−";
+    return [d.descricao, `${sinal} ${fmtMoeda(d.valor)}`, d.categoria, quando(d.data)];
+  }
+  if (item.tipo === "meta") {
+    const alvo = d.tipo === "aprendizado" ? "" : d.tipo === "financeira" ? fmtMoeda(d.alvo) : `${d.alvo}${d.rotulo ? ` ${d.rotulo}` : ""}`;
+    return [d.titulo, t(`metas.${d.tipo}`), alvo, d.prazo ? fmtData(d.prazo) : ""];
+  }
+  if (item.tipo === "trilha") return [d.nome, d.objetivo];
+  if (item.tipo === "marco") return [d.titulo, d.data ? fmtData(d.data) : ""];
   return [d.nome, rotuloFrequencia(d), nomeAtributo(d.atributo)];
 }
 
 function htmlResumo(p, item, i) {
   const feito = p.estado === "aplicada" && (p.aplicados || []).includes(i);
   const [principal, ...detalhes] = resumo(item);
-  return `<li class="ia-prop-item ia-prop-item--resumo${feito ? "" : " ia-prop-item--fora"}" data-item="${i}">
+  return `<li class="ia-prop-item ia-prop-item--resumo${feito ? "" : " ia-prop-item--fora"}${item.depende != null ? " ia-prop-item--dep" : ""}" data-item="${i}">
     <span class="ia-prop-sinal" aria-hidden="true">${feito ? "[x]" : "[ ]"}</span>
     <span class="ia-prop-tipo">${escapeHtml(t(`assistente.proposta.tipo.${item.tipo}`))}</span>
     <span class="ia-prop-principal">${escapeHtml(principal || "—")}</span>
@@ -147,20 +219,22 @@ function htmlResumo(p, item, i) {
 
 function htmlItem(p, item, i, travado) {
   if (p.estado !== "pendente") return htmlResumo(p, item, i);
-  const marcado = marcados(p)[i];
-  const aplicado = p.estado !== "pendente" && (p.aplicados || []).includes(i);
+  const orfao = semTrilha(p, item);
+  const marcado = marcados(p)[i] && !orfao;
   const falha = p.erros?.[i] || (item.problema ? { chave: item.problema } : null);
-  const classes = ["ia-prop-item", falha ? "ia-prop-item--problema" : "", !travado && !marcado ? "ia-prop-item--fora" : "",
-    travado && !aplicado ? "ia-prop-item--fora" : ""].filter(Boolean).join(" ");
+  const classes = ["ia-prop-item", falha ? "ia-prop-item--problema" : "", item.aviso && !falha ? "ia-prop-item--aviso" : "",
+    !marcado ? "ia-prop-item--fora" : "", item.depende != null ? "ia-prop-item--dep" : ""].filter(Boolean).join(" ");
   const tipo = t(`assistente.proposta.tipo.${item.tipo}`);
   return `<li class="${classes}" data-item="${i}">
     <label class="ia-prop-marca">
-      <input type="checkbox" data-prop="marcar" ${(travado ? aplicado : marcado) ? "checked" : ""} ${travado ? "disabled" : ""}
+      <input type="checkbox" data-prop="marcar" ${marcado ? "checked" : ""} ${travado || orfao ? "disabled" : ""}
         aria-label="${escapeHtml(t("assistente.proposta.marcar", { tipo }))}">
       <span class="ia-prop-tipo">${escapeHtml(tipo)}</span>
     </label>
-    <div class="ia-prop-campos">${campos(item, i, travado)}</div>
+    <div class="ia-prop-campos">${campos(p, item, i, travado)}</div>
     ${item.entrada ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.da_caixa", { texto: item.entrada.texto }))}</p>` : ""}
+    ${item.linha ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.do_extrato", { texto: item.linha }))}</p>` : ""}
+    ${item.aviso && !falha ? `<p class="ia-prop-aviso">${escapeHtml(t(item.aviso))}</p>` : ""}
     ${falha ? `<p class="ia-prop-problema" id="${id(i, "falha")}">${escapeHtml(msgErro(falha.chave, falha.vars))}</p>` : ""}
   </li>`;
 }
@@ -181,7 +255,7 @@ function htmlRodape(p, carregando) {
     </div>`;
   }
   if (p.estado === "pendente") {
-    const n = marcados(p).filter(Boolean).length;
+    const n = contarMarcados(p);
     return `<div class="form-actions">
       <button type="button" class="btn sm primary" data-prop="aplicar" ${n && !carregando && !p.ocupado ? "" : "disabled"}>${escapeHtml(t("assistente.proposta.aplicar", { n }))}</button>
       <button type="button" class="btn sm" data-prop="descartar" ${carregando || p.ocupado ? "disabled" : ""}>${escapeHtml(t("assistente.proposta.descartar"))}</button>
@@ -196,6 +270,24 @@ function htmlRodape(p, carregando) {
   return `<div class="ia-prop-fim"><span>${escapeHtml(t(`assistente.proposta.${p.estado}`))}</span></div>`;
 }
 
+function contarMarcados(p) {
+  return p.itens.filter((item, i) => marcados(p)[i] && !semTrilha(p, item)).length;
+}
+
+/** P-136: conta e forma de pagamento dos lançamentos, uma pro lote. */
+function htmlConta(p, travado) {
+  if (!p.itens.some((item) => item.tipo === "lancamento")) return "";
+  if (!p.contas?.length) return `<p class="ia-prop-problema">${escapeHtml(t("erro.assistente.escolha_a_conta"))}</p>`;
+  const conta = p.contas.find((c) => c.id === p.conta_id);
+  const opcoes = [...(conta ? [] : [["", "—"]]), ...p.contas.map((c) => [c.id, nomeConta(c)])];
+  return `<div class="ia-prop-campos ia-prop-conta">
+      ${campoEscolha("lote", "conta_id", t("transacao.conta"), opcoes, p.conta_id || "", travado).replace('data-campo="conta_id"', 'data-lote="conta_id"')}
+      ${conta?.saldo && conta?.credito
+        ? campoEscolha("lote", "forma", t("transacao.forma_de_pagamento"), [...(p.forma ? [] : [["", "—"]]), ...FORMA()], p.forma || "", travado).replace('data-campo="forma"', 'data-lote="forma"')
+        : ""}
+    </div>`;
+}
+
 function html(p, carregando) {
   const travado = p.estado !== "pendente" || carregando || p.ocupado;
   return `
@@ -203,7 +295,7 @@ function html(p, carregando) {
       <b>${escapeHtml(t("assistente.proposta.titulo"))}</b>
       <span>${escapeHtml(t("assistente.proposta.itens", { n: p.itens.length }))}</span>
     </div>
-    ${p.estado === "pendente" ? `<p class="ia-nota">${escapeHtml(t("assistente.proposta.dica"))}</p>` : ""}
+    ${p.estado === "pendente" ? `<p class="ia-nota">${escapeHtml(t("assistente.proposta.dica"))}</p>${htmlConta(p, travado)}` : ""}
     <ul class="ia-prop-itens">${p.itens.map((item, i) => htmlItem(p, item, i, travado)).join("")}</ul>
     ${p.erroGeral ? `<p class="ia-falha" role="alert">${escapeHtml(p.erroGeral.chave ? msgErro(p.erroGeral.chave, p.erroGeral.vars) : p.erroGeral.detail)}</p>` : ""}
     ${htmlRodape(p, carregando)}`;
@@ -218,6 +310,8 @@ function lerCampo(p, alvo) {
   const campo = alvo.dataset.campo;
   if (campo === "dias_semana") {
     d.dias_semana = [...li.querySelectorAll('[data-campo="dias_semana"]:checked')].map((c) => Number(c.value));
+  } else if (campo === "valor" || campo === "alvo") {
+    d[campo] = lerValor(alvo.value);
   } else if (campo === "vezes_semana") {
     d.vezes_semana = Math.min(7, Math.max(1, Number(alvo.value) || 1));
   } else {
@@ -226,7 +320,7 @@ function lerCampo(p, alvo) {
   // editou: o problema antigo pode não valer mais — o backend confere de novo
   p.itens[i].problema = null;
   if (p.erros) delete p.erros[i];
-  return { i, mudouForma: campo === "repeticao" || campo === "frequencia" };
+  return { i, mudouForma: ["repeticao", "frequencia", "tipo"].includes(campo) };
 }
 
 function erroDe(err) {
@@ -251,6 +345,17 @@ export function noProposta(p, { conversaId, carregando = false, aoMudar = () => 
 
   box.addEventListener("change", (e) => {
     const alvo = e.target;
+    if (alvo.dataset.lote) {
+      p[alvo.dataset.lote] = alvo.value || null;
+      if (alvo.dataset.lote === "conta_id") {
+        const c = p.contas.find((x) => x.id === p.conta_id);
+        if (!(c?.saldo && c?.credito)) p.forma = null;
+      }
+      for (const item of p.itens) if (DA_CONTA.some((fim) => item.problema?.endsWith(fim))) item.problema = null;
+      p.erros = null;
+      redesenhar(`#${id("lote", alvo.dataset.lote)}`);
+      return;
+    }
     if (alvo.dataset.prop === "marcar") {
       marcados(p)[Number(alvo.closest(".ia-prop-item").dataset.item)] = alvo.checked;
       redesenhar(`.ia-prop-item[data-item="${alvo.closest(".ia-prop-item").dataset.item}"] [data-prop="marcar"]`);
@@ -261,7 +366,7 @@ export function noProposta(p, { conversaId, carregando = false, aoMudar = () => 
     if (mudouForma) redesenhar(`#${id(i, alvo.dataset.campo)}`);
   });
   box.addEventListener("input", (e) => {
-    if (e.target.matches("input[type=text], textarea")) lerCampo(p, e.target);
+    if (e.target.dataset.campo && e.target.matches("input[type=text], input[type=number], textarea")) lerCampo(p, e.target);
   });
 
   box.addEventListener("click", async (e) => {
@@ -274,8 +379,9 @@ export function noProposta(p, { conversaId, carregando = false, aoMudar = () => 
       p.erroGeral = null;
       redesenhar();
       try {
-        const itens = marcados(p).map((m, i) => (m ? { indice: i, dados: p.itens[i].dados } : null)).filter(Boolean);
-        const r = await aplicarProposta({ ...ref, itens });
+        const itens = p.itens.map((item, i) => (marcados(p)[i] && !semTrilha(p, item) ? { indice: i, dados: item.dados } : null)).filter(Boolean);
+        const conta = p.contas ? { conta_id: p.conta_id || null, forma_pagamento: p.forma || "" } : {};
+        const r = await aplicarProposta({ ...ref, itens, ...conta });
         // livre ANTES de avisar o painel: ele redesenha a conversa e o
         // cartão novo nasce do estado de `p`
         Object.assign(p, r.proposta, { erros: null, erroGeral: null, ocupado: false });

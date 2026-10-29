@@ -312,6 +312,13 @@ function noMensagem(m, i) {
     txt.className = "ia-msg-texto";
     txt.textContent = m.texto;
     div.append(sinal, txt);
+    if (m.mascarados) {
+      // P-139: o que saiu daqui (e ficou guardado) já foi sem esses números
+      const nota = document.createElement("small");
+      nota.className = "ia-mascarado";
+      nota.textContent = t("assistente.chat.mascarados", { n: m.mascarados });
+      div.append(nota);
+    }
     return div;
   }
   if (m.ferramentas?.length) {
@@ -639,6 +646,10 @@ async function responder({ texto = "", acao }, resposta) {
           } else if (ev.tipo === "ferramenta") {
             resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
             atualizarUltima();
+          } else if (ev.tipo === "mascarado") {
+            const pergunta = mensagens.findLast((m) => m.papel === "usuario");
+            if (pergunta) Object.assign(pergunta, { texto: ev.texto, mascarados: ev.n });
+            renderConversa();
           } else if (ev.tipo === "proposta") {
             resposta.proposta = { ...ev.proposta, mensagem_id: ev.mensagem_id };
             atualizarUltima();

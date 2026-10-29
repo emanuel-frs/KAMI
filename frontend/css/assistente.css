@@ -312,3 +312,13 @@
 .ia-prop-detalhe { grid-column: 3; color: var(--text-faint); font-size: 10.5px; }
 .ia-prop-item--resumo.ia-prop-item--fora { opacity: 0.55; }
 .ia-proposta--desfeita .ia-prop-principal, .ia-proposta--descartada .ia-prop-principal { text-decoration: line-through; }
+
+/* IA-05b: topo do cartão (conta/forma do lote), plano (dependentes
+   recuados), aviso de "parece repetido" e a nota dos números mascarados */
+.ia-prop-conta { margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-soft); }
+.ia-prop-item--dep { margin-left: 14px; padding-left: 8px; border-left: 1px dashed var(--border-soft); }
+.ia-prop-item--resumo.ia-prop-item--dep { padding-left: 8px; }
+.ia-prop-aviso { margin: 4px 0 0; color: var(--amber, #e0b24c); font-size: 10.5px; }
+.ia-prop-aviso::before { content: "~ "; }
+.ia-prop-item--aviso { border-left: 2px solid var(--amber, #e0b24c); padding-left: 8px; }
+.ia-mascarado { display: block; margin-top: 2px; color: var(--text-faint); font-size: 10px; white-space: normal; }

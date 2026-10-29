@@ -7,6 +7,8 @@ frontend em SSE.
     {"tipo": "texto", "delta"}                       pedaço da resposta
     {"tipo": "ferramenta", "nome"}                   o modelo pediu dados (IA-03)
     {"tipo": "proposta", "mensagem_id", "proposta"}  IA-05: cartão de prévia de ações
+    {"tipo": "mascarado", "n", "texto"}              P-139: números de conta/documento
+                                                     trocados na mensagem da pessoa
     {"tipo": "cuidado", "servico"}                   P-111: o Kami respondeu sozinho
     {"tipo": "fim", "motivo", "uso_hoje"}            fim | limite | parado | rodadas | cuidado | outro
     {"tipo": "falha", "status", "chave", "detail", "vars", "uso_hoje"}
@@ -138,15 +140,20 @@ def _propor(conn, chamada: ChamadaFerramenta, ja_feitas: int) -> tuple[str, dict
     if "_invalido" in chamada.argumentos:
         return json.dumps({"error": "arguments were not valid JSON"}), None
     try:
-        itens = acoes.propor(conn, chamada.argumentos)
+        proposta = acoes.propor(conn, chamada.argumentos)
     except ValueError as e:
         return json.dumps({"error": str(e)}), None
-    return acoes.resultado_pro_modelo(itens), {"itens": itens, "estado": "pendente"}
+    return acoes.resultado_pro_modelo(proposta), {**proposta, "estado": "pendente"}
 
 
 def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | None,
           cancelamento: transporte.Cancelamento, acao: str | None = None) -> Iterator[dict]:
     cfg, row, p = preparar(conn)
+    # P-139: cartão, CPF/CNPJ, IBAN e agência+conta saem do que a pessoa
+    # escreveu ANTES de tudo — nem a conversa guardada nem o provedor veem
+    mascarados = 0
+    if not acao:
+        texto, mascarados = filtro.mascarar_numeros(texto)
     if conversa_id:
         conversa = conversas.obter(conn, conversa_id)
         if conversa is None:
@@ -162,6 +169,8 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
         texto = conversa["mensagens"][i]["texto"]
     yield {"tipo": "inicio", "conversa_id": cid, "titulo": conversa["titulo"], "provedor": row["nome"],
            "modelo": p.modelo, "local": p.local}
+    if mascarados:
+        yield {"tipo": "mascarado", "n": mascarados, "texto": texto}
 
     if not acao and cuidado.ha_risco(texto):
         yield _cuidado(conn, cid, texto)

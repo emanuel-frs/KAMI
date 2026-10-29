@@ -399,4 +399,4 @@ def test_migracao_criado_por_e_idempotente(db_conn):
     _migrate_criado_por(db_conn)
     for t in TABELAS_CRIADO_POR:
         assert "criado_por" in {r["name"] for r in db_conn.execute(f"PRAGMA table_info({t})")}, t
-    assert acoes.TIPOS == ("nota", "tarefa", "lembrete", "evento", "habito")
+    assert acoes.TIPOS[:5] == ("nota", "tarefa", "lembrete", "evento", "habito")

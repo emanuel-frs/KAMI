@@ -142,6 +142,19 @@ def _maiores_gastos(conn, args):
         for t in saidas]}
 
 
+def _contas_e_categorias(conn, args):
+    """IA-05b (P-129/P-136): os nomes que a proposta de lançamentos usa —
+    contas (sem saldo nem número) e as categorias que a pessoa já usa."""
+    from app.assistente import acoes
+
+    categorias = [r["category"] for r in conn.execute(
+        "SELECT category, COUNT(*) AS n FROM transactions WHERE type != 'transferencia' AND date >= date('now', '-12 months') "
+        "GROUP BY category ORDER BY n DESC LIMIT 30")]
+    return {"accounts": [{"name": c["nome"], "bank": c["banco"], "has_balance": c["saldo"], "has_credit": c["credito"]}
+                         for c in acoes.contas(conn)],
+            "categories": categorias}
+
+
 _FINANCEIROS = {"conta_fixa": "fixed bill", "assinatura": "subscription", "divida": "debt", "parcela": "installment"}
 
 
@@ -382,6 +395,10 @@ LEITURAS: list[Leitura] = [
     Leitura("largest_expenses", "financas",
             "The largest individual expenses of a month (up to 10), with description, amount, category and date.",
             {"type": "object", "properties": {**_P_MES, "limit": {"type": "integer", "minimum": 1, "maximum": 10}}}, _maiores_gastos),
+    Leitura("accounts_and_categories", "financas",
+            "The person's account names (bank, whether it has balance and/or credit) and the expense/income categories "
+            "they already use. Read it before proposing money entries.",
+            _SEM_PARAMETROS, _contas_e_categorias),
     Leitura("bills_due", "financas",
             "Unpaid fixed bills, subscriptions, debts and installments due from today up to N days ahead (overdue ones of this month included).",
             {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "description": "default 30"}}}, _contas_a_vencer),

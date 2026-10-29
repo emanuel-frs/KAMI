@@ -438,6 +438,9 @@ class ItemEscolhido(Entrada):
 
 class AplicarIn(PropostaRef):
     itens: List[ItemEscolhido] = Field(..., max_length=acoes.ITENS_MAX)
+    # P-136: conta e forma de pagamento dos lançamentos (topo do cartão)
+    conta_id: Optional[str] = Field(None, max_length=64)
+    forma_pagamento: Optional[Literal["saldo", "credito", ""]] = None
 
 
 class DesfazerIn(Entrada):
@@ -454,7 +457,8 @@ def _proposta(db, ref: PropostaRef) -> dict:
 @router.post("/propostas/aplicar")
 def aplicar_proposta(payload: AplicarIn, db=Depends(get_db)):
     proposta = _proposta(db, payload)
-    lote = acoes.aplicar(db, proposta, [i.model_dump() for i in payload.itens], payload.conversa_id, payload.mensagem_id)
+    lote = acoes.aplicar(db, proposta, [i.model_dump() for i in payload.itens], payload.conversa_id, payload.mensagem_id,
+                         conta_id=payload.conta_id, forma=payload.forma_pagamento)
     conversas.atualizar_proposta(db, payload.conversa_id, payload.mensagem_id, proposta)
     return {"proposta": proposta, "lote": acoes.conferir(db, lote["id"])}
 
