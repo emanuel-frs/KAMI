@@ -129,6 +129,16 @@ def cofre_de_teste(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def sem_ia_local_de_verdade(monkeypatch):
+    """IA-07a/b: nenhum teste fala com o Ollama/LM Studio de quem roda os
+    testes — porta fechada; os testes que precisam sobem um falso."""
+    from app.assistente import local
+
+    monkeypatch.setattr(local, "OLLAMA_PADRAO", "http://127.0.0.1:9")
+    monkeypatch.setattr(local, "LMSTUDIO_PADRAO", "http://127.0.0.1:9")
+
+
+@pytest.fixture(autouse=True)
 def pin_de_teste(tmp_path, monkeypatch):
     """SEG-02: pin.json numa pasta temporária, app destravado no começo de cada teste."""
     from app import pin

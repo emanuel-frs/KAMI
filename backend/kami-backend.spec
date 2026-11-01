@@ -37,6 +37,8 @@ a = Analysis(
         # IA-03: serviços de ajuda por país (fluxo de cuidado) e o guia do Kami
         ('app/assistente/ajuda.json', 'app/assistente'),
         ('app/assistente/guia/guia.md', 'app/assistente/guia'),
+        # IA-07a: faixas de máquina → modelo local recomendado
+        ('app/assistente/local.json', 'app/assistente'),
         # arquivo de versão (fonte de verdade única, raiz do repo, um
         # nível acima de backend/) — ver app/version.py
         ('../VERSION', '.'),

@@ -615,7 +615,9 @@ def remover_modelo(nome: str, db=Depends(get_db)):
     except local.ModeloInvalido as exc:
         raise _erro_local(exc) from exc
     except OSError as exc:
-        raise _erro_local(exc) from exc
+        # API-01: apagar o que não dá pra achar é 404 — com o Ollama fechado,
+        # nenhum modelo está ao alcance (a chave diz o porquê)
+        raise ErroKami(404, "erro.local.ollama_fora", "o Ollama não respondeu — confira se ele está aberto") from exc
     if not apagou:
         raise ErroKami(404, "erro.local.modelo_inexistente", "esse modelo não está no Ollama")
 

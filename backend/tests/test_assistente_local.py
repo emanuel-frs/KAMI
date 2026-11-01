@@ -164,6 +164,9 @@ def test_ollama_parado_nao_baixa(client, monkeypatch):
     monkeypatch.setattr(local, "OLLAMA_PADRAO", "http://127.0.0.1:9")
     r = client.post("/api/assistente/local/baixar", json={"modelo": "qwen3.5:4b"})
     assert r.status_code == 424 and r.json()["chave"] == "erro.local.ollama_fora"
+    # remover com ele fechado: nada ao alcance → 404 (API-01), com o motivo
+    r = client.delete("/api/assistente/local/modelos/qwen3.5:4b")
+    assert r.status_code == 404 and r.json()["chave"] == "erro.local.ollama_fora"
 
 
 def test_ollama_de_outro_computador_nao_e_gerenciado(client, monkeypatch):
