@@ -4,6 +4,10 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.18.0] - em desenvolvimento
+
+_Sprint 10 da evolução — IA local + banco cifrado (IA-07a, IA-07b, SEG-08): detectar a máquina e recomendar um modelo local, instalar o Ollama pelo app, e o banco cifrado em disco opcional. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
+
 ## [1.17.0] - 2026-11-01
 
 _O assistente passa a propor ações, sempre numa prévia que você edita e aplica, e o Kami avisa no sino quando algo parece fora do lugar._
