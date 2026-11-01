@@ -203,6 +203,15 @@ def baixar_conferido(rel: dict, nome: str, pasta: Path, contar: bool = False) ->
     return arquivo
 
 
+def _env_powershell(arquivo: Path) -> dict:
+    """Sem o PSModulePath herdado: aberto a partir do PowerShell 7 (pwsh), o
+    Windows PowerShell 5.1 tenta carregar os módulos do 7 e o
+    Get-AuthenticodeSignature "não pode ser carregado" (visto no CI)."""
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    env["KAMI_ARQ"] = str(arquivo)
+    return env
+
+
 def assinatura_windows(arquivo: Path) -> bool:
     """Authenticode válido e emitido pra Ollama (PowerShell, sem dependência nova)."""
     script = ("$s = Get-AuthenticodeSignature -LiteralPath $env:KAMI_ARQ; "
@@ -211,7 +220,7 @@ def assinatura_windows(arquivo: Path) -> bool:
               "Write-Output ('MSG=' + $s.StatusMessage)")
     proc = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                           capture_output=True, text=True, errors="replace", timeout=120,
-                          env={**os.environ, "KAMI_ARQ": str(arquivo)},
+                          env=_env_powershell(arquivo),
                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     campos = {}
     for linha in proc.stdout.splitlines():

@@ -37,7 +37,8 @@ modelo), cortado pelo fim até HISTORICO_MAX_CARACTERES, pra uma conversa
 longa não gastar cada vez mais.
 """
 import json
-from dataclasses import asdict
+import re
+from dataclasses import asdict, replace
 from typing import Iterator
 from urllib.parse import urlsplit
 
@@ -130,6 +131,20 @@ def _cuidado(conn, cid: str, texto: str) -> dict:
     conversas.adicionar_mensagem(conn, cid, "usuario", texto, aviso={"tipo": "cuidado"})
     conversas.adicionar_mensagem(conn, cid, "assistente", "", aviso=aviso)
     return {"tipo": "cuidado", "servico": servico}
+
+
+def _normalizar_nome(nome: str) -> str:
+    return re.sub(r"[\s-]+", "_", (nome or "").strip()).lower()
+
+
+def _nome_certo(c: ChamadaFerramenta) -> ChamadaFerramenta:
+    """IA-07a: modelo pequeno erra a grafia ("Goals", "accounts_and Categories").
+    Só caixa, espaço e hífen — nome que não bate continua não existindo."""
+    if c.nome in ferramentas_mod._POR_NOME or c.nome == acoes.NOME:
+        return c
+    conhecidos = {_normalizar_nome(n): n for n in [*ferramentas_mod._POR_NOME, acoes.NOME]}
+    certo = conhecidos.get(_normalizar_nome(c.nome))
+    return replace(c, nome=certo) if certo else c
 
 
 def _propor(conn, chamada: ChamadaFerramenta, ja_feitas: int) -> tuple[str, dict | None]:
@@ -240,6 +255,7 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
                 break
             # IA-03: o modelo pediu dados — roda as ferramentas de leitura e
             # volta com os resultados (filtrados e embrulhados em <dados>)
+            chamadas = [_nome_certo(c) for c in chamadas]
             mensagens.append(Mensagem("assistente", texto_rodada, chamadas))
             conversas.adicionar_mensagem(conn, cid, "assistente", texto_rodada, chamadas=[asdict(c) for c in chamadas],
                                          provedor=row["nome"], modelo=p.modelo)

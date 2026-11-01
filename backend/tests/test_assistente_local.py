@@ -187,3 +187,14 @@ def test_modo_local_tem_instrucoes_curtas_e_menos_ferramentas():
     nomes_nuvem = {l.nome for l in ferramentas.disponiveis(cfg)}
     assert nomes_local < nomes_nuvem
     assert nomes_nuvem - nomes_local == ferramentas.FORA_DO_LOCAL & nomes_nuvem
+
+
+def test_nome_de_ferramenta_com_grafia_torta_e_corrigido():
+    """IA-07a: o qwen3.5:4b chamou "Goals" e "accounts_and Categories"."""
+    from app.assistente import chat
+    from app.assistente.tipos import ChamadaFerramenta
+
+    assert chat._nome_certo(ChamadaFerramenta("1", "Goals", {})).nome == "goals"
+    assert chat._nome_certo(ChamadaFerramenta("2", "accounts_and Categories", {})).nome == "accounts_and_categories"
+    assert chat._nome_certo(ChamadaFerramenta("3", "Propose-Actions", {})).nome == "propose_actions"
+    assert chat._nome_certo(ChamadaFerramenta("4", "delete_everything", {})).nome == "delete_everything"

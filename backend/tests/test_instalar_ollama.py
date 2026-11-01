@@ -192,3 +192,12 @@ def test_le_o_checksum_nos_formatos_do_sha256sum():
     assert inst.sha_esperado(somas, "install.sh") == "aaa"
     assert inst.sha_esperado(somas, "OllamaSetup.exe") == "bbb"
     assert inst.sha_esperado(somas, "nada") is None
+
+
+def test_powershell_da_assinatura_nao_herda_o_psmodulepath(monkeypatch, tmp_path):
+    """Visto no CI: aberto a partir do pwsh 7, o PSModulePath herdado impede
+    o Windows PowerShell de carregar o Get-AuthenticodeSignature."""
+    monkeypatch.setenv("PSModulePath", r"C:\\Program Files\\PowerShell\\7\\Modules")
+    env = inst._env_powershell(tmp_path / "OllamaSetup.exe")
+    assert not any(k.upper() == "PSMODULEPATH" for k in env)
+    assert env["KAMI_ARQ"].endswith("OllamaSetup.exe")
