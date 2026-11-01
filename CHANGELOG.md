@@ -4,7 +4,7 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [1.17.0] - em desenvolvimento
+## [1.17.0] - 2026-11-01
 
 _O assistente passa a propor ações, sempre numa prévia que você edita e aplica, e o Kami avisa no sino quando algo parece fora do lugar._
 
