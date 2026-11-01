@@ -773,6 +773,21 @@ export async function abrirAssistente() {
   (estadoIa.pronto ? painel.querySelector("#ia-texto") : painel.querySelector('[data-ia="configurar"]'))?.focus();
 }
 
+/**
+ * IA-06 (P-134): "perguntar ao assistente" de um aviso — abre numa conversa
+ * nova com a pergunta pronta, sem enviar (nada sai sem a pessoa mandar).
+ */
+export async function perguntarAoAssistente(texto) {
+  await abrirAssistente();
+  if (!estadoIa?.pronto || enviando) return; // desligado: o painel já mostra o que falta
+  novaConversa();
+  const campo = painel.querySelector("#ia-texto");
+  campo.value = texto;
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+  campo.focus();
+  campo.setSelectionRange(texto.length, texto.length);
+}
+
 export function fecharAssistente() {
   if (!painel || painel.hidden) return;
   painel.hidden = true;

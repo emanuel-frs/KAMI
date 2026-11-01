@@ -22,6 +22,7 @@ import { wireModalAccessibility } from "./components/modal-accessibility.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { startLembretesAgendador } from "./components/lembretes-agendador.js";
+import { startAvisosAgendador } from "./components/avisos.js";
 import { iniciarCopiasAutomaticas } from "./components/copias-automaticas.js";
 import { iniciarAtualizacoes } from "./components/atualizacao.js";
 import { wireBandeja } from "./components/bandeja.js";
@@ -450,6 +451,7 @@ async function boot() {
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startLembretesAgendador(); // ORG-05
+  startAvisosAgendador(); // IA-06
   wireBandeja();
   startEmailSyncScheduler({ onNavigate: (moduleName) => showPage(moduleName) });
   await loadProfile();

@@ -421,8 +421,8 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
     db.execute(
         "INSERT INTO goals "
         "(id, title, type, current_value, target_value, unit, unit_label, deadline, status, weight, "
-        " linked_conta_id, linked_track_id, linked_education_id) "
-        "VALUES (?, ?, ?, 0, ?, ?, ?, ?, 'ativa', ?, ?, ?, ?)",
+        " linked_conta_id, linked_track_id, linked_education_id, created_at) "
+        "VALUES (?, ?, ?, 0, ?, ?, ?, ?, 'ativa', ?, ?, ?, ?, ?)",
         (
             goal_id,
             payload.title.strip(),
@@ -435,6 +435,7 @@ def create_goal(payload: GoalIn, db=Depends(get_db)):
             linked_conta_id,
             linked_track_id,
             linked_education_id,
+            now_iso(),
         ),
     )
     db.commit()

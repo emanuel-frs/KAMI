@@ -587,7 +587,8 @@ CREATE TABLE IF NOT EXISTS goals (
     linked_conta_id      TEXT REFERENCES wallet_accounts(id) ON DELETE SET NULL,      -- só 'financeira'
     linked_track_id      TEXT REFERENCES tracks(id) ON DELETE SET NULL,               -- só 'aprendizado'
     linked_education_id  TEXT REFERENCES career_educations(id) ON DELETE SET NULL,     -- só 'academica'
-    criado_por        TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
+    criado_por        TEXT,  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
+    created_at        TEXT   -- IA-06 (P-142): NULL = meta de antes da 1.17 (o aviso conta da 1ª checagem)
 );
 
 CREATE TABLE IF NOT EXISTS goal_contributions (
@@ -876,6 +877,33 @@ CREATE TABLE IF NOT EXISTS assistente_lotes (
     copia        TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_assistente_lotes_data ON assistente_lotes(aplicado_em);
+
+-- IA-06 (P-133, P-140..P-147): avisos proativos. As regras rodam no código
+-- (app/avisos.py), sem IA. Uma linha por regra+item: `ciclo` diz qual
+-- "rodada" da regra é (o mês da categoria/conta fixa, o dia do último
+-- aporte/xp/marco) — dispensar vale até o ciclo mudar. `notificado_em` =
+-- já virou notificação do sistema (só "conta sem saldo", P-146).
+CREATE TABLE IF NOT EXISTS avisos (
+    id             TEXT PRIMARY KEY,
+    regra          TEXT NOT NULL,
+    alvo_id        TEXT NOT NULL,
+    ciclo          TEXT NOT NULL,
+    criado_em      TEXT NOT NULL,
+    dispensado_em  TEXT,
+    notificado_em  TEXT,
+    UNIQUE(regra, alvo_id)
+);
+
+-- "não me avise disso" (P-147): regra+item; alvo_id '' = a regra inteira
+-- (configurações › notificações), regra '*' = todos os avisos (P-140).
+-- `nome` = como o item se chamava, pra lista de silenciados.
+CREATE TABLE IF NOT EXISTS avisos_silenciados (
+    regra      TEXT NOT NULL,
+    alvo_id    TEXT NOT NULL DEFAULT '',
+    nome       TEXT,
+    criado_em  TEXT NOT NULL,
+    PRIMARY KEY (regra, alvo_id)
+);
 
 -- CONF-05: informações do próprio banco (chave/valor). `versao_banco` é a
 -- versão do app que atualizou o banco por último — ao abrir uma versão

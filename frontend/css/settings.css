@@ -183,6 +183,24 @@
   line-height: 1.5;
 }
 
+/* IA-06: avisos do kami — regras recuadas sob "avisar", silenciados */
+.cfg-avisos-regras { border-top: 1px solid var(--border-soft); }
+.cfg-toggle.cfg-sub { padding-left: 19px; }
+.cfg-toggle.cfg-sub:has(input:disabled) { opacity: 0.5; cursor: default; }
+.cfg-avisos-sil-titulo { margin-top: 12px; }
+.cfg-aviso-sil {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 10.5px;
+  color: var(--text-bright);
+}
+.cfg-aviso-sil + .cfg-aviso-sil { border-top: 1px solid var(--border-soft); }
+.cfg-aviso-sil-nome { min-width: 0; overflow-wrap: anywhere; }
+.cfg-aviso-sil-nome small { color: var(--text-faint); font-size: 9.5px; margin-left: 4px; }
+
 /* GAM-13: linha do volume (rótulo, slider, valor, botão "ouvir") */
 .cfg-sound-volume {
   display: flex;

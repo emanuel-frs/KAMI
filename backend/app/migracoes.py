@@ -836,6 +836,18 @@ def _migrate_assistente_colunas(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_goals_created_at(conn: sqlite3.Connection) -> None:
+    """
+    IA-06 (P-142): data de criação da meta, pro aviso "meta parada". Metas
+    que já existiam ficam NULL — o aviso as conta a partir da 1ª checagem
+    (app/avisos.py), então ninguém recebe uma enxurrada no dia da atualização.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(goals)").fetchall()}
+    if cols and "created_at" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN created_at TEXT")
+    conn.commit()
+
+
 # IA-05 (P-126): o que um lote do assistente pode criar
 TABELAS_CRIADO_POR = ("notas", "lembretes", "calendar_events", "habitos", "transactions", "goals", "tracks", "milestones")
 
