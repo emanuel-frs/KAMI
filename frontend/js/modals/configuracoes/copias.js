@@ -19,6 +19,7 @@ const acoes = () => ({
   "redefinir-chave": t("copias.antes_de_redefinir_a_chave"),
   atualizar: t("copias.antes_de_atualizar_o_app"),
   restaurar: t("copias.antes_de_restaurar"),
+  assistente: t("copias.antes_de_assistente"), // IA-05 (P-127)
 });
 
 export function copiasSectionHtml() {

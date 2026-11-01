@@ -834,3 +834,35 @@ def _migrate_assistente_colunas(conn: sqlite3.Connection) -> None:
     if cols and "aviso" not in cols:
         conn.execute("ALTER TABLE assistente_mensagens ADD COLUMN aviso TEXT")
     conn.commit()
+
+
+def _migrate_goals_created_at(conn: sqlite3.Connection) -> None:
+    """
+    IA-06 (P-142): data de criação da meta, pro aviso "meta parada". Metas
+    que já existiam ficam NULL — o aviso as conta a partir da 1ª checagem
+    (app/avisos.py), então ninguém recebe uma enxurrada no dia da atualização.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(goals)").fetchall()}
+    if cols and "created_at" not in cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN created_at TEXT")
+    conn.commit()
+
+
+# IA-05 (P-126): o que um lote do assistente pode criar
+TABELAS_CRIADO_POR = ("notas", "lembretes", "calendar_events", "habitos", "transactions", "goals", "tracks", "milestones")
+
+
+def _migrate_criado_por(conn: sqlite3.Connection) -> None:
+    """
+    IA-05: coluna `criado_por` ('assistente' ou NULL) nas tabelas em que um
+    lote do assistente cria coisas (P-126), e a proposta de ações guardada
+    na mensagem do chat. Linhas antigas ficam NULL (= feitas pela pessoa).
+    """
+    for tabela in TABELAS_CRIADO_POR:
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({tabela})").fetchall()}
+        if cols and "criado_por" not in cols:
+            conn.execute(f"ALTER TABLE {tabela} ADD COLUMN criado_por TEXT")
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(assistente_mensagens)").fetchall()}
+    if cols and "proposta" not in cols:
+        conn.execute("ALTER TABLE assistente_mensagens ADD COLUMN proposta TEXT")
+    conn.commit()

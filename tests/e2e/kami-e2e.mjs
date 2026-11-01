@@ -152,7 +152,9 @@ function killBackend() {
 /**
  * Provedor de IA falso (P-121): compatível com OpenAI, em 127.0.0.1 numa
  * porta livre. Pergunta com "devagar" recebe uma resposta longa, em
- * pedaços lentos (dá tempo de apertar "parar"); o resto, uma curta.
+ * pedaços lentos (dá tempo de apertar "parar"); com "e2e-acao", um pedido
+ * de propose_actions com duas notas (IA-05) e, depois do resultado da
+ * ferramenta, uma resposta curta; o resto, uma curta.
  */
 function provedorFalso() {
   const pedidos = [];
@@ -183,7 +185,14 @@ function provedorFalso() {
         res.end(JSON.stringify({ data: [{ id: "falso-e2e" }] }));
       } else if (req.url.endsWith("/chat/completions")) {
         const ultima = json?.messages?.filter((m) => m.role === "user").at(-1)?.content || "";
-        if (/devagar/.test(ultima)) sse(res, Array.from({ length: 120 }, (_, k) => `parte${k} `), 60);
+        const veioDaFerramenta = json?.messages?.at(-1)?.role === "tool";
+        if (/e2e-acao/.test(ultima) && !veioDaFerramenta) {
+          const itens = [{ type: "note", title: "nota um do e2e", content: "fica" }, { type: "note", title: "nota dois do e2e", content: "desmarcada" }];
+          res.writeHead(200, { "Content-Type": "text/event-stream" });
+          res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: "e2e1", type: "function", function: { name: "propose_actions", arguments: JSON.stringify({ items: itens }) } }] }, finish_reason: null }] })}\n\n`);
+          res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] })}\n\n`);
+          res.end("data: [DONE]\n\n");
+        } else if (/devagar/.test(ultima)) sse(res, Array.from({ length: 120 }, (_, k) => `parte${k} `), 60);
         else sse(res, ["resposta do ", "**provedor falso**", " do e2e."], 20);
       } else {
         res.writeHead(404).end();
@@ -593,6 +602,23 @@ async function main() {
         if (falso.pedidos.filter((r) => r.caminho.endsWith("/chat/completions")).length < 4) throw new Error("o provedor falso recebeu menos chamadas que o esperado");
         await print("assistente-enviados");
         await wd.keys("Escape");
+
+        // IA-05: propor → aplicar em parte → desfazer o lote
+        await clicar('[data-ia="nova"]');
+        await perguntar("e2e-acao: anota duas coisas");
+        await waitFor("o cartão da proposta", () => visivel('.ia-proposta--pendente [data-prop="aplicar"]'), { timeout: 15000 });
+        await clicar('.ia-prop-item[data-item="1"] [data-prop="marcar"]');
+        await print("assistente-proposta");
+        await clicar('.ia-proposta--pendente [data-prop="aplicar"]');
+        await waitFor("o lote aplicado", () => visivel('.ia-proposta [data-prop="desfazer"]'), { timeout: 10000 });
+        const notas = async () => ((await api("/api/organizacao/notas")).body || []).map((n) => n.titulo).filter((t) => /^nota (um|dois) do e2e$/.test(t));
+        if (JSON.stringify(await notas()) !== JSON.stringify(["nota um do e2e"])) throw new Error(`aplicar em parte criou: ${JSON.stringify(await notas())}`);
+        await clicar('.ia-proposta [data-prop="desfazer"]');
+        // a confirmação vem depois de buscar o lote (diz se algo foi mexido)
+        await waitFor("a confirmação do desfazer", () => visivel('.ia-proposta [data-prop="desfazer-sim"]'), { timeout: 8000 });
+        await clicar('.ia-proposta [data-prop="desfazer-sim"]');
+        await waitFor("o lote desfeito", async () => (await notas()).length === 0, { timeout: 10000 });
+        await waitFor("o cartão desfeito", () => visivel(".ia-proposta--desfeita"), { timeout: 5000 });
         await wd.keys("Escape");
       } finally {
         // desliga e tira o provedor: as etapas seguintes (PIN, remover tudo) não dependem dele
@@ -600,6 +626,23 @@ async function main() {
         for (const p of lista) await api(`/api/assistente/provedores/${p.id}`, { method: "DELETE" });
         await wd.execute("document.querySelector('#ia-painel')?.setAttribute('hidden', '')").catch(() => {});
         falso.srv.close();
+      }
+    });
+
+    await etapa("aviso no sino: conta fixa sem saldo, dispensar (IA-06)", async () => {
+      const amanha = new Date(Date.now() + 86400000);
+      const r = await api("/api/financas/fixed-bills", { method: "POST", body: JSON.stringify({ name: "aviso do e2e", amount: 999999, due_day: amanha.getDate() }) });
+      if (r.status !== 200 && r.status !== 201) throw new Error(`criar a conta fixa: ${r.status} ${JSON.stringify(r.body)}`);
+      try {
+        await clicar("#btn-open-notifications");
+        await waitFor("o aviso no sino", () => wd.execute("return [...document.querySelectorAll('.notif-aviso')].some((a) => /aviso do e2e/.test(a.textContent))"), { timeout: 10000 });
+        await print("sino-avisos");
+        // outros avisos podem existir (dados das etapas anteriores): dispensa o deste teste
+        await wd.execute("[...document.querySelectorAll('.notif-aviso')].find((a) => /aviso do e2e/.test(a.textContent)).querySelector('[data-aviso=\"dispensar\"]').click()");
+        await waitFor("o aviso dispensado", async () => !(await wd.execute("return [...document.querySelectorAll('.notif-aviso')].some((a) => /aviso do e2e/.test(a.textContent))")), { timeout: 5000 });
+        await clicar('#notifications-modal [data-action="close"]');
+      } finally {
+        await api(`/api/financas/fixed-bills/${r.body?.id}`, { method: "DELETE" });
       }
     });
 

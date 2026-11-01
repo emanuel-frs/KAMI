@@ -30,6 +30,12 @@ Endpoints:
                                                registro do que foi enviado)
   GET    /api/assistente/envios                o que foi enviado pra IA
   DELETE /api/assistente/envios                (princípio 3)
+  POST   /api/assistente/propostas/aplicar     IA-05: aplica os itens marcados
+                                               de uma proposta (com as edições)
+  POST   /api/assistente/propostas/descartar
+  GET    /api/assistente/lotes                 lotes aplicados (e a situação
+  GET    /api/assistente/lotes/{id}            de cada item hoje)
+  POST   /api/assistente/lotes/{id}/desfazer   P-124
   POST   /api/assistente/modelos               lista os modelos do provedor
                                                (/models) — com a chave
                                                digitada, sem salvar, ou com a
@@ -44,7 +50,7 @@ import asyncio
 import json
 import logging
 import threading
-from typing import Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import Field
@@ -52,7 +58,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
 from app import database
-from app.assistente import catalogo, chat, config, conversas, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, catalogo, chat, config, conversas, instrucoes, provedores, transporte, uso
 from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
@@ -386,7 +392,12 @@ def get_conversa(conversa_id: str, db=Depends(get_db)):
         raise ErroKami(404, "erro.assistente.conversa_inexistente", "conversa não encontrada")
     # a tela mostra o que a pessoa e o assistente disseram; os resultados
     # das ferramentas ficam no registro do que foi enviado
-    c["mensagens"] = [m for m in c["mensagens"] if m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso"))]
+    # das ferramentas, o cartão da proposta de ações (IA-05) aparece no lugar
+    c["mensagens"] = [
+        {k: v for k, v in m.items() if not (m.get("proposta") and k == "texto")} if m.get("proposta") else m
+        for m in c["mensagens"]
+        if m.get("proposta") or (m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso")))
+    ]
     return c
 
 
@@ -409,3 +420,73 @@ def get_envios(db=Depends(get_db)):
 @router.delete("/envios", status_code=204)
 def apagar_envios(db=Depends(get_db)):
     conversas.apagar_envios(db)
+
+
+# ── ações (IA-05) ─────────────────────────────────────────────────────────
+# O modelo só propõe (chat.py → acoes.propor); aplicar, descartar e desfazer
+# são estas rotas, chamadas pelo clique da pessoa — nunca pelo modelo.
+
+class PropostaRef(Entrada):
+    conversa_id: str = Field(..., max_length=64)
+    mensagem_id: str = Field(..., max_length=64)
+
+
+class ItemEscolhido(Entrada):
+    indice: int = Field(..., ge=0, lt=acoes.ITENS_MAX)
+    dados: Optional[dict[str, Any]] = None
+
+
+class AplicarIn(PropostaRef):
+    itens: List[ItemEscolhido] = Field(..., max_length=acoes.ITENS_MAX)
+    # P-136: conta e forma de pagamento dos lançamentos (topo do cartão)
+    conta_id: Optional[str] = Field(None, max_length=64)
+    forma_pagamento: Optional[Literal["saldo", "credito", ""]] = None
+
+
+class DesfazerIn(Entrada):
+    apagar_editados: bool = False
+
+
+def _proposta(db, ref: PropostaRef) -> dict:
+    msg = conversas.obter_mensagem(db, ref.conversa_id, ref.mensagem_id)
+    if not msg or not msg.get("proposta"):
+        raise ErroKami(404, "erro.assistente.proposta_inexistente", "proposta não encontrada")
+    return msg["proposta"]
+
+
+@router.post("/propostas/aplicar")
+def aplicar_proposta(payload: AplicarIn, db=Depends(get_db)):
+    proposta = _proposta(db, payload)
+    lote = acoes.aplicar(db, proposta, [i.model_dump() for i in payload.itens], payload.conversa_id, payload.mensagem_id,
+                         conta_id=payload.conta_id, forma=payload.forma_pagamento)
+    conversas.atualizar_proposta(db, payload.conversa_id, payload.mensagem_id, proposta)
+    return {"proposta": proposta, "lote": acoes.conferir(db, lote["id"])}
+
+
+@router.post("/propostas/descartar")
+def descartar_proposta(payload: PropostaRef, db=Depends(get_db)):
+    proposta = _proposta(db, payload)
+    acoes.descartar(proposta)
+    conversas.atualizar_proposta(db, payload.conversa_id, payload.mensagem_id, proposta)
+    return {"proposta": proposta}
+
+
+@router.get("/lotes")
+def get_lotes(db=Depends(get_db)):
+    return acoes.listar_lotes(db)
+
+
+@router.get("/lotes/{lote_id}")
+def get_lote(lote_id: str, db=Depends(get_db)):
+    return acoes.conferir(db, lote_id)
+
+
+@router.post("/lotes/{lote_id}/desfazer")
+def desfazer_lote(lote_id: str, payload: DesfazerIn, db=Depends(get_db)):
+    resultado = acoes.desfazer(db, lote_id, payload.apagar_editados)
+    if resultado["conversa_id"] and resultado["mensagem_id"]:
+        msg = conversas.obter_mensagem(db, resultado["conversa_id"], resultado["mensagem_id"])
+        if msg and msg.get("proposta"):
+            conversas.atualizar_proposta(db, resultado["conversa_id"], resultado["mensagem_id"],
+                                         {**msg["proposta"], "estado": "desfeita"})
+    return resultado

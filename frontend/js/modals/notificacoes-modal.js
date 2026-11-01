@@ -13,6 +13,8 @@ import { listEntrada } from "../api/entrada.js";
 import { listPendentes, adiarLembrete, dispensarLembrete } from "../api/lembretes.js";
 import { noSino, marcarAvisada, estadoAtualizacao, atualizarAgora, verNovidades, pularVersao, comoAtualiza } from "../components/atualizacao.js";
 import { adiamentos, fecharAvisoDoLembrete } from "../components/lembretes-agendador.js";
+import { checarAvisos, tirarAviso, textoAviso, perguntaAviso, abrirAlvo } from "../components/avisos.js";
+import { dispensarAviso, silenciarAviso } from "../api/avisos.js";
 import { noIdiomaAtual, t } from "../i18n.js";
 
 /**
@@ -70,6 +72,7 @@ function buildModal() {
       <div class="modal-body">
         <div class="notif-section" id="notif-atualizacao-section" hidden></div>
         <div class="notif-section" id="notif-lembretes-section" hidden></div>
+        <div class="notif-section" id="notif-avisos-section" hidden></div>
         <div class="notif-section" id="notif-alerts-section">
           <div class="notif-section-head">
             ${icon("calendar-days", { size: 12 })}
@@ -88,6 +91,7 @@ function buildModal() {
   wrap.addEventListener("click", (e) => { if (e.target === wrap) closeNotificacoesModal(); });
   wrap.querySelector("#notif-lembretes-section").addEventListener("click", onLembreteClick);
   wrap.querySelector("#notif-atualizacao-section").addEventListener("click", onAtualizacaoClick);
+  wrap.querySelector("#notif-avisos-section").addEventListener("click", onAvisoClick);
   window.addEventListener("kami:atualizacao", () => modalEl?.classList.contains("open") && renderAtualizacao());
   return wrap;
 }
@@ -340,6 +344,70 @@ async function onLembreteClick(e) {
   await renderLembretes();
 }
 
+// ── IA-06: avisos do kami (regras no backend, texto padrão — P-145) ────
+
+let avisos = [];
+
+async function renderAvisos({ checar = true } = {}) {
+  const el = modalEl.querySelector("#notif-avisos-section");
+  if (checar) avisos = await checarAvisos();
+  el.hidden = !avisos.length;
+  if (!avisos.length) {
+    el.replaceChildren(); // o último dispensado não fica escondido no DOM
+    return;
+  }
+  modalEl.querySelector("#notif-all-disabled").hidden = true;
+  el.innerHTML = `
+    <div class="notif-section-head">${icon("triangle-alert", { size: 12 })}<span>${t("avisos.avisos")}</span></div>
+    <div class="notif-lembretes">${avisos
+      .map((a) => {
+        const { titulo, detalhe } = textoAviso(a);
+        const nome = escapeHtml(titulo);
+        return `
+      <div class="notif-lembrete notif-aviso" data-aviso-id="${escapeHtml(a.id)}">
+        <div class="notif-lembrete-texto">
+          <span class="notif-lembrete-titulo">${nome}</span>
+          <span class="notif-lembrete-quando">${escapeHtml(detalhe)}</span>
+        </div>
+        <div class="notif-lembrete-acoes">
+          <button type="button" class="btn sm" data-aviso="abrir" aria-label="${escapeHtml(t("avisos.abrir_aria", { titulo }))}">${t("avisos.abrir")}</button>
+          <button type="button" class="btn sm" data-aviso="perguntar" aria-label="${escapeHtml(t("avisos.perguntar_aria", { titulo }))}">${t("avisos.perguntar")}</button>
+          <span class="notif-aviso-icones">
+            <button type="button" class="btn sm icon-btn-square" data-aviso="dispensar" data-tooltip="${t("avisos.dispensar")}" aria-label="${escapeHtml(t("avisos.dispensar_aria", { titulo }))}">${icon("x", { size: 12 })}</button>
+            <button type="button" class="btn sm icon-btn-square" data-aviso="silenciar" data-tooltip="${t("avisos.silenciar")}" aria-label="${escapeHtml(t("avisos.silenciar_aria", { titulo }))}">${icon("bell-off", { size: 12 })}</button>
+          </span>
+        </div>
+      </div>`;
+      })
+      .join("")}</div>`;
+}
+
+async function onAvisoClick(e) {
+  const acao = e.target.closest("[data-aviso]")?.dataset.aviso;
+  const id = e.target.closest("[data-aviso-id]")?.dataset.avisoId;
+  const aviso = avisos.find((a) => a.id === id);
+  if (!acao || !aviso) return;
+  if (acao === "abrir") {
+    closeNotificacoesModal();
+    abrirAlvo(aviso);
+    return;
+  }
+  if (acao === "perguntar") {
+    closeNotificacoesModal();
+    const { perguntarAoAssistente } = await import("../components/assistente-painel.js");
+    await perguntarAoAssistente(perguntaAviso(aviso));
+    return;
+  }
+  try {
+    await (acao === "silenciar" ? silenciarAviso(id) : dispensarAviso(id));
+  } catch {
+    return; // o client já mostrou o erro
+  }
+  tirarAviso(id);
+  avisos = avisos.filter((a) => a.id !== id);
+  await renderAvisos({ checar: false });
+}
+
 // DIST-01: versão nova do kami (components/atualizacao.js). Só avisa:
 // instalar é sempre a pessoa que pede.
 function renderAtualizacao() {
@@ -411,6 +479,7 @@ export async function openNotificacoesModal() {
   if (showEmail) emailSectionEl.innerHTML = `<div class="empty-state">${t("geral.carregando")}</div>`;
 
   renderLembretes();
+  renderAvisos();
   renderAtualizacao();
   marcarAvisada(); // DIST-01: viu no sino → não conta mais no badge
 

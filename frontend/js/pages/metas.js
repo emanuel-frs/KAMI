@@ -26,15 +26,10 @@ import { t } from "../i18n.js";
 
 // ─── constantes (espelham GOAL_TYPES/GOAL_WEIGHTS de app/routers/metas.py) ──
 const GOAL_TYPES_MANUAL = ["financeira", "livre", "saude", "leitura", "habito"];
-const goalTypeLabels = () => ({
-  financeira: "financeira",
-  livre: "livre",
-  saude: t("metas.saude"),
-  leitura: "leitura",
-  habito: t("metas.habito"),
-  aprendizado: "aprendizado",
-  academica: t("metas.academica"),
-});
+// (até a 1.16 "financeira", "livre", "leitura" e "aprendizado" saíam em
+// português em todos os idiomas — achado na Sprint 9)
+const goalTypeLabels = () =>
+  Object.fromEntries(["financeira", "livre", "saude", "leitura", "habito", "aprendizado", "academica"].map((k) => [k, t(`metas.${k}`)]));
 // placeholder do campo "unidade" no modal — só cosmético, ajuda a lembrar o
 // tipo de valor esperado sem travar o usuário num vocabulário fixo
 const unitLabelPlaceholder = () => ({

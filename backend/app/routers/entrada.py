@@ -71,10 +71,15 @@ def descartar(item_id: str, db=Depends(get_db)):
     db.commit()
 
 
-@router.post("/{item_id}/tarefa", response_model=TarefaOut)
-def virar_tarefa(item_id: str, db=Depends(get_db)):
-    item = _item(db, item_id)
-    linha = "- [ ] " + " ".join(item["texto"].split())
+def linha_de_tarefa(texto: str) -> str:
+    return "- [ ] " + " ".join(texto.split())
+
+
+def adicionar_tarefa(db, texto: str) -> tuple[str, bool]:
+    """Junta "- [ ] texto" na nota "tarefas" (cria fixada se não existir).
+    Devolve (id da nota, se foi criada agora). Não commita: quem chama
+    (virar tarefa, lote do assistente) fecha junto com o resto."""
+    linha = linha_de_tarefa(texto)
     nota = db.execute(
         "SELECT id, conteudo FROM notas WHERE lower(titulo) = ? AND trancada = 0 AND arquivada = 0 "
         "ORDER BY criada_em LIMIT 1",
@@ -86,13 +91,19 @@ def virar_tarefa(item_id: str, db=Depends(get_db)):
         # junta na lista que já existe (sem linha em branco no meio)
         conteudo = f"{conteudo}\n{linha}" if conteudo else linha
         db.execute("UPDATE notas SET conteudo = ?, atualizada_em = ? WHERE id = ?", (conteudo, agora, nota["id"]))
-        nota_id = nota["id"]
-    else:
-        nota_id = new_id()
-        db.execute(
-            "INSERT INTO notas (id, titulo, conteudo, fixada, criada_em, atualizada_em) VALUES (?, ?, ?, 1, ?, ?)",
-            (nota_id, NOTA_TAREFAS, linha, agora, agora),
-        )
+        return nota["id"], False
+    nota_id = new_id()
+    db.execute(
+        "INSERT INTO notas (id, titulo, conteudo, fixada, criada_em, atualizada_em) VALUES (?, ?, ?, 1, ?, ?)",
+        (nota_id, NOTA_TAREFAS, linha, agora, agora),
+    )
+    return nota_id, True
+
+
+@router.post("/{item_id}/tarefa", response_model=TarefaOut)
+def virar_tarefa(item_id: str, db=Depends(get_db)):
+    item = _item(db, item_id)
+    nota_id, _ = adicionar_tarefa(db, item["texto"])
     db.execute("DELETE FROM caixa_entrada WHERE id = ?", (item_id,))
     db.commit()
     return {"nota_id": nota_id}

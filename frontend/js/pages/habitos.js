@@ -12,6 +12,7 @@ import { cancelActiveTipSequence } from "../components/tip-sequence.js";
 import { registerScreenTipsReplay, clearScreenTipsReplay } from "../components/screen-tips-registry.js";
 import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
 import { t } from "../i18n.js";
+import { marcaAssistente } from "../components/marca-assistente.js";
 
 /**
  * pages/habitos.js — tela de hábitos (ORG-04, P-55), Alt+9.
@@ -117,6 +118,7 @@ function cardHtml(h) {
     <div class="card goal-card hb-card${arquivado || pausado ? " hb-parado" : ""}" data-habito-id="${h.id}">
       <div class="card-head">
         <span class="goal-title" data-tooltip="${escapeHtml(h.nome)}">${escapeHtml(h.nome)}</span>
+        ${marcaAssistente(h)}
         <span class="push goal-card-icons">
           ${acoes}
           <span class="icon-btn danger" data-acao="apagar" data-tooltip="${t("geral.apagar")}" aria-label="${t("geral.apagar")}">${icon("trash-2", { size: 15 })}</span>

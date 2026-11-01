@@ -16,6 +16,7 @@ import { openLembreteModal, repeticoes, vinculoRotulo } from "../modals/lembrete
 import { diasCurtos } from "../components/habito-linha.js";
 import { nomeAtributo, textoDoRegistro } from "../components/textos-sistema.js";
 import { t } from "../i18n.js";
+import { marcaAssistente } from "../components/marca-assistente.js";
 
 const FALLBACK_META = { label: "", color: "var(--text-faint)", icon: "circle-help" };
 
@@ -203,7 +204,7 @@ async function renderLembretes() {
           .map(
             (l) => `
       <button type="button" class="cal-lembrete${l.proxima || l.adiado_para ? "" : " encerrado"}" data-lembrete-id="${l.id}">
-        <span class="cal-lembrete-titulo">${escapeHtml(l.titulo)}</span>
+        <span class="cal-lembrete-titulo">${escapeHtml(l.titulo)}${marcaAssistente(l)}</span>
         <span class="cal-lembrete-meta">${icon("bell-ring", { size: 10 })} ${escapeHtml(quandoLegivel(l.adiado_para || l.proxima))}${l.adiado_para ? " (adiado)" : ""} · ${escapeHtml(rotuloRepeticao(l))}${
               l.vinculo ? ` · ${escapeHtml(vinculoRotulo()[l.vinculo.tipo] || l.vinculo.tipo)} «${escapeHtml(l.vinculo.nome)}»` : ""
             }</span>
@@ -542,7 +543,7 @@ function renderDayPanel() {
             <span class="cal-event-dot${milestone ? " milestone" : ""}" style="--type-color:${meta.color}">${icon(meta.icon, { size: 20 })}</span>
             <span class="cal-event-type">${escapeHtml(meta.label)}</span>
             ${e.time ? `<span class="cal-event-time">${icon("clock", { size: 10 })}${escapeHtml(e.time)}</span>` : ""}
-            <span class="cal-event-title" data-tooltip="${escapeHtml(title)}">${escapeHtml(title)}</span>
+            <span class="cal-event-title" data-tooltip="${escapeHtml(title)}">${escapeHtml(title)}</span>${marcaAssistente(e)}
             ${statusHtml}
             ${amountHtml}
             ${xpHtml}

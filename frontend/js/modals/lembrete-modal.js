@@ -6,6 +6,7 @@ import { icon } from "../components/icons.js";
 import { escapeHtml, localDateKey } from "../components/format.js";
 import { diasCurtos } from "../components/habito-linha.js";
 import { t } from "../i18n.js";
+import { marcaNoCabecalho } from "../components/marca-assistente.js";
 
 /**
  * Modal "novo lembrete" / "editar lembrete" (ORG-05) — singleton, mesmo
@@ -167,6 +168,7 @@ export function openLembreteModal({ lembrete = null, vinculo: v = null, inicial 
   vinculo = lembrete ? lembrete.vinculo : v;
   const padrao = proximaHoraCheia();
   modalEl.querySelector("#lbm-head").textContent = lembrete ? t("lembrete.editar_lembrete") : t("lembrete.novo_lembrete");
+  marcaNoCabecalho(modalEl.querySelector("#lbm-head"), lembrete);
   modalEl.querySelector('[data-action="save"]').textContent = lembrete ? t("lembrete.salvar_alteracoes") : t("lembrete.criar");
   modalEl.querySelector('[data-action="apagar"]').hidden = !lembrete;
   modalEl.querySelector("#lbm-titulo").value = lembrete?.titulo ?? inicial.titulo ?? (v ? v.nome : "");

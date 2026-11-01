@@ -31,10 +31,11 @@ import {
   testarProvedor,
   usarProvedor,
 } from "../../api/assistente.js";
-import { escapeHtml, fmtDataHora } from "../../components/format.js";
+import { escapeHtml, fmtDataHora, fmtDataCompacta } from "../../components/format.js";
 import { enhanceSelect, destroyCustomSelect } from "../../components/custom-select.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { abrirGuia, fecharGuia } from "./assistente-guia.js";
+import { carregarLotes, lotesSectionHtml, wireLotes } from "./assistente-lotes.js";
 import { icon } from "../../components/icons.js";
 import { localeAtual, t } from "../../i18n.js";
 
@@ -131,6 +132,7 @@ export function buildAssistentePanel() {
         </div>
         <p class="settings-status" id="cfg-ia-conversas-status" role="status"></p>
       </div>
+      ${lotesSectionHtml()}
     </div>`;
 }
 
@@ -226,9 +228,11 @@ function textoDoTeste(p) {
     : `<span class="cfg-ia-teste cfg-ia-teste--aviso">${icon("triangle-alert", { size: 10 })} ${escapeHtml(t("assistente.teste_ok_sem_ferramentas"))} · ${quando}</span>`;
 }
 
+// IA-08 (P-151): o selo vale pro provedor + modelo medidos; outro modelo
+// do mesmo provedor continua "deve funcionar"
 function textoDoSelo(p) {
-  return p.selo
-    ? t("assistente.selo_testado", { data: p.selo.data, modelo: p.selo.modelo })
+  return p.selo && p.selo.modelo === p.modelo
+    ? t("assistente.selo_testado", { data: fmtDataCompacta(p.selo.data), modelo: p.selo.modelo, placar: p.selo.placar })
     : t("assistente.selo_deve_funcionar");
 }
 
@@ -618,6 +622,7 @@ async function recarregar(wrap) {
   [estadoIa, provedores] = await Promise.all([getAssistente(), getProvedores()]);
   renderEstado(wrap);
   renderLista(wrap);
+  carregarLotes(wrap);
 }
 
 export async function carregarAssistente(wrap) {
@@ -648,6 +653,7 @@ export function wireAssistenteTab(wrap) {
   wrap.querySelector("#cfg-ia-escondido").addEventListener("change", (e) => salvarConfig(wrap, { escondido: e.target.checked }));
   wrap.querySelector("#cfg-ia-novo").addEventListener("click", () => abrirForm(wrap));
   wrap.querySelector("#cfg-ia-guia-btn").addEventListener("click", () => abrirGuiaAssistente(wrap));
+  wireLotes(wrap); // IA-05: ações do assistente
   wrap.querySelector("#cfg-ia-limites-ok").addEventListener("click", () =>
     salvarConfig(
       wrap,

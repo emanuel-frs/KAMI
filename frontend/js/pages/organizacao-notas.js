@@ -32,6 +32,7 @@ import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showToast } from "../components/toast.js";
 import { navigateTo } from "../components/navigate.js";
 import { t } from "../i18n.js";
+import { marcaAssistente } from "../components/marca-assistente.js";
 
 const SALVAR_APOS_MS = 700;
 const TENTAR_DE_NOVO_MS = 5000;
@@ -149,6 +150,7 @@ function itemHtml(n) {
         ${n.fixada ? `<span class="nota-item-pin" data-tooltip="${t("organizacao_notas.fixada")}">${icon("star", { size: 10, fill: "currentColor" })}</span>` : ""}
         ${n.trancada ? `<span class="nota-item-lock" data-tooltip="${t("organizacao_notas.trancada")}">${icon("lock", { size: 10 })}</span>` : ""}
         <span class="nota-item-titulo">${esc(n.titulo || t("organizacao_notas.sem_titulo"))}</span>
+        ${marcaAssistente(n)}
         <span class="nota-item-data">${dataCurta(n.atualizada_em)}</span>
       </div>
       ${n.trancada ? `<div class="nota-item-previa">${t("organizacao_notas.conteudo_trancado")}</div>` : n.previa ? `<div class="nota-item-previa">${esc(n.previa)}</div>` : ""}
@@ -361,6 +363,7 @@ function renderNota() {
       <div class="nota-cab">
         <button type="button" class="nota-voltar" data-nt="voltar" aria-label="${t("organizacao_notas.voltar_pra_lista")}">${icon("arrow-left", { size: 12 })} ${t("organizacao_notas.notas")}</button>
         <input type="text" id="nota-titulo" class="nota-titulo" placeholder="${t("organizacao_notas.titulo")}" value="${esc(n.titulo)}" maxlength="200" aria-label="${t("organizacao_notas.titulo_da_nota")}" autocomplete="off">
+        ${marcaAssistente(n)}
         <span class="nota-status" id="nota-status" aria-live="polite">${esc(st.status)}</span>
       </div>
       ${n.trancada && !n.conteudo_disponivel ? "" : metaHtml(n)}

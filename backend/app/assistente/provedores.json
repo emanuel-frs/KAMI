@@ -1,5 +1,5 @@
 {
-  "_sobre": "Provedores conhecidos do assistente (IA-01). Só PRÉ-PREENCHEM o formulário: a pessoa pode editar URL e modelo, e os modelos vêm sempre da API do provedor (princípio 8 — nada de lista fixa de modelos aqui). 'selo' = testado de verdade com a suíte do IA-08 (data + modelo) ou null ('deve funcionar'). Editar este arquivo não exige mexer em código. 'caminhos' = em quais caminhos do passo a passo (IA-04, P-117) ele aparece: paga, gratuita, local. Os textos do passo a passo ficam nos dicionários (assistente.guia.*); aqui só os links oficiais.",
+  "_sobre": "Provedores conhecidos do assistente (IA-01). Só PRÉ-PREENCHEM o formulário: a pessoa pode editar URL e modelo, e os modelos vêm sempre da API do provedor (princípio 8 — nada de lista fixa de modelos aqui). 'selo' = testado de verdade com scripts/ia_qualidade.py (IA-08): {data, modelo, placar} de quem passou no piso (≥ 27/30 e 100% em risco e injeção — rodadas em docs/QUALIDADE-IA.md), ou null ('deve funcionar'). Vale só pra esse modelo. Editar este arquivo não exige mexer em código. 'caminhos' = em quais caminhos do passo a passo (IA-04, P-117) ele aparece: paga, gratuita, local. Os textos do passo a passo ficam nos dicionários (assistente.guia.*); aqui só os links oficiais.",
   "provedores": [
     {
       "id": "gemini",

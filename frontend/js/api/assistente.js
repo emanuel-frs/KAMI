@@ -22,3 +22,12 @@ export const apagarConversa = (id) => del(`/api/assistente/conversas/${encodeURI
 export const apagarTodasConversas = () => del("/api/assistente/conversas");
 export const getEnvios = () => get(`/api/assistente/envios?t=${Date.now()}`);
 export const apagarEnvios = () => del("/api/assistente/envios");
+
+// IA-05: ações. O modelo só propõe; aplicar/descartar/desfazer são estas
+// rotas, chamadas pelo clique no cartão (components/assistente-proposta.js).
+export const aplicarProposta = (dados) => post("/api/assistente/propostas/aplicar", dados);
+export const descartarProposta = (dados) => post("/api/assistente/propostas/descartar", dados);
+export const getLotes = () => get(`/api/assistente/lotes?t=${Date.now()}`);
+export const getLote = (id) => get(`/api/assistente/lotes/${encodeURIComponent(id)}?t=${Date.now()}`);
+export const desfazerLote = (id, apagarEditados = false) =>
+  post(`/api/assistente/lotes/${encodeURIComponent(id)}/desfazer`, { apagar_editados: apagarEditados });
