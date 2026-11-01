@@ -77,6 +77,7 @@ class CalendarEvent(BaseModel):
     # I18N: ação do núcleo com texto do sistema — o frontend traduz o título
     description_key: Optional[str] = None
     description_vars: Optional[dict] = None
+    criado_por: Optional[str] = None  # IA-05 (P-126): evento criado pelo assistente
 
 
 class EventoIn(Entrada):
@@ -391,6 +392,7 @@ def _evento_events(db, year: int, month: int, month_str: str) -> List[dict]:
                 "recurrence_end": r["recurrence_end"],
                 "reminder_minutes_before": r["reminder_minutes_before"],
                 "color": r["color"],
+                "criado_por": r["criado_por"],
             })
     return events
 

@@ -12,7 +12,8 @@ from app.assistente import cuidado
 
 @pytest.mark.parametrize("texto", [
     "às vezes penso em me matar", "Quero me matar", "vou tirar minha própria vida", "não quero mais viver",
-    "tô sem vontade de viver", "quero me cortar", "pensei em suicídio", "quero morrer",
+    "tô sem vontade de viver", "quero me cortar", "tô pensando em me machucar de novo",
+    "pensei em me ferir ontem", "voltei a me cortar", "pensei em suicídio", "quero morrer",
     "I want to die", "sometimes I think about killing myself", "I don't want to live anymore", "I keep hurting myself",
     "quiero matarme", "no quiero vivir", "pienso en quitarme la vida",
     "je veux mourir", "j'ai envie de me tuer", "mettre fin à mes jours",

@@ -113,9 +113,14 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Assistente de IA (opcional, desligado por padrão):** um chat no painel lateral (Alt+A) que
   responde sobre os seus dados e sobre como usar o Kami: resume o mês, diz o que vence, explica as
   missões. Funciona com um provedor seu, na nuvem (Gemini, Groq, OpenRouter, OpenAI, Anthropic) ou no
-  seu computador (Ollama, LM Studio), com um passo a passo para conectar. Nesta versão ele só lê, não
-  cria nem apaga nada; você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
+  seu computador (Ollama, LM Studio), com um passo a passo para conectar. Ele também propõe ações
+  (notas, lembretes, eventos, hábitos, lançamentos, até um extrato colado, metas e planos de estudo)
+  numa prévia que você edita e aplica em parte, e um lote aplicado se desfaz inteiro; nada é gravado
+  sem o seu clique. Você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
   vem embutida. O que sai e os limites estão no [SECURITY.md](./SECURITY.md#assistente-de-ia).
+- **Avisos:** o Kami avisa no sino quando um gasto passa do mês anterior, uma conta fixa vence sem
+  saldo, ou uma meta, um atributo ou uma trilha ficam parados. São regras no seu computador, sem IA;
+  dá para dispensar, silenciar um item ou desligar cada regra.
 
 ## Instalar
 
@@ -166,7 +171,7 @@ e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria ne
 | `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
 | `github.com` (Releases do Kami) | ao abrir e uma vez por dia, com "procurar atualizações" ligado (padrão; desliga em configurações › sobre) | só o pedido do arquivo de versões (`latest.json`), sem nada seu; e o download da versão nova, se você pedir "atualizar agora" |
-| O provedor de IA que você escolher | só com o assistente ligado, quando você pergunta algo | sua mensagem, as anteriores da mesma conversa e os dados que ele consultou nas áreas que você liberou, com e-mails, cartões, documentos, chaves e telefones trocados por `[removido]`. Com Ollama ou LM Studio, nada sai do computador |
+| O provedor de IA que você escolher | só com o assistente ligado, quando você pergunta algo (os avisos não usam IA) | sua mensagem (com número de cartão, CPF/CNPJ, agência+conta e IBAN escondidos), as anteriores da mesma conversa e os dados que ele consultou nas áreas que você liberou, com e-mails, cartões, documentos, chaves e telefones trocados por `[removido]`. Com Ollama ou LM Studio, nada sai do computador |
 | Microsoft (Windows) | só na instalação, se faltar o WebView2 | download do runtime |
 
 Senhas de app e tokens ficam cifrados no banco, com a chave no cofre do sistema (Gerenciador de
@@ -239,9 +244,9 @@ Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades
   para trás, testes automáticos cobrindo todas as telas e arquivos grandes divididos.
 - ~~**Idiomas:**~~ feito na 1.15: português, inglês, espanhol, francês, italiano, alemão, chinês,
   japonês, coreano e hindi, com moeda e país dos feriados à escolha.
-- **Assistente de IA (opcional, desligado por padrão):** o chat que lê os seus dados saiu na 1.16;
-  faltam ações sempre com prévia e confirmação, avisos e instalar a IA local pelo próprio app. Nenhuma
-  chave vem embutida.
+- **Assistente de IA (opcional, desligado por padrão):** o chat que lê os seus dados saiu na 1.16, e
+  as ações com prévia e os avisos na 1.17; falta instalar a IA local pelo próprio app. Nenhuma chave vem
+  embutida.
 - **Banco cifrado em disco**, opcional.
 
 Ficam de fora, pelo menos até a 2.0:

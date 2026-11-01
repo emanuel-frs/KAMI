@@ -8,7 +8,13 @@ import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
 import { store } from "../../state/store.js";
 import { estado } from "./estado.js";
+import { configAvisos, definirRegraAviso, voltarAAvisar } from "../../api/avisos.js";
+import { checarAvisos } from "../../components/avisos.js";
+import { escapeHtml } from "../../components/format.js";
 import { t } from "../../i18n.js";
+
+// IA-06: mesma ordem de app/avisos.py::REGRAS
+const REGRAS_AVISO = ["categoria_acima", "conta_sem_saldo", "meta_parada", "atributo_esquecido", "trilha_parada"];
 
 export function buildNotificacoesPanel() {
   return `
@@ -27,6 +33,25 @@ export function buildNotificacoesPanel() {
           <span>${t("notificacoes.e_mails")} <small>${t("notificacoes.mensagens_nao_lidas_das_contas")}</small></span>
         </label>
         <p class="settings-status" id="cfg-notif-status"></p>
+      </div>
+      <div class="settings-section" id="cfg-avisos-section">
+        <h4>${t("avisos.config.titulo")}</h4>
+        <p class="settings-desc">${t("avisos.config.desc")}</p>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-avisos-todos" checked>
+          ${icon("triangle-alert", { size: 12 })}
+          <span>${t("avisos.config.ligados")}</span>
+        </label>
+        <div class="cfg-avisos-regras" id="cfg-avisos-regras">
+          ${REGRAS_AVISO.map((r) => `
+          <label class="cfg-toggle cfg-sub">
+            <input type="checkbox" data-regra-aviso="${r}" checked>
+            <span>${t(`avisos.regra.${r}`)} <small>${t(`avisos.regra.${r}_desc`)}</small></span>
+          </label>`).join("")}
+        </div>
+        <h4 class="cfg-avisos-sil-titulo">${t("avisos.config.silenciados")}</h4>
+        <div class="cfg-avisos-silenciados" id="cfg-avisos-silenciados"></div>
+        <p class="settings-status" id="cfg-avisos-status"></p>
       </div>
       <div class="settings-section">
         <h4>${t("notificacoes.fora_do_kami")}</h4>
@@ -91,6 +116,27 @@ export function renderNotificacoesTab(wrap, profile) {
   wrap.querySelector("#cfg-ocultar-texto").checked = !!profile.notif_ocultar_texto;
   wrap.querySelector("#cfg-avisos-hora").value = profile.avisos_hora || "09:00";
   renderJanela(wrap);
+  configAvisos().then((cfg) => renderAvisosConfig(wrap, cfg)).catch(() => (wrap.querySelector("#cfg-avisos-section").hidden = true));
+}
+
+// ── IA-06: avisos do kami (P-140: tudo ou por regra; P-147: silenciados) ──
+function renderAvisosConfig(wrap, cfg) {
+  wrap.querySelector("#cfg-avisos-section").hidden = false;
+  wrap.querySelector("#cfg-avisos-todos").checked = cfg.ligados;
+  wrap.querySelectorAll("[data-regra-aviso]").forEach((el) => {
+    el.checked = cfg.regras[el.dataset.regraAviso] !== false;
+    el.disabled = !cfg.ligados;
+  });
+  const lista = wrap.querySelector("#cfg-avisos-silenciados");
+  lista.innerHTML = cfg.silenciados.length
+    ? cfg.silenciados
+        .map((s) => `
+      <div class="cfg-aviso-sil">
+        <span class="cfg-aviso-sil-nome">${escapeHtml(s.regra === "atributo_esquecido" ? t(`atributo.${s.nome}`) : s.nome || "—")} <small>${t(`avisos.regra.${s.regra}`)}</small></span>
+        <button type="button" class="btn sm" data-voltar-aviso="${escapeHtml(s.regra)}" data-alvo="${escapeHtml(s.alvo_id)}">${t("avisos.config.voltar_a_avisar")}</button>
+      </div>`)
+        .join("")
+    : `<p class="settings-desc">${t("avisos.config.nenhum_silenciado")}</p>`;
 }
 
 // ── ORG-05: bandeja e iniciar com o sistema (lado Rust: src-tauri/src/janela.rs).
@@ -165,6 +211,34 @@ export function wireNotificacoesTab(wrap) {
     store.set("profile", { ...store.get("profile"), avisos_hora: valor });
     statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
     statusEl.classList.add("settings-status--visible");
+  });
+
+  // IA-06
+  const avisosStatus = wrap.querySelector("#cfg-avisos-status");
+  async function salvarAvisos(chamada, desfazer) {
+    let cfg;
+    try {
+      cfg = await chamada();
+    } catch (err) {
+      desfazer?.();
+      showErrorModal(err.message, t("notificacoes.erro_ao_salvar"));
+      return;
+    }
+    renderAvisosConfig(wrap, cfg);
+    checarAvisos(); // o sino reflete na hora
+    avisosStatus.innerHTML = `${icon("check", { size: 12 })} salvo`;
+    avisosStatus.classList.add("settings-status--visible");
+  }
+  wrap.querySelector("#cfg-avisos-todos").addEventListener("change", (e) =>
+    salvarAvisos(() => definirRegraAviso("*", e.target.checked), () => (e.target.checked = !e.target.checked)),
+  );
+  wrap.querySelector("#cfg-avisos-regras").addEventListener("change", (e) => {
+    const regra = e.target.dataset.regraAviso;
+    if (regra) salvarAvisos(() => definirRegraAviso(regra, e.target.checked), () => (e.target.checked = !e.target.checked));
+  });
+  wrap.querySelector("#cfg-avisos-silenciados").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-voltar-aviso]");
+    if (btn) salvarAvisos(() => voltarAAvisar(btn.dataset.voltarAviso, btn.dataset.alvo));
   });
 
   const janelaStatus = wrap.querySelector("#cfg-janela-status");

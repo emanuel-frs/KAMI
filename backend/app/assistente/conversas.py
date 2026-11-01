@@ -48,6 +48,7 @@ def _msg_de_row(row) -> dict:
     d["chamadas"] = json.loads(d["chamadas"]) if d.get("chamadas") else []
     d["interrompida"] = bool(d["interrompida"])
     d["aviso"] = json.loads(d["aviso"]) if d.get("aviso") else None
+    d["proposta"] = json.loads(d["proposta"]) if d.get("proposta") else None
     d.pop("conversa_id", None)
     return d
 
@@ -106,7 +107,8 @@ def adicionar_mensagem(conn, conversa_id: str, papel: str, texto: str = "", **ex
         "chamadas": extra.get("chamadas") or [], "id_chamada": extra.get("id_chamada"),
         "nome_ferramenta": extra.get("nome_ferramenta"), "provedor": extra.get("provedor"),
         "modelo": extra.get("modelo"), "interrompida": bool(extra.get("interrompida")),
-        "erro_chave": extra.get("erro_chave"), "aviso": extra.get("aviso"), "created_at": now_iso(),
+        "erro_chave": extra.get("erro_chave"), "aviso": extra.get("aviso"), "proposta": extra.get("proposta"),
+        "created_at": now_iso(),
     }
     with _lock:
         mem = _memoria_conversas.get(conversa_id)
@@ -116,14 +118,42 @@ def adicionar_mensagem(conn, conversa_id: str, papel: str, texto: str = "", **ex
             return msg
     conn.execute(
         "INSERT INTO assistente_mensagens (id, conversa_id, papel, texto, chamadas, id_chamada, nome_ferramenta, "
-        "provedor, modelo, interrompida, erro_chave, aviso, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "provedor, modelo, interrompida, erro_chave, aviso, proposta, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (msg["id"], conversa_id, papel, texto, json.dumps(msg["chamadas"], ensure_ascii=False) if msg["chamadas"] else None,
          msg["id_chamada"], msg["nome_ferramenta"], msg["provedor"], msg["modelo"], int(msg["interrompida"]),
-         msg["erro_chave"], json.dumps(msg["aviso"], ensure_ascii=False) if msg["aviso"] else None, msg["created_at"]),
+         msg["erro_chave"], json.dumps(msg["aviso"], ensure_ascii=False) if msg["aviso"] else None,
+         json.dumps(msg["proposta"], ensure_ascii=False) if msg["proposta"] else None, msg["created_at"]),
     )
     conn.execute("UPDATE assistente_conversas SET updated_at = ? WHERE id = ?", (msg["created_at"], conversa_id))
     conn.commit()
     return msg
+
+
+def obter_mensagem(conn, conversa_id: str, mensagem_id: str) -> dict | None:
+    with _lock:
+        mem = _memoria_conversas.get(conversa_id)
+        if mem:
+            return next((dict(m) for m in mem["mensagens"] if m["id"] == mensagem_id), None)
+    row = conn.execute("SELECT * FROM assistente_mensagens WHERE conversa_id = ? AND id = ?",
+                       (conversa_id, mensagem_id)).fetchone()
+    return _msg_de_row(row) if row else None
+
+
+def atualizar_proposta(conn, conversa_id: str, mensagem_id: str, proposta: dict) -> None:
+    """IA-05: o estado da proposta (aplicada, descartada, desfeita) e os
+    itens como a pessoa deixou. Conversa já apagada: nada a fazer — o lote
+    continua em assistente_lotes."""
+    with _lock:
+        mem = _memoria_conversas.get(conversa_id)
+        if mem:
+            for m in mem["mensagens"]:
+                if m["id"] == mensagem_id:
+                    m["proposta"] = proposta
+            return
+    conn.execute("UPDATE assistente_mensagens SET proposta = ? WHERE conversa_id = ? AND id = ?",
+                 (json.dumps(proposta, ensure_ascii=False), conversa_id, mensagem_id))
+    conn.commit()
 
 
 def remover_mensagens(conn, conversa_id: str, ids: list[str]) -> None:

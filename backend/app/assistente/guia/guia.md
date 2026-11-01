@@ -95,6 +95,21 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 
 ## assistant
 - O assistente é opcional e começa desligado; o Kami funciona inteiro sem ele. Nenhuma chave vem com o app: a pessoa escolhe um provedor (Gemini, Groq, OpenRouter, OpenAI, Anthropic, ou local com Ollama/LM Studio) em configurações › assistente.
-- Ele só LÊ dados nesta versão, por áreas que a pessoa liga ou desliga (notas começam desligadas; nota trancada nunca). Antes de sair do computador, e-mails, cartões, documentos, chaves e telefones são trocados por [removido].
+- Ele lê dados por áreas que a pessoa liga ou desliga (notas começam desligadas; nota trancada nunca). Antes de sair do computador, e-mails, cartões, documentos, chaves e telefones são trocados por [removido]; no que a pessoa digita, número de cartão, CPF/CNPJ, agência+conta e IBAN também.
+- Ele pode PROPOR ações, mas nunca grava sozinho: ver o tópico assistant_actions.
 - "O que foi enviado" (no painel) mostra cada envio ao provedor. Há teto diário de chamadas e tokens pra provedor na nuvem.
 - Conversas ficam só no computador (ou nem isso, com "guardar conversas" desligado) e somem depois do prazo escolhido. Ele não lembra de conversas antigas.
+
+## assistant_actions
+- O assistente pode propor: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada) e o destino dos itens da caixa de entrada.
+- A proposta aparece como um cartão no chat: cada item pode ser editado ou desmarcado; nada é gravado até a pessoa clicar em "aplicar". Gastos e entradas usam a conta (e a forma de pagamento, se a conta tem saldo e crédito) escolhida no topo do cartão.
+- Item com problema (data que já passou, valor inválido, saldo que não cobre) vem desmarcado com o motivo. Lançamento igual a um existente (mesma data e valor) vem desmarcado com aviso.
+- Aplicar dá o mesmo xp de fazer à mão, faz uma cópia do banco antes e marca o que foi criado com "· assistente".
+- "Desfazer" (no cartão ou em configurações › assistente › ações do assistente) apaga o lote, devolve saldo, fatura e xp exatos e devolve itens à caixa de entrada; o que a pessoa editou depois fica, a não ser que ela peça.
+- Transferências, pagar contas, quitar dívidas e apagar coisas não são ações do assistente: ele explica o caminho na tela.
+
+## notices
+- Avisos do Kami: regras no computador, sem IA, que aparecem no sino (contam no número dele). Checam ao abrir o app e a cada 6 horas.
+- Regras: gasto de uma categoria 20% acima do mês anterior (que teve 3+ lançamentos); conta fixa não paga vencendo em até 3 dias sem saldo (a da conta ligada, ou a soma das contas); meta sem aporte há 21 dias; atributo sem xp há 14 dias; trilha sem concluir marco há 14 dias.
+- Em cada aviso: abrir (vai pra tela do item), perguntar ao assistente (abre o chat com a pergunta pronta, sem enviar), dispensar (some até a próxima vez que a regra disparar) e "não me avise disso" (silencia aquele item).
+- Configurações › notificações › avisos do kami: desligar tudo ou cada regra, e a lista de silenciados com "voltar a avisar". "Conta fixa sem saldo" também vira notificação do sistema, pela opção de vencimentos, na hora dos avisos.

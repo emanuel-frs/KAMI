@@ -109,7 +109,7 @@ export async function pingBackend(timeoutMs = 4000) {
 const ERROS_DE_AMBIENTE = new Set(["erro_interno", "banco_ocupado", "sem_espaco", "banco_inacessivel", "banco_corrompido"]);
 
 // I18N-06: variável `valor_*` é dinheiro — sai na moeda da pessoa
-function varsLegiveis(vars = {}) {
+export function varsLegiveis(vars = {}) {
   return Object.fromEntries(
     Object.entries(vars || {}).map(([k, v]) => [k, k.startsWith("valor") && typeof v === "number" ? fmtMoeda(v) : v])
   );

@@ -5,6 +5,7 @@ import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.
 import { icon } from "../components/icons.js";
 import { contarNotas, linkNotasHtml } from "../components/notas-vinculadas.js";
 import { noIdiomaAtual, t } from "../i18n.js";
+import { marcaNoCabecalho } from "../components/marca-assistente.js";
 
 /**
  * Modal "novo evento" / "editar evento" — único tipo do calendário com
@@ -174,6 +175,7 @@ export function openCalendarioEventoModal({ event = null, date = null, onSaved, 
   const saveBtn = modalEl.querySelector('[data-action="save"]');
   const deleteBtn = modalEl.querySelector("#cem-delete-btn");
   titleEl.textContent = editingEvent ? t("calendario_evento.editar_evento") : t("calendario_evento.novo_evento");
+  marcaNoCabecalho(titleEl, editingEvent);
   saveBtn.textContent = editingEvent ? t("calendario_evento.salvar_alteracoes") : "+ adicionar";
   deleteBtn.hidden = !editingEvent;
 

@@ -9,7 +9,9 @@ de exportar a cada 14 dias. Agora, em <pasta de dados>/backups/:
     ficam as SEMANAL_MANTER mais recentes (decidido: 4, um mês);
   - kami-antes-de-<ação>-AAAAMMDD-HHMMSS.db — antes de importar um
     backup, apagar tudo, redefinir a chave dos segredos, restaurar uma
-    cópia (e, na Sprint 9, aplicar um lote da IA); ficam ANTES_MANTER.
+    cópia; ficam ANTES_MANTER. Aplicar um lote do assistente (IA-05,
+    P-127) também copia, mas com rodízio próprio (ACOES_PROPRIAS): lotes
+    são frequentes e não podem empurrar pra fora a de "antes de importar".
 
 Pasta extra (decidido: qualquer pasta — pendrive, HD externo, pasta
 sincronizada do Drive/Dropbox): a cópia semanal também vai pra lá. Assim
@@ -44,6 +46,8 @@ SEMANAL_MANTER = 4
 SEMANAL_DIAS = 7
 ANTES_PREFIXO = "kami-antes-de-"
 ANTES_MANTER = 5
+# ação -> quantas guardar, fora do rodízio geral das "antes de"
+ACOES_PROPRIAS = {"assistente": 3}
 EXTRA_AVISO_DIAS = 30
 
 # chaves em sistema_info (fica fora do export: o caminho é desta máquina)
@@ -88,8 +92,9 @@ def _copiar(conn: sqlite3.Connection, destino: Path) -> Path:
     return destino
 
 
-def _podar(pasta: Path, prefixo: str, manter: int) -> None:
-    arquivos = sorted((p for p in pasta.glob(f"{prefixo}*.db") if _quando(p)), key=lambda p: p.stem[-15:])
+def _podar(pasta: Path, prefixo: str, manter: int, fora: tuple[str, ...] = ()) -> None:
+    arquivos = sorted((p for p in pasta.glob(f"{prefixo}*.db") if _quando(p) and not p.name.startswith(fora)),
+                      key=lambda p: p.stem[-15:])
     for velho in arquivos[:-manter] if manter else arquivos:
         velho.unlink(missing_ok=True)
 
@@ -200,7 +205,11 @@ def copia_semanal_se_precisar(conn: sqlite3.Connection, forcar: bool = False) ->
 def copia_antes_de(conn: sqlite3.Connection, acao: str) -> Path:
     """Cópia antes de uma ação grande (importar, apagar tudo, redefinir a chave...)."""
     destino = _copiar(conn, database.backups_dir() / f"{ANTES_PREFIXO}{acao}-{_carimbo()}.db")
-    _podar(database.backups_dir(), ANTES_PREFIXO, ANTES_MANTER)
+    if acao in ACOES_PROPRIAS:
+        _podar(database.backups_dir(), f"{ANTES_PREFIXO}{acao}-", ACOES_PROPRIAS[acao])
+    else:
+        _podar(database.backups_dir(), ANTES_PREFIXO, ANTES_MANTER,
+               fora=tuple(f"{ANTES_PREFIXO}{a}-" for a in ACOES_PROPRIAS))
     logger.info("cópia antes de %s: %s", acao, destino.name)
     return destino
 

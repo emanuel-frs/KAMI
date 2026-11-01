@@ -101,3 +101,32 @@ def limpar_dado(valor):
     if isinstance(valor, (list, tuple)):
         return [limpar_dado(v) for v in valor]
     return valor
+
+
+def mascarar_numeros(texto: str) -> tuple[str, int]:
+    """P-130/P-139: o que a PESSOA escreve vai como ela escreveu (é dela),
+    menos os números que identificam conta e documento — cartão (Luhn),
+    CPF/CNPJ, IBAN e agência+conta —, comuns num extrato colado. Valores e
+    datas ficam. Devolve (texto, quantos foram trocados)."""
+    if not texto:
+        return texto, 0
+    total = 0
+
+    def conta(m):
+        nonlocal total
+        total += 1
+        return REMOVIDO
+
+    def cartao(m):
+        novo = _cartao(m)
+        if novo != m.group(0):
+            nonlocal total
+            total += 1
+        return novo
+
+    t = _IBAN.sub(conta, texto)
+    t = _AGENCIA_CONTA.sub(conta, t)
+    t = _CNPJ.sub(conta, t)
+    t = _CPF.sub(conta, t)
+    t = _CARTAO.sub(cartao, t)
+    return t, total

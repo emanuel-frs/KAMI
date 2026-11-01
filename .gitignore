@@ -66,3 +66,4 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+/qualidade-*.md

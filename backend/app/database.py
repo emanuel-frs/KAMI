@@ -179,6 +179,8 @@ from app.migracoes import (
     migrate_timestamps_to_local,
     _migrate_debts_quitacao,
     _migrate_assistente_colunas,
+    _migrate_criado_por,
+    _migrate_goals_created_at,
     _migrate_transacao_referencia,
 )
 
@@ -321,6 +323,8 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_user_profile_idioma(conn)
     _migrate_user_profile_moeda_pais(conn)
     _migrate_assistente_colunas(conn)  # IA-03
+    _migrate_criado_por(conn)  # IA-05
+    _migrate_goals_created_at(conn)  # IA-06
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
     migrate_timestamps_to_local(conn)

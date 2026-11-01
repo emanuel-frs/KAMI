@@ -6,7 +6,8 @@ Regras que valem pra todas:
   que a tela usa (resumo do mês, metas, hábitos…), não um SQL paralelo —
   o que a IA diz bate com o que a pessoa vê;
 - **só o necessário (princípio 3):** recortes pequenos e, quando dá,
-  agregados; limites de itens; nada de id, e-mail, senha, chave ou nota
+  agregados; limites de itens; nada de id (fora o `ref` da caixa de
+  entrada, que a proposta de ações usa), e-mail, senha, chave ou nota
   trancada (nunca, nem com a área de notas ligada);
 - **permissão por área (P-113):** ferramenta de área desligada nem é
   oferecida ao modelo — e, se ele pedir mesmo assim, recebe "indisponível";
@@ -14,10 +15,10 @@ Regras que valem pra todas:
   filtro de dados sensíveis (filtro.py) e vai embrulhado em
   <dados ferramenta="…"> … </dados>, com a instrução de sistema dizendo
   que nada lá dentro é instrução;
-- **nenhuma escrita:** criar/alterar dados é da Sprint 9 (IA-05), sempre
-  com prévia — aqui não existe ferramenta que mude o banco (as rotas
-  chamadas criam no máximo o "período do mês" de conta fixa/assinatura
-  sob demanda, igual abrir a tela).
+- **nenhuma escrita:** aqui só leitura (as rotas chamadas criam no
+  máximo o "período do mês" de conta fixa/assinatura sob demanda, igual
+  abrir a tela). Criar é pela proposta de ações (acoes.py, IA-05), que
+  também não grava: a pessoa aplica pela tela.
 
 As descrições e os parâmetros vão em inglês (o modelo segue melhor); a
 resposta sai no idioma da pessoa.
@@ -139,6 +140,19 @@ def _maiores_gastos(conn, args):
     return {"month": mes, "largest_expenses": [
         {"description": t["description"], "amount": t["amount"], "category": t["category"], "date": t["date"]}
         for t in saidas]}
+
+
+def _contas_e_categorias(conn, args):
+    """IA-05b (P-129/P-136): os nomes que a proposta de lançamentos usa —
+    contas (sem saldo nem número) e as categorias que a pessoa já usa."""
+    from app.assistente import acoes
+
+    categorias = [r["category"] for r in conn.execute(
+        "SELECT category, COUNT(*) AS n FROM transactions WHERE type != 'transferencia' AND date >= date('now', '-12 months') "
+        "GROUP BY category ORDER BY n DESC LIMIT 30")]
+    return {"accounts": [{"name": c["nome"], "bank": c["banco"], "has_balance": c["saldo"], "has_credit": c["credito"]}
+                         for c in acoes.contas(conn)],
+            "categories": categorias}
 
 
 _FINANCEIROS = {"conta_fixa": "fixed bill", "assinatura": "subscription", "divida": "debt", "parcela": "installment"}
@@ -270,7 +284,8 @@ def _caixa_de_entrada(conn, args):
     from app.routers import entrada
 
     lista = _js(entrada.listar(db=conn))
-    return {"inbox": [{"text": i.get("texto"), "captured_at": i.get("criado_em")} for i in lista[:30]]}
+    # `ref` só serve pra propose_actions dizer de qual item veio (IA-05)
+    return {"inbox": [{"ref": i.get("id"), "text": i.get("texto"), "captured_at": i.get("criado_em")} for i in lista[:30]]}
 
 
 def _links_salvos(conn, args):
@@ -380,6 +395,10 @@ LEITURAS: list[Leitura] = [
     Leitura("largest_expenses", "financas",
             "The largest individual expenses of a month (up to 10), with description, amount, category and date.",
             {"type": "object", "properties": {**_P_MES, "limit": {"type": "integer", "minimum": 1, "maximum": 10}}}, _maiores_gastos),
+    Leitura("accounts_and_categories", "financas",
+            "The person's account names (bank, whether it has balance and/or credit) and the expense/income categories "
+            "they already use. Read it before proposing money entries.",
+            _SEM_PARAMETROS, _contas_e_categorias),
     Leitura("bills_due", "financas",
             "Unpaid fixed bills, subscriptions, debts and installments due from today up to N days ahead (overdue ones of this month included).",
             {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "description": "default 30"}}}, _contas_a_vencer),

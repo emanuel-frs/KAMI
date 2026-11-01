@@ -86,6 +86,7 @@ class HabitoOut(BaseModel):
     grade: GradeOut
     total_marcas: int = 0
     xp_por_marca: int = XP_HABITO
+    criado_por: Optional[str] = None  # IA-05 (P-126): 'assistente'
 
 
 # ==================== helpers ====================
@@ -140,6 +141,7 @@ def _saida(h: Habito, hoje: datetime.date) -> dict:
         "aproveitamento_30d": h.aproveitamento_30d(hoje),
         "grade": h.grade(hoje),
         "total_marcas": len(h.marcas),
+        "criado_por": r["criado_por"],
     }
 
 

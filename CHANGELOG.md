@@ -4,6 +4,28 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.17.0] - em desenvolvimento
+
+_O assistente passa a propor ações, sempre numa prévia que você edita e aplica, e o Kami avisa no sino quando algo parece fora do lugar._
+
+### Adicionado
+- o assistente propõe ações: nota, tarefa, lembrete, evento, hábito, gasto e entrada, meta e plano de estudo. Elas aparecem num cartão no chat em que você confere cada item, edita na linha, desmarca o que não quiser e aplica só uma parte. Nada é gravado até você clicar em "aplicar"
+- cole um extrato do cartão ou do banco e cada linha vira um lançamento, com a conta (e a forma de pagamento) escolhida no topo do cartão e categoria sugerida. A linha que ele não entendeu vem marcada com o texto original, e um lançamento igual a um que já existe vem desmarcado, com aviso
+- "monta um plano pra estudar X": uma trilha com marcos e datas (cada data vira um evento no calendário) e uma meta de aprendizado ligada a ela
+- "organiza minha caixa de entrada": ele sugere o destino de cada item (nota, tarefa, lembrete, evento, hábito, lançamento ou meta), e o que for aplicado sai da caixa
+- desfazer um lote inteiro, no cartão ou em configurações › assistente › ações do assistente, sem prazo: apaga o que foi criado e devolve saldo, fatura e xp exatos. O que você mexeu depois de aplicar fica, a não ser que você peça. O que foi criado pelo assistente aparece marcado com "· assistente"
+- avisos do Kami no sino: gasto de uma categoria acima do mês passado, conta fixa vencendo sem saldo, meta sem aporte, atributo sem xp e trilha parada. Cada aviso leva à tela do item, abre o assistente com a pergunta pronta (sem enviar), se dispensa ou se silencia. Configurações › notificações liga e desliga cada regra e mostra os silenciados. "Conta fixa sem saldo" também vira notificação do sistema
+- quanto cada provedor de IA acerta, medido com 30 pedidos fixos (consultas, ações, dinheiro, fora do escopo, risco e injeção), em [docs/QUALIDADE-IA.md](./docs/QUALIDADE-IA.md). O selo "testado" agora mostra o placar e vale só para o modelo medido
+
+### Segurança
+- o assistente continua sem ferramenta que grave: o modelo só monta a prévia, e quem grava é o seu clique, pelas mesmas rotas e validações das telas. Antes de aplicar, o Kami faz uma cópia do banco (as 3 últimas ficam guardadas)
+- lançamentos de um lote entram todos ou nenhum: se o saldo não cobrir no meio, nada é gravado
+- número de cartão, CPF/CNPJ, agência+conta e IBAN somem do que você digita antes de sair do computador e de a conversa ser guardada, com o aviso de quantos foram escondidos
+- os avisos são regras no seu computador, sem IA: nada sai
+
+### Corrigido
+- os tipos de meta (financeira, livre, leitura, aprendizado) apareciam em português em todos os idiomas
+
 ## [1.16.0] - 2026-10-27
 
 _Assistente de IA opcional, desligado por padrão: um chat que lê os seus dados (só lê) com o provedor que você escolher, na nuvem ou no seu computador, mostrando tudo o que foi enviado._

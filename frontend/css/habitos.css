@@ -186,3 +186,5 @@ button.hb-item:hover { border-color: var(--border-interactive); }
   .hb-hoje:not(.hb-widget) .hb-semana + .hb-attr { justify-self: end; }
   .hb-hoje:not(.hb-widget) .hb-seq { grid-column: 3; grid-row: 1; }
 }
+/* arquivados abertos: respiro entre o botão e a lista (ou o "nenhum") */
+#hb-arquivados:not([hidden]) { margin-top: 12px; }

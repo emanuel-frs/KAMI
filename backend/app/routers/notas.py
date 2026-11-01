@@ -127,6 +127,7 @@ class NotaResumoOut(BaseModel):
     vinculo: Optional[VinculoOut] = None
     criada_em: str
     atualizada_em: str
+    criado_por: Optional[str] = None  # IA-05 (P-126): 'assistente'
 
 
 class NotaOut(NotaResumoOut):
@@ -225,6 +226,7 @@ def _resumo(db, row) -> dict:
         "vinculo": _vinculo(db, row),
         "criada_em": row["criada_em"],
         "atualizada_em": row["atualizada_em"],
+        "criado_por": row["criado_por"],
     }
 
 
