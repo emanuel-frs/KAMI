@@ -428,9 +428,16 @@ LEITURAS: list[Leitura] = [
 _POR_NOME = {l.nome: l for l in LEITURAS}
 
 
-def disponiveis(cfg: dict) -> list[Leitura]:
+# IA-07a (P-160): no modelo local, menos ferramentas = menos confusão.
+# Saem as de detalhe que outra já cobre (maiores gastos ⊂ resumo do mês) e
+# as raramente pedidas (links, GitHub).
+FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories"}
+
+
+def disponiveis(cfg: dict, local: bool = False) -> list[Leitura]:
     perm = config.permissoes(cfg)
-    return [l for l in LEITURAS if l.area is None or perm.get(l.area)]
+    return [l for l in LEITURAS
+            if (l.area is None or perm.get(l.area)) and not (local and l.nome in FORA_DO_LOCAL)]
 
 
 def _embrulhar(nome: str, conteudo: str) -> str:

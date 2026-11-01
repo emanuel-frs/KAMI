@@ -100,6 +100,7 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 - Ele pode PROPOR ações, mas nunca grava sozinho: ver o tópico assistant_actions.
 - "O que foi enviado" (no painel) mostra cada envio ao provedor. Há teto diário de chamadas e tokens pra provedor na nuvem.
 - Conversas ficam só no computador (ou nem isso, com "guardar conversas" desligado) e somem depois do prazo escolhido. Ele não lembra de conversas antigas.
+- IA no computador (configurações › assistente › IA no computador): mostra memória, disco, sistema, processador e placa de vídeo, e recomenda um modelo que cabe na máquina (com menos de 8 GB de memória, recomenda um provedor gratuito na nuvem). Com o Ollama aberto, dá pra baixar o modelo (com andamento e cancelar), "usar" (conecta na hora) e remover; com o LM Studio aberto, dá pra "usar" os modelos carregados nele. Roda 100% offline. Modelos pequenos erram mais: confira a prévia.
 
 ## assistant_actions
 - O assistente pode propor: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada) e o destino dos itens da caixa de entrada.

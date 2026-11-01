@@ -336,10 +336,10 @@
 .cfg-pin-label { display: block; margin-bottom: 6px; color: var(--text-dim); font-size: 10.5px; }
 .cfg-pin-inat { display: flex; gap: 6px; flex-wrap: wrap; }
 .cfg-pin-inat .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.cfg-pin-mais { margin-top: 10px; }
-.cfg-pin-mais summary { cursor: pointer; color: var(--text-dim); font-size: 11px; }
-.cfg-pin-mais summary:hover { color: var(--accent); }
-.cfg-pin-mais[open] summary { margin-bottom: 8px; }
+.cfg-pin-mais, .cfg-ia-local-outros { margin-top: 10px; }
+.cfg-pin-mais summary, .cfg-ia-local-outros summary { cursor: pointer; color: var(--text-dim); font-size: 11px; }
+.cfg-pin-mais summary:hover, .cfg-ia-local-outros summary:hover { color: var(--accent); }
+.cfg-pin-mais[open] summary, .cfg-ia-local-outros[open] summary { margin-bottom: 8px; }
 .settings-status--erro { color: var(--red); }
 
 /* CONF-08: lista das cópias automáticas (configurações › backup) */
@@ -468,3 +468,20 @@
 .cfg-ia-lote-itens { margin: 4px 0 0; padding-left: 1.2em; font-size: 11px; color: var(--text); }
 .cfg-ia-lote-itens small { color: var(--text-faint); }
 .cfg-ia-lote .ia-prop-confirma { margin-top: 6px; }
+
+/* IA-07a: IA no computador (configurações › assistente) */
+.cfg-ia-local-maquina { color: var(--text-dim); font-size: 11px; line-height: 1.6; }
+.cfg-ia-local-maquina svg { vertical-align: -1px; color: var(--accent); }
+.cfg-ia-local-sub { margin: 14px 0 6px; color: var(--text-dim); font-size: 11px; font-weight: 500; text-transform: lowercase; }
+.cfg-ia-local-lista { margin: 6px 0 0; padding: 0; list-style: none; font-size: 11px; color: var(--text); }
+.cfg-ia-local-lista li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+.cfg-ia-local-lista li:last-child { border-bottom: 0; }
+.cfg-ia-local-lista b { color: var(--text); font-weight: 500; }
+.cfg-ia-local-lista small { color: var(--text-dim); }
+.cfg-ia-local-acoes { display: inline-flex; gap: 6px; margin-left: auto; }
+.cfg-ia-local-baixando { margin: 10px 0; font-size: 11px; color: var(--text-dim); }
+.cfg-ia-local-baixando progress { display: block; width: 100%; height: 8px; margin: 6px 0; appearance: none; border: 1px solid var(--border); background: var(--bg); }
+.cfg-ia-local-baixando progress::-webkit-progress-bar { background: var(--bg); }
+.cfg-ia-local-baixando progress::-webkit-progress-value { background: var(--accent); }
+.cfg-ia-local-baixando progress::-moz-progress-bar { background: var(--accent); }
+#cfg-ia-local > .settings-note { margin-top: 8px; }

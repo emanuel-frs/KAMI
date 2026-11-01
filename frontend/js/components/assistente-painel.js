@@ -189,7 +189,9 @@ function renderProvedor() {
   const usoTxt = p.local
     ? t("assistente.chat.uso_local", { chamadas: num(u.chamadas) })
     : t("assistente.chat.uso_nuvem", { chamadas: num(u.chamadas), teto: num(estadoIa.config.teto_chamadas) });
-  el.innerHTML = `${icon(p.local ? "lock" : "external-link", { size: 11 })} <b>${escapeHtml(p.nome)}</b> · ${escapeHtml(p.modelo || "")} · ${escapeHtml(onde)}<span class="ia-uso">${escapeHtml(usoTxt)}</span>`;
+  // IA-07a (P-160): modelo no computador é pequeno — erra mais, e a tela diz
+  const avisoLocal = p.local ? `<span class="ia-uso">${escapeHtml(t("assistente.chat.aviso_local"))}</span>` : "";
+  el.innerHTML = `${icon(p.local ? "lock" : "external-link", { size: 11 })} <b>${escapeHtml(p.nome)}</b> · ${escapeHtml(p.modelo || "")} · ${escapeHtml(onde)}<span class="ia-uso">${escapeHtml(usoTxt)}</span>${avisoLocal}`;
 }
 
 // ── vistas ────────────────────────────────────────────────────────────────

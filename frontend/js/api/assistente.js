@@ -31,3 +31,12 @@ export const getLotes = () => get(`/api/assistente/lotes?t=${Date.now()}`);
 export const getLote = (id) => get(`/api/assistente/lotes/${encodeURIComponent(id)}?t=${Date.now()}`);
 export const desfazerLote = (id, apagarEditados = false) =>
   post(`/api/assistente/lotes/${encodeURIComponent(id)}/desfazer`, { apagar_editados: apagarEditados });
+
+// IA-07a: IA no computador — máquina, recomendação, Ollama/LM Studio deste
+// computador (backend/app/assistente/local.py).
+export const getLocal = () => get(`/api/assistente/local?t=${Date.now()}`);
+export const usarModeloLocal = (programa, modelo) => post("/api/assistente/local/usar", { programa, modelo });
+export const baixarModeloLocal = (modelo) => post("/api/assistente/local/baixar", { modelo });
+export const getAndamentoLocal = () => get(`/api/assistente/local/baixar?t=${Date.now()}`);
+export const cancelarDownloadLocal = () => del("/api/assistente/local/baixar");
+export const removerModeloLocal = (nome) => del(`/api/assistente/local/modelos/${encodeURIComponent(nome)}`);

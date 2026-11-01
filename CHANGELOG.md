@@ -8,6 +8,10 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 _Sprint 10 da evolução — IA local + banco cifrado (IA-07a, IA-07b, SEG-08): detectar a máquina e recomendar um modelo local, instalar o Ollama pelo app, e o banco cifrado em disco opcional. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
 
+### Adicionado
+- IA no computador (configurações › assistente): o Kami mostra o que a máquina tem (memória, disco, sistema, processador e placa de vídeo) e recomenda um modelo que cabe nela, com quanto baixa, quanto ocupa e quanta memória usa. Com o Ollama aberto, dá para baixar o modelo com andamento (e cancelar), conectar com um clique em "usar" e remover; com o LM Studio aberto, dá para conectar os modelos dele. Modelos que não usam ferramentas aparecem marcados
+- com um modelo no computador, o assistente recebe instruções mais curtas e menos ferramentas (modelos pequenos acertam mais assim), e o painel lembra de conferir a prévia
+
 ### Segurança
 - banco cifrado em disco, opcional e desligado (configurações › segurança › banco cifrado): o arquivo do banco e as cópias automáticas passam a só abrir com uma chave guardada no cofre do sistema, que não depende do PIN. Ao ligar, aparece um código de recuperação; se o cofre perder a chave (sistema reinstalado), o Kami pede esse código ao abrir. Dá para ver o código de novo (com o PIN, se estiver ligado) e desligar a cifra. As cópias antigas sem cifra podem ser apagadas na hora, e uma cópia nova, já cifrada, é feita em seguida
 

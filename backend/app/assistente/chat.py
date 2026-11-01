@@ -189,9 +189,9 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
         conversas.adicionar_mensagem(conn, cid, "usuario", texto)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto}
     perfil = _perfil(conn)
-    permitidas = ferramentas_mod.disponiveis(cfg)
+    permitidas = ferramentas_mod.disponiveis(cfg, local=p.local)
     desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
-    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), perfil["moeda"], desligadas))
+    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), perfil["moeda"], desligadas, local=p.local))
     ferramentas = [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
     mensagens = [sistema, *historico, pergunta]
     novos = [{"tipo": "instrucoes", "versao": instrucoes.VERSAO, "idioma": idioma, "tela": tela},

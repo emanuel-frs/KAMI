@@ -236,6 +236,27 @@ muda e nada sensível sai; no pior caso, um modelo enganado só consegue
 - **Desligar:** configurações › assistente › desligar; "esconder o botão"
   tira o assistente do menu; remover o provedor apaga a chave.
 
+### IA no computador
+
+Configurações › assistente › IA no computador mostra o que a máquina tem
+(memória, disco, sistema, processador e a placa de vídeo quando dá pra
+saber) e recomenda um modelo que caiba nela. Com Ollama ou LM Studio,
+**nada sai do computador**: as perguntas e os dados vão só até o programa
+local.
+
+- O Kami só gerencia o Ollama **deste computador** (`127.0.0.1` /
+  `localhost`): baixar e remover modelo. Um provedor Ollama apontando pra
+  outra máquina da rede aparece como aviso, e nada é baixado nem apagado
+  lá.
+- Os modelos vêm do registro do Ollama, e o próprio Ollama confere o
+  SHA-256 de cada parte baixada.
+- **A porta do Ollama** (`11434`) fica aberta só neste computador — não
+  pra internet —, mas **outros programas daqui** também conseguem usá-la.
+  Isso é do Ollama, não do Kami.
+- Modelos pequenos erram mais que os da nuvem: com um provedor local, o
+  assistente recebe instruções mais curtas e menos ferramentas (as regras
+  de segurança continuam todas), e o painel lembra de conferir a prévia.
+
 ### Limites honestos
 
 - O que vai pro provedor fica sujeito à **política dele**. Planos

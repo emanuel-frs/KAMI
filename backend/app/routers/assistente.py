@@ -41,6 +41,16 @@ Endpoints:
                                                digitada, sem salvar, ou com a
                                                salva se o endereço é o mesmo
 
+IA no computador (IA-07a, app/assistente/local.py):
+  GET    /api/assistente/local                 máquina, recomendação, Ollama
+                                               e LM Studio deste computador
+  POST   /api/assistente/local/usar            {programa, modelo}: cria ou
+                                               ajusta o provedor e passa a usar
+  POST   /api/assistente/local/baixar          {modelo}: baixa pelo Ollama
+  GET    /api/assistente/local/baixar          andamento
+  DELETE /api/assistente/local/baixar          cancela
+  DELETE /api/assistente/local/modelos/{nome}  remove do Ollama
+
 A chave da API nunca volta pra tela (`tem_chave`). Erro do provedor nunca
 é 5xx: não é defeito do Kami e a pessoa resolve no formulário (chave,
 modelo, endereço), então sai como 4xx com a chave `erro.assistente.*` e o
@@ -58,13 +68,13 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
 from app import database
-from app.assistente import acoes, catalogo, chat, config, conversas, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, catalogo, chat, config, conversas, instrucoes, local, provedores, transporte, uso
 from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
 from app.database import get_db, new_id, now_iso
 from app.limites import Entrada, SEGREDO_MAX, URL_MAX
-from app.mensagens import ErroKami
+from app.mensagens import ErroKami, erro_de
 
 logger = logging.getLogger(__name__)
 
@@ -490,3 +500,114 @@ def desfazer_lote(lote_id: str, payload: DesfazerIn, db=Depends(get_db)):
             conversas.atualizar_proposta(db, resultado["conversa_id"], resultado["mensagem_id"],
                                          {**msg["proposta"], "estado": "desfeita"})
     return resultado
+
+
+# ── IA no computador (IA-07a) ────────────────────────────────────────────
+
+class UsarLocalIn(Entrada):
+    programa: Literal["ollama", "lmstudio"]
+    modelo: str = Field(..., max_length=120)
+
+
+class BaixarIn(Entrada):
+    modelo: str = Field(..., max_length=120)
+
+
+def _provedor_local(db, programa: str):
+    """O provedor salvo desse programa (o em uso primeiro), ou None."""
+    em_uso = config.obter(db)["provedor_id"]
+    rows = db.execute("SELECT * FROM assistente_provedores WHERE catalogo = ? ORDER BY updated_at DESC", (programa,)).fetchall()
+    return next((r for r in rows if r["id"] == em_uso), rows[0] if rows else None)
+
+
+def _base_ollama(db) -> str:
+    row = _provedor_local(db, "ollama")
+    return local.raiz(row["url_base"]) if row else local.OLLAMA_PADRAO
+
+
+def _ollama_aqui(db) -> str:
+    base = _base_ollama(db)
+    if not local.deste_computador(base):
+        raise ErroKami(409, "erro.local.outro_computador",
+                       "o Ollama configurado está em outro computador ({url}) — o Kami só gerencia o deste", url=base)
+    return base
+
+
+def _erro_local(exc: Exception):
+    if isinstance(exc, local.ModeloInvalido):
+        return erro_de(exc, 422)
+    return ErroKami(424, "erro.local.ollama_fora", "o Ollama não respondeu — confira se ele está aberto")
+
+
+@router.get("/local")
+def get_local(db=Depends(get_db)):
+    maq = local.maquina()
+    rec = local.recomendar(maq)
+    row = _provedor_local(db, "lmstudio")
+    return {
+        "maquina": maq,
+        "recomendacao": rec,
+        "faixas": local.DADOS["faixas"],
+        "ram_min_gb": local.DADOS["ram_min_gb"],
+        "ollama": local.ollama(_base_ollama(db)),
+        "lmstudio": local.lmstudio(local.raiz(row["url_base"]) if row else local.LMSTUDIO_PADRAO),
+        "baixando": local.andamento(),
+    }
+
+
+@router.post("/local/usar")
+def usar_local(payload: UsarLocalIn, db=Depends(get_db)):
+    modelo = payload.modelo.strip()
+    if not modelo:
+        raise _falta("modelo")
+    cat = catalogo.obter(payload.programa)
+    row = _provedor_local(db, payload.programa)
+    agora = now_iso()
+    if row:
+        pid = row["id"]
+        db.execute("UPDATE assistente_provedores SET modelo = ?, teste_ok = NULL, teste_em = NULL, ferramentas_ok = NULL, "
+                   "updated_at = ? WHERE id = ?", (modelo, agora, pid))
+    else:
+        pid = new_id()
+        db.execute(
+            "INSERT INTO assistente_provedores (id, catalogo, nome, tipo, url_base, modelo, chave_enc, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)",
+            (pid, cat["id"], cat["nome"], cat["tipo"], cat["url_base"], modelo, agora, agora),
+        )
+    config.usar_provedor(db, pid)
+    db.commit()
+    return {**config.estado(db), "provedor": config.publico(config.obter_provedor(db, pid))}
+
+
+@router.post("/local/baixar", status_code=202)
+def baixar_modelo(payload: BaixarIn, db=Depends(get_db)):
+    base = _ollama_aqui(db)
+    if not local.ollama(base)["rodando"]:
+        raise _erro_local(local.ProgramaFora())
+    try:
+        return local.baixar(base, payload.modelo)
+    except local.ModeloInvalido as exc:
+        raise _erro_local(exc) from exc
+
+
+@router.get("/local/baixar")
+def andamento_download():
+    return local.andamento()
+
+
+@router.delete("/local/baixar")
+def cancelar_download():
+    return local.cancelar()
+
+
+@router.delete("/local/modelos/{nome:path}", status_code=204)
+def remover_modelo(nome: str, db=Depends(get_db)):
+    base = _ollama_aqui(db)
+    try:
+        apagou = local.remover(base, nome)
+    except local.ModeloInvalido as exc:
+        raise _erro_local(exc) from exc
+    except OSError as exc:
+        raise _erro_local(exc) from exc
+    if not apagou:
+        raise ErroKami(404, "erro.local.modelo_inexistente", "esse modelo não está no Ollama")
