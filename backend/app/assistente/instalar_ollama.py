@@ -206,11 +206,26 @@ def baixar_conferido(rel: dict, nome: str, pasta: Path, contar: bool = False) ->
 def assinatura_windows(arquivo: Path) -> bool:
     """Authenticode válido e emitido pra Ollama (PowerShell, sem dependência nova)."""
     script = ("$s = Get-AuthenticodeSignature -LiteralPath $env:KAMI_ARQ; "
-              "Write-Output $s.Status; Write-Output $s.SignerCertificate.Subject")
-    saida = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                           capture_output=True, text=True, timeout=60, env={**os.environ, "KAMI_ARQ": str(arquivo)},
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout.splitlines()
-    return len(saida) >= 2 and saida[0].strip() == "Valid" and "ollama" in saida[1].lower()
+              "Write-Output ('STATUS=' + $s.Status); "
+              "Write-Output ('SUJEITO=' + $s.SignerCertificate.Subject); "
+              "Write-Output ('MSG=' + $s.StatusMessage)")
+    proc = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                          capture_output=True, text=True, errors="replace", timeout=120,
+                          env={**os.environ, "KAMI_ARQ": str(arquivo)},
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    campos = {}
+    for linha in proc.stdout.splitlines():
+        chave, _, valor = linha.strip().lstrip("\ufeff").partition("=")
+        if chave in ("STATUS", "SUJEITO", "MSG"):
+            campos[chave] = valor.strip()
+    ok = campos.get("STATUS") == "Valid" and "ollama" in campos.get("SUJEITO", "").lower()
+    # diagnóstico (sem nada da pessoa): o que o Windows disse da assinatura
+    (logger.info if ok else logger.warning)(
+        "assinatura do instalador do Ollama: status=%s sujeito=%s msg=%s stderr=%s",
+        campos.get("STATUS"), campos.get("SUJEITO"), campos.get("MSG"), proc.stderr.strip()[:300])
+    if not ok:
+        _linha(f"assinatura: {campos.get('STATUS') or '?'} — {campos.get('MSG') or proc.stderr.strip()[:150]}")
+    return ok
 
 
 # ── esperar a API ─────────────────────────────────────────────────────

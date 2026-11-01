@@ -422,8 +422,18 @@ def propor(conn, args: dict) -> dict:
     financeira, "contas", "conta_id", "forma"}. ValueError (texto em
     inglês, volta pro modelo se corrigir) se não dá pra montar nada."""
     brutos = args.get("items") if isinstance(args, dict) else None
+    # IA-07a: modelo pequeno às vezes manda UM item solto, sem a lista
+    # ({"type": "note", "title": …}) e repete o erro até acabar as rodadas —
+    # um item solto vale como lista de um
+    if brutos is None and isinstance(args, dict) and args.get("type") and (args.get("title") or args.get("content")):
+        brutos = [{k: v for k, v in args.items() if k != "items"}]
+    if isinstance(brutos, str):  # a lista veio como texto JSON
+        try:
+            brutos = json.loads(brutos)
+        except ValueError:
+            brutos = None
     if not isinstance(brutos, list) or not brutos:
-        raise ValueError("items must be a non-empty list")
+        raise ValueError('items must be a non-empty list, e.g. {"items": [{"type": "note", "title": "...", "content": "..."}]}')
     itens, refs = [], set()
     for a in brutos:
         if not isinstance(a, dict) or a.get("type") not in _TIPO_DO_MODELO:
