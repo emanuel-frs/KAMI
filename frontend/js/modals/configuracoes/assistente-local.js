@@ -7,12 +7,20 @@
  * conectar ("usar"), baixar com andamento e cancelar, remover (só no
  * Ollama — o LM Studio cuida dos próprios modelos, P-159). Tudo roda
  * offline; modelos pequenos erram mais (P-160), e a tela diz isso.
+ *
+ * IA-07b: sem o Ollama, "instalar" roda o instalador oficial conferido
+ * (Linux: com a senha do sistema; Windows: assinatura da Ollama); parado,
+ * "ligar"; e "desinstalar" só pro Ollama que o próprio Kami instalou.
  */
 import {
   baixarModeloLocal,
   cancelarDownloadLocal,
+  desinstalarOllama,
   getAndamentoLocal,
+  getInstalacaoLocal,
   getLocal,
+  instalarOllama,
+  ligarOllama,
   removerModeloLocal,
   usarModeloLocal,
 } from "../../api/assistente.js";
@@ -25,6 +33,7 @@ const POLL_MS = 1000;
 
 let estado = null;
 let poll = null;
+let pollInstalacao = null;
 let confirmandoRemover = null;
 let aoMudar = () => {};
 
@@ -139,6 +148,57 @@ function modelosHtml() {
     .join("")}</ul>`;
 }
 
+// link oficial (vem do backend: instalar_ollama.LINKS), aberto no navegador
+const linkHtml = (url) =>
+  url ? `<p class="settings-note"><span class="cfg-ia-link" role="link" tabindex="0" data-open-link="${escapeHtml(url)}">${escapeHtml(url.replace(/^https:\/\//, ""))}</span></p>` : "";
+
+const ocupado = () => estado.instalacao?.tarefa && !estado.instalacao.tarefa.fim;
+
+function instalarHtml() {
+  const inst = estado.instalacao || {};
+  if (!inst.como) {
+    // sem como instalar daqui: o tutorial (P-164 — o SO fica só com o passo a passo)
+    const links = inst.links || {};
+    const comando = inst.motivo === "sem_pkexec" && links.comando ? `<pre class="cfg-ia-local-saida">${escapeHtml(links.comando)}</pre>` : "";
+    return `<p class="settings-note">${escapeHtml(t(`assistente.local_ia.instalar_tutorial.${inst.motivo || "sistema"}`))}</p>${comando}
+      ${linkHtml(links.site)}`;
+  }
+  return `
+    <p class="settings-note">${escapeHtml(t(`assistente.local_ia.instalar_como.${inst.sistema}`))}</p>
+    <div class="form-actions"><button type="button" class="btn sm" data-local-instalar ${ocupado() ? "disabled" : ""}>${icon("arrow-right", { size: 12 })} ${escapeHtml(t("assistente.local_ia.instalar"))}</button></div>`;
+}
+
+function desinstalarHtml() {
+  const inst = estado.instalacao || {};
+  if (!inst.pelo_kami) {
+    return `<p class="settings-note">${escapeHtml(t("assistente.local_ia.desinstalar_pelo_sistema"))}</p>${linkHtml(inst.links?.desinstalar)}`;
+  }
+  const total = (estado.ollama.modelos || []).reduce((soma, m) => soma + (m.tamanho_gb || 0), 0);
+  return `
+    <details class="cfg-ia-local-outros"><summary>${escapeHtml(t("assistente.local_ia.desinstalar"))}</summary>
+      <label class="cfg-toggle"><input type="checkbox" id="cfg-ia-local-modelos-tambem">
+        <span>${escapeHtml(t("assistente.local_ia.desinstalar_modelos", { gb: gb(total) }))}</span></label>
+      <div class="form-actions"><button type="button" class="btn sm danger" data-local-desinstalar ${ocupado() ? "disabled" : ""}>${escapeHtml(t("assistente.local_ia.desinstalar"))}</button></div>
+    </details>`;
+}
+
+function tarefaHtml() {
+  const tarefa = estado.instalacao?.tarefa;
+  if (!tarefa || (tarefa.fim && tarefa.etapa === "pronto")) return "";
+  const linhas = tarefa.saida?.length ? `<pre class="cfg-ia-local-saida">${escapeHtml(tarefa.saida.join("\n"))}</pre>` : "";
+  if (tarefa.fim) {
+    const erro = tarefa.erro_chave ? tOu(tarefa.erro_chave, tarefa.erro) : tarefa.erro;
+    return `<p class="cfg-seg-chave" data-local="indisponivel"><span class="cfg-seg-warn">[!]</span> ${escapeHtml(erro || "")}</p>${linhas}`;
+  }
+  const pct = tarefa.total ? Math.floor((tarefa.feito / tarefa.total) * 100) : null;
+  return `
+    <div class="cfg-ia-local-baixando">
+      <p>${escapeHtml(t(`assistente.local_ia.etapa.${tarefa.etapa}`))}${pct != null ? ` — ${escapeHtml(t("assistente.local_ia.de", { feito: gb(tarefa.feito / 1e9), total: gb(tarefa.total / 1e9) }))}` : ""}</p>
+      ${pct != null ? `<progress max="100" value="${pct}">${pct}%</progress>` : ""}
+      ${linhas}
+    </div>`;
+}
+
 function ollamaHtml() {
   const o = estado.ollama;
   if (o.outro_computador) {
@@ -147,10 +207,21 @@ function ollamaHtml() {
   if (o.rodando) {
     return `
       <p class="cfg-seg-chave" data-local="cofre">${icon("check", { size: 12 })} ${escapeHtml(t("assistente.local_ia.ollama_aberto", { versao: o.versao || "" }))}</p>
-      ${modelosHtml()}`;
+      ${modelosHtml()}
+      ${tarefaHtml()}
+      ${desinstalarHtml()}`;
   }
-  const texto = o.instalado ? t("assistente.local_ia.ollama_fechado") : t("assistente.local_ia.ollama_ausente");
-  return `<p class="cfg-seg-chave" data-local="arquivo"><span class="cfg-seg-warn">[!]</span> ${escapeHtml(texto)}</p>`;
+  if (o.instalado) {
+    return `
+      <p class="cfg-seg-chave" data-local="arquivo"><span class="cfg-seg-warn">[!]</span> ${escapeHtml(t("assistente.local_ia.ollama_fechado"))}</p>
+      <div class="form-actions"><button type="button" class="btn sm" data-local-ligar ${ocupado() ? "disabled" : ""}>${escapeHtml(t("assistente.local_ia.ligar"))}</button></div>
+      ${tarefaHtml()}
+      ${desinstalarHtml()}`;
+  }
+  return `
+    <p class="cfg-seg-chave" data-local="arquivo"><span class="cfg-seg-warn">[!]</span> ${escapeHtml(t("assistente.local_ia.ollama_ausente"))}</p>
+    ${instalarHtml()}
+    ${tarefaHtml()}`;
 }
 
 function lmstudioHtml() {
@@ -181,7 +252,32 @@ function render(wrap) {
 
 export function pararAcompanhamento() {
   clearInterval(poll);
-  poll = null;
+  clearInterval(pollInstalacao);
+  poll = pollInstalacao = null;
+}
+
+// IA-07b: instalar/ligar/desinstalar rodam no fundo — a tela mostra a etapa
+function acompanharInstalacao(wrap) {
+  clearInterval(pollInstalacao);
+  let falhas = 0;
+  pollInstalacao = setInterval(async () => {
+    if (!wrap.isConnected) return pararAcompanhamento();
+    try {
+      estado.instalacao = await getInstalacaoLocal();
+      falhas = 0;
+    } catch {
+      if (++falhas >= 5) clearInterval(pollInstalacao);
+      return;
+    }
+    if (estado.instalacao.tarefa?.fim) {
+      clearInterval(pollInstalacao);
+      const tarefa = estado.instalacao.tarefa;
+      await carregarLocal(wrap, estado.emUso);
+      if (tarefa.etapa === "pronto") status(wrap, `${icon("check", { size: 12 })} ${escapeHtml(t(`assistente.local_ia.feito.${tarefa.acao}`))}`);
+      return;
+    }
+    render(wrap);
+  }, POLL_MS);
 }
 
 function acompanhar(wrap) {
@@ -213,6 +309,7 @@ export async function carregarLocal(wrap, emUso = null) {
     estado = { ...(await getLocal()), emUso };
     render(wrap);
     if (estado.baixando && !estado.baixando.fim) acompanhar(wrap);
+    if (ocupado()) acompanharInstalacao(wrap);
   } catch (err) {
     wrap.querySelector("#cfg-ia-local").innerHTML = textoDoErro(err);
   }
@@ -230,6 +327,16 @@ export function wireLocal(wrap, { depoisDeUsar } = {}) {
         estado.baixando = await baixarModeloLocal(alvo.dataset.localBaixar);
         render(wrap);
         acompanhar(wrap);
+      } else if (alvo.hasAttribute("data-local-instalar") || alvo.hasAttribute("data-local-ligar") || alvo.hasAttribute("data-local-desinstalar")) {
+        alvo.disabled = true;
+        const tarefa = alvo.hasAttribute("data-local-instalar")
+          ? await instalarOllama()
+          : alvo.hasAttribute("data-local-ligar")
+            ? await ligarOllama()
+            : await desinstalarOllama(wrap.querySelector("#cfg-ia-local-modelos-tambem")?.checked ?? false);
+        estado.instalacao = { ...estado.instalacao, tarefa };
+        render(wrap);
+        acompanharInstalacao(wrap);
       } else if (alvo.hasAttribute("data-local-parar")) {
         estado.baixando = await cancelarDownloadLocal();
       } else if (alvo.dataset.localUsar) {

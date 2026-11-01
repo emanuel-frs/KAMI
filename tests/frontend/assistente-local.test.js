@@ -26,6 +26,8 @@ function estadoBase() {
     },
     lmstudio: { rodando: true, url: "http://127.0.0.1:1234", modelos: ["gemma-local"] },
     baixando: null,
+    instalacao: { sistema: "linux", como: "pkexec", motivo: null, pelo_kami: null, tarefa: null,
+      links: { site: "https://ollama.com/download", comando: "curl x | sh", desinstalar: "https://docs.ollama.com/linux#uninstall" } },
   };
 }
 
@@ -46,6 +48,16 @@ async function montar(dom, t, server) {
     if (caminho === "/api/assistente/local/baixar" && metodo === "DELETE") {
       server.estado.baixando = { ...server.estado.baixando, status: "cancelado", fim: true };
       return json(200, server.estado.baixando);
+    }
+    if (caminho === "/api/assistente/local/instalar") {
+      server.estado.instalacao.tarefa = { acao: "instalar", etapa: "esperando_senha", fim: false, total: 0, feito: 0, saida: ["procurando…"] };
+      return json(202, server.estado.instalacao.tarefa);
+    }
+    if (caminho === "/api/assistente/local/instalacao") {
+      server.estado.instalacao.tarefa = { ...server.estado.instalacao.tarefa, etapa: "pronto", fim: true };
+      server.estado.ollama = { ...estadoBase().ollama };
+      server.estado.instalacao.pelo_kami = { versao: "0.40.13" };
+      return json(200, server.estado.instalacao);
     }
     if (caminho === "/api/assistente/local/usar") return json(200, { provedor: { catalogo: body.programa, modelo: body.modelo } });
     if (caminho.startsWith("/api/assistente/local/modelos/") && metodo === "DELETE") {
@@ -139,5 +151,47 @@ test(
     server.estado.ollama = { instalado: false, rodando: false, url: "http://192.168.0.9:11434", modelos: [], outro_computador: true };
     await mod.carregarLocal(doc.querySelector("#raiz"));
     assert.match(box.textContent, /outro computador \(http:\/\/192\.168\.0\.9:11434\)/);
+  }),
+);
+
+test(
+  "ia no computador: instalar o Ollama com a senha e só desinstalar o que o Kami instalou",
+  withDom('<!doctype html><body><div id="raiz"></div></body>', async (dom, t) => {
+    const estado = estadoBase();
+    estado.ollama = { instalado: false, rodando: false, versao: null, url: "http://127.0.0.1:11434", modelos: [] };
+    const server = { estado, chamadas: [] };
+    const { doc } = await montar(dom, t, server);
+    const box = doc.querySelector("#cfg-ia-local");
+    assert.match(box.textContent, /não está instalado/);
+    assert.match(box.textContent, /pede a sua senha/);
+    doc.querySelector("[data-local-instalar]").click();
+    await espera();
+    assert.ok(server.chamadas.includes("POST /api/assistente/local/instalar"));
+    assert.match(box.textContent, /digite a sua senha na janela do sistema/);
+    assert.match(box.querySelector(".cfg-ia-local-saida").textContent, /procurando/);
+    await new Promise((r) => setTimeout(r, 1200)); // a tela acompanha a cada 1 s
+    await espera();
+    assert.match(doc.querySelector("#cfg-ia-local-status").textContent, /Ollama instalado e aberto/);
+    // instalado pelo Kami: dá pra desinstalar, e os modelos ficam por padrão
+    const caixa = doc.querySelector("#cfg-ia-local-modelos-tambem");
+    assert.ok(caixa && caixa.checked === false);
+    assert.ok(doc.querySelector("[data-local-desinstalar]"));
+  }),
+);
+
+test(
+  "ia no computador: Ollama da pessoa não tem desinstalar; sem pkexec mostra o comando",
+  withDom('<!doctype html><body><div id="raiz"></div></body>', async (dom, t) => {
+    const server = { estado: estadoBase(), chamadas: [] };
+    const { doc, mod } = await montar(dom, t, server);
+    assert.equal(doc.querySelector("[data-local-desinstalar]"), null);
+    assert.match(doc.querySelector("#cfg-ia-local").textContent, /não foi instalado pelo Kami/);
+    assert.ok(doc.querySelector('[data-open-link="https://docs.ollama.com/linux#uninstall"]'));
+
+    server.estado.ollama = { instalado: false, rodando: false, url: "http://127.0.0.1:11434", modelos: [] };
+    server.estado.instalacao = { ...server.estado.instalacao, como: null, motivo: "sem_pkexec" };
+    await mod.carregarLocal(doc.querySelector("#raiz"));
+    assert.equal(doc.querySelector("[data-local-instalar]"), null);
+    assert.match(doc.querySelector(".cfg-ia-local-saida").textContent, /curl x \| sh/);
   }),
 );

@@ -485,3 +485,4 @@
 .cfg-ia-local-baixando progress::-webkit-progress-value { background: var(--accent); }
 .cfg-ia-local-baixando progress::-moz-progress-bar { background: var(--accent); }
 #cfg-ia-local > .settings-note { margin-top: 8px; }
+.cfg-ia-local-saida { max-height: 9em; overflow: auto; margin: 6px 0; padding: 6px 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-dim); font-size: 10.5px; white-space: pre-wrap; word-break: break-all; }

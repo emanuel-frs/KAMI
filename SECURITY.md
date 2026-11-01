@@ -140,6 +140,11 @@ computador, **sem IA**: nada sai. "Perguntar ao assistente" num aviso só
 abre o painel com a pergunta escrita; ela só vai pro provedor se você
 apertar enviar.
 
+A **IA no computador** (1.18) só fala com a internet quando você clica:
+"instalar o Ollama" consulta a release oficial no GitHub do Ollama e baixa
+o instalador; "baixar" pede o modelo ao registro do Ollama. Nada seu vai
+nesses pedidos.
+
 ## Assistente de IA
 
 O assistente é **opcional e começa desligado**; o Kami funciona inteiro
@@ -250,6 +255,22 @@ local.
   lá.
 - Os modelos vêm do registro do Ollama, e o próprio Ollama confere o
   SHA-256 de cada parte baixada.
+- **Instalar o Ollama pelo app** (desde a 1.18) usa sempre o instalador
+  oficial da última versão, conferido antes de rodar e só com o seu
+  clique. No **Windows**, o `OllamaSetup.exe` (~1,7 GB) é conferido pelo
+  SHA-256 publicado na release e pela **assinatura digital**, que tem que
+  ser válida e da Ollama; ele instala só pro seu usuário, sem
+  administrador, e é apagado depois. No **Linux**, o `install.sh` oficial
+  é conferido pelo SHA-256 e roda com a **sua senha** (janela de senha do
+  sistema), com a versão fixada na que foi conferida. Limite honesto: o
+  script baixa o pacote grande do site oficial por HTTPS, e o Kami confere
+  o script, não esse pacote. Se houver placa NVIDIA sem driver, o
+  instalador oficial também instala o driver. Sem a janela de senha, a tela
+  mostra o comando oficial pra rodar no terminal.
+- **Desinstalar** pela tela só vale pro Ollama que o Kami instalou; um
+  Ollama que você instalou por conta própria nunca é removido pelo Kami. Os
+  modelos baixados só saem se você marcar. O "remover tudo do computador"
+  oferece desinstalar esse Ollama junto (desmarcado).
 - **A porta do Ollama** (`11434`) fica aberta só neste computador — não
   pra internet —, mas **outros programas daqui** também conseguem usá-la.
   Isso é do Ollama, não do Kami.

@@ -737,6 +737,13 @@ async function main() {
       await waitFor("a seção do banco cifrado", () => wd.execute("return !!document.querySelector('#cfg-cifra .cfg-seg-chave')"), { timeout: 8000 });
       await wd.execute("document.getElementById('cfg-cifra').scrollIntoView()");
     };
+    const abrirSecaoLocal = async () => {
+      await clicar("#btn-open-settings");
+      await waitFor("configurações", () => visivel('.cfg-tab[data-tab="assistente"]'), { timeout: 5000 });
+      await clicar('.cfg-tab[data-tab="assistente"]');
+      await waitFor("a seção ia no computador", () => wd.execute("return !!document.querySelector('#cfg-ia-local .cfg-ia-local-maquina')"), { timeout: 20000 });
+      await wd.execute("document.querySelector('#cfg-ia-local .cfg-ia-local-sub').scrollIntoView({block:'start'})");
+    };
     await etapa("banco cifrado: ligar, reabrir com os dados e desligar (SEG-08)", async () => {
       const estado = (await api("/api/seguranca/cifra")).body;
       await abrirSeguranca();
@@ -778,6 +785,41 @@ async function main() {
       if (!cabecalhoSqlite()) throw new Error("desligou mas o kami.db não voltou pro SQLite comum");
       await clicar('#settings-modal [data-action="close"]').catch(() => {});
     });
+
+    // 6c. IA-07b (P-164): instalar o Ollama pelo app de verdade — só no
+    // Windows (o instalador é por usuário, sem senha; no Linux pediria a
+    // senha do sistema). Sem baixar modelo (grande demais pro CI). Confere
+    // que a API do Ollama responde e desinstala, com os modelos.
+    if (IS_WINDOWS) {
+      await etapa("ollama: instalar pelo app, API responde e desinstalar (IA-07b)", async () => {
+        const esperarTarefa = async (nome, minutos) => {
+          let tarefa = null;
+          await waitFor(nome, async () => {
+            tarefa = (await api("/api/assistente/local/instalacao")).body?.tarefa;
+            return tarefa?.fim;
+          }, { timeout: minutos * 60000, every: 3000 });
+          if (tarefa.etapa !== "pronto") throw new Error(`${nome}: ${tarefa.erro_chave || tarefa.erro} — ${(tarefa.saida || []).join(" | ")}`);
+        };
+        const antes = (await api("/api/assistente/local")).body;
+        if (antes.ollama.instalado) throw new Error("o runner já tinha Ollama — o teste não instalaria nada");
+        const r = await api("/api/assistente/local/instalar", { method: "POST", body: "{}" });
+        if (r.status !== 202) throw new Error(`instalar: ${r.status} ${JSON.stringify(r.body)}`);
+        await esperarTarefa("a instalação", 20);
+        const depois = (await api("/api/assistente/local")).body;
+        if (!depois.ollama.rodando) throw new Error(`o Ollama instalado não respondeu: ${JSON.stringify(depois.ollama)}`);
+        if (!depois.instalacao.pelo_kami) throw new Error("instalou mas não marcou como instalado pelo Kami");
+        log(`  Ollama ${depois.ollama.versao} instalado e respondendo`);
+        await irPara("nucleo");
+        await abrirSecaoLocal();
+        await print("ollama-instalado");
+        await clicar('#settings-modal [data-action="close"]').catch(() => {});
+        const d = await api("/api/assistente/local/desinstalar", { method: "POST", body: JSON.stringify({ apagar_modelos: true }) });
+        if (d.status !== 202) throw new Error(`desinstalar: ${d.status} ${JSON.stringify(d.body)}`);
+        await esperarTarefa("a desinstalação", 5);
+        const fim = (await api("/api/assistente/local")).body;
+        if (fim.ollama.instalado || fim.instalacao.pelo_kami) throw new Error(`o Ollama ficou: ${JSON.stringify(fim.ollama)}`);
+      });
+    }
 
     // 7. bandeja, segunda instância e iniciar com o sistema
     const invoke = (cmd, args = {}) => wd.execute(`return window.__TAURI__.core.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args)})`);

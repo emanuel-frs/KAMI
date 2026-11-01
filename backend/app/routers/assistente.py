@@ -50,6 +50,12 @@ IA no computador (IA-07a, app/assistente/local.py):
   GET    /api/assistente/local/baixar          andamento
   DELETE /api/assistente/local/baixar          cancela
   DELETE /api/assistente/local/modelos/{nome}  remove do Ollama
+  POST   /api/assistente/local/instalar        IA-07b: instalador oficial
+                                               conferido (Linux: com a senha)
+  POST   /api/assistente/local/ligar           Ollama instalado e parado
+  POST   /api/assistente/local/desinstalar     {apagar_modelos} — só o que o
+                                               Kami instalou
+  GET    /api/assistente/local/instalacao      andamento (etapa, últimas linhas)
 
 A chave da API nunca volta pra tela (`tem_chave`). Erro do provedor nunca
 é 5xx: não é defeito do Kami e a pessoa resolve no formulário (chave,
@@ -68,7 +74,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
 from app import database
-from app.assistente import acoes, catalogo, chat, config, conversas, instrucoes, local, provedores, transporte, uso
+from app.assistente import acoes, catalogo, chat, config, conversas, instalar_ollama, instrucoes, local, provedores, transporte, uso
 from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
@@ -552,6 +558,7 @@ def get_local(db=Depends(get_db)):
         "ollama": local.ollama(_base_ollama(db)),
         "lmstudio": local.lmstudio(local.raiz(row["url_base"]) if row else local.LMSTUDIO_PADRAO),
         "baixando": local.andamento(),
+        "instalacao": instalar_ollama.estado(),
     }
 
 
@@ -611,3 +618,38 @@ def remover_modelo(nome: str, db=Depends(get_db)):
         raise _erro_local(exc) from exc
     if not apagou:
         raise ErroKami(404, "erro.local.modelo_inexistente", "esse modelo não está no Ollama")
+
+
+# ── instalar o Ollama pelo app (IA-07b) ──────────────────────────────────
+
+class DesinstalarIn(Entrada):
+    apagar_modelos: bool = False
+
+
+def _rodar_instalacao(fn, *args):
+    try:
+        return fn(*args)
+    except instalar_ollama.NaoDa as exc:
+        raise erro_de(exc, 409) from exc
+    except OSError as exc:
+        raise ErroKami(424, "erro.local.sem_internet", "não deu pra falar com o GitHub do Ollama — confira a internet") from exc
+
+
+@router.get("/local/instalacao")
+def get_instalacao():
+    return instalar_ollama.estado()
+
+
+@router.post("/local/instalar", status_code=202)
+def instalar_ollama_rota():
+    return _rodar_instalacao(instalar_ollama.instalar)
+
+
+@router.post("/local/ligar", status_code=202)
+def ligar_ollama():
+    return _rodar_instalacao(instalar_ollama.ligar)
+
+
+@router.post("/local/desinstalar", status_code=202)
+def desinstalar_ollama(payload: DesinstalarIn):
+    return _rodar_instalacao(instalar_ollama.desinstalar, payload.apagar_modelos)

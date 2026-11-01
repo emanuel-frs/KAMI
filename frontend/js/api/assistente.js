@@ -40,3 +40,10 @@ export const baixarModeloLocal = (modelo) => post("/api/assistente/local/baixar"
 export const getAndamentoLocal = () => get(`/api/assistente/local/baixar?t=${Date.now()}`);
 export const cancelarDownloadLocal = () => del("/api/assistente/local/baixar");
 export const removerModeloLocal = (nome) => del(`/api/assistente/local/modelos/${encodeURIComponent(nome)}`);
+
+// IA-07b: instalar / ligar / desinstalar o Ollama pelo app (backend/app/
+// assistente/instalar_ollama.py). Rodam no fundo; a tela acompanha.
+export const getInstalacaoLocal = () => get(`/api/assistente/local/instalacao?t=${Date.now()}`);
+export const instalarOllama = () => post("/api/assistente/local/instalar", {});
+export const ligarOllama = () => post("/api/assistente/local/ligar", {});
+export const desinstalarOllama = (apagarModelos) => post("/api/assistente/local/desinstalar", { apagar_modelos: apagarModelos });

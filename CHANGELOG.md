@@ -10,6 +10,7 @@ _Sprint 10 da evolução — IA local + banco cifrado (IA-07a, IA-07b, SEG-08): 
 
 ### Adicionado
 - IA no computador (configurações › assistente): o Kami mostra o que a máquina tem (memória, disco, sistema, processador e placa de vídeo) e recomenda um modelo que cabe nela, com quanto baixa, quanto ocupa e quanta memória usa. Com o Ollama aberto, dá para baixar o modelo com andamento (e cancelar), conectar com um clique em "usar" e remover; com o LM Studio aberto, dá para conectar os modelos dele. Modelos que não usam ferramentas aparecem marcados
+- instalar o Ollama pelo próprio Kami, com o instalador oficial conferido antes de rodar: no Windows, pelo checksum e pela assinatura digital da Ollama, só pro seu usuário; no Linux, pelo checksum e com a sua senha do sistema. Se ele estiver instalado mas fechado, "ligar o Ollama". "Desinstalar" vale só pro Ollama que o Kami instalou, e os modelos só saem se você marcar; o "remover tudo do computador" oferece levar esse Ollama junto
 - com um modelo no computador, o assistente recebe instruções mais curtas e menos ferramentas (modelos pequenos acertam mais assim), e o painel lembra de conferir a prévia
 
 ### Segurança
