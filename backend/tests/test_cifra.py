@@ -4,6 +4,7 @@ nada, arquivo ilegível sem a chave, código de recuperação, cópias sem
 cifra, restaurar cópia do outro modo e a troca esperando as conexões.
 """
 import sqlite3
+from contextlib import closing
 import time
 
 import pytest
@@ -49,8 +50,9 @@ def test_seg_24_turning_encryption_on_and_off_loses_nothing(client, initialized_
 
     # P-171: o arquivo não abre como SQLite comum
     assert open(initialized_db, "rb").read(16) != cifra.CABECALHO_SQLITE
-    with pytest.raises(sqlite3.DatabaseError):
-        sqlite3.connect(initialized_db).execute("SELECT * FROM sistema_info").fetchall()
+    # (fechada: no Windows uma conexão aberta impede a troca do arquivo depois)
+    with closing(sqlite3.connect(initialized_db)) as crua, pytest.raises(sqlite3.DatabaseError):
+        crua.execute("SELECT * FROM sistema_info").fetchall()
     assert _le_marca() == "antes"
     # a cópia nova já sai cifrada (nunca fica sem cópia)
     copias = list(database.backups_dir().glob("kami-semanal-*.db"))
@@ -61,8 +63,10 @@ def test_seg_24_turning_encryption_on_and_off_loses_nothing(client, initialized_
     assert r.status_code == 200, r.text
     assert r.json()["ligada"] is False
     assert open(initialized_db, "rb").read(16) == cifra.CABECALHO_SQLITE
-    assert sqlite3.connect(initialized_db).execute(
-        "SELECT valor FROM sistema_info WHERE chave = 'teste_cifra'").fetchone()[0] == "cifrado"
+    with closing(sqlite3.connect(initialized_db)) as crua:
+        assert crua.execute("SELECT valor FROM sistema_info WHERE chave = 'teste_cifra'").fetchone()[0] == "cifrado"
+        # já em WAL: as requisições depois da troca não brigam pra mudar o modo
+        assert crua.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
 
 
 def test_seg_24_without_a_vault_encryption_does_not_turn_on(client, monkeypatch):

@@ -21,6 +21,7 @@ Subida sem a chave: o backend sobe trancado (423 com o código
 """
 import logging
 import os
+import time
 from pathlib import Path
 
 from app import backup_auto, cifra, database
@@ -67,6 +68,19 @@ def estado(conn=None) -> dict:
     }
 
 
+def _substituir(origem: Path, destino: Path, tentativas: int = 20) -> None:
+    """os.replace com novas tentativas: no Windows, antivírus e indexador
+    seguram o arquivo recém-fechado por um instante (WinError 32)."""
+    for i in range(tentativas):
+        try:
+            os.replace(origem, destino)
+            return
+        except PermissionError:
+            if i == tentativas - 1:
+                raise
+            time.sleep(0.25)
+
+
 def _trocar(chave_origem, chave_destino) -> None:
     """Converte o kami.db pro outro modo e troca os arquivos (sem conexões abertas)."""
     db_path = database.DB_PATH
@@ -84,6 +98,10 @@ def _trocar(chave_origem, chave_destino) -> None:
         conferir = cifra.conectar(novo, chave_destino is not None, chave_destino)
         try:
             depois = cifra.contagens(conferir)
+            # o sqlcipher_export cria o arquivo no modo de diário comum: o WAL
+            # entra aqui, com uma conexão só — senão as requisições que chegam
+            # juntas depois da troca brigam pra mudar o modo ("locked")
+            conferir.execute("PRAGMA journal_mode = WAL").fetchone()
         finally:
             conferir.close()
         if antes != depois:
@@ -91,11 +109,11 @@ def _trocar(chave_origem, chave_destino) -> None:
             raise RuntimeError("a conversão do banco não conferiu (contagem de linhas diferente)")
         for sufixo in ("-wal", "-shm"):
             Path(str(db_path) + sufixo).unlink(missing_ok=True)
-        os.replace(db_path, velho)
+        _substituir(db_path, velho)
         try:
-            os.replace(novo, db_path)
+            _substituir(novo, db_path)
         except OSError:
-            os.replace(velho, db_path)
+            _substituir(velho, db_path)
             raise
         cifra.esquecer_modo(db_path)
         velho.unlink(missing_ok=True)
