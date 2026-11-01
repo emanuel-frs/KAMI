@@ -2608,7 +2608,7 @@
   "assistente.teste_falhou": "上次测试失败",
   "assistente.teste_ok_ferramentas": "连接正常 · 支持工具",
   "assistente.teste_ok_sem_ferramentas": "连接正常 · 不支持工具",
-  "assistente.selo_testado": "Kami 于 {data} 用 {modelo} 测试过",
+  "assistente.selo_testado": "Kami 于 {data} 用 {modelo} 测试过 · {placar}",
   "assistente.selo_deve_funcionar": "应该可用（Kami 尚未测试）",
   "assistente.usar": "使用",
   "assistente.testar": "测试",

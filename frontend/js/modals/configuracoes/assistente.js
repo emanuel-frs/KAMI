@@ -31,7 +31,7 @@ import {
   testarProvedor,
   usarProvedor,
 } from "../../api/assistente.js";
-import { escapeHtml, fmtDataHora } from "../../components/format.js";
+import { escapeHtml, fmtDataHora, fmtDataCompacta } from "../../components/format.js";
 import { enhanceSelect, destroyCustomSelect } from "../../components/custom-select.js";
 import { showConfirmModal } from "../confirm-modal.js";
 import { abrirGuia, fecharGuia } from "./assistente-guia.js";
@@ -228,9 +228,11 @@ function textoDoTeste(p) {
     : `<span class="cfg-ia-teste cfg-ia-teste--aviso">${icon("triangle-alert", { size: 10 })} ${escapeHtml(t("assistente.teste_ok_sem_ferramentas"))} · ${quando}</span>`;
 }
 
+// IA-08 (P-151): o selo vale pro provedor + modelo medidos; outro modelo
+// do mesmo provedor continua "deve funcionar"
 function textoDoSelo(p) {
-  return p.selo
-    ? t("assistente.selo_testado", { data: p.selo.data, modelo: p.selo.modelo })
+  return p.selo && p.selo.modelo === p.modelo
+    ? t("assistente.selo_testado", { data: fmtDataCompacta(p.selo.data), modelo: p.selo.modelo, placar: p.selo.placar })
     : t("assistente.selo_deve_funcionar");
 }
 

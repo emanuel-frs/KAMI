@@ -352,7 +352,10 @@ async function renderAvisos({ checar = true } = {}) {
   const el = modalEl.querySelector("#notif-avisos-section");
   if (checar) avisos = await checarAvisos();
   el.hidden = !avisos.length;
-  if (!avisos.length) return;
+  if (!avisos.length) {
+    el.replaceChildren(); // o último dispensado não fica escondido no DOM
+    return;
+  }
   modalEl.querySelector("#notif-all-disabled").hidden = true;
   el.innerHTML = `
     <div class="notif-section-head">${icon("triangle-alert", { size: 12 })}<span>${t("avisos.avisos")}</span></div>

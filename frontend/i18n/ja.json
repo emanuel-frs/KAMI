@@ -2608,7 +2608,7 @@
   "assistente.teste_falhou": "前回のテストは失敗しました",
   "assistente.teste_ok_ferramentas": "接続 OK · ツールを使えます",
   "assistente.teste_ok_sem_ferramentas": "接続 OK · ツールは使えません",
-  "assistente.selo_testado": "Kami が {data} に {modelo} でテスト済み",
+  "assistente.selo_testado": "Kami が {data} に {modelo} でテスト済み · {placar}",
   "assistente.selo_deve_funcionar": "動くはずです（Kami では未テスト）",
   "assistente.usar": "使う",
   "assistente.testar": "テスト",

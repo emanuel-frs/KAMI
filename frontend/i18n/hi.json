@@ -2639,7 +2639,7 @@
   "assistente.teste_falhou": "पिछली जाँच विफल रही",
   "assistente.teste_ok_ferramentas": "कनेक्शन ठीक · टूल इस्तेमाल करता है",
   "assistente.teste_ok_sem_ferramentas": "कनेक्शन ठीक · टूल इस्तेमाल नहीं करता",
-  "assistente.selo_testado": "Kami ने {data} को {modelo} के साथ जाँचा",
+  "assistente.selo_testado": "Kami ने {data} को {modelo} के साथ जाँचा · {placar}",
   "assistente.selo_deve_funcionar": "काम करना चाहिए (Kami ने अभी नहीं जाँचा)",
   "assistente.usar": "इस्तेमाल करें",
   "assistente.testar": "जाँचें",

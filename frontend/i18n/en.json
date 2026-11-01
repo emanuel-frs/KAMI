@@ -2639,7 +2639,7 @@
   "assistente.teste_falhou": "the last test failed",
   "assistente.teste_ok_ferramentas": "connection ok · uses tools",
   "assistente.teste_ok_sem_ferramentas": "connection ok · doesn't use tools",
-  "assistente.selo_testado": "tested by Kami on {data} with {modelo}",
+  "assistente.selo_testado": "tested by Kami on {data} with {modelo} · {placar}",
   "assistente.selo_deve_funcionar": "should work (not yet tested by Kami)",
   "assistente.usar": "use",
   "assistente.testar": "test",

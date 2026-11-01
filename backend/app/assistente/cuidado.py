@@ -36,7 +36,8 @@ _PADROES = [
     r"\bquero\s+morrer\b(?!\s+de\s)", r"\b(vontade|desejo)\s+de\s+morrer\b(?!\s+de\s)",
     r"\bnao\s+(quero|aguento)\s+mais\s+viver\b", r"\bnao\s+quero\s+viver\b",
     r"\bsem\s+(vontade|motivo|razao)\s+(de|pra|para)\s+viver\b",
-    r"\b(quero|vou|vontade de)\s+me\s+(machucar|ferir|cortar)\b",
+    # IA-08: "tô pensando em me machucar de novo" passava (só aceitava quero/vou)
+    r"\b(quero|vou|vontade de|pensando em|penso em|pensei em|deveria|devia|tentei|queria|voltei a|voltar a)\s+me\s+(machucar|ferir|cortar)\b",
     # en
     r"\bkill(ing)?\s+myself\b", r"\bend(ing)?\s+my\s+(own\s+)?life\b", r"\btake\s+my\s+(own\s+)?life\b",
     r"\bi\s+want\s+to\s+die\b", r"\b(don'?t|do\s+not)\s+want\s+to\s+(live|be\s+alive)\b",

@@ -2608,7 +2608,7 @@
   "assistente.teste_falhou": "마지막 테스트가 실패했어요",
   "assistente.teste_ok_ferramentas": "연결 정상 · 도구 사용 가능",
   "assistente.teste_ok_sem_ferramentas": "연결 정상 · 도구 사용 안 함",
-  "assistente.selo_testado": "Kami가 {data}에 {modelo}(으)로 테스트함",
+  "assistente.selo_testado": "Kami가 {data}에 {modelo}(으)로 테스트함 · {placar}",
   "assistente.selo_deve_funcionar": "작동할 거예요 (Kami에서 아직 테스트 안 함)",
   "assistente.usar": "사용",
   "assistente.testar": "테스트",

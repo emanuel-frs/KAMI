@@ -2636,7 +2636,7 @@
   "assistente.teste_falhou": "o último teste falhou",
   "assistente.teste_ok_ferramentas": "conexão ok · usa ferramentas",
   "assistente.teste_ok_sem_ferramentas": "conexão ok · não usa ferramentas",
-  "assistente.selo_testado": "testado pelo Kami em {data} com {modelo}",
+  "assistente.selo_testado": "testado pelo Kami em {data} com {modelo} · {placar}",
   "assistente.selo_deve_funcionar": "deve funcionar (ainda não testado pelo Kami)",
   "assistente.usar": "usar",
   "assistente.testar": "testar",
