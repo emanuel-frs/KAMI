@@ -59,6 +59,10 @@ a = Analysis(
         # registro da workalendar importa o módulo de cada região na hora
         # (workalendar.registry) — a análise estática não enxerga.
         *collect_submodules('workalendar'),
+        # SEG-08: o SQLCipher só é importado quando o banco está cifrado
+        # (app/cifra.py, import dentro da função)
+        'sqlcipher3',
+        'sqlcipher3.dbapi2',
     ],
     hookspath=[],
     hooksconfig={},

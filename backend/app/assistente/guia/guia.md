@@ -89,6 +89,7 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 ## security_pin
 - PIN opcional pra abrir o app (configurações › segurança), com código de recuperação (mostrado uma vez) e bloqueio por inatividade (5, 15 ou 30 min).
 - Senhas salvas (e-mail, token do GitHub, chave da busca, chave da IA) ficam cifradas, com a chave no cofre do sistema. Se o cofre perder a chave, dá pra redefinir — os segredos salvos são apagados e precisam ser colados de novo.
+- Banco cifrado (opcional, desligado): configurações › segurança › banco cifrado. Ligado, o arquivo do banco e as cópias automáticas só abrem com uma chave do cofre do sistema (não depende do PIN). Ao ligar aparece um código de recuperação de 52 letras e números: se o cofre perder a chave (sistema reinstalado), o Kami pede esse código ao abrir; sem ele o banco não abre. Dá pra ver o código de novo na mesma tela (pede o PIN, se ligado) e desligar a cifra. Não protege contra quem usa o computador logado como a pessoa.
 
 ## language_currency_country
 - Configurações › aparência: idioma (10), moeda (só o formato; nada é convertido) e país dos feriados (usado no dia útil do salário e vencimentos). Formato de data, cor de destaque, efeitos e sons também ficam ali.

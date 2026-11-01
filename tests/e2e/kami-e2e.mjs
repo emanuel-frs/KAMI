@@ -725,6 +725,60 @@ async function main() {
       if (r.status !== 200 || r.body?.ativo) throw new Error(`desligar o PIN: ${r.status} ${JSON.stringify(r.body)}`);
     });
 
+    // 6b. SEG-08 (P-171): banco cifrado — ligar pela tela, o arquivo não
+    // abre como SQLite, reabrir o app com os dados, desligar. Só onde há
+    // cofre (Windows); no Linux o teste desliga o cofre e confere que a
+    // opção aparece indisponível, com o motivo
+    const cabecalhoSqlite = () => readFileSync(join(DATA_DIR, "kami.db")).subarray(0, 16).toString("latin1") === "SQLite format 3\0";
+    const abrirSeguranca = async () => {
+      await clicar("#btn-open-settings");
+      await waitFor("configurações", () => visivel('.cfg-tab[data-tab="seguranca"]'), { timeout: 5000 });
+      await clicar('.cfg-tab[data-tab="seguranca"]');
+      await waitFor("a seção do banco cifrado", () => wd.execute("return !!document.querySelector('#cfg-cifra .cfg-seg-chave')"), { timeout: 8000 });
+      await wd.execute("document.getElementById('cfg-cifra').scrollIntoView()");
+    };
+    await etapa("banco cifrado: ligar, reabrir com os dados e desligar (SEG-08)", async () => {
+      const estado = (await api("/api/seguranca/cifra")).body;
+      await abrirSeguranca();
+      if (!estado?.disponivel) {
+        if (IS_WINDOWS) throw new Error(`no Windows o banco cifrado deveria estar disponível: ${JSON.stringify(estado)}`);
+        if (!(await visivel('#cfg-cifra [data-local="indisponivel"]'))) throw new Error("sem cofre, a seção não diz que está indisponível");
+        if (await visivel('[data-cifra-acao="ligar"]')) throw new Error("sem cofre, o botão de ligar apareceu");
+        await print("cifra-indisponivel");
+        log(`  (sem cofre aqui: indisponível — motivo ${estado?.motivo}; o fluxo completo roda no Windows)`);
+        await clicar('#settings-modal [data-action="close"]').catch(() => {});
+        return;
+      }
+      await print("cifra-desligada");
+      await clicar('[data-cifra-acao="ligar"]');
+      await waitFor("o código de recuperação", () => visivel("#cfg-cifra .lock-codigo-valor"), { timeout: 60000 });
+      const codigo = await wd.execute("return document.querySelector('#cfg-cifra .lock-codigo-valor').textContent.trim()");
+      if (codigo.split("-").length !== 13) throw new Error(`código estranho: ${codigo}`);
+      await print("cifra-codigo");
+      await clicar('[data-cifra-acao="guardei"]');
+      if (cabecalhoSqlite()) throw new Error("o kami.db ainda abre como SQLite comum");
+      const copias = readdirSync(join(DATA_DIR, "backups")).filter((n) => n.endsWith(".db"));
+      const semCifra = copias.filter((n) => readFileSync(join(DATA_DIR, "backups", n)).subarray(0, 16).toString("latin1") === "SQLite format 3\0");
+      if (semCifra.length) throw new Error(`cópias sem cifra ficaram: ${semCifra.join(", ")}`);
+
+      await wd.quit();
+      rmSync(portFile, { force: true });
+      await sleep(2000);
+      await abrirApp();
+      await lerConexao();
+      await waitFor("o app reaberto com o banco cifrado", () => wd.execute("return document.querySelectorAll('.card').length > 0"), { timeout: 60000 });
+      if (notaId && (await api(`/api/organizacao/notas/${notaId}`)).status !== 200) throw new Error("a nota sumiu depois de cifrar");
+      if (!(await api("/api/seguranca/cifra")).body?.ligada) throw new Error("reabriu sem a cifra");
+
+      await abrirSeguranca();
+      await wd.execute("document.querySelectorAll('#cfg-cifra details').forEach((d) => (d.open = true))");
+      await print("cifra-ligada");
+      await clicar('[data-cifra-acao="desligar"]');
+      await waitFor("a cifra desligada", async () => (await api("/api/seguranca/cifra")).body?.ligada === false, { timeout: 60000 });
+      if (!cabecalhoSqlite()) throw new Error("desligou mas o kami.db não voltou pro SQLite comum");
+      await clicar('#settings-modal [data-action="close"]').catch(() => {});
+    });
+
     // 7. bandeja, segunda instância e iniciar com o sistema
     const invoke = (cmd, args = {}) => wd.execute(`return window.__TAURI__.core.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args)})`);
     const janelaVisivel = () => wd.execute("return window.__TAURI__.window.getCurrentWindow().isVisible()");
@@ -802,6 +856,10 @@ async function main() {
       if (entrada()) throw new Error("o início com o sistema ficou");
       if (onde?.includes("lançador") && existsSync(lancador)) throw new Error(`o lançador com o ícone da cor ficou: ${lancador}`);
       if (IS_WINDOWS && noCofre()) throw new Error("a chave das senhas ficou no cofre");
+      // SEG-08: a chave do banco cifrado (fica no cofre depois de desligar a cifra) sai junto
+      if (IS_WINDOWS && ps("cmdkey /list | Out-String -Width 4096").includes(usuarioCofre.replace("chave-dos-segredos-", "chave-do-banco-"))) {
+        throw new Error("a chave do banco cifrado ficou no cofre");
+      }
       log(`  removido: pasta de dados, início com o sistema${onde?.includes("lançador") ? ", lançador" : ""}${IS_WINDOWS ? ", chave no cofre" : ""}`);
     });
   } finally {

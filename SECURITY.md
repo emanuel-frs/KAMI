@@ -41,6 +41,19 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   dobrando até 15 min, mesmo fechando e abrindo o app. Ao ligar, aparece
   **uma vez** um código de recuperação. Bloqueio por inatividade é
   opcional (5, 15 ou 30 min).
+- **Banco cifrado (opcional, desde a 1.18).** Desligado por padrão; ligado
+  em configurações › segurança, o `kami.db` e as cópias automáticas viram
+  arquivos SQLCipher (AES-256, página por página) que não abrem sem a
+  chave. A chave é aleatória, fica no cofre do sistema (numa entrada só
+  dela, separada da chave das senhas salvas) e não depende do PIN; sem
+  cofre, a opção não liga. Ao ligar, aparece um **código de recuperação**
+  (a própria chave, em 52 letras e números): se o cofre perder a chave
+  (sistema reinstalado, cofre redefinido), o Kami abre trancado e só esse
+  código abre o banco. Ligar oferece apagar as cópias antigas sem cifra
+  (marcado) e faz na hora uma cópia nova, já cifrada. A conversão é
+  conferida tabela por tabela antes de trocar o arquivo, e antes dela fica
+  uma cópia. Desligar volta pro SQLite comum e mantém a chave no cofre,
+  pra que as cópias cifradas continuem restauráveis.
 - **Notas trancadas.** Com o PIN ligado, uma nota pode ser trancada: o
   texto vai cifrado com a mesma chave das senhas salvas, fica fora da
   busca e só abre com o PIN (o título continua visível).
@@ -88,7 +101,13 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
 
 - **Outro programa rodando com o seu usuário.** Ele lê o `kami.db`
   direto e pode pedir a chave ao cofre como o Kami pede. O PIN **não
-  cifra** o banco — protege a abertura do app.
+  cifra** o banco — protege a abertura do app. O banco cifrado também não
+  ajuda aqui: o cofre abre com o seu login. Ele protege o **arquivo**
+  longe da sua sessão (disco roubado, pasta copiada, backup na nuvem).
+- **Banco cifrado sem o código.** Se o cofre perder a chave e você não
+  tiver o código de recuperação, o banco não abre — é o que a cifra
+  garante. Guarde o código fora do computador; o backup exportado com
+  senha continua sendo a outra saída.
 - **Quem já tem a sua sessão do sistema aberta e o Kami destravado.** Use
   o bloqueio por inatividade ou "bloquear agora".
 - **Esqueci o PIN e o código.** É de propósito que dá pra entrar: com o

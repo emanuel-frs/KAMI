@@ -10,7 +10,6 @@ from datetime import timedelta
 import email as email_lib
 import imaplib
 import re
-import sqlite3
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from typing import List, Optional
@@ -18,7 +17,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app import email_texto
+from app import cifra, email_texto
 from app.database import get_db, new_id, now_iso
 from app.actions import has_action, register_action
 from app.crypto import ChaveIndisponivel, encrypt_password, decrypt_password
@@ -421,7 +420,7 @@ def sync_email_account(
             (now_iso(), account_id),
         )
         db.commit()
-    except sqlite3.OperationalError as exc:
+    except cifra.classes("OperationalError") as exc:
         db.rollback()
         if "locked" in str(exc).lower():
             raise ErroKami(

@@ -108,8 +108,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.
   Opcional: o ícone do app na cor de destaque.
 - **Segurança:** PIN opcional para abrir o app (com código de recuperação e bloqueio por
-  inatividade), backup exportado com senha, e as senhas salvas protegidas por uma chave no cofre do
-  sistema. Detalhes e limites em [SECURITY.md](./SECURITY.md).
+  inatividade), banco cifrado em disco opcional (com código de recuperação), backup exportado com
+  senha, e as senhas salvas protegidas por uma chave no cofre do sistema. Detalhes e limites em
+  [SECURITY.md](./SECURITY.md).
 - **Assistente de IA (opcional, desligado por padrão):** um chat no painel lateral (Alt+A) que
   responde sobre os seus dados e sobre como usar o Kami: resume o mês, diz o que vence, explica as
   missões. Funciona com um provedor seu, na nuvem (Gemini, Groq, OpenRouter, OpenAI, Anthropic) ou no
@@ -177,7 +178,8 @@ e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria ne
 Senhas de app e tokens ficam cifrados no banco, com a chave no cofre do sistema (Gerenciador de
 Credenciais no Windows, Secret Service no Linux), não na pasta de dados. Isso não protege contra outro
 programa rodando com o seu usuário; o [SECURITY.md](./SECURITY.md) descreve o que o Kami protege e o
-que não protege.
+que não protege. Com o banco cifrado ligado (configurações › segurança), o arquivo do banco e as cópias
+automáticas também só abrem com uma chave do cofre.
 
 ## Como funciona por dentro
 
@@ -247,7 +249,7 @@ Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades
 - **Assistente de IA (opcional, desligado por padrão):** o chat que lê os seus dados saiu na 1.16, e
   as ações com prévia e os avisos na 1.17; falta instalar a IA local pelo próprio app. Nenhuma chave vem
   embutida.
-- **Banco cifrado em disco**, opcional.
+- ~~**Banco cifrado em disco**, opcional:~~ feito na 1.18.
 
 Ficam de fora, pelo menos até a 2.0:
 

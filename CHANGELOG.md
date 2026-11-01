@@ -8,6 +8,9 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 _Sprint 10 da evolução — IA local + banco cifrado (IA-07a, IA-07b, SEG-08): detectar a máquina e recomendar um modelo local, instalar o Ollama pelo app, e o banco cifrado em disco opcional. Esta entrada é reescrita com o conteúdo e a data reais no fim da sprint._
 
+### Segurança
+- banco cifrado em disco, opcional e desligado (configurações › segurança › banco cifrado): o arquivo do banco e as cópias automáticas passam a só abrir com uma chave guardada no cofre do sistema, que não depende do PIN. Ao ligar, aparece um código de recuperação; se o cofre perder a chave (sistema reinstalado), o Kami pede esse código ao abrir. Dá para ver o código de novo (com o PIN, se estiver ligado) e desligar a cifra. As cópias antigas sem cifra podem ser apagadas na hora, e uma cópia nova, já cifrada, é feita em seguida
+
 ## [1.17.0] - 2026-11-01
 
 _O assistente passa a propor ações, sempre numa prévia que você edita e aplica, e o Kami avisa no sino quando algo parece fora do lugar._

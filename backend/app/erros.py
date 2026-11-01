@@ -28,10 +28,11 @@ status e a mensagem de cada rota; só ganham o campo `codigo`.
 """
 import logging
 import secrets
-import sqlite3
 
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+
+from app import cifra
 
 logger = logging.getLogger("app.erros")
 
@@ -65,7 +66,8 @@ def classificar(exc: BaseException) -> tuple[int, str, str]:
     SQLite que a pessoa consegue resolver sozinha ganham mensagem própria;
     o resto é "erro interno" genérico.
     """
-    if isinstance(exc, sqlite3.OperationalError):
+    # SEG-08: com o banco cifrado as exceções vêm do sqlcipher3 (outras classes)
+    if isinstance(exc, cifra.classes("OperationalError")):
         texto = str(exc).lower()
         if "locked" in texto or "busy" in texto:
             return 503, "banco_ocupado", (
@@ -78,7 +80,7 @@ def classificar(exc: BaseException) -> tuple[int, str, str]:
                 "não foi possível ler ou gravar o banco de dados — confira se a pasta de dados do Kami "
                 "está acessível (disco desconectado, permissão ou antivírus)"
             )
-    if isinstance(exc, sqlite3.DatabaseError) and "malformed" in str(exc).lower():
+    if isinstance(exc, cifra.classes("DatabaseError")) and "malformed" in str(exc).lower():
         return 500, "banco_corrompido", (
             "o banco de dados parece corrompido — restaure um backup em configurações › backup e dados"
         )

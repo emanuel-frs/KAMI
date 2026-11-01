@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet
 from keyring.backend import KeyringBackend
 from fastapi.testclient import TestClient
 
-from app import bonus, database, crypto, missoes
+from app import bonus, cifra, cifra_troca, database, crypto, missoes
 from app.main import app
 
 
@@ -118,8 +118,13 @@ def cofre_de_teste(tmp_path, monkeypatch):
     monkeypatch.setattr(crypto, "MARKER_PATH", pasta / ".secret_key_no_cofre")
     monkeypatch.delenv(crypto.COFRE_ENV_VAR, raising=False)
     crypto._resetar_para_testes()
+    # SEG-08: chave do banco e modo do arquivo em cache são por teste
+    cifra._resetar_para_testes()
+    cifra_troca.marcar_sem_chave(False)
     yield fake
     crypto._resetar_para_testes()
+    cifra._resetar_para_testes()
+    cifra_troca.marcar_sem_chave(False)
     keyring.set_keyring(previous)
 
 

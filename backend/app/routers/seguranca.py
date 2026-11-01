@@ -21,7 +21,18 @@ Endpoints:
   POST /api/seguranca/pin/bloquear     bloqueia agora (inatividade)
   PUT  /api/seguranca/pin/inatividade  5/15/30 min ou desligado
 
-Ver app/crypto.py pro funcionamento do cofre e app/pin.py pro PIN.
+  GET  /api/seguranca/cifra            banco cifrado? dá pra ligar aqui?
+                                       quantas cópias sem cifra (SEG-08)
+  POST /api/seguranca/cifra/ligar      converte o banco; devolve o código
+                                       de recuperação (mostrado uma vez)
+  POST /api/seguranca/cifra/desligar   volta pro SQLite comum
+  POST /api/seguranca/cifra/codigo     mostra o código de novo (com o PIN,
+                                       se ligado)
+  POST /api/seguranca/cifra/recuperar  banco cifrado sem a chave no cofre:
+                                       o código abre (rota livre)
+
+Ver app/crypto.py pro funcionamento do cofre, app/pin.py pro PIN e
+app/cifra.py + app/cifra_troca.py pro banco cifrado.
 """
 import logging
 
@@ -30,7 +41,7 @@ from pydantic import BaseModel, Field
 
 from typing import Optional
 
-from app import backup_auto, crypto, pin
+from app import backup_auto, cifra, cifra_troca, crypto, database, pin
 from app.database import get_db, now_iso
 from app.limites import Entrada
 from app.mensagens import ErroKami, erro_de
@@ -199,3 +210,79 @@ def definir_inatividade(payload: InatividadeIn):
         raise _erro_de_pin(exc) from exc
     return pin.estado()
 
+
+
+# ── banco cifrado (SEG-08) ───────────────────────────────────────────────
+# ligar/desligar NÃO usam get_db: a troca do arquivo espera todas as
+# conexões fecharem (database.exclusivo), inclusive a da própria rota
+
+class LigarCifraIn(Entrada):
+    apagar_copias_sem_cifra: bool = True
+
+
+class CodigoCifraIn(Entrada):
+    pin: Optional[str] = Field(None, max_length=8)
+
+
+class RecuperarCifraIn(Entrada):
+    codigo: str = Field(..., max_length=80)
+
+
+def _erro_de_cifra(exc: Exception):
+    if isinstance(exc, database.Ocupado):
+        return ErroKami(409, "erro.cifra.ocupado", "o banco está em uso — tente de novo em instantes")
+    return erro_de(exc, 422)
+
+
+@router.get("/cifra")
+def get_cifra():
+    # rota livre (tela de abertura): bloqueado, sem contar as cópias
+    if cifra_troca.trancado() or pin.bloqueado():
+        return cifra_troca.estado()
+    conn = database.get_connection()
+    try:
+        return cifra_troca.estado(conn)
+    finally:
+        conn.close()
+
+
+@router.post("/cifra/ligar")
+def ligar_cifra(payload: LigarCifraIn):
+    try:
+        resultado = cifra_troca.ligar(payload.apagar_copias_sem_cifra)
+    except (cifra.Indisponivel, database.Ocupado) as exc:
+        raise _erro_de_cifra(exc) from exc
+    return {**get_cifra(), **resultado}
+
+
+@router.post("/cifra/desligar")
+def desligar_cifra():
+    try:
+        cifra_troca.desligar()
+    except (cifra.Indisponivel, database.Ocupado) as exc:
+        raise _erro_de_cifra(exc) from exc
+    return get_cifra()
+
+
+@router.post("/cifra/codigo")
+def codigo_cifra(payload: CodigoCifraIn):
+    # mostrar a chave de novo é tão sensível quanto o PIN: com PIN ligado, pede
+    if pin.ativo():
+        try:
+            pin.conferir(payload.pin or "")
+        except (ValueError, pin.Esperando) as exc:
+            raise _erro_de_pin(exc) from exc
+    try:
+        return {"codigo": cifra_troca.mostrar_codigo()}
+    except cifra.Indisponivel as exc:
+        raise _erro_de_cifra(exc) from exc
+
+
+@router.post("/cifra/recuperar")
+def recuperar_cifra(payload: RecuperarCifraIn):
+    if not cifra_troca.trancado():
+        raise ErroKami(409, "erro.cifra.nao_trancado", "o banco já está aberto")
+    try:
+        return cifra_troca.recuperar(payload.codigo)
+    except cifra.CodigoErrado as exc:
+        raise erro_de(exc, 422) from exc

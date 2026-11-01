@@ -5,12 +5,16 @@ Sem ORM de propósito (alinhado com a filosofia "leve, RAM-consciente"
 do projeto) — sqlite3 puro da stdlib, com row_factory pra devolver
 dicts em vez de tuplas.
 """
+import contextlib
+import functools
 import logging
 import shutil
 import sqlite3
+import threading
 import uuid
 import datetime
 from pathlib import Path
+from app import cifra
 from app.paths import APP_DIR, get_data_dir
 from app.version import KAMI_VERSION
 
@@ -63,7 +67,7 @@ def backup_database(conn: sqlite3.Connection, label: str) -> str:
     """
     stamp = local_now().strftime("%Y%m%d-%H%M%S")
     dest_path = DB_PATH.parent / f"kami-{label}-{stamp}.db"
-    dest = sqlite3.connect(dest_path)
+    dest = cifra.conectar_copia(dest_path, DB_PATH)
     try:
         conn.backup(dest)
     finally:
@@ -71,13 +75,86 @@ def backup_database(conn: sqlite3.Connection, label: str) -> str:
     return str(dest_path)
 
 
+# SEG-08: a troca do arquivo (ligar/desligar a cifra) só acontece com
+# todas as conexões fechadas. Cada conexão conta ao abrir e ao fechar; na
+# troca, conexões novas esperam (exclusivo) e a troca espera as abertas.
+_portao = threading.Condition()
+_abertas = 0
+_trocando = False
+
+
+def _entrar() -> None:
+    global _abertas
+    with _portao:
+        _portao.wait_for(lambda: not _trocando)
+        _abertas += 1
+
+
+def _sair() -> None:
+    global _abertas
+    with _portao:
+        _abertas -= 1
+        _portao.notify_all()
+
+
+@functools.cache
+def _contada(base):
+    class Contada(base):
+        _fechada = False
+
+        def close(self):
+            if not self._fechada:
+                self._fechada = True
+                _sair()
+            super().close()
+
+        def __del__(self):
+            if not self._fechada:
+                self._fechada = True
+                _sair()
+
+    return Contada
+
+
+TROCA_ESPERA_S = 15
+
+
+class Ocupado(RuntimeError):
+    """Alguma conexão não fechou a tempo pra troca do arquivo do banco."""
+
+
+@contextlib.contextmanager
+def exclusivo(espera_s: float | None = None):
+    """Sem nenhuma conexão aberta durante o bloco (e nenhuma nova abre)."""
+    global _trocando
+    with _portao:
+        _portao.wait_for(lambda: not _trocando)
+        _trocando = True
+        livre = _portao.wait_for(lambda: _abertas == 0, timeout=espera_s or TROCA_ESPERA_S)
+        if not livre:
+            _trocando = False
+            _portao.notify_all()
+            raise Ocupado("o banco está em uso — tente de novo em instantes")
+    try:
+        yield
+    finally:
+        with _portao:
+            _trocando = False
+            _portao.notify_all()
+
+
 def get_connection() -> sqlite3.Connection:
     # timeout=30: quanto tempo o sqlite espera por um lock liberado antes de
     # estourar "database is locked" (default do driver é só 5s — curto
     # demais pra operações que ficam mais tempo com a conexão aberta, tipo
     # o sync de e-mail via IMAP; ver sync_email_account em routers/organizacao/emails.py).
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
-    conn.row_factory = sqlite3.Row
+    # SEG-08: SQLite comum ou SQLCipher, conforme o arquivo (app/cifra.py)
+    _entrar()
+    try:
+        conn = cifra.conectar_banco(DB_PATH, check_same_thread=False, timeout=30, fabrica=_contada)
+    except BaseException:
+        _sair()
+        raise
     conn.execute("PRAGMA foreign_keys = ON")
     # WAL: sem isso, todo mundo usa o rollback journal padrão, onde qualquer
     # transação de escrita bloqueia TODAS as outras conexões (inclusive
@@ -230,7 +307,7 @@ def _backup_before_migration(conn: sqlite3.Connection) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     stamp = local_now().strftime("%Y%m%d-%H%M%S")
     dest_path = folder / f"{MIGRATION_BACKUP_PREFIX}{KAMI_VERSION}-{stamp}.db"
-    dest = sqlite3.connect(dest_path)
+    dest = cifra.conectar_copia(dest_path, DB_PATH)
     try:
         conn.backup(dest)  # API de backup do sqlite: consistente com o WAL
     finally:

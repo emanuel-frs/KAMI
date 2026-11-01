@@ -12,6 +12,9 @@
  * - `wireLockScreen()`: qualquer 423 no meio do uso (o vigia reiniciou o
  *   backend, que nasce bloqueado — P-19) mostra a tela; ao desbloquear, o
  *   app recarrega inteiro, porque as telas abertas falharam no meio.
+ * - SEG-08: banco cifrado e a chave sumiu do cofre (sistema reinstalado) —
+ *   antes do PIN, a mesma tela pede o código de recuperação do banco;
+ *   aceito, o app recarrega (e aí o PIN, se houver, é pedido normalmente).
  * - `startInactivityLock()`: bloqueio por inatividade (P-06), opcional e
  *   desligado por padrão; quem conta o tempo é a tela, o backend só
  *   recebe o "bloquear". Ao desbloquear daí, nada recarrega.
@@ -22,7 +25,9 @@
 import {
   desbloquearPin,
   bloquearPin,
+  getCifra,
   getPin,
+  recuperarCifra,
   recuperarPin,
 } from "../api/seguranca.js";
 import { ApiError } from "../api/client.js";
@@ -42,12 +47,14 @@ let inatividadeTimer = null;
 
 // ── código de recuperação (usado aqui e em configurações › segurança) ──
 
-export function codigoRecuperacaoHtml(codigo) {
+// `tipo` "cifra" (SEG-08): o código do banco cifrado, com o próprio aviso e arquivo
+export function codigoRecuperacaoHtml(codigo, tipo = "pin") {
+  const aviso = tipo === "cifra" ? t("cifra.aviso_codigo") : t("lock_screen.aviso_codigo");
   return `
-    <div class="lock-codigo" data-codigo="${escapeHtml(codigo)}">
+    <div class="lock-codigo" data-codigo="${escapeHtml(codigo)}" data-tipo="${tipo}">
       <p class="lock-codigo-titulo">${t("lock_screen.codigo_de_recuperacao")}</p>
       <p class="lock-codigo-valor">${escapeHtml(codigo)}</p>
-      <p class="lock-codigo-aviso">${t("lock_screen.aviso_codigo")}</p>
+      <p class="lock-codigo-aviso">${aviso}</p>
       <div class="lock-codigo-acoes">
         <button type="button" class="btn sm" data-codigo-acao="copiar">${t("lock_screen.copiar")}</button>
         <button type="button" class="btn sm" data-codigo-acao="baixar">${t("lock_screen.baixar_txt")}</button>
@@ -65,11 +72,11 @@ export function wireCodigoRecuperacao(root) {
     status.textContent = (await copyText(codigo)) ? t("geral.copiado") : t("lock_screen.nao_deu_pra_copiar_anote");
   });
   box.querySelector('[data-codigo-acao="baixar"]').addEventListener("click", () => {
-    const texto = `${t("lock_screen.arquivo_codigo", { codigo })}\n`;
+    const texto = `${t(box.dataset.tipo === "cifra" ? "cifra.arquivo_codigo" : "lock_screen.arquivo_codigo", { codigo })}\n`;
     const url = URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "kami-codigo-de-recuperacao.txt";
+    a.download = box.dataset.tipo === "cifra" ? "kami-codigo-do-banco.txt" : "kami-codigo-de-recuperacao.txt";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -103,6 +110,10 @@ function viewPin() {
     </div>`;
 }
 
+// "não tenho o código" (PIN e banco cifrado)
+const semCodigoHtml = (corpo) =>
+  `<details class="lock-sem-codigo"><summary>${t("lock_screen.nao_tenho_o_codigo")}</summary>${corpo}</details>`;
+
 function viewRecuperar(pasta) {
   return `
     <div class="lock-view" data-view="recuperar" hidden>
@@ -119,12 +130,10 @@ function viewRecuperar(pasta) {
         <button type="button" class="btn sm" data-ir="pin">${t("lock_screen.voltar")}</button>
       </div>
       <p class="lock-msg" aria-live="polite"></p>
-      <details class="lock-sem-codigo">
-        <summary>${t("lock_screen.nao_tenho_o_codigo")}</summary>
+      ${semCodigoHtml(`
         <p>${t("lock_screen.feche_e_apague")}</p>
         <p><code class="lock-pasta">${escapeHtml(pasta || "")}</code></p>
-        <p>${t("lock_screen.na_proxima_abertura_o_kami")}</p>
-      </details>
+        <p>${t("lock_screen.na_proxima_abertura_o_kami")}</p>`)}
     </div>
     <div class="lock-view" data-view="novo-codigo" hidden>
       <p class="lock-prompt">&gt; ${t("lock_screen.pin_trocado")}<span class="lock-cursor">_</span></p>
@@ -311,9 +320,73 @@ function wireTela(root) {
   root.querySelector('[data-acao="guardei"]').addEventListener("click", fechar);
 }
 
+// ── banco cifrado sem a chave (SEG-08) ─────────────────────────────────
+
+function abrirCifra() {
+  if (aberta) return aberta.promise;
+  const el = document.createElement("div");
+  el.className = "lock-screen";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.setAttribute("aria-labelledby", "lock-title");
+  el.innerHTML = `
+    <div class="lock-box">
+      <p class="lock-brand">kami <span class="lock-brand-tag">${icon("shield", { size: 12 })} ${t("cifra.banco_cifrado")}</span></p>
+      <div class="lock-view" data-view="cifra">
+        <p class="lock-prompt" id="lock-title">&gt; ${t("cifra.digite_o_codigo")}<span class="lock-cursor">_</span></p>
+        <p class="lock-desc">${t("cifra.sem_chave_desc")}</p>
+        <div class="field"><label for="lock-cifra-codigo">${t("lock_screen.codigo")}</label>
+          <input type="text" id="lock-cifra-codigo" autocomplete="off" spellcheck="false" maxlength="80" placeholder="XXXX-XXXX-XXXX-…"></div>
+        <div class="form-actions"><button type="button" class="btn sm" data-acao="abrir-cifra">${t("cifra.abrir_o_banco")}</button></div>
+        <p class="lock-msg" aria-live="polite"></p>
+        ${semCodigoHtml(`<p>${t("cifra.sem_codigo")}</p>`)}
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  let resolve;
+  const promise = new Promise((r) => (resolve = r));
+  aberta = { el, resolve, recarregar: true, promise };
+  travarResto(true);
+
+  const view = el.querySelector('[data-view="cifra"]');
+  const input = view.querySelector("#lock-cifra-codigo");
+  const botao = view.querySelector('[data-acao="abrir-cifra"]');
+  const enviar = async () => {
+    if (!input.value.trim()) return setMsg(view, t("lock_screen.digite_o_codigo_de_recuperacao"));
+    input.disabled = botao.disabled = true;
+    setMsg(view, t("cifra.conferindo"), false);
+    try {
+      await recuperarCifra(input.value.trim());
+      fechar(); // recarrega: o backend acabou de abrir o banco
+    } catch (err) {
+      input.disabled = botao.disabled = false;
+      setMsg(view, err.message);
+      input.focus();
+    }
+  };
+  botao.addEventListener("click", enviar);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      enviar();
+    }
+  });
+  input.focus();
+  return promise;
+}
+
+async function cifraSemChave() {
+  try {
+    return (await getCifra()).sem_chave === true;
+  } catch {
+    return false;
+  }
+}
+
 // ── API pública ────────────────────────────────────────────────────────
 
 export async function garantirDesbloqueio() {
+  if (await cifraSemChave()) await abrirCifra();
   let estado;
   try {
     estado = await getPin();
@@ -333,6 +406,7 @@ export async function bloquearAgora() {
 export function wireLockScreen() {
   window.addEventListener("kami:bloqueado", async () => {
     if (aberta) return;
+    if (await cifraSemChave()) return abrirCifra();
     let estado = null;
     try {
       estado = await getPin();
