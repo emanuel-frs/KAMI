@@ -109,8 +109,9 @@ def soltos(resposta: str, resultados: list[str], pergunta: str, hoje: date) -> l
             achados.append((m.start(), m.group(0)))
     vistos, saida = set(), []
     for _, t in sorted(achados):
-        if t not in vistos:
-            vistos.add(t)
+        chave = re.sub(r"\s", "", t)  # "R$ 0" e "R$0" são o mesmo aviso
+        if chave not in vistos:
+            vistos.add(chave)
             saida.append(t)
     return saida[:MAX_AVISOS]
 

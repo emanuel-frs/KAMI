@@ -79,7 +79,9 @@ def test_resumo_financeiro_igual_a_tela(client, dados):
     mes = dt.date.today().strftime("%Y-%m")
     tela = client.get(f"/api/financas/summary?month={mes}").json()
     _, r = _rodar(dados, "finance_summary")
-    assert (r["income"], r["expenses"], r["net_this_month"]) == (tela["total_in"], tela["total_out"], tela["saldo"])
+    assert (r["income"], r["expenses"]) == (tela["total_in"], tela["total_out"])
+    # sem entrada registrada no mês o "resultado" não vai (viraria "no vermelho")
+    assert r["net_this_month"] == (tela["saldo"] if tela["total_in"] else None)
     assert r["expenses_by_category"] == tela["top_categories"]
 
 
@@ -356,6 +358,8 @@ def test_conclusoes_do_mes_ja_calculadas():
     c = ferramentas._conclusoes_do_mes(r, {"total_out": 3200.0})
     assert c == {"spent_more_than_earned": False, "kept_pct_of_income": 20.0, "expenses_vs_previous_month_pct": 25.0,
                  "biggest_category": {"category": "mercado", "amount": 1200.0, "share_of_expenses_pct": 30.0}}
-    assert ferramentas._conclusoes_do_mes({"total_in": 0, "total_out": 50.0, "top_categories": []},
-                                          {"total_out": 0}) == {"spent_more_than_earned": True}
+    # sem entrada no mês: não é "gastou mais do que ganhou" — diz o que ainda está previsto (teste do Emanuel)
+    previstas = [{"amount": 1800.0, "status": "previsto"}, {"amount": 500.0, "status": "recebido"}]
+    assert ferramentas._conclusoes_do_mes({"total_in": 0, "total_out": 10.0, "top_categories": []}, {"total_out": 0},
+                                          previstas) == {"no_income_recorded_yet": True, "income_still_expected": 1800.0}
     assert ferramentas._mes_anterior("2026-01") == "2025-12" and ferramentas._mes_anterior("2026-11") == "2026-10"

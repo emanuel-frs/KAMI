@@ -44,6 +44,10 @@ def test_sem_consultar_nada_todo_valor_e_conferido():
         "R$ 49.031", "568,59 €"]
 
 
+def test_mesmo_valor_escrito_de_jeitos_diferentes_avisa_uma_vez():
+    assert conferir.soltos("R$ 7 e **R$7** e R$ 7.", [], "x", HOJE) == ["R$ 7"]
+
+
 def test_moeda_arrumada():
     assert conferir.arrumar_moeda("saldo: r$ 0,00 e R\\$ 10 e US\\$ 5") == "saldo: R$ 0,00 e R$ 10 e US$ 5"
     assert conferir.arrumar_moeda("bar$ fica") == "bar$ fica"
@@ -97,3 +101,23 @@ def test_resposta_sem_numero_nao_ganha_evento(client, falso):
 def test_cuidado_de_so_olha_o_aviso_de_cuidado():
     assert chat._cuidado_de({"aviso": {"tipo": "cuidado"}}) and not chat._cuidado_de({"aviso": {"tipo": "conferir"}})
     assert not chat._cuidado_de({"aviso": None})
+
+
+def test_numero_de_uma_consulta_anterior_da_conversa_nao_e_acusado(client, falso, monkeypatch):
+    """No local o histórico não leva os dados antigos, mas o modelo repete
+    números da resposta anterior — eles estão na conversa (teste do Emanuel)."""
+    _ligar(client, falso)
+    leitura = ferramentas._POR_NOME["finance_summary"]
+    monkeypatch.setattr(leitura, "executar", lambda conn, args: {"expenses": 37.5})
+    pede = [{"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "t0", "function": {
+        "name": "finance_summary", "arguments": "{}"}}]}}]}, {"choices": [{"delta": {}, "finish_reason": "tool_calls"}]}, "[DONE]"]
+    falso.responder("/v1/chat/completions", sse=pede)
+    falso.responder("/v1/chat/completions", sse=openai_texto("Você gastou R$ 37,50."))
+    ev = _enviar(client, "quanto gastei?")
+    assert not any(e["tipo"] == "conferido" for e in ev)
+    falso.limpar()  # a última resposta da fila se repete
+    falso.responder("/v1/chat/completions", sse=openai_texto("Como eu disse: R$ 37,50 — e R$ 99 de nada."))
+    ev2 = _enviar(client, "repete?", conversa_id=ev[0]["conversa_id"])
+    conf = next(e for e in ev2 if e["tipo"] == "conferido")
+    assert conf["valores"] == ["R$ 99"]
+

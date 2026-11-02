@@ -347,8 +347,11 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
     conferido = None
     if resposta and not erro:
         arrumada = conferir.arrumar_moeda(resposta)
-        valores = conferir.soltos(arrumada, [m.texto for m in mensagens if m.papel == "ferramenta"], texto,
-                                  local_now().date())
+        # tudo o que foi consultado NA CONVERSA: no local, o histórico não leva
+        # os dados antigos, mas o modelo repete números de respostas anteriores
+        consultados = [m["texto"] for m in conversa["mensagens"] if m["papel"] == "ferramenta"]
+        valores = conferir.soltos(arrumada, consultados + [m.texto for m in mensagens if m.papel == "ferramenta"],
+                                  texto, local_now().date())
         if valores or arrumada != resposta:
             resposta, conferido = arrumada, {"tipo": "conferido", "texto": arrumada, "valores": valores}
     if parcial:

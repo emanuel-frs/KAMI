@@ -124,9 +124,11 @@ def _resumo_financeiro(conn, args):
         # "net", não "balance": o modelo traduzia por "saldo" e dizia que a
         # conta estava negativa (teste do Emanuel) — o que há nas contas é
         # accounts_total_available
-        "income": r["total_in"], "expenses": r["total_out"], "net_this_month": r["saldo"],
-        "previous_month_net": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"],
-        "conclusions": _conclusoes_do_mes(r, anterior),
+        # sem entrada registrada no mês, "−R$ 10" vira "finanças no vermelho"
+        # (teste do Emanuel, com R$ 1.800 previstos pra dali a uma semana)
+        "income": r["total_in"], "expenses": r["total_out"], "net_this_month": r["saldo"] if r["total_in"] else None,
+        "previous_month_net": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"] if r["total_in"] else None,
+        "conclusions": _conclusoes_do_mes(r, anterior, entradas),
         "expenses_by_category": r["top_categories"],
         "expected_income": [{"label": e["label"], "amount": e["amount"], "expected_date": e["expected_date"],
                              "status": e["status"]} for e in entradas],
@@ -264,13 +266,17 @@ def _mes_anterior(mes: str) -> str:
     return f"{ano - 1}-12" if m == 1 else f"{ano:04d}-{m - 1:02d}"
 
 
-def _conclusoes_do_mes(r: dict, anterior: dict) -> dict:
+def _conclusoes_do_mes(r: dict, anterior: dict, entradas: list | tuple = ()) -> dict:
     """"Estou gastando muito?": quanto sobrou do que entrou, gasto contra o
-    mês passado e onde o dinheiro mais foi — já calculados."""
+    mês passado e onde o dinheiro mais foi — já calculados. Sem entrada
+    registrada no mês, não há "gastou mais do que ganhou": diz isso e o que
+    ainda está previsto entrar."""
     entrou, saiu = r["total_in"] or 0, r["total_out"] or 0
-    out = {"spent_more_than_earned": saiu > entrou}
     if entrou:
-        out["kept_pct_of_income"] = round((entrou - saiu) / entrou * 100, 1)
+        out = {"spent_more_than_earned": saiu > entrou, "kept_pct_of_income": round((entrou - saiu) / entrou * 100, 1)}
+    else:
+        previsto = sum(e["amount"] or 0 for e in entradas if e.get("status") == "previsto")
+        out = {"no_income_recorded_yet": True, **({"income_still_expected": previsto} if previsto else {})}
     if anterior["total_out"]:
         out["expenses_vs_previous_month_pct"] = round((saiu - anterior["total_out"]) / anterior["total_out"] * 100, 1)
     if saiu and r["top_categories"]:
