@@ -8,6 +8,7 @@ verdade (provedor_falso.py).
 import json
 import threading
 import time
+from dataclasses import replace
 
 import pytest
 
@@ -382,3 +383,52 @@ def test_continuar_e_refazer_recusam_o_que_nao_da(client, falso):
     r = _enviar(client, "", conversa_id=cid2, acao="refazer")
     assert r.status_code == 409
     assert len(_pedidos_chat(falso)) == 1
+
+
+# ── IA-07a: modelo local lê as instruções quando o painel abre ───────────
+
+@pytest.fixture()
+def aquecer_limpo():
+    from app.routers import assistente as rota
+    rota._aquecido.update(chave=None, quando=0.0)
+    yield rota
+    rota._aquecido.update(chave=None, quando=0.0)
+
+
+def _esperar_pedidos(falso, n, segundos=5):
+    fim = time.time() + segundos
+    while time.time() < fim and len(_pedidos_chat(falso)) < n:
+        time.sleep(0.02)
+    return _pedidos_chat(falso)
+
+
+def test_aquecer_le_o_mesmo_comeco_da_pergunta_uma_vez_so(client, falso, aquecer_limpo):
+    _ligar(client, falso)
+    falso.responder("/v1/chat/completions", json={"choices": [{"message": {"content": ""}}]})
+    assert client.post("/api/assistente/aquecer", json={"tela": "metas", "idioma": "pt"}).status_code == 202
+    aquecido = _esperar_pedidos(falso, 1)[0]
+    assert aquecido["max_tokens"] == 1 and aquecido["reasoning_effort"] == "none"
+    assert len(aquecido["messages"]) == 2, "só instruções + um 'ok' — nada da pessoa"
+    for _ in range(50):  # a thread solta a trava logo depois de responder
+        if not aquecer_limpo._aquecendo.locked():
+            break
+        time.sleep(0.02)
+    client.post("/api/assistente/aquecer", json={"tela": "metas", "idioma": "pt"})
+    time.sleep(0.2)
+    assert len(_pedidos_chat(falso)) == 1, "o mesmo começo não é lido de novo"
+
+    falso.responder("/v1/chat/completions", sse=openai_texto("oi"))
+    _enviar(client, "como estão minhas metas?", tela="metas")
+    pergunta = _pedidos_chat(falso)[1]
+    assert pergunta["messages"][0] == aquecido["messages"][0] and pergunta["tools"] == aquecido["tools"]
+
+
+def test_aquecer_na_nuvem_nao_chama_nada(client, falso, aquecer_limpo, monkeypatch):
+    _ligar(client, falso)
+    preparar = chat.preparar
+    monkeypatch.setattr(chat, "preparar", lambda conn: (lambda c, r, p: (c, r, replace(p, local=False)))(*preparar(conn)))
+    falso.responder("/v1/chat/completions", json={})
+    client.post("/api/assistente/aquecer", json={"tela": "metas"})
+    time.sleep(0.3)
+    assert _pedidos_chat(falso) == []
+

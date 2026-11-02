@@ -294,3 +294,15 @@ def test_cuidado_pais_sem_servico_conhecido_vai_pro_findahelpline(client, dados,
     client.put("/api/perfil", json={"pais": "PT"})
     ev = _eventos(client, "I want to die")
     assert ev[1]["servico"]["reserva"] is True and ev[1]["servico"]["site"] == "https://findahelpline.com"
+
+
+def test_metas_trazem_quanto_falta_e_o_ritmo(monkeypatch):
+    """IA-07a: o modelo pequeno só repetia os números crus — a conta vem pronta."""
+    monkeypatch.setattr(ferramentas, "_hoje", lambda: dt.date(2026, 11, 2))
+    meta = {"target_value": 100.0, "current_value": 30.0, "status": "ativa", "deadline": "2026-11-23"}
+    assert ferramentas._ritmo(meta) == {"remaining": 70.0, "days_left": 21, "needed_per_week": 23.33}
+    assert ferramentas._ritmo({**meta, "deadline": "2026-10-30"}) == {"remaining": 70.0, "overdue_days": 3}
+    assert ferramentas._ritmo({**meta, "deadline": "2026-11-04"})["needed_per_week"] == 70.0  # menos de 1 semana
+    assert ferramentas._ritmo({**meta, "deadline": None}) == {"remaining": 70.0}
+    assert ferramentas._ritmo({**meta, "status": "concluida", "current_value": 100.0}) == {"remaining": 0}
+

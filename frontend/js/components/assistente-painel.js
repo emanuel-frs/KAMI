@@ -26,6 +26,7 @@ import {
   apagarConversa,
   apagarEnvios,
   apagarTodasConversas,
+  aquecerAssistente,
   enviarMensagem,
   getAssistente,
   getConversa,
@@ -771,6 +772,9 @@ export async function abrirAssistente() {
     return;
   }
   renderProvedor();
+  if (estadoIa.pronto && estadoIa.provedor?.local) {
+    aquecerAssistente({ tela: getTelaAtual() || null, idioma: idiomaAtual() }).catch(() => {});
+  }
   if (vista === "conversa") voltarPraConversa();
   (estadoIa.pronto ? painel.querySelector("#ia-texto") : painel.querySelector('[data-ia="configurar"]'))?.focus();
 }

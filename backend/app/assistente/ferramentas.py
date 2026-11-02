@@ -186,10 +186,24 @@ def _metas(conn, args):
     from app.routers import metas
 
     lista = _js(metas.list_goals(db=conn))
-    return {"goals": [
+    return {"today": _hoje().isoformat(), "goals": [
         {"title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
          "unit": g.get("unit_label") or g.get("unit"), "progress_pct": g["progress_pct"], "deadline": g["deadline"],
-         "status": g["status"]} for g in lista[:30]]}
+         "status": g["status"], **_ritmo(g)} for g in lista[:30]]}
+
+
+def _ritmo(g: dict) -> dict:
+    """Quanto falta e o ritmo pra chegar no prazo, já calculados: modelo
+    pequeno erra conta de data (IA-07a, teste do Emanuel: o qwen3.5:4b só
+    repetia os números crus)."""
+    falta = round(max((g["target_value"] or 0) - (g["current_value"] or 0), 0), 2)
+    if g["status"] != "ativa" or not falta or not g["deadline"]:
+        return {"remaining": falta}
+    dias = (date.fromisoformat(g["deadline"][:10]) - _hoje()).days
+    if dias < 0:
+        return {"remaining": falta, "overdue_days": -dias}
+    semanas = max(dias / 7, 1)
+    return {"remaining": falta, "days_left": dias, "needed_per_week": round(falta / semanas, 2)}
 
 
 def _agenda(conn, args):

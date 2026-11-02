@@ -122,6 +122,35 @@ def _perfil(conn) -> dict:
     return dict(row) if row else {"pais": None, "moeda": None}
 
 
+def _comeco(conn, cfg: dict, p, idioma: str, tela: str | None) -> tuple[Mensagem, list]:
+    """Instruções + ferramentas: o começo igual de toda chamada (e o que
+    `aquecer` deixa lido)."""
+    permitidas = ferramentas_mod.disponiveis(cfg, local=p.local)
+    desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
+    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), _perfil(conn)["moeda"],
+                                                    desligadas, local=p.local))
+    return sistema, [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
+
+
+def aquecer(conn, idioma: str, tela: str | None, recente: tuple | None = None) -> tuple | None:
+    """IA-07a (teste do Emanuel): sem placa de vídeo, o qwen3.5:4b leva
+    ~45 s só pra ler instruções + ferramentas (2,5 mil tokens) — a primeira
+    pergunta passava de 1 min. O Ollama guarda o que leu por último; lendo
+    quando o painel abre, a pergunta só lê o que é novo (2,3 s até pedir
+    os dados, medido). Só modelo local: na nuvem custaria uma chamada.
+    Nada da pessoa vai junto — só as instruções e as ferramentas.
+    Devolve o que ficou lido (None se não é local); `recente` igual a ele
+    = já está lido, não chama de novo."""
+    cfg, _row, p = preparar(conn)
+    if not p.local or p.tipo != "openai":
+        return None
+    chave = (p.url_base, p.modelo, idioma, tela, local_now().date().isoformat())
+    if chave != recente:
+        sistema, ferramentas = _comeco(conn, cfg, p, idioma, tela)
+        provedores.adaptador(p.tipo).aquecer(p, [sistema, Mensagem("usuario", "ok")], ferramentas)
+    return chave
+
+
 def _cuidado(conn, cid: str, texto: str) -> dict:
     """P-111: o próprio Kami responde (cuidado.py) — nada vai pro provedor.
     As duas mensagens ficam marcadas e saem do histórico das próximas
@@ -203,11 +232,7 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
         historico = _historico(conversa["mensagens"])
         conversas.adicionar_mensagem(conn, cid, "usuario", texto)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto}
-    perfil = _perfil(conn)
-    permitidas = ferramentas_mod.disponiveis(cfg, local=p.local)
-    desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
-    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), perfil["moeda"], desligadas, local=p.local))
-    ferramentas = [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
+    sistema, ferramentas = _comeco(conn, cfg, p, idioma, tela)
     mensagens = [sistema, *historico, pergunta]
     novos = [{"tipo": "instrucoes", "versao": instrucoes.VERSAO, "idioma": idioma, "tela": tela},
              {"tipo": "historico", "mensagens": len(historico)}, item]

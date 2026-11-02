@@ -66,6 +66,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 from typing import Any, List, Literal, Optional
 
 from fastapi import APIRouter, Depends
@@ -339,6 +340,45 @@ def _checar_antes(conversa_id: Optional[str], acao: Optional[str] = None) -> Non
             chat.alvo(conversa, acao)
     finally:
         conn.close()
+
+
+class AquecerIn(Entrada):
+    tela: Optional[str] = Field(None, max_length=40)
+    idioma: Optional[str] = Field(None, max_length=10)
+
+
+AQUECER_DE_NOVO_S = 240  # o Ollama segura o modelo carregado por 5 min
+_aquecendo = threading.Lock()
+_aquecido: dict = {"chave": None, "quando": 0.0}
+
+
+@router.post("/aquecer", status_code=202)
+def aquecer(payload: AquecerIn):
+    """IA-07a: o painel abriu com modelo local — lê as instruções antes da
+    primeira pergunta (chat.aquecer). Em segundo plano, um de cada vez, e
+    sem repetir o mesmo começo enquanto o Ollama ainda o tem. Falhar aqui
+    não é erro pra tela: a pergunta só demora mais."""
+    idioma = payload.idioma if payload.idioma in instrucoes.IDIOMAS else "pt"
+    if not _aquecendo.acquire(blocking=False):
+        return {"aquecendo": False}
+    recente = _aquecido["chave"] if time.monotonic() - _aquecido["quando"] < AQUECER_DE_NOVO_S else None
+
+    def rodar():
+        conn = database.get_connection()
+        try:
+            chave = chat.aquecer(conn, idioma, payload.tela, recente)
+            if chave and chave != recente:
+                _aquecido.update(chave=chave, quando=time.monotonic())
+        except (ErroKami, transporte.ErroProvedor) as e:
+            logger.info("assistente: aquecer não rodou (%s)", getattr(e, "chave", None) or getattr(e, "codigo", e))
+        except Exception:  # noqa: BLE001
+            logger.exception("assistente: erro inesperado ao aquecer")
+        finally:
+            conn.close()
+            _aquecendo.release()
+
+    threading.Thread(target=rodar, name="assistente-aquecer", daemon=True).start()
+    return {"aquecendo": True}
 
 
 @router.post("/mensagens")

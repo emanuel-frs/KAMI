@@ -16,6 +16,8 @@ export const listarModelos = (dados) => post("/api/assistente/modelos", dados);
 // IA-02: chat. A resposta chega em eventos (inicio, texto, fim, erro —
 // backend/app/assistente/chat.py) por `onEvento`; `signal` é o botão parar.
 export const enviarMensagem = (dados, { signal, onEvento }) => postStream("/api/assistente/mensagens", dados, { signal, onEvento });
+// IA-07a: modelo local lê as instruções quando o painel abre (a 1ª pergunta não espera ~45 s)
+export const aquecerAssistente = (dados) => post("/api/assistente/aquecer", dados);
 export const getConversas = () => get(`/api/assistente/conversas?t=${Date.now()}`);
 export const getConversa = (id) => get(`/api/assistente/conversas/${encodeURIComponent(id)}?t=${Date.now()}`);
 export const apagarConversa = (id) => del(`/api/assistente/conversas/${encodeURIComponent(id)}`);

@@ -261,6 +261,9 @@ O que sai e por quê está no SECURITY.md; o guia que o assistente consulta sobr
 | ASS-31 | No Windows, além do SHA-256, a assinatura digital tem que ser válida e da Ollama; senão o instalador nem roda | `test_instalar_ollama.py::test_windows_confere_a_assinatura_antes_de_rodar` |
 | ASS-32 | Só desinstala o Ollama que o Kami instalou; os modelos só saem com a caixa marcada | `test_instalar_ollama.py::test_so_desinstala_o_que_o_kami_instalou`, `test_instalar_ollama.py::test_desinstalar_com_a_caixa_marcada_apaga_os_modelos` |
 | ASS-33 | Uma tarefa no Ollama de cada vez; já instalado não reinstala; parado, "ligar" sobe o serviço ou o `ollama serve` | `test_instalar_ollama.py::test_uma_tarefa_de_cada_vez`, `test_instalar_ollama.py::test_ja_instalado_nao_instala_de_novo`, `test_instalar_ollama.py::test_ligar_o_ollama_parado` |
+| ASS-34 | Modelo local vai com o raciocínio desligado (gpt-oss no mínimo; a nuvem não recebe o campo) e quem recusa o campo recebe de novo sem ele | `test_assistente_adaptadores.py::test_modelo_local_nao_pensa_e_nuvem_nao_recebe_o_campo`, `test_assistente_adaptadores.py::test_local_que_recusa_reasoning_effort_repete_sem` |
+| ASS-35 | Painel aberto com modelo local lê as instruções e ferramentas antes (1 token, nada da pessoa), com o mesmo começo da pergunta e sem repetir enquanto o Ollama o tem; na nuvem não chama nada | `test_assistente_chat.py::test_aquecer_le_o_mesmo_comeco_da_pergunta_uma_vez_so`, `test_assistente_chat.py::test_aquecer_na_nuvem_nao_chama_nada`, `test_assistente_adaptadores.py::test_aquecer_le_sem_responder` |
+| ASS-36 | A ferramenta de metas entrega quanto falta, dias até o prazo e o ritmo por semana já calculados | `test_assistente_ferramentas.py::test_metas_trazem_quanto_falta_e_o_ritmo` |
 
 ## Avisos
 
