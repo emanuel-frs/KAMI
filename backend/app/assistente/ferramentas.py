@@ -191,28 +191,49 @@ FOLGA_RITMO_PCT = 10  # dentro de ±10 pontos do esperado = no ritmo
 
 
 def _metas(conn, args, perm):
-    from app.routers import metas
-    from app.routers.financas import lancamentos
+    from app.routers import carteira, metas
 
     lista = _js(metas.list_goals(db=conn))
     criadas = {r["id"]: r["created_at"] for r in conn.execute("SELECT id, created_at FROM goals")}
-    # saldo do mês só com finanças liberadas — senão a meta não fala de dinheiro da conta
-    sobra = _js(lancamentos.get_summary(month=_mes({}), db=conn))["saldo"] if perm.get("financas") else None
-    return {"today": _hoje().isoformat(), "goals": [
+    # dinheiro só com finanças liberadas — senão a meta não fala das contas
+    sobra = _sobra_media(conn) if perm.get("financas") else None
+    saida = {"today": _hoje().isoformat(), "goals": [
         {"title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
          "unit": g.get("unit_label") or g.get("unit"), "progress_pct": g["progress_pct"], "deadline": g["deadline"],
-         "status": g["status"], **_ritmo(g, criadas.get(g["id"]), sobra)} for g in lista[:30]]}
+         "status": g["status"], **_ritmo(g, criadas.get(g["id"]), sobra, perm.get("financas"))} for g in lista[:30]]}
+    if perm.get("financas"):
+        saida["accounts_total_available"] = _js(carteira.get_summary(db=conn)).get("total_possui")
+    return saida
 
 
-def _ritmo(g: dict, criada: str | None = None, sobra_do_mes: float | None = None) -> dict:
+MESES_DA_SOBRA = 3
+
+
+def _sobra_media(conn) -> float | None:
+    """Quanto sobra por mês (entradas − saídas), na média dos últimos meses
+    FECHADOS que tiveram entrada — o mês corrente pela metade não diz se uma
+    meta cabe (teste do Emanuel: −R$ 10 de um gasto só virou "não cabe").
+    Sem entrada registrada nesses meses = não dá pra saber (None)."""
+    from app.routers.financas import lancamentos
+
+    mes, sobras = _hoje().strftime("%Y-%m"), []
+    for _ in range(MESES_DA_SOBRA):
+        mes = _mes_anterior(mes)
+        r = _js(lancamentos.get_summary(month=mes, db=conn))
+        if r["total_in"]:
+            sobras.append(r["total_in"] - r["total_out"])
+    return round(sum(sobras) / len(sobras), 2) if sobras else None
+
+
+def _ritmo(g: dict, criada: str | None = None, sobra_media: float | None = None, financas: bool = False) -> dict:
     """Quanto falta, o ritmo pra chegar no prazo e a situação (adiantada,
-    no ritmo, atrasada, vencida); meta em dinheiro diz também se o que
-    sobrou no mês cobre o que ela pede por mês."""
+    no ritmo, atrasada, vencida); meta em dinheiro diz também se a sobra
+    média por mês cobre o que ela pede por mês."""
     falta = round(max((g["target_value"] or 0) - (g["current_value"] or 0), 0), 2)
     if g["status"] != "ativa" or not falta:
         return {"remaining": falta, "situation": "done"}
     if not g["deadline"]:
-        return {"remaining": falta, "situation": "no_deadline"}
+        return {"remaining": falta, "situation": "no deadline"}
     prazo = date.fromisoformat(g["deadline"][:10])
     dias = (prazo - _hoje()).days
     if dias < 0:
@@ -224,11 +245,14 @@ def _ritmo(g: dict, criada: str | None = None, sobra_do_mes: float | None = None
         diferenca = (g["progress_pct"] or 0) - esperado
         out["expected_progress_pct_today"] = esperado
         out["situation"] = ("ahead" if diferenca > FOLGA_RITMO_PCT else
-                            "behind" if diferenca < -FOLGA_RITMO_PCT else "on_track")
-    if g.get("unit") == "money" and sobra_do_mes is not None:
+                            "behind" if diferenca < -FOLGA_RITMO_PCT else "on track")
+    if g.get("unit") == "money" and financas:
         por_mes = round(falta / max(dias / 30, 1), 2)
-        out.update(needed_per_month=por_mes, balance_this_month=round(sobra_do_mes, 2),
-                   fits_in_this_month_balance=sobra_do_mes >= por_mes)
+        out["needed_per_month"] = por_mes
+        if sobra_media is None:
+            out["fits_monthly_leftover"] = "unknown: no income recorded in the last 3 months"
+        else:
+            out.update(average_monthly_leftover=sobra_media, fits_monthly_leftover=sobra_media >= por_mes)
     return out
 
 
@@ -469,8 +493,8 @@ LEITURAS: list[Leitura] = [
             {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "description": "default 30"}}}, _contas_a_vencer),
     Leitura("goals", "metas",
             "The person's goals with current value, target, progress, deadline and status, plus Kami's computed "
-            "situation (ahead, on_track, behind, overdue), remaining amount, pace needed and, for money goals, "
-            "whether this month's balance covers it.",
+            "situation (ahead, on track, behind, overdue), remaining amount, pace needed and, for money goals, "
+            "whether the average monthly leftover covers it.",
             _SEM_PARAMETROS, _metas, por_area=True),
     Leitura("agenda", "agenda",
             "Calendar items (events, reminders, bills, goal deadlines…) between two dates, at most 62 days apart.",

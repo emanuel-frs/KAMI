@@ -305,27 +305,48 @@ def test_metas_trazem_quanto_falta_o_ritmo_e_a_situacao(monkeypatch):
     assert ferramentas._ritmo(meta) == {"remaining": 70.0, "days_left": 21, "needed_per_week": 23.33}
     assert ferramentas._ritmo({**meta, "deadline": "2026-11-04"})["needed_per_week"] == 70.0  # menos de 1 semana
     assert ferramentas._ritmo({**meta, "deadline": "2026-10-30"}) == {"remaining": 70.0, "situation": "overdue", "overdue_days": 3}
-    assert ferramentas._ritmo({**meta, "deadline": None}) == {"remaining": 70.0, "situation": "no_deadline"}
+    assert ferramentas._ritmo({**meta, "deadline": None}) == {"remaining": 70.0, "situation": "no deadline"}
     assert ferramentas._ritmo({**meta, "status": "concluida", "current_value": 100.0}) == {"remaining": 0, "situation": "done"}
     # criada em 12/10 com prazo 23/11: hoje (2/11) já devia estar em 50% → 30% é atrasada
-    r = ferramentas._ritmo(meta, "2026-10-12T10:00:00", sobra_do_mes=850.0)
+    r = ferramentas._ritmo(meta, "2026-10-12T10:00:00", sobra_media=850.0, financas=True)
     assert r["expected_progress_pct_today"] == 50 and r["situation"] == "behind"
-    assert r["needed_per_month"] == 70.0 and r["fits_in_this_month_balance"] is True
-    assert ferramentas._ritmo({**meta, "progress_pct": 45}, "2026-10-12")["situation"] == "on_track"
+    assert r["needed_per_month"] == 70.0 and r["fits_monthly_leftover"] is True and r["average_monthly_leftover"] == 850.0
+    assert ferramentas._ritmo({**meta, "progress_pct": 45}, "2026-10-12")["situation"] == "on track"
     assert ferramentas._ritmo({**meta, "progress_pct": 70}, "2026-10-12")["situation"] == "ahead"
-    assert ferramentas._ritmo(meta, "2026-10-12", sobra_do_mes=-20.0)["fits_in_this_month_balance"] is False
-    # meta que não é de dinheiro não fala do saldo
-    assert "fits_in_this_month_balance" not in ferramentas._ritmo({**meta, "unit": "count"}, "2026-10-12", 850.0)
+    assert ferramentas._ritmo(meta, "2026-10-12", sobra_media=-20.0, financas=True)["fits_monthly_leftover"] is False
+    # sem entrada registrada: não dá pra saber (o teste do Emanuel: um gasto de R$ 10 virou "não cabe")
+    assert ferramentas._ritmo(meta, "2026-10-12", None, financas=True)["fits_monthly_leftover"].startswith("unknown")
+    # finanças desligadas ou meta que não é de dinheiro: não fala de dinheiro
+    assert "needed_per_month" not in ferramentas._ritmo(meta, "2026-10-12", 850.0)
+    assert "needed_per_month" not in ferramentas._ritmo({**meta, "unit": "count"}, "2026-10-12", 850.0, financas=True)
+
+
+def test_sobra_media_so_dos_meses_fechados_com_entrada(monkeypatch):
+    from app.routers.financas import lancamentos
+    monkeypatch.setattr(ferramentas, "_hoje", lambda: dt.date(2026, 11, 2))
+    meses = {"2026-10": (3000.0, 2500.0), "2026-09": (0, 400.0), "2026-08": (3000.0, 2900.0), "2026-11": (0, 10.0)}
+    pedidos = []
+
+    def resumo(month, db):
+        pedidos.append(month)
+        e, sai = meses.get(month, (0, 0))
+        return {"total_in": e, "total_out": sai}
+    monkeypatch.setattr(lancamentos, "get_summary", resumo)
+    assert ferramentas._sobra_media(None) == 300.0  # (500 + 100) / 2 — setembro sem entrada não conta
+    assert pedidos == ["2026-10", "2026-09", "2026-08"], "o mês corrente pela metade fica de fora"
+    meses.clear()
+    assert ferramentas._sobra_media(None) is None
 
 
 def test_metas_so_falam_do_saldo_com_financas_liberadas(client, dados):
     cfg = config.obter(dados)
     _, com = _rodar(dados, "goals", cfg)
-    dinheiro = [g for g in com["goals"] if g["unit"] in ("money", None) and "needed_per_month" in g]
-    assert dinheiro and all("balance_this_month" in g for g in dinheiro)
+    dinheiro = [g for g in com["goals"] if "needed_per_month" in g]
+    assert dinheiro and all("fits_monthly_leftover" in g for g in dinheiro)
+    assert com["accounts_total_available"] == client.get("/api/carteira/summary").json()["total_possui"]
     sem = {**cfg, "permissoes": json.dumps({**config.permissoes(cfg), "financas": False})}
     _, r = _rodar(dados, "goals", sem)
-    assert not any("balance_this_month" in g for g in r["goals"])
+    assert not any("needed_per_month" in g for g in r["goals"]) and "accounts_total_available" not in r
     _, visao = _rodar(dados, "month_overview")
     assert all("situation" in g for g in visao["goals"]) and "conclusions" in visao["finances"]
 
