@@ -247,6 +247,8 @@
 @media (prefers-reduced-motion: reduce) { .ia-etapa--agora::before { animation: none; } }
 /* resposta da IA: o que ela destaca em negrito usa o branco do sistema */
 .ia-msg-texto strong { color: var(--text-bright); }
+.ia-texto-icone { display: inline-flex; vertical-align: -1px; color: var(--accent); }
+
 /* IA-07a: os números da consulta, do jeito que o Kami leu — cores do sistema */
 .ia-quadro {
   margin: 4px 0 10px;
@@ -286,6 +288,10 @@
 .ia-q-barra-fila + .ia-q-barra-fila, .ia-q-fila + .ia-q-barra-fila { margin-top: 4px; }
 .ia-q-barra-fila .ia-quadro-barra { height: 3px; margin-top: 2px; }
 .ia-q-vazias { margin-top: 6px; font-size: 10.5px; }
+/* listas longas rolam dentro do cartão em vez de esticar o quadro */
+.ia-q-lista { --scrollbar-w: 6px; max-height: 8.5rem; overflow-y: auto; }
+.ia-q-lista--alta { max-height: 15rem; padding-right: 4px; }
+.ia-q-lista:focus-visible { outline: 1px dashed var(--accent); outline-offset: 2px; }
 .ia-quadro dl + .ia-quadro-meta, .ia-quadro-meta + dl { margin-top: 8px; }
 .ia-quadro-linha { display: flex; gap: 12px; padding: 1px 0; }
 .ia-quadro-linha dt { flex: 0 0 min(34%, 11rem); min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }

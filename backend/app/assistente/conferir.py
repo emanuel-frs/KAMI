@@ -125,3 +125,40 @@ def arrumar_moeda(resposta: str) -> str:
     """'r$ 0,00' → 'R$ 0,00' e 'R\\$' (cifrão escapado à toa) → 'R$'."""
     resposta = _REAL_MINUSCULO.sub("R$", resposta)
     return _CIFRAO_ESCAPADO.sub(lambda m: f"{m.group(1) or ''}$", resposta)
+
+
+# ── limpeza no fim da resposta (IA-07a, teste do Emanuel) ────────────────
+# O qwen3.5:4b respondeu em HTML (<details>, <div class="bento-card">…),
+# que a tela mostra como texto (nunca executa), e com emojis, que as
+# instruções já proíbem. O Kami limpa o que sobrar.
+
+_CODIGO = "```"
+_TAG = re.compile(r"</?[a-zA-Z][a-zA-Z0-9]*(?:\s[^<>]*)?/?>")
+_QUEBRA = re.compile(r"<br\s*/?>|</(?:p|div|details|summary|section|article|li|ul|ol|tr|table|h[1-6])>", re.I)
+_NEGRITO = re.compile(r"</?(?:b|strong)>", re.I)
+_ITEM = re.compile(r"<li[^>]*>", re.I)
+# emojis e pictogramas; ✓ ✔ ✗ ficam (são texto comum no visual do Kami)
+_EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u2712\u2715\u2716\u2718-\u27BF\u2B50\u2B55"
+                    "\u231A\u231B\u23E9-\u23FA\uFE0F\u200D]")
+
+
+def sem_html(resposta: str) -> str:
+    if _CODIGO in resposta or not _TAG.search(resposta):
+        return resposta
+    t = _ITEM.sub("\n- ", resposta)
+    t = _NEGRITO.sub("**", t)
+    t = _QUEBRA.sub("\n", t)
+    t = _TAG.sub("", t)
+    t = re.sub(r"[ \t]+\n", "\n", t)
+    return re.sub(r"\n{3,}", "\n\n", t).strip()
+
+
+def sem_emoji(resposta: str) -> str:
+    """'📂 Finanças' → 'Finanças' (o espaço depois do emoji sai junto)."""
+    return re.sub(f"(?:{_EMOJI.pattern})+ ?", "", resposta)
+
+
+def arrumar(resposta: str) -> str:
+    """HTML vira Markdown simples, emojis saem e a moeda fica certa."""
+    return arrumar_moeda(sem_emoji(sem_html(resposta)))
+

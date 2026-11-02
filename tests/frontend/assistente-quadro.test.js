@@ -105,3 +105,35 @@ test(
     assert.equal(saida[3].quadros, undefined);
   }),
 );
+
+test(
+  "quadro: 10 metas rolam dentro do cartão (sem cortar) e dá pra rolar pelo teclado",
+  withDom("<!doctype html><body></body>", async () => {
+    const { noQuadro } = await import("../../frontend/js/components/assistente-quadro.js");
+    const dez = Array.from({ length: 10 }, (_, i) => ({ title: `meta ${i + 1}`, progress_pct: i * 10, status: "ativa", situation: "on track" }));
+    const sozinho = noQuadro({ nome: "goals", dados: { goals: dez } });
+    const lista = sozinho.querySelector(".ia-q-lista--alta");
+    assert.equal(lista.querySelectorAll(".ia-quadro-meta").length, 10);
+    assert.equal(lista.getAttribute("tabindex"), "0");
+    const mes = noQuadro({ nome: "month_overview", dados: { month: "2026-11", goals: dez } });
+    const noCartao = mes.querySelector(".ia-q-cartao--metas .ia-q-lista");
+    assert.equal(noCartao.querySelectorAll(".ia-q-barra-fila").length, 10);
+    assert.equal(noCartao.getAttribute("tabindex"), "0");
+    const poucas = noQuadro({ nome: "month_overview", dados: { month: "2026-11", goals: dez.slice(0, 2) } });
+    assert.equal(poucas.querySelector(".ia-q-lista").hasAttribute("tabindex"), false, "sem rolagem, sem parada no tab");
+  }),
+);
+
+test(
+  "resposta: :nome: vira o ícone do Kami (só os liberados, fora de código)",
+  withDom("<!doctype html><body><div id='r'></div></body>", async (dom) => {
+    const { trocarIcones } = await import("../../frontend/js/components/assistente-painel.js");
+    const r = dom.window.document.querySelector("#r");
+    r.innerHTML = "<p>meta :target: no ritmo e :rocket: não existe</p><pre><code>:target:</code></pre>";
+    trocarIcones(r);
+    const p = r.querySelector("p");
+    assert.equal(p.querySelectorAll(".ia-texto-icone svg.icon-target").length, 1);
+    assert.equal(p.textContent.replace(/\s+/g, " "), "meta no ritmo e :rocket: não existe");
+    assert.equal(r.querySelector("code").textContent, ":target:", "dentro de código fica como está");
+  }),
+);

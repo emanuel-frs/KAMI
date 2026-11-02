@@ -385,6 +385,7 @@ function noMensagem(m, i) {
   if (m.texto) {
     txt.append(markdownParaDom(m.texto));
     enfeitarCodigo(txt);
+    trocarIcones(txt);
   }
   div.append(txt);
   if (m.aviso?.tipo === "conferir" && !m.carregando) {
@@ -418,6 +419,40 @@ function noMensagem(m, i) {
     if (acoes) div.append(acoes);
   }
   return div;
+}
+
+// IA-07a: no lugar de emoji, o modelo escreve :nome: e entra o ícone do
+// Kami — só estes (a mesma lista vai nas instruções, instrucoes.ICONES)
+export const ICONES_IA = new Set(["check", "target", "trending-up", "trending-down", "star", "zap", "calendar-days",
+  "clock", "receipt", "credit-card", "triangle-alert", "bell"]);
+const MARCA_ICONE = /:([a-z-]+):/g;
+
+/** Troca :nome: por ícone nos textos da resposta (fora de código). */
+export function trocarIcones(raiz) {
+  const doc = raiz.ownerDocument;
+  const andar = doc.createTreeWalker(raiz, 4 /* NodeFilter.SHOW_TEXT */);
+  const nos = [];
+  while (andar.nextNode()) {
+    const n = andar.currentNode;
+    if (!n.parentElement?.closest("code, pre") && MARCA_ICONE.test(n.data)) nos.push(n);
+    MARCA_ICONE.lastIndex = 0;
+  }
+  for (const n of nos) {
+    const pedacos = doc.createDocumentFragment();
+    let resto = 0;
+    for (const achado of n.data.matchAll(MARCA_ICONE)) {
+      if (!ICONES_IA.has(achado[1])) continue;
+      pedacos.append(n.data.slice(resto, achado.index));
+      const span = doc.createElement("span");
+      span.className = "ia-texto-icone";
+      span.innerHTML = icon(achado[1], { size: 12 });
+      pedacos.append(span);
+      resto = achado.index + achado[0].length;
+    }
+    if (!resto) continue;
+    pedacos.append(n.data.slice(resto));
+    n.replaceWith(pedacos);
+  }
 }
 
 /** Bloco de código: cabeçalho com a linguagem e "copiar" (diagrama em

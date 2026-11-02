@@ -150,3 +150,28 @@ def test_quadro_ao_vivo_e_na_conversa_reaberta(client, falso, monkeypatch):
     msgs = client.get(f"/api/assistente/conversas/{ev[0]['conversa_id']}").json()["mensagens"]
     assert [m["papel"] for m in msgs] == ["usuario", "ferramenta", "assistente"]
     assert msgs[1]["quadro"] == {"nome": "finance_summary", "dados": {"expenses": 10.0}} and "texto" not in msgs[1]
+
+
+# ── limpeza: HTML, emojis e ícones do Kami ───────────────────────────────
+
+def test_html_da_resposta_vira_texto_e_emojis_saem():
+    """Caso real do qwen3.5:4b: respondeu em <details>/<div> com 📂 e ⚡."""
+    bruto = ('<details><summary style="cursor: pointer">📂 Finanças (10 de nov)</summary><div class="bento-card">'
+             '<h5>O cartão</h5><span style="color: #9ca3ad">Gastei <b>r$ 10</b> em um único motivo.</span></div></details>')
+    assert conferir.arrumar(bruto) == "Finanças (10 de nov)\nO cartão\nGastei **R$ 10** em um único motivo."
+    assert conferir.arrumar("⚡ Aprendizados\n- item\n  - sub ✓ feito") == "Aprendizados\n- item\n  - sub ✓ feito"
+    # bloco de código e comparação "a < b" ficam como estão
+    assert conferir.arrumar("```html\n<b>x</b>\n```") == "```html\n<b>x</b>\n```"
+    assert conferir.arrumar("se 3 < 5 e 7 > 2") == "se 3 < 5 e 7 > 2"
+
+
+def test_icones_das_instrucoes_existem_no_kami_e_na_tela():
+    from pathlib import Path
+    from app.assistente import instrucoes
+    raiz = Path(__file__).resolve().parents[2] / "frontend" / "js" / "components"
+    icones_js = (raiz / "icons.js").read_text(encoding="utf-8")
+    painel = (raiz / "assistente-painel.js").read_text(encoding="utf-8")
+    for nome in instrucoes.ICONES:
+        assert f'"{nome}":' in icones_js or f"\n  {nome}:" in icones_js, nome
+        assert f'"{nome}"' in painel, f"{nome} fora de ICONES_IA"
+    assert ":target:" in instrucoes.montar("pt", None, local=True) and ":target:" in instrucoes.montar("pt", None)

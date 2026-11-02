@@ -101,7 +101,10 @@ function filaComBarra(nome, pctBruto, chave = null) {
     <div class="ia-quadro-barra"><div class="bar-fill ia-quadro-barra--${chave || "no_ritmo"}" style="width:${progresso}%;"></div></div></div>`;
 }
 
-const mais = (n) => (n > 0 ? `<p class="ia-quadro-vazio">${escapeHtml(t("assistente.quadro.mais", { n }))}</p>` : "");
+/** Lista que rola dentro do cartão quando passa da altura (10 metas não
+ *  esticam o quadro); com muitos itens, dá pra rolar pelo teclado. */
+const rolavel = (itens, html) =>
+  `<div class="ia-q-lista"${itens > MAX_NO_CARTAO ? ` tabindex="0"` : ""}>${html}</div>`;
 
 /** Seta e cor contra o mês anterior: "+20 ↑". */
 function contraAnterior(agora, antes, prefixo = "") {
@@ -124,23 +127,20 @@ function cartaoFinancas(f) {
 function cartaoMetas(metas) {
   const ativas = metas.filter((g) => g.status === "ativa");
   if (!ativas.length) return null;
-  return ativas.slice(0, MAX_NO_CARTAO).map((g) => filaComBarra(g.title, g.progress_pct, SITUACOES[g.situation])).join("")
-    + mais(ativas.length - MAX_NO_CARTAO);
+  return rolavel(ativas.length, ativas.map((g) => filaComBarra(g.title, g.progress_pct, SITUACOES[g.situation])).join(""));
 }
 
 function cartaoHabitos(habitos) {
   if (!habitos.length) return null;
-  return habitos.slice(0, MAX_NO_CARTAO).map((h) => fila(`${h.done_today ? "✓ " : ""}${h.name}`,
-    t("assistente.quadro.habito_resumo", { n: h.streak ?? 0, pct: h.success_30d_pct ?? 0 }), h.streak ? "entra" : "")).join("")
-    + mais(habitos.length - MAX_NO_CARTAO);
+  return rolavel(habitos.length, habitos.map((h) => fila(`${h.done_today ? "✓ " : ""}${h.name}`,
+    t("assistente.quadro.habito_resumo", { n: h.streak ?? 0, pct: h.success_30d_pct ?? 0 }), h.streak ? "entra" : "")).join(""));
 }
 
 function cartaoAprendizado(a) {
   const trilhas = a.tracks || [];
   if (!trilhas.length && !a.milestones_completed_this_month) return null;
   return fila(t("assistente.quadro.marcos_mes"), String(a.milestones_completed_this_month ?? 0), a.milestones_completed_this_month ? "entra" : "")
-    + trilhas.slice(0, MAX_NO_CARTAO).map((tr) => filaComBarra(tr.track, tr.progress_pct)).join("")
-    + mais(trilhas.length - MAX_NO_CARTAO);
+    + rolavel(trilhas.length, trilhas.map((tr) => filaComBarra(tr.track, tr.progress_pct)).join(""));
 }
 
 function cartaoProgresso(p) {
@@ -174,9 +174,7 @@ function corpoMes(d) {
 function linhasMetas(metas) {
   const ativas = (metas || []).filter((g) => g.status === "ativa");
   if (!ativas.length) return [vazio(t("assistente.quadro.sem_metas"))];
-  const out = ativas.slice(0, MAX_METAS).map(linhaMeta);
-  if (ativas.length > MAX_METAS) out.push(vazio(t("assistente.quadro.mais_metas", { n: ativas.length - MAX_METAS })));
-  return out;
+  return [`<div class="ia-q-lista ia-q-lista--alta"${ativas.length > MAX_METAS ? ` tabindex="0"` : ""}>${ativas.map(linhaMeta).join("")}</div>`];
 }
 
 function corpoDo(nome, d) {

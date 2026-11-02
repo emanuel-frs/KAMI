@@ -20,7 +20,7 @@ Princípios (docs/EVOLUCAO-CARDS.md, seção 9) que viram texto aqui:
 """
 from datetime import date
 
-VERSAO = "2026-11-02.6"
+VERSAO = "2026-11-02.7"
 
 IDIOMAS = {
     "pt": "Brazilian Portuguese", "en": "English", "es": "Spanish (neutral Latin American)",
@@ -43,6 +43,12 @@ SITUACOES = {
     "hi": ("आगे", "सही रफ़्तार पर", "पीछे", "समय निकल गया"),
 }
 
+# IA-07a: no lugar de emoji, os ícones do próprio Kami — o modelo escreve
+# :nome: e a tela troca pelo ícone (assistente-painel.js); só estes
+ICONES = ("check", "target", "trending-up", "trending-down", "star", "zap", "calendar-days", "clock",
+          "receipt", "credit-card", "triangle-alert", "bell")
+_ICONES = ":name: using one of " + ", ".join(ICONES) + " (e.g. :target:)"
+
 # nome das telas em inglês (o modelo só precisa saber onde a pessoa está)
 TELAS = {
     "perfil": "profile", "nucleo": "core (xp, attributes, activity log)", "financas": "finances",
@@ -61,7 +67,7 @@ Role and tone:
 Data:
 {dados}
 
-Format: the chat renders Markdown — headings (#, ##, ### only), **bold**, _italic_, lists (nested with 2 spaces), tables, > quotes, `code` and fenced code blocks with a language (```python). For a diagram (a flow, a timeline, a hierarchy, a comparison of steps), draw it as plain text with box-drawing characters (┌─┐ │ └─┘ → ▸) inside a ```text block, with no emoji in it (they break the alignment) — Mermaid and images are NOT rendered. Use structure only when it makes the answer clearer; a short question gets a short answer. Answer ONLY in {idioma}.
+Format: the chat renders Markdown — headings (#, ##, ### only), **bold**, _italic_, lists (nested with 2 spaces), tables, > quotes, `code` and fenced code blocks with a language (```python). For a diagram (a flow, a timeline, a hierarchy, a comparison of steps), draw it as plain text with box-drawing characters (┌─┐ │ └─┘ → ▸) inside a ```text block, with no emoji in it (they break the alignment) — Mermaid, images and HTML tags are NOT rendered (never write HTML). No emojis anywhere; if an icon really helps, write {icones}. Use structure only when it makes the answer clearer; a short question gets a short answer. Answer ONLY in {idioma}.
 Today is {hoje}. The person is on the "{tela}" screen."""
 
 _DADOS = """- You can read the person's Kami data ONLY through the tools you were given. Use them whenever the answer depends on their data; never guess numbers, dates or records. Money amounts are in {moeda}.
@@ -86,7 +92,7 @@ _BASE_LOCAL = """You are the assistant inside Kami, a personal desktop app for f
 - Be direct and brief. No flattery, no small talk, no emojis. Scope: Kami and the person's data in it. For anything else (trivia, jokes, poems, sports, homework, coding, news), refuse in one short sentence and steer back — do not answer it.
 - If the person shows distress or mentions harming themselves: one or two warm sentences, point to real help (Brazil: CVV, 188 or cvv.org.br; elsewhere a local crisis line or findahelpline.com), then offer to continue.
 {dados}
-Format: Markdown (bold, lists, tables); no Mermaid, no images. Short question, short answer. Answer ONLY in {idioma}.
+Format: Markdown only (bold, lists, tables) — never HTML tags, no Mermaid, no images. No emojis; if an icon really helps, write {icones}. Short question, short answer. Answer ONLY in {idioma}.
 Today is {hoje}. The person is on the "{tela}" screen."""
 
 _DADOS_LOCAL = """- Read the person's data ONLY with your tools; never guess numbers, dates or records. Money is in {moeda}.
@@ -121,6 +127,7 @@ def montar(idioma: str, tela: str | None, hoje: date | None = None, moeda: str =
     return base.format(
         dados=dados.format(moeda=moeda or "BRL", areas=areas, **_situacoes(idioma) if local else {}).rstrip(),
         idioma=IDIOMAS.get(idioma, IDIOMAS["pt"]),
+        icones=_ICONES,
         hoje=(hoje or date.today()).isoformat(),
         tela=TELAS.get(tela or "", "unknown"),
     )
