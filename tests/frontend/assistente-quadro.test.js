@@ -49,6 +49,39 @@ test(
   }),
 );
 
+const MES = {
+  month: "2026-11",
+  finances: { income: 0, expenses: 10, net_this_month: null, accounts_total_available: 0, conclusions: { income_still_expected: 1800 } },
+  goals: [{ title: "teste", progress_pct: 0, status: "ativa", situation: "on track", deadline: "2026-11-25" }],
+  habits: [{ name: "correr", streak: 4, success_30d_pct: 63, done_today: true }, { name: "ler", streak: 0, success_30d_pct: 10, done_today: false }],
+  learning: { milestones_completed_this_month: 2, tracks: [{ track: "Java e Spring Boot", status: "em_andamento", progress_pct: 40 }] },
+  progress: { xp_gained: 120, active_days: 9, missions_completed: 3, achievements_unlocked: ["primeiro passo"],
+    previous_month: { xp_gained: 200, active_days: 5 } },
+};
+
+test(
+  "quadro: o mês com uma seção por área liberada",
+  withDom("<!doctype html><body></body>", async () => {
+    const { noQuadro } = await import("../../frontend/js/components/assistente-quadro.js");
+    const el = noQuadro({ nome: "month_overview", dados: MES });
+    assert.deepEqual([...el.querySelectorAll(".ia-quadro-secao")].map((x) => x.textContent),
+      ["finanças", "metas", "hábitos", "aprendizado", "progresso"]);
+    const l = linhas(el);
+    assert.ok(l.includes("correr 4 dias seguidos · 63% em 30 dias ✓ hoje"), l.join(" | "));
+    assert.ok(l.includes("ler 0 dias seguidos · 10% em 30 dias"));
+    assert.ok(l.includes("marcos no mês 2"));
+    assert.ok(l.includes("xp no mês +120 ↓ (mês passado: +200)"), "xp caiu: seta pra baixo");
+    assert.ok(l.includes("dias ativos 9 ↑ (mês passado: 5)"));
+    assert.ok(l.includes("conquistas 1 primeiro passo"));
+    assert.equal(el.querySelectorAll(".ia-quadro-meta")[1].querySelector(".ia-quadro-meta-nome").textContent, "Java e Spring Boot");
+    // área desligada pela pessoa não vem nos dados — e não aparece
+    const sem = noQuadro({ nome: "month_overview", dados: { month: "2026-11", goals: MES.goals } });
+    assert.deepEqual([...sem.querySelectorAll(".ia-quadro-secao")].map((x) => x.textContent), ["metas"]);
+    assert.equal(noQuadro({ nome: "month_overview", dados: { ...MES, habits: [] } }).querySelector(".ia-quadro-vazio").textContent,
+      "nenhum hábito ativo");
+  }),
+);
+
 test(
   "quadro: conversa reaberta põe o quadro na resposta que vem depois",
   withDom("<!doctype html><body></body>", async () => {

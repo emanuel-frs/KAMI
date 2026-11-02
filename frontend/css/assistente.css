@@ -265,6 +265,14 @@
   letter-spacing: 0.04em;
 }
 .ia-quadro dl { margin: 0; }
+.ia-quadro-secao {
+  margin: 10px 0 4px;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.ia-quadro-secao::before { content: "── "; color: var(--border-interactive); }
+.ia-quadro-corpo > .ia-quadro-secao:first-child { margin-top: 0; }
 .ia-quadro dl + .ia-quadro-meta, .ia-quadro-meta + dl { margin-top: 8px; }
 .ia-quadro-linha { display: flex; gap: 12px; padding: 1px 0; }
 .ia-quadro-linha dt { flex: 0 0 min(34%, 11rem); min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }
