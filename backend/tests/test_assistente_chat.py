@@ -453,3 +453,13 @@ def test_historico_local_so_com_texto_e_curto():
     assert len(chat._historico(msgs)) == 8, "na nuvem continua tudo"
     longo = [_m("usuario", "x" * 900), _m("assistente", "y" * 900), _m("usuario", "z" * 100), _m("assistente", "w" * 100)]
     assert [m.texto[0] for m in chat._historico(longo, local=True)] == ["z", "w"]
+
+
+def test_estado_do_aquecimento_pra_tela(client, aquecer_limpo):
+    assert client.get("/api/assistente/aquecer").json() == {"aquecendo": False}
+    aquecer_limpo._aquecendo.acquire()
+    try:
+        assert client.get("/api/assistente/aquecer").json() == {"aquecendo": True}
+    finally:
+        aquecer_limpo._aquecendo.release()
+

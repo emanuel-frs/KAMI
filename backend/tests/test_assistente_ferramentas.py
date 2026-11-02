@@ -363,3 +363,16 @@ def test_conclusoes_do_mes_ja_calculadas():
     assert ferramentas._conclusoes_do_mes({"total_in": 0, "total_out": 10.0, "top_categories": []}, {"total_out": 0},
                                           previstas) == {"no_income_recorded_yet": True, "income_still_expected": 1800.0}
     assert ferramentas._mes_anterior("2026-01") == "2025-12" and ferramentas._mes_anterior("2026-11") == "2026-10"
+
+
+def test_metas_trazem_o_resumo_contado():
+    """IA-07a: com 1 no ritmo e 3 sem prazo o 4B disse "duas vencidas" — a contagem vem pronta."""
+    metas = [{"status": "ativa", "situation": "on track", "unit": "money", "remaining": 100.0},
+             {"status": "ativa", "situation": "no deadline", "unit": "money", "remaining": 50.0},
+             {"status": "ativa", "situation": "no deadline", "unit": "money", "remaining": 25.0},
+             {"status": "ativa", "situation": "no deadline", "unit": "money", "remaining": 12.5},
+             {"status": "concluida", "situation": "done", "unit": "count", "remaining": 0}]
+    assert ferramentas._resumo_metas(metas) == {
+        "active": 4, "done": 1, "ahead": 0, "on_track": 1, "behind": 0, "overdue": 0, "no_deadline": 3,
+        "money_remaining_total": 187.5}
+

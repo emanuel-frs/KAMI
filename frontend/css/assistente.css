@@ -288,6 +288,7 @@
 .ia-q-barra-fila + .ia-q-barra-fila, .ia-q-fila + .ia-q-barra-fila { margin-top: 4px; }
 .ia-q-barra-fila .ia-quadro-barra { height: 3px; margin-top: 2px; }
 .ia-q-vazias { margin-top: 6px; font-size: 10.5px; }
+.ia-q-resumo { margin: 0 0 8px; color: var(--text-bright); }
 /* listas longas rolam dentro do cartão em vez de esticar o quadro */
 .ia-q-lista { --scrollbar-w: 6px; max-height: 8.5rem; overflow-y: auto; }
 .ia-q-lista--alta { max-height: 15rem; padding-right: 4px; }

@@ -206,9 +206,24 @@ def _metas(conn, args, perm):
         {"title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
          "unit": g.get("unit_label") or g.get("unit"), "progress_pct": g["progress_pct"], "deadline": g["deadline"],
          "status": g["status"], **_ritmo(g, criadas.get(g["id"]), sobra, perm.get("financas"))} for g in lista[:30]]}
+    saida["summary"] = _resumo_metas(saida["goals"])
     if perm.get("financas"):
         saida["accounts_total_available"] = _js(carteira.get_summary(db=conn)).get("total_possui")
     return saida
+
+
+def _resumo_metas(metas: list[dict]) -> dict:
+    """Contagens prontas (teste do Emanuel: com 1 no ritmo e 3 sem prazo, o
+    qwen3.5:4b disse "duas vencidas" e errou o total que falta)."""
+    ativas = [g for g in metas if g["status"] == "ativa"]
+    por_situacao = {s: sum(1 for g in ativas if g.get("situation") == s)
+                    for s in ("ahead", "on track", "behind", "overdue", "no deadline")}
+    out = {"active": len(ativas), "done": len(metas) - len(ativas),
+           **{k.replace(" ", "_"): v for k, v in por_situacao.items()}}
+    dinheiro = [g["remaining"] for g in ativas if g.get("unit") == "money"]
+    if dinheiro:
+        out["money_remaining_total"] = round(sum(dinheiro), 2)
+    return out
 
 
 MESES_DA_SOBRA = 3

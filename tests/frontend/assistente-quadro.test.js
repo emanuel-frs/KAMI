@@ -33,7 +33,10 @@ test(
     ]);
     assert.ok(!fin.textContent.includes("resultado do mês"), "sem entrada não tem resultado do mês");
 
-    const metas = noQuadro({ nome: "goals", dados: METAS });
+    const metas = noQuadro({ nome: "goals", dados: { ...METAS, summary: {
+      active: 4, done: 1, ahead: 0, on_track: 1, behind: 0, overdue: 0, no_deadline: 3, money_remaining_total: 187.5 } } });
+    assert.equal(metas.querySelector(".ia-q-resumo").textContent.replace(/\s+/g, " "),
+      "ativas: 4 · 1 no ritmo · 3 sem prazo · falta R$ 187,50", "contado pelo Kami, só o que não é zero");
     const meta = metas.querySelectorAll(".ia-quadro-meta");
     assert.equal(meta.length, 1, "só as ativas");
     assert.equal(meta[0].querySelector(".ia-quadro-meta-nome").textContent, "viagem");

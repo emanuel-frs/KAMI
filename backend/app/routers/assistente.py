@@ -352,6 +352,13 @@ _aquecendo = threading.Lock()
 _aquecido: dict = {"chave": None, "quando": 0.0}
 
 
+@router.get("/aquecer")
+def aquecendo():
+    """A tela mostra "preparando o modelo" enquanto isto for true — a 1ª
+    pergunta espera o aquecimento terminar no Ollama (fila dele)."""
+    return {"aquecendo": _aquecendo.locked()}
+
+
 @router.post("/aquecer", status_code=202)
 def aquecer(payload: AquecerIn):
     """IA-07a: o painel abriu com modelo local — lê as instruções antes da

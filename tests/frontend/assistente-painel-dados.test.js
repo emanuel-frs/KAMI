@@ -28,11 +28,15 @@ test(
   withDom(`<!doctype html><body><div class="nav-link" data-assistente role="button" tabindex="0">assistente kami</div></body>`, async (dom, t) => {
     const pedidos = [];
     let resposta = [];
+    let aquecendo = false;
     const fetch = async (url, opts = {}) => {
       const u = new URL(url);
       const corpo = opts.body ? JSON.parse(opts.body) : undefined;
       pedidos.push({ caminho: u.pathname, corpo });
       if (u.pathname === "/api/assistente") return new Response(JSON.stringify(ESTADO), { headers: { "content-type": "application/json" } });
+      if (u.pathname === "/api/assistente/aquecer" && (opts.method || "GET") === "GET") {
+        return new Response(JSON.stringify({ aquecendo: aquecendo }), { headers: { "content-type": "application/json" } });
+      }
       if (u.pathname === "/api/assistente/mensagens") {
         const corpo = resposta instanceof ReadableStream ? resposta : sse(resposta);
         return new Response(corpo, { headers: { "content-type": "text/event-stream" } });
@@ -121,6 +125,25 @@ test(
       const ultima = doc.querySelector(".ia-msg--kami:last-child");
       assert.equal(ultima.querySelector(".ia-msg-texto").textContent, "Seu saldo é R$ 49.031.");
       assert.equal(ultima.querySelector(".ia-conferir").textContent, "confira: não está nos dados que o Kami consultou — R$ 49.031");
+    });
+
+    await t.test("IA-07a: 1ª pergunta durante o aquecimento mostra \"preparando o modelo\"", async () => {
+      const enc = new TextEncoder();
+      let ctrl;
+      resposta = new ReadableStream({ start: (c) => { ctrl = c; } });
+      t.after(() => { try { ctrl.close(); } catch { /* já fechado */ } });
+      aquecendo = true;
+      $("#ia-texto").value = "oi";
+      $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      const etapa = () => doc.querySelector(".ia-msg--kami:last-child .ia-etapa--agora")?.textContent || "";
+      await ate(() => /preparando/.test(etapa()));
+      assert.match(etapa(), /^preparando o modelo \(1ª pergunta\) · \d+ s$/);
+      aquecendo = false;
+      for (let i = 0; i < 100 && /preparando/.test(etapa()); i++) await espera(30);
+      assert.match(etapa(), /^pensando/);
+      ctrl.enqueue(enc.encode(`event: fim\ndata: ${JSON.stringify({ tipo: "fim", motivo: "fim" })}\n\n`));
+      ctrl.close();
+      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
     });
 
     await t.test("IA-07a: etapas com o tempo enquanto responde; no fim, uma linha com o tempo", async () => {

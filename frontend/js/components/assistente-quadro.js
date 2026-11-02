@@ -171,6 +171,17 @@ function corpoMes(d) {
     + (vazias.length ? `<p class="ia-quadro-vazio ia-q-vazias">${escapeHtml(t("assistente.quadro.sem_registros", { areas: vazias.join(", ") }))}</p>` : "");
 }
 
+/** "4 ativas · 1 no ritmo · 3 sem prazo · falta R$ 187,50" — contado pelo Kami. */
+function resumoMetas(r) {
+  if (!r?.active) return [];
+  const partes = [t("assistente.quadro.ativas", { n: r.active })];
+  for (const [campo, chave] of [["on_track", "no_ritmo"], ["ahead", "adiantada"], ["behind", "atrasada"], ["overdue", "vencida"], ["no_deadline", "sem_prazo"]]) {
+    if (r[campo]) partes.push(`${r[campo]} ${t(`assistente.quadro.situacao.${chave}`)}`);
+  }
+  if (r.money_remaining_total) partes.push(t("assistente.quadro.falta", { valor: fmtMoeda(r.money_remaining_total) }));
+  return [`<p class="ia-q-resumo">${escapeHtml(partes.join(" · "))}</p>`];
+}
+
 function linhasMetas(metas) {
   const ativas = (metas || []).filter((g) => g.status === "ativa");
   if (!ativas.length) return [vazio(t("assistente.quadro.sem_metas"))];
@@ -179,7 +190,7 @@ function linhasMetas(metas) {
 
 function corpoDo(nome, d) {
   if (nome === "finance_summary") return { titulo: fmtMesAno(d.month), linhas: linhasFinancas(d, d.expected_income) };
-  if (nome === "goals") return { titulo: t("assistente.quadro.metas"), linhas: linhasMetas(d.goals) };
+  if (nome === "goals") return { titulo: t("assistente.quadro.metas"), linhas: [...resumoMetas(d.summary), ...linhasMetas(d.goals)] };
   if (nome === "month_overview") return { titulo: fmtMesAno(d.month), html: corpoMes(d) };
   return null;
 }

@@ -27,6 +27,7 @@ import {
   apagarEnvios,
   apagarTodasConversas,
   aquecerAssistente,
+  getAquecendo,
   enviarMensagem,
   getAssistente,
   getConversa,
@@ -323,9 +324,26 @@ function noEtapas(m) {
   }
   const agora = m.texto ? t("assistente.etapa.escrevendo")
     : m.consultando ? t("assistente.etapa.consultando", { nome: tOu(`assistente.ferramenta.${m.consultando}`, m.consultando) })
-    : m.ferramentas?.length ? t("assistente.etapa.lendo") : t("assistente.etapa.pensando");
+    : m.ferramentas?.length ? t("assistente.etapa.lendo")
+    : m.preparando ? t("assistente.etapa.preparando") : t("assistente.etapa.pensando");
   linha("agora", `${agora} · ${t("assistente.etapa.tempo", { s: segundos(m) })}`);
   return lista;
+}
+
+/** IA-07a: a 1ª pergunta espera o aquecimento (o painel acabou de abrir):
+ *  "preparando o modelo" em vez de "pensando" até ele terminar. */
+async function acompanharAquecimento(resposta) {
+  for (let i = 0; i < 120 && resposta.carregando; i++) {
+    let aquecendo = false;
+    try {
+      aquecendo = (await getAquecendo()).aquecendo;
+    } catch {
+      /* sem resposta: segue como "pensando" */
+    }
+    resposta.preparando = aquecendo;
+    if (!aquecendo) return;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
 }
 
 /** Só a linha das etapas, a cada segundo — sem redesenhar a resposta. */
@@ -723,6 +741,7 @@ async function responder({ texto = "", acao }, resposta) {
   announce(t("assistente.chat.respondendo"));
   enviando = new AbortController();
   const relogio = setInterval(atualizarEtapas, 1000);
+  if (estadoIa?.provedor?.local) acompanharAquecimento(resposta);
   try {
     await enviarMensagem(
       { texto, acao, conversa_id: conversaId, tela: getTelaAtual() || null, idioma: idiomaAtual() },
