@@ -21,7 +21,8 @@ from datetime import date
 MAX_AVISOS = 5
 
 # símbolo antes (R$ 10, US$ 5, € 3) ou código/símbolo depois (10 €, 10 BRL)
-_NUM = r"\d(?:[\d.,]*\d)?"
+# milhar também com espaço ("R$ 1 800", "1\u00a0800 €")
+_NUM = r"\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d(?:[\d.,]*\d)?"
 _DINHEIRO = re.compile(
     rf"(?:(?:R\$|US\$|\$|€|£|¥|₹)\s?-?\s?({_NUM}))|(?:({_NUM})\s?(?:€|£|BRL|USD|EUR|reais))", re.IGNORECASE)
 _DATA = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?(?![\d/])")
@@ -33,7 +34,7 @@ def valor(texto: str) -> float | None:
     """'1.800,00', '1,800.00', '1800', '30,43', '1.809' → número. Com
     vírgula e ponto, o último é o decimal; só um deles seguido de
     exatamente 3 dígitos é milhar."""
-    t = texto.strip()
+    t = re.sub(r"[\s\u00a0\u202f]", "", texto)
     if "," in t and "." in t:
         dec = "," if t.rfind(",") > t.rfind(".") else "."
         t = t.replace("." if dec == "," else ",", "").replace(dec, ".")

@@ -75,7 +75,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
 from app import database
-from app.assistente import acoes, catalogo, chat, config, conversas, instalar_ollama, instrucoes, local, provedores, transporte, uso
+from app.assistente import acoes, catalogo, chat, config, conversas, ferramentas, instalar_ollama, instrucoes, local, provedores, transporte, uso
 from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
@@ -449,11 +449,17 @@ def get_conversa(conversa_id: str, db=Depends(get_db)):
     # a tela mostra o que a pessoa e o assistente disseram; os resultados
     # das ferramentas ficam no registro do que foi enviado
     # das ferramentas, o cartão da proposta de ações (IA-05) aparece no lugar
-    c["mensagens"] = [
-        {k: v for k, v in m.items() if not (m.get("proposta") and k == "texto")} if m.get("proposta") else m
-        for m in c["mensagens"]
-        if m.get("proposta") or (m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso")))
-    ]
+    # IA-07a: das consultas com quadro (metas, finanças, mês), só o quadro
+    saida = []
+    for m in c["mensagens"]:
+        if m["papel"] == "ferramenta" and not m.get("proposta"):
+            if q := ferramentas.quadro(m.get("nome_ferramenta"), m["texto"]):
+                saida.append({"id": m["id"], "papel": "ferramenta", "quadro": q})
+        elif m.get("proposta"):
+            saida.append({k: v for k, v in m.items() if k != "texto"})
+        elif m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso"):
+            saida.append(m)
+    c["mensagens"] = saida
     return c
 
 

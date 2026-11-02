@@ -36,6 +36,7 @@ import {
 import { ApiError } from "../api/client.js";
 import { announce, prefersReducedMotion } from "./a11y.js";
 import { noProposta } from "./assistente-proposta.js";
+import { noQuadro } from "./assistente-quadro.js";
 import { copyText } from "./clipboard.js";
 import { getTelaAtual } from "./error-notice.js";
 import { escapeHtml, fmtDataHora } from "./format.js";
@@ -336,6 +337,11 @@ function noMensagem(m, i) {
   if (m.aviso?.tipo === "cuidado") {
     div.append(noCuidado(m.aviso.servico));
     return div;
+  }
+  // IA-07a: os números da consulta, do jeito que o Kami leu
+  for (const q of m.quadros || []) {
+    const el = noQuadro(q);
+    if (el) div.append(el);
   }
   const txt = document.createElement("div");
   txt.className = "ia-msg-texto nota-md";
@@ -655,6 +661,9 @@ async function responder({ texto = "", acao }, resposta) {
           } else if (ev.tipo === "ferramenta") {
             resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
             atualizarUltima();
+          } else if (ev.tipo === "quadro") {
+            resposta.quadros = [...(resposta.quadros || []).filter((q) => q.nome !== ev.nome), { nome: ev.nome, dados: ev.dados }];
+            atualizarUltima();
           } else if (ev.tipo === "mascarado") {
             const pergunta = mensagens.findLast((m) => m.papel === "usuario");
             if (pergunta) Object.assign(pergunta, { texto: ev.texto, mascarados: ev.n });
@@ -717,10 +726,15 @@ async function carregarEstado() {
 export function deConversa(lista) {
   const saida = [];
   let proposta = null;
+  let quadros = [];
   // resposta depois da proposta sem texto (o modelo não disse nada) não é
   // guardada: o cartão fica sozinho numa resposta do kami
   const sozinha = () => saida.push({ papel: "assistente", texto: "", interrompida: false, erro: null, aviso: null, proposta });
   for (const m of lista) {
+    if (m.quadro) {
+      quadros = [...quadros.filter((q) => q.nome !== m.quadro.nome), m.quadro];
+      continue;
+    }
     if (m.proposta) {
       if (proposta) sozinha();
       proposta = { ...m.proposta, mensagem_id: m.id };
@@ -737,8 +751,13 @@ export function deConversa(lista) {
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
       aviso: ["cuidado", "conferir"].includes(m.aviso?.tipo) && m.papel === "assistente" ? m.aviso : null,
       ...(proposta && m.papel === "assistente" ? { proposta } : {}),
+      ...(quadros.length && m.papel === "assistente" ? { quadros, ferramentas: quadros.map((q) => q.nome) } : {}),
     });
-    if (m.papel === "assistente") proposta = null;
+    if (m.papel === "assistente") {
+      proposta = null;
+      quadros = [];
+    }
+    if (m.papel === "usuario") quadros = [];
   }
   if (proposta) sozinha();
   return saida;

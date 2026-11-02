@@ -238,6 +238,15 @@
 /* IA-03: o que foi consultado, sugestões rápidas e a resposta de cuidado */
 .ia-consulta { margin: 0 0 4px; color: var(--text-faint); font-size: 10px; }
 .ia-consulta::before { content: "› "; color: var(--accent); }
+/* IA-07a: os números da consulta, do jeito que o Kami leu */
+.ia-quadro { margin: 4px 0 8px; padding: 6px 10px; border: 1px solid var(--border); font-size: 11px; }
+.ia-quadro-titulo { color: var(--text-faint); margin-bottom: 4px; }
+.ia-quadro dl { margin: 0; }
+.ia-quadro-linha { display: flex; gap: 12px; padding: 1px 0; }
+.ia-quadro-linha dt { flex: 0 0 min(34%, 11rem); min-width: 0; color: var(--text-faint); overflow-wrap: anywhere; }
+.ia-quadro-linha dd { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ia-quadro-extra { color: var(--text-faint); }
+.ia-quadro-vazio { margin: 0; color: var(--text-faint); }
 .ia-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .ia-sugestao {
   padding: 4px 8px;

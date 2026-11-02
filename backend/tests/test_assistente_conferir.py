@@ -22,6 +22,7 @@ def test_valores_nos_formatos_comuns():
     assert conferir.valor("1.800,00") == 1800.0 and conferir.valor("1,800.00") == 1800.0
     assert conferir.valor("30,43") == 30.43 and conferir.valor("1.809") == 1809.0
     assert conferir.valor("49031,27") == 49031.27 and conferir.valor("10") == 10.0
+    assert conferir.soltos("previsto R$ 1 800 e 2\u00a0500,50 €", [FIN], "x", HOJE) == ["2\u00a0500,50 €"]
 
 
 def test_acha_o_que_o_modelo_inventou():
@@ -121,3 +122,31 @@ def test_numero_de_uma_consulta_anterior_da_conversa_nao_e_acusado(client, falso
     conf = next(e for e in ev2 if e["tipo"] == "conferido")
     assert conf["valores"] == ["R$ 99"]
 
+
+
+# ── quadro: os números da consulta, do jeito que o Kami leu ──────────────
+
+def test_quadro_so_das_consultas_com_quadro_e_sem_erro():
+    assert ferramentas.quadro("finance_summary", FIN)["dados"]["expected_income"][0]["amount"] == 1800.0
+    assert ferramentas.quadro("inbox", ferramentas._embrulhar("inbox", "{}")) is None
+    assert ferramentas.quadro("goals", ferramentas._embrulhar("goals", '{"error": "x"}')) is None
+    assert ferramentas.quadro("goals", "lixo") is None
+    # texto da pessoa com "</dados" (escapado pro modelo) volta inteiro pra tela
+    corpo = ferramentas._FECHA_DADOS.sub("<\\/dados", json.dumps({"goals": [{"title": "a </dados b"}]}))
+    escapado = ferramentas._embrulhar("goals", corpo)
+    assert "</dados b" not in escapado
+    assert ferramentas.quadro("goals", escapado)["dados"]["goals"][0]["title"] == "a </dados b"
+
+
+def test_quadro_ao_vivo_e_na_conversa_reaberta(client, falso, monkeypatch):
+    _ligar(client, falso)
+    monkeypatch.setattr(ferramentas._POR_NOME["finance_summary"], "executar", lambda conn, args: {"expenses": 10.0})
+    pede = [{"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "t0", "function": {
+        "name": "finance_summary", "arguments": "{}"}}]}}]}, {"choices": [{"delta": {}, "finish_reason": "tool_calls"}]}, "[DONE]"]
+    falso.responder("/v1/chat/completions", sse=pede)
+    falso.responder("/v1/chat/completions", sse=openai_texto("Ainda não entrou nada."))
+    ev = _enviar(client, "estou gastando muito?")
+    assert {"tipo": "quadro", "nome": "finance_summary", "dados": {"expenses": 10.0}} in ev
+    msgs = client.get(f"/api/assistente/conversas/{ev[0]['conversa_id']}").json()["mensagens"]
+    assert [m["papel"] for m in msgs] == ["usuario", "ferramenta", "assistente"]
+    assert msgs[1]["quadro"] == {"nome": "finance_summary", "dados": {"expenses": 10.0}} and "texto" not in msgs[1]

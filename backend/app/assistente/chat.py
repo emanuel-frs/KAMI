@@ -6,6 +6,8 @@ frontend em SSE.
     {"tipo": "inicio", "conversa_id", "provedor", "modelo", "local"}
     {"tipo": "texto", "delta"}                       pedaço da resposta
     {"tipo": "ferramenta", "nome"}                   o modelo pediu dados (IA-03)
+    {"tipo": "quadro", "nome", "dados"}              IA-07a: os números dessa consulta, pra tela
+                                                     mostrar do jeito que o Kami leu
     {"tipo": "proposta", "mensagem_id", "proposta"}  IA-05: cartão de prévia de ações
     {"tipo": "mascarado", "n", "texto"}              P-139: números de conta/documento
                                                      trocados na mensagem da pessoa
@@ -325,6 +327,8 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
                     continue
                 yield {"tipo": "ferramenta", "nome": c.nome}
                 resultado = ferramentas_mod.executar(conn, c, cfg)
+                if q := ferramentas_mod.quadro(c.nome, resultado):
+                    yield {"tipo": "quadro", **q}
                 mensagens.append(Mensagem("ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome))
                 conversas.adicionar_mensagem(conn, cid, "ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome)
                 novos.append({"tipo": "ferramenta", "nome": c.nome, "argumentos": filtro.limpar_dado(c.argumentos),
