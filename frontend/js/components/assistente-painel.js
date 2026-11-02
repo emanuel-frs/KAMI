@@ -303,6 +303,39 @@ function noCuidado(servico) {
   return box;
 }
 
+const nomesConsultas = (lista) => [...new Set(lista)].map((n) => tOu(`assistente.ferramenta.${n}`, n)).join(", ");
+const segundos = (m) => Math.max(0, Math.round((Date.now() - m.inicio) / 1000));
+
+/** IA-07a: o que o assistente está fazendo agora, com o tempo correndo
+ *  (modelo no computador leva de 20 s a 1 min — a pessoa vê que anda). */
+function noEtapas(m) {
+  const lista = document.createElement("div");
+  lista.className = "ia-etapas";
+  lista.setAttribute("aria-hidden", "true"); // o leitor de tela já ouve "respondendo…"
+  const linha = (classe, texto) => {
+    const p = document.createElement("p");
+    p.className = `ia-etapa ia-etapa--${classe}`;
+    p.textContent = texto;
+    lista.append(p);
+  };
+  for (const n of [...new Set(m.ferramentas || [])]) {
+    if (n !== m.consultando) linha("feita", t("assistente.etapa.consultou", { nome: tOu(`assistente.ferramenta.${n}`, n) }));
+  }
+  const agora = m.texto ? t("assistente.etapa.escrevendo")
+    : m.consultando ? t("assistente.etapa.consultando", { nome: tOu(`assistente.ferramenta.${m.consultando}`, m.consultando) })
+    : m.ferramentas?.length ? t("assistente.etapa.lendo") : t("assistente.etapa.pensando");
+  linha("agora", `${agora} · ${t("assistente.etapa.tempo", { s: segundos(m) })}`);
+  return lista;
+}
+
+/** Só a linha das etapas, a cada segundo — sem redesenhar a resposta. */
+function atualizarEtapas() {
+  const i = mensagens.length - 1;
+  const m = mensagens[i];
+  const velho = corpo()?.querySelector(`.ia-msg[data-i="${i}"] .ia-etapas`);
+  if (m?.carregando && velho) velho.replaceWith(noEtapas(m));
+}
+
 function noMensagem(m, i) {
   const div = document.createElement("div");
   div.className = `ia-msg ia-msg--${m.papel === "usuario" ? "usuario" : "kami"}`;
@@ -325,13 +358,17 @@ function noMensagem(m, i) {
     }
     return div;
   }
-  if (m.ferramentas?.length) {
-    // IA-03: o que o assistente consultou pra responder (transparência)
+  if (m.carregando && m.inicio) {
+    div.append(noEtapas(m));
+  } else if (m.ferramentas?.length || m.duracao != null) {
+    // IA-03: o que o assistente consultou pra responder (transparência);
+    // IA-07a: e quanto levou
     const consulta = document.createElement("p");
     consulta.className = "ia-consulta";
-    consulta.textContent = t("assistente.chat.consultou", {
-      lista: [...new Set(m.ferramentas)].map((n) => tOu(`assistente.ferramenta.${n}`, n)).join(", "),
-    });
+    const partes = [];
+    if (m.ferramentas?.length) partes.push(t("assistente.chat.consultou", { lista: nomesConsultas(m.ferramentas) }));
+    if (m.duracao != null) partes.push(t("assistente.etapa.tempo", { s: m.duracao }));
+    consulta.textContent = partes.join(" · ");
     div.append(consulta);
   }
   if (m.aviso?.tipo === "cuidado") {
@@ -643,11 +680,14 @@ async function continuar() {
 
 async function responder({ texto = "", acao }, resposta) {
   const campo = painel.querySelector("#ia-texto");
+  // IA-07a: etapas com o tempo correndo enquanto a resposta não termina
+  Object.assign(resposta, { inicio: Date.now(), consultando: null, duracao: null });
   vista = "conversa";
   renderConversa();
   modoEnviando(true);
   announce(t("assistente.chat.respondendo"));
   enviando = new AbortController();
+  const relogio = setInterval(atualizarEtapas, 1000);
   try {
     await enviarMensagem(
       { texto, acao, conversa_id: conversaId, tela: getTelaAtual() || null, idioma: idiomaAtual() },
@@ -660,8 +700,10 @@ async function responder({ texto = "", acao }, resposta) {
             atualizarUltima();
           } else if (ev.tipo === "ferramenta") {
             resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
+            resposta.consultando = ev.nome;
             atualizarUltima();
           } else if (ev.tipo === "quadro") {
+            resposta.consultando = null;
             resposta.quadros = [...(resposta.quadros || []).filter((q) => q.nome !== ev.nome), { nome: ev.nome, dados: ev.dados }];
             atualizarUltima();
           } else if (ev.tipo === "mascarado") {
@@ -695,7 +737,9 @@ async function responder({ texto = "", acao }, resposta) {
     resposta.erro = err instanceof ApiError && err.body?.chave ? err.body : { detail: err.message };
     if (!conversaId && !acao) mensagens.splice(mensagens.length - 2, 1); // a pergunta não chegou a lugar nenhum
   } finally {
+    clearInterval(relogio);
     resposta.carregando = false;
+    resposta.duracao = segundos(resposta);
     enviando = null;
     modoEnviando(false);
     renderProvedor();

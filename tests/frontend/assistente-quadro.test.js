@@ -34,7 +34,16 @@ test(
     assert.ok(!fin.textContent.includes("resultado do mês"), "sem entrada não tem resultado do mês");
 
     const metas = noQuadro({ nome: "goals", dados: METAS });
-    assert.deepEqual(linhas(metas), ["viagem 30% · atrasada · falta R$ 700,00 · R$ 233,33/semana · até 23/11"]);
+    const meta = metas.querySelectorAll(".ia-quadro-meta");
+    assert.equal(meta.length, 1, "só as ativas");
+    assert.equal(meta[0].querySelector(".ia-quadro-meta-nome").textContent, "viagem");
+    assert.equal(meta[0].querySelector(".ia-quadro-tag--atrasada").textContent, "atrasada");
+    assert.equal(meta[0].querySelector(".bar-fill").style.width, "30%");
+    assert.equal(meta[0].querySelector(":scope > .ia-quadro-extra").textContent.replace(/\s+/g, " "), "falta R$ 700,00 · R$ 233,33/semana · até 23/11");
+    // cores do sistema: entrou sem nada fica neutro, saiu em vermelho, previsto em âmbar
+    assert.equal(fin.querySelector(".ia-quadro-v--sai").textContent.replace(/\s+/g, " "), "R$ 10,00");
+    assert.equal(fin.querySelector(".ia-quadro-v--previsto").textContent.replace(/\s+/g, " "), "R$ 1.800,00");
+    assert.equal(fin.querySelector(".ia-quadro-v--entra"), null);
     assert.equal(noQuadro({ nome: "goals", dados: { goals: [] } }).querySelector(".ia-quadro-vazio").textContent, "nenhuma meta ativa");
     assert.equal(noQuadro({ nome: "inbox", dados: {} }), null);
   }),
