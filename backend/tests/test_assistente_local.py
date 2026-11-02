@@ -17,6 +17,7 @@ from app.assistente import ferramentas, instrucoes, local
 class _Ollama(BaseHTTPRequestHandler):
     modelos = {"qwen3.5:4b": 3_324_173_934, "llama-sem-tools:1b": 1_000_000_000}
     pull_lento = False
+    duas_camadas = False
 
     def log_message(self, *a):
         pass
@@ -50,7 +51,11 @@ class _Ollama(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/x-ndjson")
             self.end_headers()
             for feito in range(0, 101, 20 if not self.pull_lento else 1):
-                linha = {"status": "pulling abc", "total": 100, "completed": feito}
+                # como o Ollama: andamento por camada (digest); a segunda é pequena
+                linha = {"status": "pulling abc", "digest": "sha256:abc", "total": 100, "completed": feito}
+                if self.duas_camadas:
+                    self.wfile.write((json.dumps(linha) + "\n").encode())
+                    linha = {"status": "pulling def", "digest": "sha256:def", "total": 10, "completed": feito // 10}
                 try:
                     self.wfile.write((json.dumps(linha) + "\n").encode())
                     self.wfile.flush()
@@ -73,6 +78,7 @@ class _Ollama(BaseHTTPRequestHandler):
 def ollama_falso(monkeypatch):
     _Ollama.modelos = {"qwen3.5:4b": 3_324_173_934, "llama-sem-tools:1b": 1_000_000_000}
     _Ollama.pull_lento = False
+    _Ollama.duas_camadas = False
     srv = ThreadingHTTPServer(("127.0.0.1", 0), _Ollama)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}"
@@ -198,3 +204,15 @@ def test_nome_de_ferramenta_com_grafia_torta_e_corrigido():
     assert chat._nome_certo(ChamadaFerramenta("2", "accounts_and Categories", {})).nome == "accounts_and_categories"
     assert chat._nome_certo(ChamadaFerramenta("3", "Propose-Actions", {})).nome == "propose_actions"
     assert chat._nome_certo(ChamadaFerramenta("4", "delete_everything", {})).nome == "delete_everything"
+
+
+def test_andamento_soma_as_camadas_e_usa_o_tamanho_do_catalogo(client, ollama_falso):
+    """Teste do Emanuel: "baixando qwen3.5:9b — 0,1 de 0,9 GB" (só a camada atual)."""
+    _Ollama.duas_camadas = True
+    client.post("/api/assistente/local/baixar", json={"modelo": "teste-sem-catalogo:1b"})
+    assert _esperar(lambda: (client.get("/api/assistente/local/baixar").json() or {}).get("fim"))
+    fim = client.get("/api/assistente/local/baixar").json()
+    assert fim["total"] == 110 and fim["feito"] == 110, fim
+    assert local._tamanho_conhecido("qwen3.5:9b") == 6_600_000_000
+    assert local._tamanho_conhecido("outro:1b") == 0
+

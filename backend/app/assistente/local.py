@@ -259,9 +259,20 @@ def _marcar(estado: dict, **campos) -> None:
         estado.update(campos)
 
 
+def _tamanho_conhecido(nome: str) -> int:
+    """Bytes do download pelo catálogo (local.json), ou 0 se não é dele."""
+    faixa = next((f for f in DADOS["faixas"] if f["modelo"] == nome), None)
+    return int(faixa["download_gb"] * 1e9) if faixa else 0
+
+
 def _rodar_pull(base: str, nome: str, estado: dict) -> None:
     req = urllib.request.Request(f"{base}/api/pull", data=json.dumps({"model": nome, "stream": True}).encode(),
                                  method="POST", headers={"Content-Type": "application/json"})
+    # o Ollama manda o andamento por camada (digest) — o total é a soma
+    # delas (teste do Emanuel: aparecia "0,1 de 0,9 GB" num modelo de 6,6 GB);
+    # as camadas vão aparecendo aos poucos, e o tamanho do catálogo é o piso
+    camadas: dict[str, tuple[int, int]] = {}
+    minimo = _tamanho_conhecido(nome)
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             for linha in r:
@@ -276,7 +287,9 @@ def _rodar_pull(base: str, nome: str, estado: dict) -> None:
                     return
                 campos = {"status": d.get("status", estado["status"])}
                 if d.get("total"):
-                    campos.update(total=d["total"], feito=d.get("completed", 0))
+                    camadas[d.get("digest") or d.get("status", "")] = (d["total"], d.get("completed", 0))
+                    campos.update(total=max(sum(t for t, _ in camadas.values()), minimo),
+                                  feito=sum(c for _, c in camadas.values()))
                 _marcar(estado, **campos)
         _marcar(estado, status="success", fim=True)
     except (OSError, ValueError) as e:
