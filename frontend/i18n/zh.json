@@ -2762,6 +2762,7 @@
   "assistente.chat.pronto": "准备好了。需要什么帮助？",
   "assistente.chat.o_que_faz": "我是 Kami 的助手：帮你处理财务、职业、学习、目标、习惯、整理，以及 app 本身的使用。我不是虚拟朋友——范围之外的话题我会拒绝。",
   "assistente.chat.interrompida": "（回复已中断）",
+  "assistente.chat.conferir": "请核对：Kami 查询的数据里没有这些 — {valores}",
   "assistente.chat.conversa": "对话",
   "assistente.chat.carregando": "加载中…",
   "assistente.chat.historico_desc": "对话只保存在这台电脑上，{dias} 天未使用会自动删除。",

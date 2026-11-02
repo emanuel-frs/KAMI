@@ -2762,6 +2762,7 @@
   "assistente.chat.pronto": "준비됐어요. 무엇을 도와드릴까요?",
   "assistente.chat.o_que_faz": "저는 Kami의 어시스턴트예요. 재정, 커리어, 학습, 목표, 습관, 정리, 그리고 앱 사용을 도와요. 가상 친구는 아니라서 그 밖의 주제는 거절해요.",
   "assistente.chat.interrompida": "(응답 중단됨)",
+  "assistente.chat.conferir": "확인해 주세요: Kami가 조회한 데이터에 없어요 — {valores}",
   "assistente.chat.conversa": "대화",
   "assistente.chat.carregando": "불러오는 중…",
   "assistente.chat.historico_desc": "대화는 이 컴퓨터에만 저장되고, {dias}일 동안 쓰지 않으면 자동으로 지워져요.",

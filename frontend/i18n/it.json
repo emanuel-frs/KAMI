@@ -2794,6 +2794,7 @@
   "assistente.chat.pronto": "pronto. come posso aiutarti?",
   "assistente.chat.o_que_faz": "sono l'assistente di Kami: aiuto con finanze, carriera, apprendimento, obiettivi, abitudini, organizzazione e con l'app stessa. non sono un amico virtuale — quello che esce da qui lo rifiuto.",
   "assistente.chat.interrompida": "(risposta interrotta)",
+  "assistente.chat.conferir": "controlla: non è nei dati consultati da Kami — {valores}",
   "assistente.chat.conversa": "conversazione",
   "assistente.chat.carregando": "caricamento…",
   "assistente.chat.historico_desc": "le conversazioni restano solo su questo computer e si cancellano dopo {dias} giorni senza uso.",

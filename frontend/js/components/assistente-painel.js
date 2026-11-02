@@ -344,6 +344,12 @@ function noMensagem(m, i) {
     enfeitarCodigo(txt);
   }
   div.append(txt);
+  if (m.aviso?.tipo === "conferir" && !m.carregando) {
+    const conf = document.createElement("p");
+    conf.className = "ia-conferir";
+    conf.textContent = t("assistente.chat.conferir", { valores: m.aviso.valores.join(", ") });
+    div.append(conf);
+  }
   if (m.proposta) div.append(noProposta(m.proposta, { conversaId, carregando: m.carregando, aoMudar: depoisDaProposta }));
   if (m.carregando) {
     const cursor = document.createElement("span");
@@ -659,6 +665,11 @@ async function responder({ texto = "", acao }, resposta) {
           } else if (ev.tipo === "cuidado") {
             resposta.aviso = { tipo: "cuidado", servico: ev.servico };
             atualizarUltima();
+          } else if (ev.tipo === "conferido") {
+            // IA-07a: o Kami conferiu os números com os dados (conferir.py)
+            resposta.texto = ev.texto;
+            if (ev.valores.length) resposta.aviso = { tipo: "conferir", valores: ev.valores };
+            atualizarUltima();
           } else if (ev.tipo === "fim" || ev.tipo === "falha") {
             if (ev.tipo === "falha") resposta.erro = ev;
             if (ev.motivo === "parado" || ev.motivo === "limite") resposta.interrompida = true;
@@ -724,7 +735,7 @@ export function deConversa(lista) {
       texto: m.texto,
       interrompida: m.interrompida,
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
-      aviso: m.aviso?.tipo === "cuidado" && m.papel === "assistente" ? m.aviso : null,
+      aviso: ["cuidado", "conferir"].includes(m.aviso?.tipo) && m.papel === "assistente" ? m.aviso : null,
       ...(proposta && m.papel === "assistente" ? { proposta } : {}),
     });
     if (m.papel === "assistente") proposta = null;

@@ -10,6 +10,8 @@ frontend em SSE.
     {"tipo": "mascarado", "n", "texto"}              P-139: números de conta/documento
                                                      trocados na mensagem da pessoa
     {"tipo": "cuidado", "servico"}                   P-111: o Kami respondeu sozinho
+    {"tipo": "conferido", "texto", "valores"}        IA-07a: resposta com a moeda arrumada e os
+                                                     valores/datas que não estão nos dados (conferir.py)
     {"tipo": "fim", "motivo", "uso_hoje"}            fim | limite | parado | rodadas | cuidado | outro
     {"tipo": "falha", "status", "chave", "detail", "vars", "uso_hoje"}
 
@@ -43,7 +45,7 @@ from typing import Iterator
 from urllib.parse import urlsplit
 
 from app import pin
-from app.assistente import acoes, config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, conferir, config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
 from app.assistente import ferramentas as ferramentas_mod
 from app.assistente.tipos import Chamada, ChamadaFerramenta, Fim, Mensagem, TextoDelta, Uso
 from app.database import local_now
@@ -77,7 +79,7 @@ def _historico(mensagens: list[dict]) -> list[Mensagem]:
         escolhidas.pop(0)
     saida = []
     for m in escolhidas:
-        if m.get("aviso"):
+        if _cuidado_de(m):
             continue  # P-111: o que passou pelo fluxo de cuidado nunca vai pro provedor
         if m["papel"] == "assistente" and not m["texto"] and not m["chamadas"]:
             continue  # resposta que falhou antes do 1º pedaço
@@ -87,13 +89,17 @@ def _historico(mensagens: list[dict]) -> list[Mensagem]:
     return saida
 
 
+def _cuidado_de(m: dict) -> bool:
+    return (m.get("aviso") or {}).get("tipo") == "cuidado"
+
+
 def alvo(conversa: dict, acao: str) -> tuple[int, dict | None]:
     """Índice da última pergunta e, no continuar, a resposta cortada.
     Pergunta que passou pelo fluxo de cuidado não se refaz (nunca vai
     pro provedor)."""
     msgs = conversa["mensagens"]
     i = next((k for k in range(len(msgs) - 1, -1, -1) if msgs[k]["papel"] == "usuario"), None)
-    if i is None or msgs[i].get("aviso"):
+    if i is None or _cuidado_de(msgs[i]):
         raise ErroKami(409, "erro.assistente.nada_pra_refazer", "não há resposta pra refazer")
     if acao == "refazer":
         return i, None
@@ -319,12 +325,23 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
         conn.commit()
         conversas.anotar_tokens(conn, envio_id, entrada, saida)
     resposta += texto_rodada
+    conferido = None
+    if resposta and not erro:
+        arrumada = conferir.arrumar_moeda(resposta)
+        valores = conferir.soltos(arrumada, [m.texto for m in mensagens if m.papel == "ferramenta"], texto,
+                                  local_now().date())
+        if valores or arrumada != resposta:
+            resposta, conferido = arrumada, {"tipo": "conferido", "texto": arrumada, "valores": valores}
     if parcial:
         conversas.remover_mensagens(conn, cid, [parcial["id"]])  # volta emendada, no fim da conversa
     # "limite" = o provedor cortou pelo máximo de tokens: também dá pra continuar
     conversas.adicionar_mensagem(conn, cid, "assistente", resposta, provedor=row["nome"], modelo=p.modelo,
                                  interrompida=motivo in ("parado", "limite") or erro is not None,
-                                 erro_chave=erro.chave if erro else None)
+                                 erro_chave=erro.chave if erro else None,
+                                 aviso={"tipo": "conferir", "valores": conferido["valores"]}
+                                 if conferido and conferido["valores"] else None)
+    if conferido:
+        yield conferido
     if erro:
         yield _evento_erro(erro, conn)
     else:

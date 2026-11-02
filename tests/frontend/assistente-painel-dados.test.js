@@ -101,5 +101,23 @@ test(
       assert.match(box.querySelector(".ia-cuidado-servico").textContent, /serviço de apoio gratuito/);
       assert.equal(box.querySelector("a").textContent, "findahelpline.com");
     });
+
+    await t.test("IA-07a: modelo local aquece ao abrir e número fora dos dados ganha o aviso", async () => {
+      const aquecer = pedidos.find((p) => p.caminho === "/api/assistente/aquecer");
+      assert.deepEqual(aquecer?.corpo, { tela: "financas", idioma: "pt" });
+      resposta = [
+        { tipo: "inicio", conversa_id: "c1" },
+        { tipo: "ferramenta", nome: "finance_summary" },
+        { tipo: "texto", delta: "Seu saldo é r$ 49.031." },
+        { tipo: "conferido", texto: "Seu saldo é R$ 49.031.", valores: ["R$ 49.031"] },
+        { tipo: "fim", motivo: "fim" },
+      ];
+      $("#ia-texto").value = "estou gastando muito?";
+      $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      const ultima = doc.querySelector(".ia-msg--kami:last-child");
+      assert.equal(ultima.querySelector(".ia-msg-texto").textContent, "Seu saldo é R$ 49.031.");
+      assert.equal(ultima.querySelector(".ia-conferir").textContent, "confira: não está nos dados que o Kami consultou — R$ 49.031");
+    });
   })
 );

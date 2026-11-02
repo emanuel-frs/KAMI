@@ -2794,6 +2794,7 @@
   "assistente.chat.pronto": "ready. how can I help?",
   "assistente.chat.o_que_faz": "I'm Kami's assistant: I help with finances, career, learning, goals, habits, organization and the app itself. I'm not a virtual friend — I decline anything outside that.",
   "assistente.chat.interrompida": "(response interrupted)",
+  "assistente.chat.conferir": "double-check: not in the data Kami looked up — {valores}",
   "assistente.chat.conversa": "conversation",
   "assistente.chat.carregando": "loading…",
   "assistente.chat.historico_desc": "conversations stay only on this computer and are deleted after {dias} days without use.",
