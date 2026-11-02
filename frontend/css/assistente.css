@@ -265,14 +265,27 @@
   letter-spacing: 0.04em;
 }
 .ia-quadro dl { margin: 0; }
-.ia-quadro-secao {
-  margin: 10px 0 4px;
-  color: var(--text-dim);
+/* visão do mês: grade de cartões, um por área (1 coluna estreito, 2 no
+   painel padrão, 3 quando ele está largo) */
+.ia-quadro--month_overview { padding-bottom: 6px; }
+.ia-q-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 6px; }
+.ia-q-cartao { min-width: 0; padding: 6px 8px; background: var(--panel); border: 1px solid var(--border-soft); }
+.ia-q-area {
+  margin: 0 0 4px;
+  color: var(--accent);
   font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.ia-quadro-secao::before { content: "── "; color: var(--border-interactive); }
-.ia-quadro-corpo > .ia-quadro-secao:first-child { margin-top: 0; }
+.ia-q-fila { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; }
+.ia-q-rotulo { min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }
+.ia-q-fila > .ia-quadro-v { flex: 0 0 auto; text-align: right; white-space: nowrap; }
+.ia-q-nome { color: var(--text); }
+.ia-q-nome .ia-quadro-tag { margin-left: 2px; }
+.ia-q-barra-fila + .ia-q-barra-fila, .ia-q-fila + .ia-q-barra-fila { margin-top: 4px; }
+.ia-q-barra-fila .ia-quadro-barra { height: 3px; margin-top: 2px; }
+.ia-q-sem { margin-top: 6px; font-size: 10.5px; }
 .ia-quadro dl + .ia-quadro-meta, .ia-quadro-meta + dl { margin-top: 8px; }
 .ia-quadro-linha { display: flex; gap: 12px; padding: 1px 0; }
 .ia-quadro-linha dt { flex: 0 0 min(34%, 11rem); min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }

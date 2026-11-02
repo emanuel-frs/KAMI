@@ -83,43 +83,92 @@ function linhaMeta(g) {
   return blocoComBarra(g.title, g.progress_pct, SITUACOES[g.situation], partes);
 }
 
-const secao = (titulo) => `<div class="ia-quadro-secao">${escapeHtml(titulo)}</div>`;
 const vazio = (texto) => `<p class="ia-quadro-vazio">${escapeHtml(texto)}</p>`;
 
-function linhasHabitos(habitos) {
-  if (!habitos.length) return [vazio(t("assistente.quadro.sem_habitos"))];
-  return habitos.map((h) => linha(h.name,
-    [t("assistente.quadro.sequencia", { n: h.streak ?? 0 }), t("assistente.quadro.trinta_dias", { pct: h.success_30d_pct ?? 0 })].join(" · "),
-    h.done_today ? t("assistente.quadro.feito_hoje") : "", h.streak ? "entra" : ""));
+// ── visão do mês: um cartão por área, valor à direita (como um extrato) ──
+const MAX_NO_CARTAO = 4;
+
+const fila = (rotulo, valor, tom = "") =>
+  `<div class="ia-q-fila"><span class="ia-q-rotulo">${escapeHtml(rotulo)}</span><span class="ia-quadro-v${tom ? ` ia-quadro-v--${tom}` : ""}">${escapeHtml(valor)}</span></div>`;
+
+/** Nome à esquerda, % à direita e a barra fina embaixo — metas e trilhas iguais. */
+function filaComBarra(nome, pctBruto, chave = null) {
+  const progresso = Math.max(0, Math.min(100, Number(pctBruto) || 0));
+  const etiqueta = chave
+    ? ` <span class="ia-quadro-tag ia-quadro-tag--${chave}">${escapeHtml(t(`assistente.quadro.situacao.${chave}`))}</span>`
+    : "";
+  return `<div class="ia-q-barra-fila"><div class="ia-q-fila"><span class="ia-q-rotulo ia-q-nome">${escapeHtml(nome)}${etiqueta}</span><span class="ia-quadro-v">${progresso}%</span></div>
+    <div class="ia-quadro-barra"><div class="bar-fill ia-quadro-barra--${chave || "no_ritmo"}" style="width:${progresso}%;"></div></div></div>`;
 }
 
-function linhasAprendizado(a) {
-  const out = [linha(t("assistente.quadro.marcos_mes"), String(a.milestones_completed_this_month ?? 0), "",
-    a.milestones_completed_this_month ? "entra" : "")];
-  const trilhas = a.tracks || [];
-  if (!trilhas.length) out.push(vazio(t("assistente.quadro.sem_trilhas")));
-  for (const tr of trilhas.slice(0, MAX_METAS)) out.push(blocoComBarra(tr.track, tr.progress_pct, null, []));
-  return out;
-}
+const mais = (n) => (n > 0 ? `<p class="ia-quadro-vazio">${escapeHtml(t("assistente.quadro.mais", { n }))}</p>` : "");
 
-/** Valor do mês com o do mês anterior ao lado (seta pra cima/baixo). */
-function comAnterior(rotulo, agora, antes, prefixo = "") {
-  const extra = antes == null ? "" : t("assistente.quadro.mes_anterior", { valor: `${prefixo}${antes}` });
+/** Seta e cor contra o mês anterior: "+20 ↑". */
+function contraAnterior(agora, antes, prefixo = "") {
   const tom = antes == null || agora === antes ? "" : agora > antes ? "entra" : "sai";
-  const seta = tom === "entra" ? " ↑" : tom === "sai" ? " ↓" : "";
-  return linha(rotulo, `${prefixo}${agora ?? 0}${seta}`, extra, tom);
+  return { valor: `${prefixo}${agora ?? 0}${tom === "entra" ? " ↑" : tom === "sai" ? " ↓" : ""}`, tom };
 }
 
-function linhasProgresso(p) {
-  const ant = p.previous_month || {};
-  const out = [
-    comAnterior(t("assistente.quadro.xp"), p.xp_gained ?? 0, ant.xp_gained, "+"),
-    comAnterior(t("assistente.quadro.dias_ativos"), p.active_days ?? 0, ant.active_days),
-    linha(t("assistente.quadro.missoes"), String(p.missions_completed ?? 0)),
+function cartaoFinancas(f) {
+  const c = f.conclusions || {};
+  const filas = [
+    fila(t("assistente.quadro.entrou"), fmtMoeda(f.income || 0), f.income ? "entra" : ""),
+    fila(t("assistente.quadro.saiu"), fmtMoeda(f.expenses || 0), f.expenses ? "sai" : ""),
   ];
+  if (f.net_this_month != null) filas.push(fila(t("assistente.quadro.resultado"), fmtMoeda(f.net_this_month), tomDe(f.net_this_month)));
+  if (c.income_still_expected) filas.push(fila(t("assistente.quadro.previsto"), fmtMoeda(c.income_still_expected), "previsto"));
+  if (f.accounts_total_available != null) filas.push(fila(t("assistente.quadro.nas_contas"), fmtMoeda(f.accounts_total_available), "forte"));
+  return filas.join("");
+}
+
+function cartaoMetas(metas) {
+  const ativas = metas.filter((g) => g.status === "ativa");
+  if (!ativas.length) return null;
+  return ativas.slice(0, MAX_NO_CARTAO).map((g) => filaComBarra(g.title, g.progress_pct, SITUACOES[g.situation])).join("")
+    + mais(ativas.length - MAX_NO_CARTAO);
+}
+
+function cartaoHabitos(habitos) {
+  if (!habitos.length) return null;
+  return habitos.slice(0, MAX_NO_CARTAO).map((h) => fila(`${h.done_today ? "✓ " : ""}${h.name}`,
+    t("assistente.quadro.habito_resumo", { n: h.streak ?? 0, pct: h.success_30d_pct ?? 0 }), h.streak ? "entra" : "")).join("")
+    + mais(habitos.length - MAX_NO_CARTAO);
+}
+
+function cartaoAprendizado(a) {
+  const trilhas = a.tracks || [];
+  if (!trilhas.length && !a.milestones_completed_this_month) return null;
+  return fila(t("assistente.quadro.marcos_mes"), String(a.milestones_completed_this_month ?? 0), a.milestones_completed_this_month ? "entra" : "")
+    + trilhas.slice(0, MAX_NO_CARTAO).map((tr) => filaComBarra(tr.track, tr.progress_pct)).join("")
+    + mais(trilhas.length - MAX_NO_CARTAO);
+}
+
+function cartaoProgresso(p) {
+  const ant = p.previous_month || {};
+  const xp = contraAnterior(p.xp_gained ?? 0, ant.xp_gained, "+");
+  const dias = contraAnterior(p.active_days ?? 0, ant.active_days);
+  const filas = [fila(t("assistente.quadro.xp"), xp.valor, xp.tom), fila(t("assistente.quadro.dias_ativos"), dias.valor, dias.tom),
+    fila(t("assistente.quadro.missoes"), String(p.missions_completed ?? 0))];
   const conquistas = p.achievements_unlocked || [];
-  if (conquistas.length) out.push(linha(t("assistente.quadro.conquistas"), String(conquistas.length), conquistas.join(", "), "previsto"));
-  return out;
+  if (conquistas.length) filas.push(fila(t("assistente.quadro.conquistas"), String(conquistas.length), "previsto"));
+  return filas.join("");
+}
+
+/** Cartões das áreas liberadas (as desligadas nem chegam aqui); as sem
+ *  nada no mês viram uma linha só no fim, sem ocupar cartão. */
+function corpoMes(d) {
+  const areas = [
+    ["financas", d.finances && cartaoFinancas(d.finances), d.finances],
+    ["metas", d.goals && cartaoMetas(d.goals), d.goals],
+    ["habitos", d.habits && cartaoHabitos(d.habits), d.habits],
+    ["aprendizado", d.learning && cartaoAprendizado(d.learning), d.learning],
+    ["progresso", d.progress && cartaoProgresso(d.progress), d.progress],
+  ].filter(([, , veio]) => veio);
+  const cheias = areas.filter(([, html]) => html);
+  const vazias = areas.filter(([, html]) => !html).map(([chave]) => t(`assistente.quadro.secao.${chave}`));
+  return `<div class="ia-q-grade">${cheias.map(([chave, html]) =>
+    `<section class="ia-q-cartao ia-q-cartao--${chave}"><h4 class="ia-q-area">${escapeHtml(t(`assistente.quadro.secao.${chave}`))}</h4>${html}</section>`).join("")}</div>`
+    + (vazias.length ? `<p class="ia-quadro-vazio ia-q-sem">${escapeHtml(t("assistente.quadro.sem_registros", { areas: vazias.join(", ") }))}</p>` : "");
 }
 
 function linhasMetas(metas) {
@@ -133,16 +182,7 @@ function linhasMetas(metas) {
 function corpoDo(nome, d) {
   if (nome === "finance_summary") return { titulo: fmtMesAno(d.month), linhas: linhasFinancas(d, d.expected_income) };
   if (nome === "goals") return { titulo: t("assistente.quadro.metas"), linhas: linhasMetas(d.goals) };
-  if (nome === "month_overview") {
-    // uma seção por área liberada (as desligadas nem chegam aqui)
-    const linhas = [];
-    if (d.finances) linhas.push(secao(t("assistente.quadro.secao.financas")), ...linhasFinancas(d.finances));
-    if (d.goals) linhas.push(secao(t("assistente.quadro.metas")), ...linhasMetas(d.goals));
-    if (d.habits) linhas.push(secao(t("assistente.quadro.habitos")), ...linhasHabitos(d.habits));
-    if (d.learning) linhas.push(secao(t("assistente.quadro.secao.aprendizado")), ...linhasAprendizado(d.learning));
-    if (d.progress) linhas.push(secao(t("assistente.quadro.secao.progresso")), ...linhasProgresso(d.progress));
-    return { titulo: fmtMesAno(d.month), linhas };
-  }
+  if (nome === "month_overview") return { titulo: fmtMesAno(d.month), html: corpoMes(d) };
   return null;
 }
 
@@ -163,9 +203,9 @@ function agrupar(linhas) {
 /** O quadro de uma consulta (`{nome, dados}`) ou null. */
 export function noQuadro(q) {
   const corpo = q?.dados && corpoDo(q.nome, q.dados);
-  if (!corpo?.linhas.length) return null;
+  if (!corpo || (!corpo.html && !corpo.linhas?.length)) return null;
   const el = document.createElement("div");
-  el.className = "ia-quadro";
-  el.innerHTML = `<div class="ia-quadro-titulo">${escapeHtml(corpo.titulo)}</div><div class="ia-quadro-corpo">${agrupar(corpo.linhas)}</div>`;
+  el.className = `ia-quadro ia-quadro--${q.nome}`;
+  el.innerHTML = `<div class="ia-quadro-titulo">${escapeHtml(corpo.titulo)}</div><div class="ia-quadro-corpo">${corpo.html ?? agrupar(corpo.linhas)}</div>`;
   return el;
 }

@@ -59,26 +59,32 @@ const MES = {
     previous_month: { xp_gained: 200, active_days: 5 } },
 };
 
+const filas = (el) =>
+  [...el.querySelectorAll(".ia-q-fila")].map((l) => [...l.children].map((c) => c.textContent).join(" = ").replace(/\s+/g, " "));
+
 test(
-  "quadro: o mês com uma seção por área liberada",
+  "quadro: o mês num cartão por área; área sem nada vira uma linha só",
   withDom("<!doctype html><body></body>", async () => {
     const { noQuadro } = await import("../../frontend/js/components/assistente-quadro.js");
     const el = noQuadro({ nome: "month_overview", dados: MES });
-    assert.deepEqual([...el.querySelectorAll(".ia-quadro-secao")].map((x) => x.textContent),
+    assert.deepEqual([...el.querySelectorAll(".ia-q-area")].map((x) => x.textContent),
       ["finanças", "metas", "hábitos", "aprendizado", "progresso"]);
-    const l = linhas(el);
-    assert.ok(l.includes("correr 4 dias seguidos · 63% em 30 dias ✓ hoje"), l.join(" | "));
-    assert.ok(l.includes("ler 0 dias seguidos · 10% em 30 dias"));
-    assert.ok(l.includes("marcos no mês 2"));
-    assert.ok(l.includes("xp no mês +120 ↓ (mês passado: +200)"), "xp caiu: seta pra baixo");
-    assert.ok(l.includes("dias ativos 9 ↑ (mês passado: 5)"));
-    assert.ok(l.includes("conquistas 1 primeiro passo"));
-    assert.equal(el.querySelectorAll(".ia-quadro-meta")[1].querySelector(".ia-quadro-meta-nome").textContent, "Java e Spring Boot");
-    // área desligada pela pessoa não vem nos dados — e não aparece
+    const f = filas(el);
+    for (const esperada of ["entrou = R$ 0,00", "saiu = R$ 10,00", "previsto = R$ 1.800,00", "nas contas = R$ 0,00",
+      "teste no ritmo = 0%", "✓ correr = 4d · 63%", "ler = 0d · 10%", "marcos no mês = 2", "Java e Spring Boot = 40%",
+      "xp no mês = +120 ↓", "dias ativos = 9 ↑", "missões = 3", "conquistas = 1"]) {
+      assert.ok(f.includes(esperada), `${esperada} | ${f.join(" | ")}`);
+    }
+    assert.equal(el.querySelector(".ia-q-cartao--progresso .ia-quadro-v--sai").textContent, "+120 ↓", "xp caiu: vermelho");
+    assert.equal(el.querySelector(".ia-q-sem"), null);
+    // sem hábitos nem trilhas: sem cartão, uma linha no fim
+    const pouco = noQuadro({ nome: "month_overview", dados: { ...MES, habits: [], learning: { milestones_completed_this_month: 0, tracks: [] } } });
+    assert.deepEqual([...pouco.querySelectorAll(".ia-q-area")].map((x) => x.textContent), ["finanças", "metas", "progresso"]);
+    assert.equal(pouco.querySelector(".ia-q-sem").textContent, "sem registros no mês: hábitos, aprendizado");
+    // área desligada pela pessoa não vem nos dados — nem cartão nem linha
     const sem = noQuadro({ nome: "month_overview", dados: { month: "2026-11", goals: MES.goals } });
-    assert.deepEqual([...sem.querySelectorAll(".ia-quadro-secao")].map((x) => x.textContent), ["metas"]);
-    assert.equal(noQuadro({ nome: "month_overview", dados: { ...MES, habits: [] } }).querySelector(".ia-quadro-vazio").textContent,
-      "nenhum hábito ativo");
+    assert.deepEqual([...sem.querySelectorAll(".ia-q-area")].map((x) => x.textContent), ["metas"]);
+    assert.equal(sem.querySelector(".ia-q-sem"), null);
   }),
 );
 
