@@ -329,11 +329,12 @@ def test_historico_diz_ao_modelo_o_que_a_pessoa_fez(client, falso):
     falso.limpar()
     falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
     _eventos(client, "e aí?", conversa_id=cid)
-    assert "has not applied" in falso.recebidas[0]["json"]["messages"][3]["content"]
+    enviado = lambda: " ".join(m.get("content") or "" for m in falso.recebidas[0]["json"]["messages"])  # noqa: E731
+    assert "has not applied" in enviado()
     _aplicar(client, cid, mid, [{"indice": 1}])
     falso.limpar()
     _eventos(client, "e aí?", conversa_id=cid)
-    assert "applied 1 of 2" in falso.recebidas[0]["json"]["messages"][3]["content"]
+    assert "applied 1 of 2" in enviado()
 
 
 # ── "não guardar conversas" ──────────────────────────────────────────────

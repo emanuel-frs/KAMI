@@ -121,8 +121,11 @@ def _resumo_financeiro(conn, args):
     anterior = _js(lancamentos.get_summary(month=_mes_anterior(mes), db=conn))
     return {
         "month": mes,
-        "income": r["total_in"], "expenses": r["total_out"], "balance": r["saldo"],
-        "previous_month_balance": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"],
+        # "net", não "balance": o modelo traduzia por "saldo" e dizia que a
+        # conta estava negativa (teste do Emanuel) — o que há nas contas é
+        # accounts_total_available
+        "income": r["total_in"], "expenses": r["total_out"], "net_this_month": r["saldo"],
+        "previous_month_net": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"],
         "conclusions": _conclusoes_do_mes(r, anterior),
         "expenses_by_category": r["top_categories"],
         "expected_income": [{"label": e["label"], "amount": e["amount"], "expected_date": e["expected_date"],
@@ -418,7 +421,8 @@ def _visao_do_mes(conn, args, perm):
     visao = {"month": mes}
     if perm.get("financas"):
         f = _resumo_financeiro(conn, {"month": mes})
-        visao["finances"] = {k: f[k] for k in ("income", "expenses", "balance", "change_vs_previous_pct", "conclusions")}
+        visao["finances"] = {k: f[k] for k in ("income", "expenses", "net_this_month", "change_vs_previous_pct", "conclusions",
+                                                "accounts_total_available")}
         visao["finances"]["top_expense_categories"] = f["expenses_by_category"][:3]
         if mes == _hoje().strftime("%Y-%m"):
             contas = _contas_a_vencer(conn, {"days": 7})["unpaid"]

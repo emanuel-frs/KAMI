@@ -228,3 +228,16 @@ def mock_imap(mocker):
         return mock_conn
 
     return _configure
+
+
+@pytest.fixture()
+def como_nuvem(monkeypatch):
+    """O provedor falso escuta em 127.0.0.1 e conta como local; pra testar o
+    que só vale na nuvem (histórico completo), ele passa a contar como nuvem."""
+    from dataclasses import replace
+
+    from app.assistente import chat
+
+    preparar = chat.preparar
+    monkeypatch.setattr(chat, "preparar", lambda conn: (lambda c, r, p: (c, r, replace(p, local=False)))(*preparar(conn)))
+

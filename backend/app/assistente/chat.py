@@ -52,6 +52,11 @@ from app.database import local_now
 from app.mensagens import ErroKami
 
 HISTORICO_MAX_CARACTERES = 16_000
+# IA-07a: o Ollama roda com 4.096 tokens e só instruções + ferramentas já
+# levam ~2.700 — na 3ª pergunta a resposta cortava (teste do Emanuel:
+# 3.978 enviados, sobraram 118). No local, o histórico leva só o texto das
+# perguntas e respostas (sem os dados já consultados) e cabe neste limite.
+HISTORICO_LOCAL_CARACTERES = 1_500
 TEXTO_MAX = 4000
 ACOES = ("continuar", "refazer")
 CONTINUAR = ("Your previous answer was cut off. Continue it exactly where it stopped: "
@@ -63,14 +68,28 @@ def _evento_erro(e: ErroKami, conn) -> dict:
             "vars": e.vars, "uso_hoje": uso.hoje(conn)}
 
 
-def _historico(mensagens: list[dict]) -> list[Mensagem]:
+def _so_texto(m: dict) -> dict:
+    """Mensagem do histórico local sem pedido de ferramenta; a proposta
+    (IA-05) vira uma linha do assistente dizendo o que a pessoa fez com ela."""
+    if m["papel"] == "ferramenta":
+        return {**m, "papel": "assistente", "texto": acoes.estado_pro_modelo(m["proposta"]).strip(),
+                "chamadas": [], "proposta": None, "id_chamada": None, "nome_ferramenta": None}
+    return {**m, "chamadas": []}
+
+
+def _historico(mensagens: list[dict], local: bool = False) -> list[Mensagem]:
     """As mensagens guardadas desta conversa no formato neutro, das mais
     recentes pra trás até o limite — começando sempre numa mensagem da
     pessoa (resultado de ferramenta solto, sem o pedido, não serve)."""
+    limite = HISTORICO_LOCAL_CARACTERES if local else HISTORICO_MAX_CARACTERES
+    if local:
+        mensagens = [_so_texto(m) for m in mensagens
+                     if (m["papel"] != "ferramenta" or m.get("proposta"))
+                     and not (m["papel"] == "assistente" and m["chamadas"] and not m["texto"])]
     escolhidas, total = [], 0
     for m in reversed(mensagens):
         tamanho = len(m["texto"]) + sum(len(str(c)) for c in m["chamadas"])
-        if escolhidas and total + tamanho > HISTORICO_MAX_CARACTERES:
+        if escolhidas and total + tamanho > limite:
             break
         escolhidas.append(m)
         total += tamanho
@@ -229,13 +248,13 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
 
     if acao == "refazer":
         conversas.remover_mensagens(conn, cid, [m["id"] for m in conversa["mensagens"][i + 1:]])
-        historico = _historico(conversa["mensagens"][:i])
+        historico = _historico(conversa["mensagens"][:i], p.local)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto, "refeita": True}
     elif acao == "continuar":
-        historico = _historico(conversa["mensagens"])
+        historico = _historico(conversa["mensagens"], p.local)
         pergunta, item = Mensagem("usuario", CONTINUAR), {"tipo": "continuar"}
     else:
-        historico = _historico(conversa["mensagens"])
+        historico = _historico(conversa["mensagens"], p.local)
         conversas.adicionar_mensagem(conn, cid, "usuario", texto)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto}
     sistema, ferramentas = _comeco(conn, cfg, p, idioma, tela)

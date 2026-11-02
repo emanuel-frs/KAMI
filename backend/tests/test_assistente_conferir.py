@@ -12,7 +12,7 @@ from provedor_falso import ProvedorFalso, openai_texto
 
 HOJE = date(2026, 11, 2)
 FIN = ferramentas._embrulhar("finance_summary", json.dumps({
-    "income": 0, "expenses": 10.0, "balance": -10.0, "accounts_total_available": 0.0,
+    "income": 0, "expenses": 10.0, "net_this_month": -10.0, "accounts_total_available": 0.0,
     "expected_income": [{"label": "parte 1", "amount": 1800.0, "expected_date": "2026-11-09"}]}))
 META = ferramentas._embrulhar("goals", json.dumps({"goals": [
     {"target": 100.0, "deadline": "2026-11-25", "needed_per_week": 30.43, "days_left": 23}]}))

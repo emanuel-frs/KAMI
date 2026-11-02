@@ -79,7 +79,7 @@ def test_resumo_financeiro_igual_a_tela(client, dados):
     mes = dt.date.today().strftime("%Y-%m")
     tela = client.get(f"/api/financas/summary?month={mes}").json()
     _, r = _rodar(dados, "finance_summary")
-    assert (r["income"], r["expenses"], r["balance"]) == (tela["total_in"], tela["total_out"], tela["saldo"])
+    assert (r["income"], r["expenses"], r["net_this_month"]) == (tela["total_in"], tela["total_out"], tela["saldo"])
     assert r["expenses_by_category"] == tela["top_categories"]
 
 
@@ -257,7 +257,7 @@ def test_chat_com_ferramenta_e_modelo_enganado(client, dados, falso):
     assert "ferramenta" not in papeis
 
 
-def test_continuar_depois_de_ferramenta_mantem_a_ordem(client, dados, falso):
+def test_continuar_depois_de_ferramenta_mantem_a_ordem(client, dados, falso, como_nuvem):
     _ligar(client, falso)
     falso.responder("/v1/chat/completions", sse=_pede(("goals", {})))
     falso.responder("/v1/chat/completions", sse=openai_texto("Você tem 4 metas."))
