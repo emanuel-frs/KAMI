@@ -10,9 +10,10 @@ consultar, inventou um saldo de R$ 49.031. Vale pra qualquer modelo — é o
 Kami conferindo, não o modelo.
 
 Não acusa arredondamento (R$ 30 pra 30,43), sinal trocado (gasto de
--R$ 10 escrito como R$ 10) nem o que a própria pessoa escreveu. Contas
-que o modelo fez (somas, diferenças) aparecem como "confira" — de
-propósito: são exatamente as que ele erra.
+-R$ 10 escrito como R$ 10) nem o que a própria pessoa escreveu. Somas
+de itens da mesma lista (o que falta em várias metas) também valem;
+outras contas que o modelo fez (diferenças, médias) aparecem como
+"confira" — de propósito: são as que ele erra.
 """
 import json
 import re
@@ -51,6 +52,20 @@ def valor(texto: str) -> float | None:
         return None
 
 
+SOMA_MAX_ITENS = 10  # até aqui, toda combinação da lista; acima, só o total
+
+
+def _somas(valores: list[float]) -> set:
+    """Somas que o modelo pode tirar de uma lista (teste do Emanuel: "as
+    outras três somam R$ 87,5" = 50 + 25 + 12,5 foi marcado como inventado)."""
+    if len(valores) > SOMA_MAX_ITENS:
+        return {round(sum(valores), 2)}
+    somas = {0.0}
+    for v in valores:
+        somas |= {round(x + v, 2) for x in somas}
+    return somas - {0.0}
+
+
 def _numeros(dado, saida: set) -> None:
     if isinstance(dado, bool):
         return
@@ -62,6 +77,16 @@ def _numeros(dado, saida: set) -> None:
     elif isinstance(dado, list):
         for v in dado:
             _numeros(v, saida)
+        # o mesmo campo em vários itens da lista (remaining das metas, total das categorias…)
+        campos: dict[str, list[float]] = {}
+        for item in dado:
+            if isinstance(item, dict):
+                for k, v in item.items():
+                    if isinstance(v, (int, float)) and not isinstance(v, bool):
+                        campos.setdefault(k, []).append(abs(float(v)))
+        for valores in campos.values():
+            if len(valores) > 1:
+                saida |= _somas(valores)
 
 
 def _do_texto(texto: str, numeros: set, datas: set) -> None:

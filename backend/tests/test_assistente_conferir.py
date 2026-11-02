@@ -175,3 +175,18 @@ def test_icones_das_instrucoes_existem_no_kami_e_na_tela():
         assert f'"{nome}":' in icones_js or f"\n  {nome}:" in icones_js, nome
         assert f'"{nome}"' in painel, f"{nome} fora de ICONES_IA"
     assert ":target:" in instrucoes.montar("pt", None, local=True) and ":target:" in instrucoes.montar("pt", None)
+
+
+def test_soma_de_itens_da_mesma_lista_nao_e_acusada():
+    """Teste do Emanuel: "as outras três somam R$ 87,5" (50 + 25 + 12,5) saiu como "confira"."""
+    metas = ferramentas._embrulhar("goals", json.dumps({"goals": [
+        {"title": "teste", "remaining": 100.0}, {"title": "teste 2", "remaining": 50.0},
+        {"title": "teste 3", "remaining": 25.0}, {"title": "teste 4", "remaining": 12.5}]}))
+    assert conferir.soltos("as outras três somam R$87.5 e todas, R$ 187,50", [metas], "x", HOJE) == []
+    assert conferir.soltos("somam R$ 88", [metas], "x", HOJE) == []  # arredondado
+    assert conferir.soltos("somam R$ 90", [metas], "x", HOJE) == ["R$ 90"]  # conta errada continua acusada
+    # lista grande: só o total
+    muitos = ferramentas._embrulhar("x", json.dumps({"itens": [{"v": float(i)} for i in range(1, 13)]}))
+    assert conferir.soltos("total R$ 78; dois: R$ 3", [muitos], "x", HOJE) == []
+    assert conferir.soltos("três primeiros: R$ 6,50", [muitos], "x", HOJE) == ["R$ 6,50"]
+
