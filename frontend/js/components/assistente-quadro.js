@@ -168,7 +168,7 @@ function corpoMes(d) {
   const vazias = areas.filter(([, html]) => !html).map(([chave]) => t(`assistente.quadro.secao.${chave}`));
   return `<div class="ia-q-grade">${cheias.map(([chave, html]) =>
     `<section class="ia-q-cartao ia-q-cartao--${chave}"><h4 class="ia-q-area">${escapeHtml(t(`assistente.quadro.secao.${chave}`))}</h4>${html}</section>`).join("")}</div>`
-    + (vazias.length ? `<p class="ia-quadro-vazio ia-q-sem">${escapeHtml(t("assistente.quadro.sem_registros", { areas: vazias.join(", ") }))}</p>` : "");
+    + (vazias.length ? `<p class="ia-quadro-vazio ia-q-vazias">${escapeHtml(t("assistente.quadro.sem_registros", { areas: vazias.join(", ") }))}</p>` : "");
 }
 
 function linhasMetas(metas) {
