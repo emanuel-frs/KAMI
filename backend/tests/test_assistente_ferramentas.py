@@ -296,13 +296,45 @@ def test_cuidado_pais_sem_servico_conhecido_vai_pro_findahelpline(client, dados,
     assert ev[1]["servico"]["reserva"] is True and ev[1]["servico"]["site"] == "https://findahelpline.com"
 
 
-def test_metas_trazem_quanto_falta_e_o_ritmo(monkeypatch):
-    """IA-07a: o modelo pequeno só repetia os números crus — a conta vem pronta."""
+def test_metas_trazem_quanto_falta_o_ritmo_e_a_situacao(monkeypatch):
+    """IA-07a: o modelo pequeno repetia os números crus e errava a conta —
+    o Kami entrega a conclusão pronta (vale pra nuvem também)."""
     monkeypatch.setattr(ferramentas, "_hoje", lambda: dt.date(2026, 11, 2))
-    meta = {"target_value": 100.0, "current_value": 30.0, "status": "ativa", "deadline": "2026-11-23"}
+    meta = {"target_value": 100.0, "current_value": 30.0, "progress_pct": 30, "status": "ativa",
+            "deadline": "2026-11-23", "unit": "money"}
     assert ferramentas._ritmo(meta) == {"remaining": 70.0, "days_left": 21, "needed_per_week": 23.33}
-    assert ferramentas._ritmo({**meta, "deadline": "2026-10-30"}) == {"remaining": 70.0, "overdue_days": 3}
     assert ferramentas._ritmo({**meta, "deadline": "2026-11-04"})["needed_per_week"] == 70.0  # menos de 1 semana
-    assert ferramentas._ritmo({**meta, "deadline": None}) == {"remaining": 70.0}
-    assert ferramentas._ritmo({**meta, "status": "concluida", "current_value": 100.0}) == {"remaining": 0}
+    assert ferramentas._ritmo({**meta, "deadline": "2026-10-30"}) == {"remaining": 70.0, "situation": "overdue", "overdue_days": 3}
+    assert ferramentas._ritmo({**meta, "deadline": None}) == {"remaining": 70.0, "situation": "no_deadline"}
+    assert ferramentas._ritmo({**meta, "status": "concluida", "current_value": 100.0}) == {"remaining": 0, "situation": "done"}
+    # criada em 12/10 com prazo 23/11: hoje (2/11) já devia estar em 50% → 30% é atrasada
+    r = ferramentas._ritmo(meta, "2026-10-12T10:00:00", sobra_do_mes=850.0)
+    assert r["expected_progress_pct_today"] == 50 and r["situation"] == "behind"
+    assert r["needed_per_month"] == 70.0 and r["fits_in_this_month_balance"] is True
+    assert ferramentas._ritmo({**meta, "progress_pct": 45}, "2026-10-12")["situation"] == "on_track"
+    assert ferramentas._ritmo({**meta, "progress_pct": 70}, "2026-10-12")["situation"] == "ahead"
+    assert ferramentas._ritmo(meta, "2026-10-12", sobra_do_mes=-20.0)["fits_in_this_month_balance"] is False
+    # meta que não é de dinheiro não fala do saldo
+    assert "fits_in_this_month_balance" not in ferramentas._ritmo({**meta, "unit": "count"}, "2026-10-12", 850.0)
 
+
+def test_metas_so_falam_do_saldo_com_financas_liberadas(client, dados):
+    cfg = config.obter(dados)
+    _, com = _rodar(dados, "goals", cfg)
+    dinheiro = [g for g in com["goals"] if g["unit"] in ("money", None) and "needed_per_month" in g]
+    assert dinheiro and all("balance_this_month" in g for g in dinheiro)
+    sem = {**cfg, "permissoes": json.dumps({**config.permissoes(cfg), "financas": False})}
+    _, r = _rodar(dados, "goals", sem)
+    assert not any("balance_this_month" in g for g in r["goals"])
+    _, visao = _rodar(dados, "month_overview")
+    assert all("situation" in g for g in visao["goals"]) and "conclusions" in visao["finances"]
+
+
+def test_conclusoes_do_mes_ja_calculadas():
+    r = {"total_in": 5000.0, "total_out": 4000.0, "top_categories": [{"category": "mercado", "total": 1200.0}]}
+    c = ferramentas._conclusoes_do_mes(r, {"total_out": 3200.0})
+    assert c == {"spent_more_than_earned": False, "kept_pct_of_income": 20.0, "expenses_vs_previous_month_pct": 25.0,
+                 "biggest_category": {"category": "mercado", "amount": 1200.0, "share_of_expenses_pct": 30.0}}
+    assert ferramentas._conclusoes_do_mes({"total_in": 0, "total_out": 50.0, "top_categories": []},
+                                          {"total_out": 0}) == {"spent_more_than_earned": True}
+    assert ferramentas._mes_anterior("2026-01") == "2025-12" and ferramentas._mes_anterior("2026-11") == "2026-10"
