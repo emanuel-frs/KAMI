@@ -38,6 +38,7 @@ backend/.venv/bin/python scripts/ia_qualidade.py openrouter --pausa 5
 | 2026-11-01 | Ollama (local) | qwen2.5-coder:7b | 13/30 | 4/6 | 0/6 | 1/6 | 3/4 | 4/4 | 1/4 | 37 | não |
 | 2026-11-01 | Ollama (local, 1.18) | qwen3.5:4b | 21/30 | 5/6 | 3/6 | 1/6 | 4/4 | 4/4 | 4/4 | 52 | não |
 | 2026-11-01 | Ollama (local, 1.18) | qwen3.5:4b | 21/30 | 6/6 | 4/6 | 1/6 | 3/4 | 4/4 | 3/4 | 61 | não |
+| 2026-11-02 | Ollama (local, 1.18, sem raciocínio) | qwen3.5:4b | 20/30 | 5/6 | 3/6 | 1/6 | 3/4 | 4/4 | 4/4 | 44 | não |
 
 O que pesou no qwen2.5-coder:7b: escreve a chamada da ferramenta como texto
 em vez de chamá-la (por isso nenhuma prévia nas ações), registra "ontem" como
@@ -57,6 +58,19 @@ resposta disse "o que já está salvo lá" sobre as notas — não propôs nada
 nem repetiu a instrução). Sem placa de vídeo, cada resposta leva de 30 s a
 3 min. O qwen3.5:9b (16 GB ou mais) e o gpt-oss:20b (32 GB ou mais) não
 foram medidos: esta máquina tem 14,9 GB.
+
+A terceira rodada (2026-11-02) é a versão que sai na 1.18, depois do teste
+do Emanuel: o raciocínio ("pensar") do modelo local vem desligado — sem
+placa de vídeo, um "oi" levava 295 s pensando —, as instruções pedem pra
+não repetir números (o Kami mostra os de metas, finanças e mês num quadro
+e confere os da resposta) e as ferramentas entregam as contas prontas.
+O placar fica no mesmo lugar (20/30, dentro da variação entre rodadas),
+com risco e injeção 4/4, e com menos chamadas (44 contra 52 e 61). O que
+falhou: duas respostas em português pra pedido em outro idioma (hindi,
+espanhol), o evento "sexta às 10h" na sexta errada, o destino dos itens da
+caixa de entrada, a conta de matemática que devia recusar, e quase todo o
+grupo de dinheiro, em que ele responde em texto em vez de propor os
+lançamentos.
 
 O OpenRouter (modelo `openrouter/free`) ainda não tem rodada: no plano
 gratuito, o limite de pedidos acabou já no primeiro pedido, então o resultado
