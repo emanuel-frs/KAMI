@@ -12,6 +12,11 @@
  *      ao fechar, o cache da tela; no Windows, se pedido, abre o
  *      desinstalador. O app fecha no fim.
  *
+ * IA-07b (P-166): se foi o Kami que instalou o Ollama, uma caixa
+ * (desmarcada) desinstala ele antes — com a senha do sistema no Linux.
+ * Os modelos baixados vão junto só aí. Um Ollama instalado pela pessoa
+ * nunca aparece aqui.
+ *
  * Confirmação dupla: digitar a palavra e confirmar no modal. Antes, a
  * oferta de exportar (o export de cima, com senha, é o que leva as senhas
  * salvas pra outro computador).
@@ -19,6 +24,7 @@
  * Só no app instalado — no navegador de dev não existe o lado do Rust.
  */
 import { post } from "../../api/client.js";
+import { desinstalarOllama, getInstalacaoLocal } from "../../api/assistente.js";
 import { getBackups } from "../../api/backups.js";
 import { escapeHtml } from "../../components/format.js";
 import { showConfirmModal } from "../confirm-modal.js";
@@ -43,6 +49,10 @@ export function removerSectionHtml() {
         </label>`
             : ""
         }
+        <label class="cfg-toggle" id="sm-remover-ollama-linha" hidden>
+          <input type="checkbox" id="sm-remover-ollama">
+          <span>${t("remover.desinstalar_ollama")}<small>${t("remover.desinstalar_ollama_dica")}</small></span>
+        </label>
         <div class="field">
           <label for="sm-remover-confirm">${t("geral.digite_pra_habilitar", { palavra: `<strong>${REMOVER_WORD}</strong>` })}</label>
           <input type="text" id="sm-remover-confirm" placeholder="${REMOVER_WORD}" autocomplete="off">
@@ -67,6 +77,24 @@ async function renderOQueFica(wrap) {
     : t("remover.programa_linux", { apt: "<code>sudo apt remove kami</code>", dnf: "<code>sudo dnf remove kami</code>", yay: "<code>yay -R kami-bin</code>" });
   wrap.querySelector("#sm-remover-fica").innerHTML =
     (pasta ? t("remover.fica_pasta", { pasta: `<code>${escapeHtml(pasta)}</code>` }) : "") + programa;
+  try {
+    wrap.querySelector("#sm-remover-ollama-linha").hidden = !(await getInstalacaoLocal()).pelo_kami;
+  } catch {
+    /* sem o estado: a caixa do Ollama não aparece */
+  }
+}
+
+// P-166: desinstala o Ollama do Kami (e os modelos) e espera terminar
+async function desinstalarOllamaAntes() {
+  await desinstalarOllama(true);
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const tarefa = (await getInstalacaoLocal()).tarefa;
+    if (tarefa?.fim) {
+      if (tarefa.etapa !== "pronto") throw new Error(tarefa.erro || "ollama");
+      return;
+    }
+  }
 }
 
 export function wireRemover(wrap, { exportar }) {
@@ -103,6 +131,7 @@ async function removerTudo(wrap) {
   btn.disabled = true;
   btn.textContent = t("remover.removendo");
   try {
+    if (wrap.querySelector("#sm-remover-ollama")?.checked) await desinstalarOllamaAntes();
     await post("/api/sistema/remover-do-computador", { confirmation: REMOVER_WORD });
     // daqui o app fecha (e no Windows abre o desinstalador, se pedido)
     await window.__TAURI__.core.invoke("remover_tudo_do_computador", { abrirDesinstalador });

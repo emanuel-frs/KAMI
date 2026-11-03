@@ -45,7 +45,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app import backup_auto
+from app import backup_auto, cifra, database
 from app.assistente import conversas
 from app.database import get_db, _seed_defaults, migrate_timestamps_to_local, now_iso
 from app.version import KAMI_VERSION
@@ -435,6 +435,8 @@ def remover_do_computador(payload: ResetIn):
             remover_confirmation_word=REMOVER_CONFIRMATION_WORD,
         )
     havia = apagar_do_cofre()
+    # SEG-08: a chave do banco cifrado também (a pasta de dados vai junto)
+    cifra.apagar_do_cofre(database.DB_PATH)
     logger.warning("remover tudo do computador: chave %s", "apagada do cofre" if havia else "não estava no cofre")
     return {"cofre": havia}
 

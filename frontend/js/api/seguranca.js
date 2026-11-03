@@ -17,3 +17,12 @@ export const desbloquearPin = (pin) => post("/api/seguranca/pin/desbloquear", { 
 export const recuperarPin = (codigo, pinNovo) => post("/api/seguranca/pin/recuperar", { codigo, pin_novo: pinNovo });
 export const bloquearPin = () => post("/api/seguranca/pin/bloquear", {});
 export const definirInatividade = (minutos) => put("/api/seguranca/pin/inatividade", { minutos });
+
+// SEG-08: banco cifrado em disco (app/cifra.py). Ligar devolve o código de
+// recuperação, mostrado uma vez; sem a chave no cofre, o backend responde
+// 423 com o código "cifra_sem_chave" e só o recuperar abre.
+export const getCifra = () => get(`/api/seguranca/cifra?t=${Date.now()}`);
+export const ligarCifra = (apagarCopias) => post("/api/seguranca/cifra/ligar", { apagar_copias_sem_cifra: apagarCopias });
+export const desligarCifra = () => post("/api/seguranca/cifra/desligar", {});
+export const mostrarCodigoCifra = (pin) => post("/api/seguranca/cifra/codigo", pin ? { pin } : {});
+export const recuperarCifra = (codigo) => post("/api/seguranca/cifra/recuperar", { codigo });

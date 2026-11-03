@@ -6,10 +6,14 @@ frontend em SSE.
     {"tipo": "inicio", "conversa_id", "provedor", "modelo", "local"}
     {"tipo": "texto", "delta"}                       pedaço da resposta
     {"tipo": "ferramenta", "nome"}                   o modelo pediu dados (IA-03)
+    {"tipo": "quadro", "nome", "dados"}              IA-07a: os números dessa consulta, pra tela
+                                                     mostrar do jeito que o Kami leu
     {"tipo": "proposta", "mensagem_id", "proposta"}  IA-05: cartão de prévia de ações
     {"tipo": "mascarado", "n", "texto"}              P-139: números de conta/documento
                                                      trocados na mensagem da pessoa
     {"tipo": "cuidado", "servico"}                   P-111: o Kami respondeu sozinho
+    {"tipo": "conferido", "texto", "valores"}        IA-07a: resposta com a moeda arrumada e os
+                                                     valores/datas que não estão nos dados (conferir.py)
     {"tipo": "fim", "motivo", "uso_hoje"}            fim | limite | parado | rodadas | cuidado | outro
     {"tipo": "falha", "status", "chave", "detail", "vars", "uso_hoje"}
 
@@ -37,18 +41,24 @@ modelo), cortado pelo fim até HISTORICO_MAX_CARACTERES, pra uma conversa
 longa não gastar cada vez mais.
 """
 import json
-from dataclasses import asdict
+import re
+from dataclasses import asdict, replace
 from typing import Iterator
 from urllib.parse import urlsplit
 
 from app import pin
-from app.assistente import acoes, config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, conferir, config, conversas, cuidado, erros, filtro, instrucoes, provedores, transporte, uso
 from app.assistente import ferramentas as ferramentas_mod
 from app.assistente.tipos import Chamada, ChamadaFerramenta, Fim, Mensagem, TextoDelta, Uso
 from app.database import local_now
 from app.mensagens import ErroKami
 
 HISTORICO_MAX_CARACTERES = 16_000
+# IA-07a: o Ollama roda com 4.096 tokens e só instruções + ferramentas já
+# levam ~2.700 — na 3ª pergunta a resposta cortava (teste do Emanuel:
+# 3.978 enviados, sobraram 118). No local, o histórico leva só o texto das
+# perguntas e respostas (sem os dados já consultados) e cabe neste limite.
+HISTORICO_LOCAL_CARACTERES = 1_500
 TEXTO_MAX = 4000
 ACOES = ("continuar", "refazer")
 CONTINUAR = ("Your previous answer was cut off. Continue it exactly where it stopped: "
@@ -60,14 +70,28 @@ def _evento_erro(e: ErroKami, conn) -> dict:
             "vars": e.vars, "uso_hoje": uso.hoje(conn)}
 
 
-def _historico(mensagens: list[dict]) -> list[Mensagem]:
+def _so_texto(m: dict) -> dict:
+    """Mensagem do histórico local sem pedido de ferramenta; a proposta
+    (IA-05) vira uma linha do assistente dizendo o que a pessoa fez com ela."""
+    if m["papel"] == "ferramenta":
+        return {**m, "papel": "assistente", "texto": acoes.estado_pro_modelo(m["proposta"]).strip(),
+                "chamadas": [], "proposta": None, "id_chamada": None, "nome_ferramenta": None}
+    return {**m, "chamadas": []}
+
+
+def _historico(mensagens: list[dict], local: bool = False) -> list[Mensagem]:
     """As mensagens guardadas desta conversa no formato neutro, das mais
     recentes pra trás até o limite — começando sempre numa mensagem da
     pessoa (resultado de ferramenta solto, sem o pedido, não serve)."""
+    limite = HISTORICO_LOCAL_CARACTERES if local else HISTORICO_MAX_CARACTERES
+    if local:
+        mensagens = [_so_texto(m) for m in mensagens
+                     if (m["papel"] != "ferramenta" or m.get("proposta"))
+                     and not (m["papel"] == "assistente" and m["chamadas"] and not m["texto"])]
     escolhidas, total = [], 0
     for m in reversed(mensagens):
         tamanho = len(m["texto"]) + sum(len(str(c)) for c in m["chamadas"])
-        if escolhidas and total + tamanho > HISTORICO_MAX_CARACTERES:
+        if escolhidas and total + tamanho > limite:
             break
         escolhidas.append(m)
         total += tamanho
@@ -76,7 +100,7 @@ def _historico(mensagens: list[dict]) -> list[Mensagem]:
         escolhidas.pop(0)
     saida = []
     for m in escolhidas:
-        if m.get("aviso"):
+        if _cuidado_de(m):
             continue  # P-111: o que passou pelo fluxo de cuidado nunca vai pro provedor
         if m["papel"] == "assistente" and not m["texto"] and not m["chamadas"]:
             continue  # resposta que falhou antes do 1º pedaço
@@ -86,13 +110,17 @@ def _historico(mensagens: list[dict]) -> list[Mensagem]:
     return saida
 
 
+def _cuidado_de(m: dict) -> bool:
+    return (m.get("aviso") or {}).get("tipo") == "cuidado"
+
+
 def alvo(conversa: dict, acao: str) -> tuple[int, dict | None]:
     """Índice da última pergunta e, no continuar, a resposta cortada.
     Pergunta que passou pelo fluxo de cuidado não se refaz (nunca vai
     pro provedor)."""
     msgs = conversa["mensagens"]
     i = next((k for k in range(len(msgs) - 1, -1, -1) if msgs[k]["papel"] == "usuario"), None)
-    if i is None or msgs[i].get("aviso"):
+    if i is None or _cuidado_de(msgs[i]):
         raise ErroKami(409, "erro.assistente.nada_pra_refazer", "não há resposta pra refazer")
     if acao == "refazer":
         return i, None
@@ -121,6 +149,35 @@ def _perfil(conn) -> dict:
     return dict(row) if row else {"pais": None, "moeda": None}
 
 
+def _comeco(conn, cfg: dict, p, idioma: str, tela: str | None) -> tuple[Mensagem, list]:
+    """Instruções + ferramentas: o começo igual de toda chamada (e o que
+    `aquecer` deixa lido)."""
+    permitidas = ferramentas_mod.disponiveis(cfg, local=p.local)
+    desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
+    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), _perfil(conn)["moeda"],
+                                                    desligadas, local=p.local))
+    return sistema, [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
+
+
+def aquecer(conn, idioma: str, tela: str | None, recente: tuple | None = None) -> tuple | None:
+    """IA-07a (teste do Emanuel): sem placa de vídeo, o qwen3.5:4b leva
+    ~45 s só pra ler instruções + ferramentas (2,5 mil tokens) — a primeira
+    pergunta passava de 1 min. O Ollama guarda o que leu por último; lendo
+    quando o painel abre, a pergunta só lê o que é novo (2,3 s até pedir
+    os dados, medido). Só modelo local: na nuvem custaria uma chamada.
+    Nada da pessoa vai junto — só as instruções e as ferramentas.
+    Devolve o que ficou lido (None se não é local); `recente` igual a ele
+    = já está lido, não chama de novo."""
+    cfg, _row, p = preparar(conn)
+    if not p.local or p.tipo != "openai":
+        return None
+    chave = (p.url_base, p.modelo, idioma, tela, local_now().date().isoformat())
+    if chave != recente:
+        sistema, ferramentas = _comeco(conn, cfg, p, idioma, tela)
+        provedores.adaptador(p.tipo).aquecer(p, [sistema, Mensagem("usuario", "ok")], ferramentas)
+    return chave
+
+
 def _cuidado(conn, cid: str, texto: str) -> dict:
     """P-111: o próprio Kami responde (cuidado.py) — nada vai pro provedor.
     As duas mensagens ficam marcadas e saem do histórico das próximas
@@ -130,6 +187,20 @@ def _cuidado(conn, cid: str, texto: str) -> dict:
     conversas.adicionar_mensagem(conn, cid, "usuario", texto, aviso={"tipo": "cuidado"})
     conversas.adicionar_mensagem(conn, cid, "assistente", "", aviso=aviso)
     return {"tipo": "cuidado", "servico": servico}
+
+
+def _normalizar_nome(nome: str) -> str:
+    return re.sub(r"[\s-]+", "_", (nome or "").strip()).lower()
+
+
+def _nome_certo(c: ChamadaFerramenta) -> ChamadaFerramenta:
+    """IA-07a: modelo pequeno erra a grafia ("Goals", "accounts_and Categories").
+    Só caixa, espaço e hífen — nome que não bate continua não existindo."""
+    if c.nome in ferramentas_mod._POR_NOME or c.nome == acoes.NOME:
+        return c
+    conhecidos = {_normalizar_nome(n): n for n in [*ferramentas_mod._POR_NOME, acoes.NOME]}
+    certo = conhecidos.get(_normalizar_nome(c.nome))
+    return replace(c, nome=certo) if certo else c
 
 
 def _propor(conn, chamada: ChamadaFerramenta, ja_feitas: int) -> tuple[str, dict | None]:
@@ -179,20 +250,16 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
 
     if acao == "refazer":
         conversas.remover_mensagens(conn, cid, [m["id"] for m in conversa["mensagens"][i + 1:]])
-        historico = _historico(conversa["mensagens"][:i])
+        historico = _historico(conversa["mensagens"][:i], p.local)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto, "refeita": True}
     elif acao == "continuar":
-        historico = _historico(conversa["mensagens"])
+        historico = _historico(conversa["mensagens"], p.local)
         pergunta, item = Mensagem("usuario", CONTINUAR), {"tipo": "continuar"}
     else:
-        historico = _historico(conversa["mensagens"])
+        historico = _historico(conversa["mensagens"], p.local)
         conversas.adicionar_mensagem(conn, cid, "usuario", texto)
         pergunta, item = Mensagem("usuario", texto), {"tipo": "mensagem", "texto": texto}
-    perfil = _perfil(conn)
-    permitidas = ferramentas_mod.disponiveis(cfg)
-    desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
-    sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), perfil["moeda"], desligadas))
-    ferramentas = [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
+    sistema, ferramentas = _comeco(conn, cfg, p, idioma, tela)
     mensagens = [sistema, *historico, pergunta]
     novos = [{"tipo": "instrucoes", "versao": instrucoes.VERSAO, "idioma": idioma, "tela": tela},
              {"tipo": "historico", "mensagens": len(historico)}, item]
@@ -240,6 +307,7 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
                 break
             # IA-03: o modelo pediu dados — roda as ferramentas de leitura e
             # volta com os resultados (filtrados e embrulhados em <dados>)
+            chamadas = [_nome_certo(c) for c in chamadas]
             mensagens.append(Mensagem("assistente", texto_rodada, chamadas))
             conversas.adicionar_mensagem(conn, cid, "assistente", texto_rodada, chamadas=[asdict(c) for c in chamadas],
                                          provedor=row["nome"], modelo=p.modelo)
@@ -259,6 +327,8 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
                     continue
                 yield {"tipo": "ferramenta", "nome": c.nome}
                 resultado = ferramentas_mod.executar(conn, c, cfg)
+                if q := ferramentas_mod.quadro(c.nome, resultado):
+                    yield {"tipo": "quadro", **q}
                 mensagens.append(Mensagem("ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome))
                 conversas.adicionar_mensagem(conn, cid, "ferramenta", resultado, id_chamada=c.id, nome_ferramenta=c.nome)
                 novos.append({"tipo": "ferramenta", "nome": c.nome, "argumentos": filtro.limpar_dado(c.argumentos),
@@ -278,12 +348,26 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
         conn.commit()
         conversas.anotar_tokens(conn, envio_id, entrada, saida)
     resposta += texto_rodada
+    conferido = None
+    if resposta and not erro:
+        arrumada = conferir.arrumar(resposta)
+        # tudo o que foi consultado NA CONVERSA: no local, o histórico não leva
+        # os dados antigos, mas o modelo repete números de respostas anteriores
+        consultados = [m["texto"] for m in conversa["mensagens"] if m["papel"] == "ferramenta"]
+        valores = conferir.soltos(arrumada, consultados + [m.texto for m in mensagens if m.papel == "ferramenta"],
+                                  texto, local_now().date())
+        if valores or arrumada != resposta:
+            resposta, conferido = arrumada, {"tipo": "conferido", "texto": arrumada, "valores": valores}
     if parcial:
         conversas.remover_mensagens(conn, cid, [parcial["id"]])  # volta emendada, no fim da conversa
     # "limite" = o provedor cortou pelo máximo de tokens: também dá pra continuar
     conversas.adicionar_mensagem(conn, cid, "assistente", resposta, provedor=row["nome"], modelo=p.modelo,
                                  interrompida=motivo in ("parado", "limite") or erro is not None,
-                                 erro_chave=erro.chave if erro else None)
+                                 erro_chave=erro.chave if erro else None,
+                                 aviso={"tipo": "conferir", "valores": conferido["valores"]}
+                                 if conferido and conferido["valores"] else None)
+    if conferido:
+        yield conferido
     if erro:
         yield _evento_erro(erro, conn)
     else:

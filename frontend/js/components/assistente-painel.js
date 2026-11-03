@@ -26,6 +26,8 @@ import {
   apagarConversa,
   apagarEnvios,
   apagarTodasConversas,
+  aquecerAssistente,
+  getAquecendo,
   enviarMensagem,
   getAssistente,
   getConversa,
@@ -35,6 +37,7 @@ import {
 import { ApiError } from "../api/client.js";
 import { announce, prefersReducedMotion } from "./a11y.js";
 import { noProposta } from "./assistente-proposta.js";
+import { noQuadro } from "./assistente-quadro.js";
 import { copyText } from "./clipboard.js";
 import { getTelaAtual } from "./error-notice.js";
 import { escapeHtml, fmtDataHora } from "./format.js";
@@ -189,7 +192,9 @@ function renderProvedor() {
   const usoTxt = p.local
     ? t("assistente.chat.uso_local", { chamadas: num(u.chamadas) })
     : t("assistente.chat.uso_nuvem", { chamadas: num(u.chamadas), teto: num(estadoIa.config.teto_chamadas) });
-  el.innerHTML = `${icon(p.local ? "lock" : "external-link", { size: 11 })} <b>${escapeHtml(p.nome)}</b> · ${escapeHtml(p.modelo || "")} · ${escapeHtml(onde)}<span class="ia-uso">${escapeHtml(usoTxt)}</span>`;
+  // IA-07a (P-160): modelo no computador é pequeno — erra mais, e a tela diz
+  const avisoLocal = p.local ? `<span class="ia-uso">${escapeHtml(t("assistente.chat.aviso_local"))}</span>` : "";
+  el.innerHTML = `${icon(p.local ? "lock" : "external-link", { size: 11 })} <b>${escapeHtml(p.nome)}</b> · ${escapeHtml(p.modelo || "")} · ${escapeHtml(onde)}<span class="ia-uso">${escapeHtml(usoTxt)}</span>${avisoLocal}`;
 }
 
 // ── vistas ────────────────────────────────────────────────────────────────
@@ -299,6 +304,56 @@ function noCuidado(servico) {
   return box;
 }
 
+const nomesConsultas = (lista) => [...new Set(lista)].map((n) => tOu(`assistente.ferramenta.${n}`, n)).join(", ");
+const segundos = (m) => Math.max(0, Math.round((Date.now() - m.inicio) / 1000));
+
+/** IA-07a: o que o assistente está fazendo agora, com o tempo correndo
+ *  (modelo no computador leva de 20 s a 1 min — a pessoa vê que anda). */
+function noEtapas(m) {
+  const lista = document.createElement("div");
+  lista.className = "ia-etapas";
+  lista.setAttribute("aria-hidden", "true"); // o leitor de tela já ouve "respondendo…"
+  const linha = (classe, texto) => {
+    const p = document.createElement("p");
+    p.className = `ia-etapa ia-etapa--${classe}`;
+    p.textContent = texto;
+    lista.append(p);
+  };
+  for (const n of [...new Set(m.ferramentas || [])]) {
+    if (n !== m.consultando) linha("feita", t("assistente.etapa.consultou", { nome: tOu(`assistente.ferramenta.${n}`, n) }));
+  }
+  const agora = m.texto ? t("assistente.etapa.escrevendo")
+    : m.consultando ? t("assistente.etapa.consultando", { nome: tOu(`assistente.ferramenta.${m.consultando}`, m.consultando) })
+    : m.ferramentas?.length ? t("assistente.etapa.lendo")
+    : m.preparando ? t("assistente.etapa.preparando") : t("assistente.etapa.pensando");
+  linha("agora", `${agora} · ${t("assistente.etapa.tempo", { s: segundos(m) })}`);
+  return lista;
+}
+
+/** IA-07a: a 1ª pergunta espera o aquecimento (o painel acabou de abrir):
+ *  "preparando o modelo" em vez de "pensando" até ele terminar. */
+async function acompanharAquecimento(resposta) {
+  for (let i = 0; i < 120 && resposta.carregando; i++) {
+    let aquecendo = false;
+    try {
+      aquecendo = (await getAquecendo()).aquecendo;
+    } catch {
+      /* sem resposta: segue como "pensando" */
+    }
+    resposta.preparando = aquecendo;
+    if (!aquecendo) return;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
+/** Só a linha das etapas, a cada segundo — sem redesenhar a resposta. */
+function atualizarEtapas() {
+  const i = mensagens.length - 1;
+  const m = mensagens[i];
+  const velho = corpo()?.querySelector(`.ia-msg[data-i="${i}"] .ia-etapas`);
+  if (m?.carregando && velho) velho.replaceWith(noEtapas(m));
+}
+
 function noMensagem(m, i) {
   const div = document.createElement("div");
   div.className = `ia-msg ia-msg--${m.papel === "usuario" ? "usuario" : "kami"}`;
@@ -321,26 +376,42 @@ function noMensagem(m, i) {
     }
     return div;
   }
-  if (m.ferramentas?.length) {
-    // IA-03: o que o assistente consultou pra responder (transparência)
+  if (m.carregando && m.inicio) {
+    div.append(noEtapas(m));
+  } else if (m.ferramentas?.length || m.duracao != null) {
+    // IA-03: o que o assistente consultou pra responder (transparência);
+    // IA-07a: e quanto levou
     const consulta = document.createElement("p");
     consulta.className = "ia-consulta";
-    consulta.textContent = t("assistente.chat.consultou", {
-      lista: [...new Set(m.ferramentas)].map((n) => tOu(`assistente.ferramenta.${n}`, n)).join(", "),
-    });
+    const partes = [];
+    if (m.ferramentas?.length) partes.push(t("assistente.chat.consultou", { lista: nomesConsultas(m.ferramentas) }));
+    if (m.duracao != null) partes.push(t("assistente.etapa.tempo", { s: m.duracao }));
+    consulta.textContent = partes.join(" · ");
     div.append(consulta);
   }
   if (m.aviso?.tipo === "cuidado") {
     div.append(noCuidado(m.aviso.servico));
     return div;
   }
+  // IA-07a: os números da consulta, do jeito que o Kami leu
+  for (const q of m.quadros || []) {
+    const el = noQuadro(q);
+    if (el) div.append(el);
+  }
   const txt = document.createElement("div");
   txt.className = "ia-msg-texto nota-md";
   if (m.texto) {
     txt.append(markdownParaDom(m.texto));
     enfeitarCodigo(txt);
+    trocarIcones(txt);
   }
   div.append(txt);
+  if (m.aviso?.tipo === "conferir" && !m.carregando) {
+    const conf = document.createElement("p");
+    conf.className = "ia-conferir";
+    conf.textContent = t("assistente.chat.conferir", { valores: m.aviso.valores.join(", ") });
+    div.append(conf);
+  }
   if (m.proposta) div.append(noProposta(m.proposta, { conversaId, carregando: m.carregando, aoMudar: depoisDaProposta }));
   if (m.carregando) {
     const cursor = document.createElement("span");
@@ -366,6 +437,40 @@ function noMensagem(m, i) {
     if (acoes) div.append(acoes);
   }
   return div;
+}
+
+// IA-07a: no lugar de emoji, o modelo escreve :nome: e entra o ícone do
+// Kami — só estes (a mesma lista vai nas instruções, instrucoes.ICONES)
+export const ICONES_IA = new Set(["check", "target", "trending-up", "trending-down", "star", "zap", "calendar-days",
+  "clock", "receipt", "credit-card", "triangle-alert", "bell"]);
+const MARCA_ICONE = /:([a-z-]+):/g;
+
+/** Troca :nome: por ícone nos textos da resposta (fora de código). */
+export function trocarIcones(raiz) {
+  const doc = raiz.ownerDocument;
+  const andar = doc.createTreeWalker(raiz, 4 /* NodeFilter.SHOW_TEXT */);
+  const nos = [];
+  while (andar.nextNode()) {
+    const n = andar.currentNode;
+    if (!n.parentElement?.closest("code, pre") && MARCA_ICONE.test(n.data)) nos.push(n);
+    MARCA_ICONE.lastIndex = 0;
+  }
+  for (const n of nos) {
+    const pedacos = doc.createDocumentFragment();
+    let resto = 0;
+    for (const achado of n.data.matchAll(MARCA_ICONE)) {
+      if (!ICONES_IA.has(achado[1])) continue;
+      pedacos.append(n.data.slice(resto, achado.index));
+      const span = doc.createElement("span");
+      span.className = "ia-texto-icone";
+      span.innerHTML = icon(achado[1], { size: 12 });
+      pedacos.append(span);
+      resto = achado.index + achado[0].length;
+    }
+    if (!resto) continue;
+    pedacos.append(n.data.slice(resto));
+    n.replaceWith(pedacos);
+  }
 }
 
 /** Bloco de código: cabeçalho com a linguagem e "copiar" (diagrama em
@@ -628,11 +733,15 @@ async function continuar() {
 
 async function responder({ texto = "", acao }, resposta) {
   const campo = painel.querySelector("#ia-texto");
+  // IA-07a: etapas com o tempo correndo enquanto a resposta não termina
+  Object.assign(resposta, { inicio: Date.now(), consultando: null, duracao: null });
   vista = "conversa";
   renderConversa();
   modoEnviando(true);
   announce(t("assistente.chat.respondendo"));
   enviando = new AbortController();
+  const relogio = setInterval(atualizarEtapas, 1000);
+  if (estadoIa?.provedor?.local) acompanharAquecimento(resposta);
   try {
     await enviarMensagem(
       { texto, acao, conversa_id: conversaId, tela: getTelaAtual() || null, idioma: idiomaAtual() },
@@ -645,6 +754,11 @@ async function responder({ texto = "", acao }, resposta) {
             atualizarUltima();
           } else if (ev.tipo === "ferramenta") {
             resposta.ferramentas = [...(resposta.ferramentas || []), ev.nome];
+            resposta.consultando = ev.nome;
+            atualizarUltima();
+          } else if (ev.tipo === "quadro") {
+            resposta.consultando = null;
+            resposta.quadros = [...(resposta.quadros || []).filter((q) => q.nome !== ev.nome), { nome: ev.nome, dados: ev.dados }];
             atualizarUltima();
           } else if (ev.tipo === "mascarado") {
             const pergunta = mensagens.findLast((m) => m.papel === "usuario");
@@ -655,6 +769,11 @@ async function responder({ texto = "", acao }, resposta) {
             atualizarUltima();
           } else if (ev.tipo === "cuidado") {
             resposta.aviso = { tipo: "cuidado", servico: ev.servico };
+            atualizarUltima();
+          } else if (ev.tipo === "conferido") {
+            // IA-07a: o Kami conferiu os números com os dados (conferir.py)
+            resposta.texto = ev.texto;
+            if (ev.valores.length) resposta.aviso = { tipo: "conferir", valores: ev.valores };
             atualizarUltima();
           } else if (ev.tipo === "fim" || ev.tipo === "falha") {
             if (ev.tipo === "falha") resposta.erro = ev;
@@ -672,7 +791,9 @@ async function responder({ texto = "", acao }, resposta) {
     resposta.erro = err instanceof ApiError && err.body?.chave ? err.body : { detail: err.message };
     if (!conversaId && !acao) mensagens.splice(mensagens.length - 2, 1); // a pergunta não chegou a lugar nenhum
   } finally {
+    clearInterval(relogio);
     resposta.carregando = false;
+    resposta.duracao = segundos(resposta);
     enviando = null;
     modoEnviando(false);
     renderProvedor();
@@ -703,10 +824,15 @@ async function carregarEstado() {
 export function deConversa(lista) {
   const saida = [];
   let proposta = null;
+  let quadros = [];
   // resposta depois da proposta sem texto (o modelo não disse nada) não é
   // guardada: o cartão fica sozinho numa resposta do kami
   const sozinha = () => saida.push({ papel: "assistente", texto: "", interrompida: false, erro: null, aviso: null, proposta });
   for (const m of lista) {
+    if (m.quadro) {
+      quadros = [...quadros.filter((q) => q.nome !== m.quadro.nome), m.quadro];
+      continue;
+    }
     if (m.proposta) {
       if (proposta) sozinha();
       proposta = { ...m.proposta, mensagem_id: m.id };
@@ -721,10 +847,15 @@ export function deConversa(lista) {
       texto: m.texto,
       interrompida: m.interrompida,
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
-      aviso: m.aviso?.tipo === "cuidado" && m.papel === "assistente" ? m.aviso : null,
+      aviso: ["cuidado", "conferir"].includes(m.aviso?.tipo) && m.papel === "assistente" ? m.aviso : null,
       ...(proposta && m.papel === "assistente" ? { proposta } : {}),
+      ...(quadros.length && m.papel === "assistente" ? { quadros, ferramentas: quadros.map((q) => q.nome) } : {}),
     });
-    if (m.papel === "assistente") proposta = null;
+    if (m.papel === "assistente") {
+      proposta = null;
+      quadros = [];
+    }
+    if (m.papel === "usuario") quadros = [];
   }
   if (proposta) sozinha();
   return saida;
@@ -769,6 +900,9 @@ export async function abrirAssistente() {
     return;
   }
   renderProvedor();
+  if (estadoIa.pronto && estadoIa.provedor?.local) {
+    aquecerAssistente({ tela: getTelaAtual() || null, idioma: idiomaAtual() }).catch(() => {});
+  }
   if (vista === "conversa") voltarPraConversa();
   (estadoIa.pronto ? painel.querySelector("#ia-texto") : painel.querySelector('[data-ia="configurar"]'))?.focus();
 }

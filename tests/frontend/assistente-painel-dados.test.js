@@ -28,12 +28,19 @@ test(
   withDom(`<!doctype html><body><div class="nav-link" data-assistente role="button" tabindex="0">assistente kami</div></body>`, async (dom, t) => {
     const pedidos = [];
     let resposta = [];
+    let aquecendo = false;
     const fetch = async (url, opts = {}) => {
       const u = new URL(url);
       const corpo = opts.body ? JSON.parse(opts.body) : undefined;
       pedidos.push({ caminho: u.pathname, corpo });
       if (u.pathname === "/api/assistente") return new Response(JSON.stringify(ESTADO), { headers: { "content-type": "application/json" } });
-      if (u.pathname === "/api/assistente/mensagens") return new Response(sse(resposta), { headers: { "content-type": "text/event-stream" } });
+      if (u.pathname === "/api/assistente/aquecer" && (opts.method || "GET") === "GET") {
+        return new Response(JSON.stringify({ aquecendo: aquecendo }), { headers: { "content-type": "application/json" } });
+      }
+      if (u.pathname === "/api/assistente/mensagens") {
+        const corpo = resposta instanceof ReadableStream ? resposta : sse(resposta);
+        return new Response(corpo, { headers: { "content-type": "text/event-stream" } });
+      }
       return new Response("{}", { status: 404 });
     };
     globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
@@ -69,7 +76,7 @@ test(
       doc.querySelectorAll(".ia-sugestao")[0].click();
       await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
       assert.equal(pedidos.find((p) => p.caminho === "/api/assistente/mensagens").corpo.texto, "resuma meu mês");
-      assert.equal($(".ia-msg--kami .ia-consulta").textContent, "consultou: resumo financeiro, maiores gastos");
+      assert.match($(".ia-msg--kami .ia-consulta").textContent, /^consultou: resumo financeiro, maiores gastos · \d+ s$/);
       assert.equal($(".ia-msg--kami strong").textContent, "R$ 900");
     });
 
@@ -100,6 +107,72 @@ test(
       const box = doc.querySelector(".ia-msg--kami:last-child .ia-cuidado");
       assert.match(box.querySelector(".ia-cuidado-servico").textContent, /serviço de apoio gratuito/);
       assert.equal(box.querySelector("a").textContent, "findahelpline.com");
+    });
+
+    await t.test("IA-07a: modelo local aquece ao abrir e número fora dos dados ganha o aviso", async () => {
+      const aquecer = pedidos.find((p) => p.caminho === "/api/assistente/aquecer");
+      assert.deepEqual(aquecer?.corpo, { tela: "financas", idioma: "pt" });
+      resposta = [
+        { tipo: "inicio", conversa_id: "c1" },
+        { tipo: "ferramenta", nome: "finance_summary" },
+        { tipo: "texto", delta: "Seu saldo é r$ 49.031." },
+        { tipo: "conferido", texto: "Seu saldo é R$ 49.031.", valores: ["R$ 49.031"] },
+        { tipo: "fim", motivo: "fim" },
+      ];
+      $("#ia-texto").value = "estou gastando muito?";
+      $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      const ultima = doc.querySelector(".ia-msg--kami:last-child");
+      assert.equal(ultima.querySelector(".ia-msg-texto").textContent, "Seu saldo é R$ 49.031.");
+      assert.equal(ultima.querySelector(".ia-conferir").textContent, "confira: não está nos dados que o Kami consultou — R$ 49.031");
+    });
+
+    await t.test("IA-07a: 1ª pergunta durante o aquecimento mostra \"preparando o modelo\"", async () => {
+      const enc = new TextEncoder();
+      let ctrl;
+      resposta = new ReadableStream({ start: (c) => { ctrl = c; } });
+      t.after(() => { try { ctrl.close(); } catch { /* já fechado */ } });
+      aquecendo = true;
+      $("#ia-texto").value = "oi";
+      $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      const etapa = () => doc.querySelector(".ia-msg--kami:last-child .ia-etapa--agora")?.textContent || "";
+      await ate(() => /preparando/.test(etapa()));
+      assert.match(etapa(), /^preparando o modelo \(1ª pergunta\) · \d+ s$/);
+      aquecendo = false;
+      for (let i = 0; i < 100 && /preparando/.test(etapa()); i++) await espera(30);
+      assert.match(etapa(), /^pensando/);
+      ctrl.enqueue(enc.encode(`event: fim\ndata: ${JSON.stringify({ tipo: "fim", motivo: "fim" })}\n\n`));
+      ctrl.close();
+      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+    });
+
+    await t.test("IA-07a: etapas com o tempo enquanto responde; no fim, uma linha com o tempo", async () => {
+      const enc = new TextEncoder();
+      let ctrl;
+      const manda = (ev) => ctrl.enqueue(enc.encode(`event: ${ev.tipo}\ndata: ${JSON.stringify(ev)}\n\n`));
+      resposta = new ReadableStream({ start: (c) => { ctrl = c; } });
+      t.after(() => { try { ctrl.close(); } catch { /* já fechado */ } });
+      $("#ia-texto").value = "como estão minhas metas?";
+      $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      const etapas = () => [...doc.querySelectorAll(".ia-msg--kami:last-child .ia-etapa")].map((e) => e.textContent);
+      await ate(() => etapas().length);
+      assert.match(etapas()[0], /^pensando · \d+ s$/);
+      manda({ tipo: "inicio", conversa_id: "c1" });
+      manda({ tipo: "ferramenta", nome: "goals" });
+      await ate(() => /consultando/.test(etapas().join()));
+      assert.match(etapas()[0], /^consultando metas · \d+ s$/);
+      manda({ tipo: "quadro", nome: "goals", dados: { goals: [] } });
+      await ate(() => /lendo/.test(etapas().join()));
+      assert.deepEqual(etapas().map((e) => e.replace(/\d+/, "N")), ["consultou metas", "lendo os dados · N s"]);
+      manda({ tipo: "texto", delta: "Nenhuma meta ativa." });
+      await ate(() => /escrevendo/.test(etapas().join()));
+      manda({ tipo: "fim", motivo: "fim" });
+      ctrl.close();
+      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      const ultima = doc.querySelector(".ia-msg--kami:last-child");
+      assert.equal(ultima.querySelector(".ia-etapas"), null);
+      assert.match(ultima.querySelector(".ia-consulta").textContent, /^consultou: metas · \d+ s$/);
+      assert.ok(ultima.querySelector(".ia-quadro"), "o quadro fica");
     });
   })
 );

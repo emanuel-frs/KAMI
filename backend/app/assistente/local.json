@@ -1,0 +1,9 @@
+{
+  "_sobre": "IA-07a (P-157): o modelo local recomendado por faixa de máquina. Só dados — trocar de modelo é editar este arquivo. ram_min_gb/vram_min_gb: a faixa vale a partir daí (a maior que couber ganha); download_gb e disco_gb do registro do Ollama; ram_uso_gb é o que ele ocupa respondendo (modelo + contexto); velocidade: rapida/media/lenta num computador sem placa de vídeo dedicada. Conferido em 2026-11-01.",
+  "ram_min_gb": 8,
+  "faixas": [
+    {"ram_min_gb": 8, "modelo": "qwen3.5:4b", "download_gb": 3.3, "disco_gb": 3.3, "ram_uso_gb": 5, "velocidade": "media"},
+    {"ram_min_gb": 16, "modelo": "qwen3.5:9b", "download_gb": 6.6, "disco_gb": 6.6, "ram_uso_gb": 9, "velocidade": "lenta"},
+    {"ram_min_gb": 32, "vram_min_gb": 12, "modelo": "gpt-oss:20b", "download_gb": 13.8, "disco_gb": 13.8, "ram_uso_gb": 16, "velocidade": "lenta"}
+  ]
+}

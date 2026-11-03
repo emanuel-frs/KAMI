@@ -16,6 +16,9 @@ export const listarModelos = (dados) => post("/api/assistente/modelos", dados);
 // IA-02: chat. A resposta chega em eventos (inicio, texto, fim, erro —
 // backend/app/assistente/chat.py) por `onEvento`; `signal` é o botão parar.
 export const enviarMensagem = (dados, { signal, onEvento }) => postStream("/api/assistente/mensagens", dados, { signal, onEvento });
+// IA-07a: modelo local lê as instruções quando o painel abre (a 1ª pergunta não espera ~45 s)
+export const aquecerAssistente = (dados) => post("/api/assistente/aquecer", dados);
+export const getAquecendo = () => get(`/api/assistente/aquecer?t=${Date.now()}`);
 export const getConversas = () => get(`/api/assistente/conversas?t=${Date.now()}`);
 export const getConversa = (id) => get(`/api/assistente/conversas/${encodeURIComponent(id)}?t=${Date.now()}`);
 export const apagarConversa = (id) => del(`/api/assistente/conversas/${encodeURIComponent(id)}`);
@@ -31,3 +34,19 @@ export const getLotes = () => get(`/api/assistente/lotes?t=${Date.now()}`);
 export const getLote = (id) => get(`/api/assistente/lotes/${encodeURIComponent(id)}?t=${Date.now()}`);
 export const desfazerLote = (id, apagarEditados = false) =>
   post(`/api/assistente/lotes/${encodeURIComponent(id)}/desfazer`, { apagar_editados: apagarEditados });
+
+// IA-07a: IA no computador — máquina, recomendação, Ollama/LM Studio deste
+// computador (backend/app/assistente/local.py).
+export const getLocal = () => get(`/api/assistente/local?t=${Date.now()}`);
+export const usarModeloLocal = (programa, modelo) => post("/api/assistente/local/usar", { programa, modelo });
+export const baixarModeloLocal = (modelo) => post("/api/assistente/local/baixar", { modelo });
+export const getAndamentoLocal = () => get(`/api/assistente/local/baixar?t=${Date.now()}`);
+export const cancelarDownloadLocal = () => del("/api/assistente/local/baixar");
+export const removerModeloLocal = (nome) => del(`/api/assistente/local/modelos/${encodeURIComponent(nome)}`);
+
+// IA-07b: instalar / ligar / desinstalar o Ollama pelo app (backend/app/
+// assistente/instalar_ollama.py). Rodam no fundo; a tela acompanha.
+export const getInstalacaoLocal = () => get(`/api/assistente/local/instalacao?t=${Date.now()}`);
+export const instalarOllama = () => post("/api/assistente/local/instalar", {});
+export const ligarOllama = () => post("/api/assistente/local/ligar", {});
+export const desinstalarOllama = (apagarModelos) => post("/api/assistente/local/desinstalar", { apagar_modelos: apagarModelos });

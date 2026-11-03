@@ -36,7 +36,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from app import database
+from app import cifra, database
 from app.mensagens import Texto
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,10 @@ def _quando(path: Path) -> Optional[datetime.datetime]:
 
 def _copiar(conn: sqlite3.Connection, destino: Path) -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
-    dest = sqlite3.connect(destino)
+    # mesmo nome no mesmo segundo: substitui (o arquivo pode estar no outro
+    # modo de cifra, e a API de backup não converte — SEG-08)
+    destino.unlink(missing_ok=True)
+    dest = cifra.conectar_copia(destino, database.DB_PATH)
     try:
         conn.backup(dest)
     finally:
@@ -255,6 +258,33 @@ def status(conn: sqlite3.Connection) -> dict:
     }
 
 
+def _voltar_copia(origem: Path, atual) -> None:
+    """
+    Sobrescreve o banco aberto com a cópia pela API de backup (consistente
+    com o WAL). SEG-08: a API de backup não muda a cifra — cópia num modo e
+    banco no outro (cópia de antes de ligar ou desligar a cifra) passa
+    antes por um arquivo temporário já no modo do banco.
+    """
+    db_path = database.DB_PATH
+    temporario = None
+    if cifra.arquivo_cifrado(origem) != cifra.ligada(db_path):
+        temporario = origem.with_name(origem.name + ".convertendo")
+        temporario.unlink(missing_ok=True)
+        chave_origem = cifra.chave(db_path) if cifra.arquivo_cifrado(origem) else None
+        chave_banco = cifra.chave(db_path) if cifra.ligada(db_path) else None
+        cifra.exportar(origem, chave_origem, temporario, chave_banco)
+        origem = temporario
+    try:
+        src = cifra.abrir_arquivo(origem, db_path)
+        try:
+            src.backup(atual)
+        finally:
+            src.close()
+    finally:
+        if temporario:
+            temporario.unlink(missing_ok=True)
+
+
 def restaurar(nome: str) -> Path:
     """
     Volta o banco pra uma cópia da pasta de backups. Antes, guarda o estado
@@ -274,11 +304,7 @@ def restaurar(nome: str) -> Path:
         # a pasta extra é desta máquina, não da cópia: volta como estava
         manter = {c: _info(atual, c) for c in (CHAVE_PASTA, CHAVE_EXTRA_OK, CHAVE_EXTRA_ERRO)}
         guardada = copia_antes_de(atual, "restaurar")
-        src = sqlite3.connect(origem)
-        try:
-            src.backup(atual)  # sobrescreve o banco aberto pela API de backup (consistente com o WAL)
-        finally:
-            src.close()
+        _voltar_copia(origem, atual)
     finally:
         atual.close()
     database.init_db()

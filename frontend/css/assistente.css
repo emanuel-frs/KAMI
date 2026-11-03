@@ -98,6 +98,8 @@
 @keyframes ia-pisca { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ia-cursor { animation: none; } }
 .ia-interrompida { display: block; margin-top: 4px; color: var(--text-faint); font-size: 10px; }
+.ia-conferir { margin: 6px 0 0; color: var(--amber); font-size: 11px; }
+.ia-conferir::before { content: "! "; }
 .ia-falha { margin: 6px 0 0; color: var(--red); font-size: 11px; }
 .ia-falha svg { vertical-align: -1px; }
 .ia-falha small { display: block; color: var(--text-faint); }
@@ -236,6 +238,87 @@
 /* IA-03: o que foi consultado, sugestões rápidas e a resposta de cuidado */
 .ia-consulta { margin: 0 0 4px; color: var(--text-faint); font-size: 10px; }
 .ia-consulta::before { content: "› "; color: var(--accent); }
+/* IA-07a: etapas enquanto responde */
+.ia-etapas { margin: 0 0 4px; font-size: 10.5px; }
+.ia-etapa { margin: 0; color: var(--text-faint); }
+.ia-etapa--feita::before { content: "✓ "; color: var(--accent); }
+.ia-etapa--agora { color: var(--text-dim); }
+.ia-etapa--agora::before { content: "› "; color: var(--accent); animation: ia-pisca 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) { .ia-etapa--agora::before { animation: none; } }
+/* resposta da IA: o que ela destaca em negrito usa o branco do sistema */
+.ia-msg-texto strong { color: var(--text-bright); }
+.ia-texto-icone { display: inline-flex; vertical-align: -1px; color: var(--accent); }
+
+/* IA-07a: os números da consulta, do jeito que o Kami leu — cores do sistema */
+.ia-quadro {
+  margin: 4px 0 10px;
+  padding: 8px 10px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--accent);
+  font-size: 11px;
+}
+.ia-quadro-titulo {
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--border-soft);
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.ia-quadro dl { margin: 0; }
+/* visão do mês: grade de cartões, um por área (1 coluna estreito, 2 no
+   painel padrão, 3 quando ele está largo) */
+.ia-quadro--month_overview { padding-bottom: 6px; }
+.ia-q-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 6px; }
+.ia-q-cartao { min-width: 0; padding: 6px 8px; background: var(--panel); border: 1px solid var(--border-soft); }
+.ia-q-area {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ia-q-fila { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; }
+.ia-q-rotulo { min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }
+.ia-q-fila > .ia-quadro-v { flex: 0 0 auto; text-align: right; white-space: nowrap; }
+.ia-q-nome { color: var(--text); }
+.ia-q-nome .ia-quadro-tag { margin-left: 2px; }
+.ia-q-barra-fila + .ia-q-barra-fila, .ia-q-fila + .ia-q-barra-fila { margin-top: 4px; }
+.ia-q-barra-fila .ia-quadro-barra { height: 3px; margin-top: 2px; }
+.ia-q-vazias { margin-top: 6px; font-size: 10.5px; }
+.ia-q-resumo { margin: 0 0 8px; color: var(--text-bright); }
+/* listas longas rolam dentro do cartão em vez de esticar o quadro */
+.ia-q-lista { --scrollbar-w: 6px; max-height: 8.5rem; overflow-y: auto; }
+.ia-q-lista--alta { max-height: 15rem; padding-right: 4px; }
+.ia-q-lista:focus-visible { outline: 1px dashed var(--accent); outline-offset: 2px; }
+.ia-quadro dl + .ia-quadro-meta, .ia-quadro-meta + dl { margin-top: 8px; }
+.ia-quadro-linha { display: flex; gap: 12px; padding: 1px 0; }
+.ia-quadro-linha dt { flex: 0 0 min(34%, 11rem); min-width: 0; color: var(--text-dim); overflow-wrap: anywhere; }
+.ia-quadro-linha dd { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ia-quadro-v { color: var(--text); font-variant-numeric: tabular-nums; }
+.ia-quadro-v--entra { color: var(--green); }
+.ia-quadro-v--sai { color: var(--red); }
+.ia-quadro-v--previsto { color: var(--amber); }
+.ia-quadro-v--forte { color: var(--text-bright); font-weight: 600; }
+.ia-quadro-extra { color: var(--text-faint); }
+.ia-quadro-vazio { margin: 0; color: var(--text-faint); }
+.ia-quadro-meta + .ia-quadro-meta { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-soft); }
+.ia-quadro-meta-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.ia-quadro-meta-nome { color: var(--text-bright); min-width: 0; overflow-wrap: anywhere; }
+.ia-quadro-tag { padding: 0 5px; border: 1px solid currentColor; font-size: 10px; line-height: 1.5; white-space: nowrap; }
+.ia-quadro-tag--adiantada, .ia-quadro-tag--concluida { color: var(--green); }
+.ia-quadro-tag--no_ritmo { color: var(--accent); }
+.ia-quadro-tag--atrasada { color: var(--amber); }
+.ia-quadro-tag--vencida { color: var(--red); }
+.ia-quadro-tag--sem_prazo { color: var(--text-dim); }
+.ia-quadro-meta-progresso { display: flex; align-items: center; gap: 8px; margin: 3px 0 1px; }
+.ia-quadro-barra { flex: 1; height: 4px; background: var(--border-soft); }
+.ia-quadro-barra .bar-fill { height: 100%; background: var(--accent); }
+.ia-quadro-barra .ia-quadro-barra--adiantada, .ia-quadro-barra .ia-quadro-barra--concluida { background: var(--green); }
+.ia-quadro-barra .ia-quadro-barra--atrasada { background: var(--amber); }
+.ia-quadro-barra .ia-quadro-barra--vencida { background: var(--red); }
 .ia-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .ia-sugestao {
   padding: 4px 8px;

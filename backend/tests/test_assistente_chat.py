@@ -112,7 +112,7 @@ def test_continuar_manda_so_o_historico_desta_conversa(client, falso):
     assert all("antiga" not in m["content"] for m in ultima)  # princípio 1
 
 
-def test_historico_longo_e_cortado_pelo_comeco(client, falso, monkeypatch):
+def test_historico_longo_e_cortado_pelo_comeco(client, falso, monkeypatch, como_nuvem):
     monkeypatch.setattr(chat, "HISTORICO_MAX_CARACTERES", 30)
     _ligar(client, falso)
     falso.responder("/v1/chat/completions", sse=openai_texto("r" * 10))
@@ -382,3 +382,84 @@ def test_continuar_e_refazer_recusam_o_que_nao_da(client, falso):
     r = _enviar(client, "", conversa_id=cid2, acao="refazer")
     assert r.status_code == 409
     assert len(_pedidos_chat(falso)) == 1
+
+
+# ── IA-07a: modelo local lê as instruções quando o painel abre ───────────
+
+@pytest.fixture()
+def aquecer_limpo():
+    from app.routers import assistente as rota
+    rota._aquecido.update(chave=None, quando=0.0)
+    yield rota
+    rota._aquecido.update(chave=None, quando=0.0)
+
+
+def _esperar_pedidos(falso, n, segundos=5):
+    fim = time.time() + segundos
+    while time.time() < fim and len(_pedidos_chat(falso)) < n:
+        time.sleep(0.02)
+    return _pedidos_chat(falso)
+
+
+def test_aquecer_le_o_mesmo_comeco_da_pergunta_uma_vez_so(client, falso, aquecer_limpo):
+    _ligar(client, falso)
+    falso.responder("/v1/chat/completions", json={"choices": [{"message": {"content": ""}}]})
+    assert client.post("/api/assistente/aquecer", json={"tela": "metas", "idioma": "pt"}).status_code == 202
+    aquecido = _esperar_pedidos(falso, 1)[0]
+    assert aquecido["max_tokens"] == 1 and aquecido["reasoning_effort"] == "none"
+    assert len(aquecido["messages"]) == 2, "só instruções + um 'ok' — nada da pessoa"
+    for _ in range(50):  # a thread solta a trava logo depois de responder
+        if not aquecer_limpo._aquecendo.locked():
+            break
+        time.sleep(0.02)
+    client.post("/api/assistente/aquecer", json={"tela": "metas", "idioma": "pt"})
+    time.sleep(0.2)
+    assert len(_pedidos_chat(falso)) == 1, "o mesmo começo não é lido de novo"
+
+    falso.responder("/v1/chat/completions", sse=openai_texto("oi"))
+    _enviar(client, "como estão minhas metas?", tela="metas")
+    pergunta = _pedidos_chat(falso)[1]
+    assert pergunta["messages"][0] == aquecido["messages"][0] and pergunta["tools"] == aquecido["tools"]
+
+
+def test_aquecer_na_nuvem_nao_chama_nada(client, falso, aquecer_limpo, como_nuvem):
+    _ligar(client, falso)
+    falso.responder("/v1/chat/completions", json={})
+    client.post("/api/assistente/aquecer", json={"tela": "metas"})
+    time.sleep(0.3)
+    assert _pedidos_chat(falso) == []
+
+
+
+def _m(papel, texto="", chamadas=(), proposta=None):
+    return {"papel": papel, "texto": texto, "chamadas": list(chamadas), "proposta": proposta,
+            "id_chamada": "c1" if papel == "ferramenta" else None, "nome_ferramenta": "goals" if papel == "ferramenta" else None}
+
+
+def test_historico_local_so_com_texto_e_curto():
+    """IA-07a: o Ollama tem 4.096 tokens — na 3ª pergunta a resposta cortava
+    (3.978 enviados). No local, sem os dados já consultados e com limite menor."""
+    pedido = {"id": "c1", "nome": "goals", "argumentos": {}}
+    msgs = [_m("usuario", "como estão minhas metas?"), _m("assistente", "", [pedido]),
+            _m("ferramenta", '<dados ferramenta="goals">\n{"goals": []}\n</dados>'), _m("assistente", "Nenhuma meta."),
+            _m("usuario", "cria uma nota"), _m("assistente", "", [pedido]),
+            _m("ferramenta", "{}", proposta={"estado": "descartada", "itens": [{}]}), _m("assistente", "O cartão está pronto.")]
+    local = chat._historico(msgs, local=True)
+    assert [(m.papel, m.texto) for m in local] == [
+        ("usuario", "como estão minhas metas?"), ("assistente", "Nenhuma meta."), ("usuario", "cria uma nota"),
+        ("assistente", "[later: the person discarded this proposal; nothing was created]"),
+        ("assistente", "O cartão está pronto.")]
+    assert not any(m.chamadas for m in local)
+    assert len(chat._historico(msgs)) == 8, "na nuvem continua tudo"
+    longo = [_m("usuario", "x" * 900), _m("assistente", "y" * 900), _m("usuario", "z" * 100), _m("assistente", "w" * 100)]
+    assert [m.texto[0] for m in chat._historico(longo, local=True)] == ["z", "w"]
+
+
+def test_estado_do_aquecimento_pra_tela(client, aquecer_limpo):
+    assert client.get("/api/assistente/aquecer").json() == {"aquecendo": False}
+    aquecer_limpo._aquecendo.acquire()
+    try:
+        assert client.get("/api/assistente/aquecer").json() == {"aquecendo": True}
+    finally:
+        aquecer_limpo._aquecendo.release()
+

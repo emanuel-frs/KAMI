@@ -41,6 +41,22 @@ Endpoints:
                                                digitada, sem salvar, ou com a
                                                salva se o endereço é o mesmo
 
+IA no computador (IA-07a, app/assistente/local.py):
+  GET    /api/assistente/local                 máquina, recomendação, Ollama
+                                               e LM Studio deste computador
+  POST   /api/assistente/local/usar            {programa, modelo}: cria ou
+                                               ajusta o provedor e passa a usar
+  POST   /api/assistente/local/baixar          {modelo}: baixa pelo Ollama
+  GET    /api/assistente/local/baixar          andamento
+  DELETE /api/assistente/local/baixar          cancela
+  DELETE /api/assistente/local/modelos/{nome}  remove do Ollama
+  POST   /api/assistente/local/instalar        IA-07b: instalador oficial
+                                               conferido (Linux: com a senha)
+  POST   /api/assistente/local/ligar           Ollama instalado e parado
+  POST   /api/assistente/local/desinstalar     {apagar_modelos} — só o que o
+                                               Kami instalou
+  GET    /api/assistente/local/instalacao      andamento (etapa, últimas linhas)
+
 A chave da API nunca volta pra tela (`tem_chave`). Erro do provedor nunca
 é 5xx: não é defeito do Kami e a pessoa resolve no formulário (chave,
 modelo, endereço), então sai como 4xx com a chave `erro.assistente.*` e o
@@ -50,6 +66,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 from typing import Any, List, Literal, Optional
 
 from fastapi import APIRouter, Depends
@@ -58,13 +75,13 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
 from app import database
-from app.assistente import acoes, catalogo, chat, config, conversas, instrucoes, provedores, transporte, uso
+from app.assistente import acoes, catalogo, chat, config, conversas, ferramentas, instalar_ollama, instrucoes, local, provedores, transporte, uso
 from app.assistente.erros import erro_do_provedor, falta as _falta, teto as _teto, url as _url
 from app.assistente.tipos import Provedor
 from app.crypto import encrypt_password
 from app.database import get_db, new_id, now_iso
 from app.limites import Entrada, SEGREDO_MAX, URL_MAX
-from app.mensagens import ErroKami
+from app.mensagens import ErroKami, erro_de
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +342,52 @@ def _checar_antes(conversa_id: Optional[str], acao: Optional[str] = None) -> Non
         conn.close()
 
 
+class AquecerIn(Entrada):
+    tela: Optional[str] = Field(None, max_length=40)
+    idioma: Optional[str] = Field(None, max_length=10)
+
+
+AQUECER_DE_NOVO_S = 240  # o Ollama segura o modelo carregado por 5 min
+_aquecendo = threading.Lock()
+_aquecido: dict = {"chave": None, "quando": 0.0}
+
+
+@router.get("/aquecer")
+def aquecendo():
+    """A tela mostra "preparando o modelo" enquanto isto for true — a 1ª
+    pergunta espera o aquecimento terminar no Ollama (fila dele)."""
+    return {"aquecendo": _aquecendo.locked()}
+
+
+@router.post("/aquecer", status_code=202)
+def aquecer(payload: AquecerIn):
+    """IA-07a: o painel abriu com modelo local — lê as instruções antes da
+    primeira pergunta (chat.aquecer). Em segundo plano, um de cada vez, e
+    sem repetir o mesmo começo enquanto o Ollama ainda o tem. Falhar aqui
+    não é erro pra tela: a pergunta só demora mais."""
+    idioma = payload.idioma if payload.idioma in instrucoes.IDIOMAS else "pt"
+    if not _aquecendo.acquire(blocking=False):
+        return {"aquecendo": False}
+    recente = _aquecido["chave"] if time.monotonic() - _aquecido["quando"] < AQUECER_DE_NOVO_S else None
+
+    def rodar():
+        conn = database.get_connection()
+        try:
+            chave = chat.aquecer(conn, idioma, payload.tela, recente)
+            if chave and chave != recente:
+                _aquecido.update(chave=chave, quando=time.monotonic())
+        except (ErroKami, transporte.ErroProvedor) as e:
+            logger.info("assistente: aquecer não rodou (%s)", getattr(e, "chave", None) or getattr(e, "codigo", e))
+        except Exception:  # noqa: BLE001
+            logger.exception("assistente: erro inesperado ao aquecer")
+        finally:
+            conn.close()
+            _aquecendo.release()
+
+    threading.Thread(target=rodar, name="assistente-aquecer", daemon=True).start()
+    return {"aquecendo": True}
+
+
 @router.post("/mensagens")
 async def enviar_mensagem(payload: MensagemIn):
     """
@@ -393,11 +456,17 @@ def get_conversa(conversa_id: str, db=Depends(get_db)):
     # a tela mostra o que a pessoa e o assistente disseram; os resultados
     # das ferramentas ficam no registro do que foi enviado
     # das ferramentas, o cartão da proposta de ações (IA-05) aparece no lugar
-    c["mensagens"] = [
-        {k: v for k, v in m.items() if not (m.get("proposta") and k == "texto")} if m.get("proposta") else m
-        for m in c["mensagens"]
-        if m.get("proposta") or (m["papel"] != "ferramenta" and (m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso")))
-    ]
+    # IA-07a: das consultas com quadro (metas, finanças, mês), só o quadro
+    saida = []
+    for m in c["mensagens"]:
+        if m["papel"] == "ferramenta" and not m.get("proposta"):
+            if q := ferramentas.quadro(m.get("nome_ferramenta"), m["texto"]):
+                saida.append({"id": m["id"], "papel": "ferramenta", "quadro": q})
+        elif m.get("proposta"):
+            saida.append({k: v for k, v in m.items() if k != "texto"})
+        elif m["texto"] or m["erro_chave"] or m["interrompida"] or m.get("aviso"):
+            saida.append(m)
+    c["mensagens"] = saida
     return c
 
 
@@ -490,3 +559,152 @@ def desfazer_lote(lote_id: str, payload: DesfazerIn, db=Depends(get_db)):
             conversas.atualizar_proposta(db, resultado["conversa_id"], resultado["mensagem_id"],
                                          {**msg["proposta"], "estado": "desfeita"})
     return resultado
+
+
+# ── IA no computador (IA-07a) ────────────────────────────────────────────
+
+class UsarLocalIn(Entrada):
+    programa: Literal["ollama", "lmstudio"]
+    modelo: str = Field(..., max_length=120)
+
+
+class BaixarIn(Entrada):
+    modelo: str = Field(..., max_length=120)
+
+
+def _provedor_local(db, programa: str):
+    """O provedor salvo desse programa (o em uso primeiro), ou None."""
+    em_uso = config.obter(db)["provedor_id"]
+    rows = db.execute("SELECT * FROM assistente_provedores WHERE catalogo = ? ORDER BY updated_at DESC", (programa,)).fetchall()
+    return next((r for r in rows if r["id"] == em_uso), rows[0] if rows else None)
+
+
+def _base_ollama(db) -> str:
+    row = _provedor_local(db, "ollama")
+    return local.raiz(row["url_base"]) if row else local.OLLAMA_PADRAO
+
+
+def _ollama_aqui(db) -> str:
+    base = _base_ollama(db)
+    if not local.deste_computador(base):
+        raise ErroKami(409, "erro.local.outro_computador",
+                       "o Ollama configurado está em outro computador ({url}) — o Kami só gerencia o deste", url=base)
+    return base
+
+
+def _erro_local(exc: Exception):
+    if isinstance(exc, local.ModeloInvalido):
+        return erro_de(exc, 422)
+    return ErroKami(424, "erro.local.ollama_fora", "o Ollama não respondeu — confira se ele está aberto")
+
+
+@router.get("/local")
+def get_local(db=Depends(get_db)):
+    maq = local.maquina()
+    rec = local.recomendar(maq)
+    row = _provedor_local(db, "lmstudio")
+    return {
+        "maquina": maq,
+        "recomendacao": rec,
+        "faixas": local.DADOS["faixas"],
+        "ram_min_gb": local.DADOS["ram_min_gb"],
+        "ollama": local.ollama(_base_ollama(db)),
+        "lmstudio": local.lmstudio(local.raiz(row["url_base"]) if row else local.LMSTUDIO_PADRAO),
+        "baixando": local.andamento(),
+        "instalacao": instalar_ollama.estado(),
+    }
+
+
+@router.post("/local/usar")
+def usar_local(payload: UsarLocalIn, db=Depends(get_db)):
+    modelo = payload.modelo.strip()
+    if not modelo:
+        raise _falta("modelo")
+    cat = catalogo.obter(payload.programa)
+    row = _provedor_local(db, payload.programa)
+    agora = now_iso()
+    if row:
+        pid = row["id"]
+        db.execute("UPDATE assistente_provedores SET modelo = ?, teste_ok = NULL, teste_em = NULL, ferramentas_ok = NULL, "
+                   "updated_at = ? WHERE id = ?", (modelo, agora, pid))
+    else:
+        pid = new_id()
+        db.execute(
+            "INSERT INTO assistente_provedores (id, catalogo, nome, tipo, url_base, modelo, chave_enc, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)",
+            (pid, cat["id"], cat["nome"], cat["tipo"], cat["url_base"], modelo, agora, agora),
+        )
+    config.usar_provedor(db, pid)
+    db.commit()
+    return {**config.estado(db), "provedor": config.publico(config.obter_provedor(db, pid))}
+
+
+@router.post("/local/baixar", status_code=202)
+def baixar_modelo(payload: BaixarIn, db=Depends(get_db)):
+    base = _ollama_aqui(db)
+    if not local.ollama(base)["rodando"]:
+        raise _erro_local(local.ProgramaFora())
+    try:
+        return local.baixar(base, payload.modelo)
+    except local.ModeloInvalido as exc:
+        raise _erro_local(exc) from exc
+
+
+@router.get("/local/baixar")
+def andamento_download():
+    return local.andamento()
+
+
+@router.delete("/local/baixar")
+def cancelar_download():
+    return local.cancelar()
+
+
+@router.delete("/local/modelos/{nome:path}", status_code=204)
+def remover_modelo(nome: str, db=Depends(get_db)):
+    base = _ollama_aqui(db)
+    try:
+        apagou = local.remover(base, nome)
+    except local.ModeloInvalido as exc:
+        raise _erro_local(exc) from exc
+    except OSError as exc:
+        # API-01: apagar o que não dá pra achar é 404 — com o Ollama fechado,
+        # nenhum modelo está ao alcance (a chave diz o porquê)
+        raise ErroKami(404, "erro.local.ollama_fora", "o Ollama não respondeu — confira se ele está aberto") from exc
+    if not apagou:
+        raise ErroKami(404, "erro.local.modelo_inexistente", "esse modelo não está no Ollama")
+
+
+# ── instalar o Ollama pelo app (IA-07b) ──────────────────────────────────
+
+class DesinstalarIn(Entrada):
+    apagar_modelos: bool = False
+
+
+def _rodar_instalacao(fn, *args):
+    try:
+        return fn(*args)
+    except instalar_ollama.NaoDa as exc:
+        raise erro_de(exc, 409) from exc
+    except OSError as exc:
+        raise ErroKami(424, "erro.local.sem_internet", "não deu pra falar com o GitHub do Ollama — confira a internet") from exc
+
+
+@router.get("/local/instalacao")
+def get_instalacao():
+    return instalar_ollama.estado()
+
+
+@router.post("/local/instalar", status_code=202)
+def instalar_ollama_rota():
+    return _rodar_instalacao(instalar_ollama.instalar)
+
+
+@router.post("/local/ligar", status_code=202)
+def ligar_ollama():
+    return _rodar_instalacao(instalar_ollama.ligar)
+
+
+@router.post("/local/desinstalar", status_code=202)
+def desinstalar_ollama(payload: DesinstalarIn):
+    return _rodar_instalacao(instalar_ollama.desinstalar, payload.apagar_modelos)

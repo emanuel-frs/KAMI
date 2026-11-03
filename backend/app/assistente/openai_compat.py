@@ -16,8 +16,12 @@ adaptadores.py com o formato real que o provedor manda):
 - uso de tokens: `usage` no último pedaço quando pedimos
   `stream_options.include_usage`; o Groq também manda em `x_groq.usage`;
   alguns servidores locais não mandam nada (uso.py estima);
-- servidor que recusa `stream_options` (campo desconhecido) → repete uma
-  vez sem ele;
+- servidor que recusa `stream_options` ou `reasoning_effort` (campo
+  desconhecido) → repete sem ele;
+- modelo local que "pensa" antes de responder (qwen3.5 no Ollama): sem
+  placa de vídeo, um "oi" levou 295 s e 2.427 tokens pensando, contra
+  0,9 s com `reasoning_effort: none` (IA-07a, medido no Ryzen 5 4600G). Só
+  vai pros locais; o gpt-oss não desliga o raciocínio e fica no `low`;
 - ids de modelo do Gemini vêm como "models/gemini-…" no /models, e o
   /chat/completions quer sem o prefixo.
 
@@ -114,21 +118,45 @@ def _argumentos(bruto: str) -> dict:
 def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None,
               cancelamento: Optional[transporte.Cancelamento] = None) -> Iterator:
     corpo = {"model": p.modelo, "messages": _mensagens(mensagens), "stream": True,
-             "stream_options": {"include_usage": True}}
+             "stream_options": {"include_usage": True}, **_sem_pensar(p)}
     if ferramentas:
         corpo["tools"] = _ferramentas(ferramentas)
     url = f"{p.url_base}/chat/completions"
-    try:
-        stream = transporte.abrir_stream(url, _cabecalhos(p), corpo, _timeout(p), p.chave)
-    except transporte.ErroProvedor as e:
-        if e.codigo != "recusado" or "stream_options" not in e.detalhe:
-            raise
-        corpo.pop("stream_options")
-        stream = transporte.abrir_stream(url, _cabecalhos(p), corpo, _timeout(p), p.chave)
+    while True:
+        try:
+            stream = transporte.abrir_stream(url, _cabecalhos(p), corpo, _timeout(p), p.chave)
+            break
+        except transporte.ErroProvedor as e:
+            campo = _campo_recusado(e, corpo)
+            if not campo:
+                raise
+            corpo.pop(campo)
     if cancelamento:
         cancelamento.registrar(stream)
     with stream:
         yield from _ler(stream, {f.nome for f in ferramentas or []})
+
+
+def _sem_pensar(p: Provedor) -> dict:
+    if not p.local:
+        return {}
+    return {"reasoning_effort": "low" if "gpt-oss" in (p.modelo or "") else "none"}
+
+
+def _campo_recusado(e: transporte.ErroProvedor, corpo: dict) -> str | None:
+    if e.codigo != "recusado":
+        return None
+    return next((c for c in ("stream_options", "reasoning_effort") if c in corpo and c in e.detalhe), None)
+
+
+def aquecer(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None) -> None:
+    """Modelo local: lê as instruções e as ferramentas sem responder nada
+    (1 token). O Ollama guarda o que leu, e a pergunta que vier depois com
+    o mesmo começo só lê o que é novo — ver chat.aquecer."""
+    corpo = {"model": p.modelo, "messages": _mensagens(mensagens), "stream": False, "max_tokens": 1, **_sem_pensar(p)}
+    if ferramentas:
+        corpo["tools"] = _ferramentas(ferramentas)
+    transporte.pedir_json(f"{p.url_base}/chat/completions", _cabecalhos(p), corpo, _timeout(p), p.chave)
 
 
 # ── pedido de ferramenta escrito como texto ───────────────────────────────
