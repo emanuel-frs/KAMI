@@ -3156,5 +3156,12 @@
   "sobre.retorno.copiado_email": "el mensaje es demasiado largo para el enlace y se copió: pégalo en el cuerpo del correo (Ctrl+V).",
   "sobre.retorno.copiado_github": "el mensaje es demasiado largo para el enlace y se copió: pégalo en la issue (Ctrl+V).",
   "sobre.retorno.abrindo_email": "abriendo tu programa de correo… si no se abre nada, escribe a {email}.",
-  "sobre.retorno.abrindo_github": "abriendo GitHub en el navegador…"
+  "sobre.retorno.abrindo_github": "abriendo GitHub en el navegador…",
+  "zoom.titulo": "tamaño de la pantalla",
+  "zoom.desc": "agranda o achica todo en kami. también puedes usar Ctrl + y Ctrl − en cualquier pantalla (Ctrl 0 vuelve a lo normal). se guarda en este equipo.",
+  "zoom.diminuir": "achicar",
+  "zoom.aumentar": "agrandar",
+  "zoom.padrao": "volver a 100%",
+  "zoom.aviso": "tamaño de la pantalla: {pct}%",
+  "zoom.atalho": "agrandar, achicar o volver al tamaño normal de la pantalla"
 }

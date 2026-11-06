@@ -73,6 +73,8 @@ function renderBody() {
   let right = `<h3 class="ks-section">${t("shortcuts_help.em_qualquer_tela")}</h3><dl class="wg-shortcuts-list">`;
   // ORG-03: a paleta não é Alt+tecla (fica fora do registro de shortcuts.js)
   right += row(kbd(["Ctrl", "K"]), t("shortcuts_help.buscar_em_tudo_e_rodar"));
+  // EST-03: tamanho da tela (components/zoom.js), também fora do registro
+  right += row(`${kbd(["Ctrl", "+"])} ${kbd(["Ctrl", "−"])} ${kbd(["Ctrl", "0"])}`, t("zoom.atalho"));
   actions.forEach((a) => {
     right += row(kbd(comboParts(a)), a.label);
   });

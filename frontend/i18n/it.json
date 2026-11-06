@@ -3158,5 +3158,12 @@
   "sobre.retorno.copiado_email": "il messaggio è troppo lungo per il link ed è stato copiato: incollalo nel corpo dell'e-mail (Ctrl+V).",
   "sobre.retorno.copiado_github": "il messaggio è troppo lungo per il link ed è stato copiato: incollalo nella issue (Ctrl+V).",
   "sobre.retorno.abrindo_email": "apertura del programma di posta… se non si apre nulla, scrivi a {email}.",
-  "sobre.retorno.abrindo_github": "apertura di GitHub nel browser…"
+  "sobre.retorno.abrindo_github": "apertura di GitHub nel browser…",
+  "zoom.titulo": "dimensione dello schermo",
+  "zoom.desc": "ingrandisce o rimpicciolisce tutto in kami. puoi anche usare Ctrl + e Ctrl − in qualsiasi schermata (Ctrl 0 torna normale). resta salvato su questo computer.",
+  "zoom.diminuir": "rimpicciolisci",
+  "zoom.aumentar": "ingrandisci",
+  "zoom.padrao": "torna al 100%",
+  "zoom.aviso": "dimensione dello schermo: {pct}%",
+  "zoom.atalho": "ingrandire, rimpicciolire o tornare alla dimensione normale dello schermo"
 }

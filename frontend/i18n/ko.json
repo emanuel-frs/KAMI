@@ -3122,5 +3122,12 @@
   "sobre.retorno.copiado_email": "메시지가 링크에 넣기에 너무 길어 복사했어요. 이메일 본문에 붙여 넣으세요(Ctrl+V).",
   "sobre.retorno.copiado_github": "메시지가 링크에 넣기에 너무 길어 복사했어요. 이슈에 붙여 넣으세요(Ctrl+V).",
   "sobre.retorno.abrindo_email": "이메일 앱을 여는 중… 아무것도 열리지 않으면 {email}로 보내 주세요.",
-  "sobre.retorno.abrindo_github": "브라우저에서 GitHub를 여는 중…"
+  "sobre.retorno.abrindo_github": "브라우저에서 GitHub를 여는 중…",
+  "zoom.titulo": "화면 크기",
+  "zoom.desc": "kami의 모든 것을 크게 하거나 작게 해요. 어느 화면에서든 Ctrl + 와 Ctrl − 로도 바꿀 수 있어요 (Ctrl 0 은 원래대로). 이 컴퓨터에 저장돼요.",
+  "zoom.diminuir": "작게",
+  "zoom.aumentar": "크게",
+  "zoom.padrao": "100%로 되돌리기",
+  "zoom.aviso": "화면 크기: {pct}%",
+  "zoom.atalho": "화면을 크게, 작게 하거나 원래 크기로 되돌리기"
 }

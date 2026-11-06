@@ -3156,5 +3156,12 @@
   "sobre.retorno.copiado_email": "संदेश लिंक के लिए बहुत लंबा है, इसलिए कॉपी कर लिया गया: ईमेल में पेस्ट करें (Ctrl+V)।",
   "sobre.retorno.copiado_github": "संदेश लिंक के लिए बहुत लंबा है, इसलिए कॉपी कर लिया गया: issue में पेस्ट करें (Ctrl+V)।",
   "sobre.retorno.abrindo_email": "आपका ईमेल ऐप खुल रहा है… अगर कुछ न खुले, तो {email} पर लिखें।",
-  "sobre.retorno.abrindo_github": "ब्राउज़र में GitHub खुल रहा है…"
+  "sobre.retorno.abrindo_github": "ब्राउज़र में GitHub खुल रहा है…",
+  "zoom.titulo": "स्क्रीन का आकार",
+  "zoom.desc": "kami में सब कुछ बड़ा या छोटा करता है। किसी भी स्क्रीन पर Ctrl + और Ctrl − से भी हो जाता है (Ctrl 0 से सामान्य)। यह इसी कंप्यूटर पर सहेजा जाता है।",
+  "zoom.diminuir": "छोटा करें",
+  "zoom.aumentar": "बड़ा करें",
+  "zoom.padrao": "100% पर लौटें",
+  "zoom.aviso": "स्क्रीन का आकार: {pct}%",
+  "zoom.atalho": "स्क्रीन बड़ी, छोटी या सामान्य आकार में करें"
 }

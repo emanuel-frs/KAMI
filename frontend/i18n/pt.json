@@ -3153,5 +3153,12 @@
   "sobre.retorno.copiado_email": "a mensagem é grande demais pro link e foi copiada: cole no corpo do e-mail (Ctrl+V).",
   "sobre.retorno.copiado_github": "a mensagem é grande demais pro link e foi copiada: cole na issue (Ctrl+V).",
   "sobre.retorno.abrindo_email": "abrindo o seu programa de e-mail… se nada abrir, escreva para {email}.",
-  "sobre.retorno.abrindo_github": "abrindo o GitHub no navegador…"
+  "sobre.retorno.abrindo_github": "abrindo o GitHub no navegador…",
+  "zoom.titulo": "tamanho da tela",
+  "zoom.desc": "aumenta ou diminui tudo no kami. também dá com Ctrl + e Ctrl − em qualquer tela (Ctrl 0 volta ao normal). fica guardado neste computador.",
+  "zoom.diminuir": "diminuir",
+  "zoom.aumentar": "aumentar",
+  "zoom.padrao": "voltar a 100%",
+  "zoom.aviso": "tamanho da tela: {pct}%",
+  "zoom.atalho": "aumentar, diminuir ou voltar ao tamanho normal da tela"
 }

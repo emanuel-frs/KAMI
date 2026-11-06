@@ -99,6 +99,7 @@ import {
   wireIdioma,
   renderMoedaEPais,
   wireMoedaEPais,
+  wireZoomAparencia,
   renderEffectsOptions,
   selectEffectsMode,
   renderSoundOptions,
@@ -214,6 +215,7 @@ function wireModal(wrap) {
   wrap.querySelector("#cfg-formato-data").addEventListener("change", (e) => selectFormatoData(wrap, e.target.value));
   wireIdioma(wrap); // I18N-01
   wireMoedaEPais(wrap); // I18N-06
+  wireZoomAparencia(wrap); // EST-03
   wrap.querySelector("#cfg-sound-on").addEventListener("change", (e) => saveSound(wrap, { som_ativo: e.target.checked }));
   wrap.querySelector("#cfg-sound-groups").addEventListener("change", (e) =>
     saveSound(wrap, { [e.target.dataset.soundGroup]: e.target.checked })

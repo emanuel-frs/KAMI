@@ -3156,5 +3156,12 @@
   "sobre.retorno.copiado_email": "die Nachricht ist zu lang für den Link und wurde kopiert: füge sie in die E-Mail ein (Strg+V).",
   "sobre.retorno.copiado_github": "die Nachricht ist zu lang für den Link und wurde kopiert: füge sie ins Issue ein (Strg+V).",
   "sobre.retorno.abrindo_email": "dein E-Mail-Programm wird geöffnet… wenn nichts passiert, schreib an {email}.",
-  "sobre.retorno.abrindo_github": "GitHub wird im Browser geöffnet…"
+  "sobre.retorno.abrindo_github": "GitHub wird im Browser geöffnet…",
+  "zoom.titulo": "Bildschirmgröße",
+  "zoom.desc": "macht in Kami alles größer oder kleiner. geht auch mit Strg + und Strg − auf jedem Bildschirm (Strg 0 setzt zurück). wird auf diesem Computer gespeichert.",
+  "zoom.diminuir": "kleiner",
+  "zoom.aumentar": "größer",
+  "zoom.padrao": "zurück auf 100 %",
+  "zoom.aviso": "Bildschirmgröße: {pct} %",
+  "zoom.atalho": "Bildschirm vergrößern, verkleinern oder auf normale Größe zurücksetzen"
 }

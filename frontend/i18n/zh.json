@@ -3122,5 +3122,12 @@
   "sobre.retorno.copiado_email": "消息太长，无法放进链接，已复制：请粘贴到邮件正文（Ctrl+V）。",
   "sobre.retorno.copiado_github": "消息太长，无法放进链接，已复制：请粘贴到 issue 中（Ctrl+V）。",
   "sobre.retorno.abrindo_email": "正在打开邮件程序… 如果没有打开，请写信至 {email}。",
-  "sobre.retorno.abrindo_github": "正在浏览器中打开 GitHub…"
+  "sobre.retorno.abrindo_github": "正在浏览器中打开 GitHub…",
+  "zoom.titulo": "屏幕大小",
+  "zoom.desc": "放大或缩小 kami 中的所有内容。在任何页面也可以用 Ctrl + 和 Ctrl −（Ctrl 0 恢复正常）。保存在这台电脑上。",
+  "zoom.diminuir": "缩小",
+  "zoom.aumentar": "放大",
+  "zoom.padrao": "恢复 100%",
+  "zoom.aviso": "屏幕大小：{pct}%",
+  "zoom.atalho": "放大、缩小或恢复正常屏幕大小"
 }

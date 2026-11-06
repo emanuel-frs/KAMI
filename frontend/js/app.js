@@ -15,6 +15,7 @@ import { wireHelpButton } from "./modals/help-menu.js";
 import { wireShortcuts } from "./components/shortcuts.js";
 import { wireShortcutsHelp } from "./modals/shortcuts-help-modal.js";
 import { wireGlobalShortcuts } from "./components/global-shortcuts.js";
+import { wireZoom } from "./components/zoom.js";
 import { wireSkipLink } from "./components/skip-link.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
@@ -381,6 +382,7 @@ async function boot() {
   // cor e tema da última vez, antes de qualquer coisa aparecer (o perfil
   // só chega depois — e com o PIN ligado, só depois do desbloqueio)
   restaurarAparencia();
+  wireZoom(); // EST-03: o tamanho da tela da última vez, antes do splash
   // I18N-01: o idioma antes de qualquer texto (a tela de PIN vem antes do
   // perfil): o da última vez ou, na primeira abertura, o do sistema
   await carregarIdioma(idiomaGuardado() || idiomaDoSistema());

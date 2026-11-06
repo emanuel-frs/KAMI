@@ -7,6 +7,7 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [2.0.0] - em desenvolvimento
 
 ### Adicionado
+- tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador
 - relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia por e-mail, pelo seu programa de e-mail já preenchido, ou pelo GitHub, numa issue já preenchida. Nada sai pelo Kami: você confere e envia
 
 ### Alterado

@@ -3156,5 +3156,12 @@
   "sobre.retorno.copiado_email": "the message is too long for the link and was copied: paste it into the email body (Ctrl+V).",
   "sobre.retorno.copiado_github": "the message is too long for the link and was copied: paste it into the issue (Ctrl+V).",
   "sobre.retorno.abrindo_email": "opening your email app… if nothing opens, write to {email}.",
-  "sobre.retorno.abrindo_github": "opening GitHub in your browser…"
+  "sobre.retorno.abrindo_github": "opening GitHub in your browser…",
+  "zoom.titulo": "screen size",
+  "zoom.desc": "makes everything in kami bigger or smaller. you can also use Ctrl + and Ctrl − on any screen (Ctrl 0 goes back to normal). saved on this computer.",
+  "zoom.diminuir": "smaller",
+  "zoom.aumentar": "bigger",
+  "zoom.padrao": "back to 100%",
+  "zoom.aviso": "screen size: {pct}%",
+  "zoom.atalho": "make the screen bigger, smaller or back to normal"
 }

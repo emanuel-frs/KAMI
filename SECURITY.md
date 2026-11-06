@@ -86,7 +86,7 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
 - **Superfície mínima do app.** A janela não tem permissão de shell,
   arquivos nem processos; só abre links `http`/`https`, um e-mail para
   o endereço de relato do Kami (o programa de e-mail abre preenchido e
-  quem envia é você) e o seletor de
+  quem envia é você), o próprio zoom (tamanho da tela) e o seletor de
   pasta do sistema (que só devolve o caminho escolhido — usado na pasta
   extra das cópias automáticas). A CSP só roda o
   código do próprio app (sem script inline nem `eval`, sem plugins, sem

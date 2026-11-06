@@ -182,6 +182,19 @@ test(
       assert.notEqual(put.corpo.accent_color, PERFIL.accent_color);
     });
 
+    await t.test("aparência (EST-03): tamanho da tela com −, + e voltar a 100%", async () => {
+      assert.equal($("#cfg-zoom-valor").textContent, "100%");
+      assert.equal($("#cfg-zoom-padrao").disabled, true);
+      $("#cfg-zoom-aumentar").click();
+      assert.equal($("#cfg-zoom-valor").textContent, "110%");
+      assert.equal($("#cfg-zoom-padrao").disabled, false);
+      $("#cfg-zoom-diminuir").click();
+      $("#cfg-zoom-diminuir").click();
+      assert.equal($("#cfg-zoom-valor").textContent, "90%");
+      $("#cfg-zoom-padrao").click();
+      assert.equal($("#cfg-zoom-valor").textContent, "100%");
+    });
+
     await t.test("perfil: salvar o nome manda display_name", async () => {
       await aba("perfil");
       digita($("#cfg-name-input"), "Ana Clara");

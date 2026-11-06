@@ -17,6 +17,7 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
     nomes = sorted(p if isinstance(p, str) else p["identifier"] for p in cap["permissions"])
     assert nomes == [
         "core:default",
+        "core:webview:allow-set-webview-zoom",  # EST-03: Ctrl+/−/0 e configurações › aparência
         "core:window:allow-close",
         "core:window:allow-minimize",
         "core:window:allow-start-dragging",
