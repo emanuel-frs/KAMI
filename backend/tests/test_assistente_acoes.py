@@ -329,11 +329,12 @@ def test_historico_diz_ao_modelo_o_que_a_pessoa_fez(client, falso):
     falso.limpar()
     falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
     _eventos(client, "e aí?", conversa_id=cid)
-    assert "has not applied" in falso.recebidas[0]["json"]["messages"][3]["content"]
+    enviado = lambda: " ".join(m.get("content") or "" for m in falso.recebidas[0]["json"]["messages"])  # noqa: E731
+    assert "has not applied" in enviado()
     _aplicar(client, cid, mid, [{"indice": 1}])
     falso.limpar()
     _eventos(client, "e aí?", conversa_id=cid)
-    assert "applied 1 of 2" in falso.recebidas[0]["json"]["messages"][3]["content"]
+    assert "applied 1 of 2" in enviado()
 
 
 # ── "não guardar conversas" ──────────────────────────────────────────────
@@ -400,3 +401,15 @@ def test_migracao_criado_por_e_idempotente(db_conn):
     for t in TABELAS_CRIADO_POR:
         assert "criado_por" in {r["name"] for r in db_conn.execute(f"PRAGMA table_info({t})")}, t
     assert acoes.TIPOS[:5] == ("nota", "tarefa", "lembrete", "evento", "habito")
+
+
+def test_item_solto_ou_lista_em_texto_viram_proposta(db_conn):
+    """IA-07a: modelo pequeno manda um item sem a lista, ou a lista como texto."""
+    from app.assistente import acoes
+
+    solto = acoes.propor(db_conn, {"type": "note", "title": "ideias de app", "content": "receitas e treino"})
+    assert [i["dados"]["titulo"] for i in solto["itens"]] == ["ideias de app"]
+    texto = acoes.propor(db_conn, {"items": '[{"type": "note", "title": "outra"}]'})
+    assert [i["dados"]["titulo"] for i in texto["itens"]] == ["outra"]
+    with pytest.raises(ValueError, match="e.g."):
+        acoes.propor(db_conn, {"title": "sem tipo"})

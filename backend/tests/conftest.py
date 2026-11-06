@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet
 from keyring.backend import KeyringBackend
 from fastapi.testclient import TestClient
 
-from app import bonus, database, crypto, missoes
+from app import bonus, cifra, cifra_troca, database, crypto, missoes
 from app.main import app
 
 
@@ -118,9 +118,24 @@ def cofre_de_teste(tmp_path, monkeypatch):
     monkeypatch.setattr(crypto, "MARKER_PATH", pasta / ".secret_key_no_cofre")
     monkeypatch.delenv(crypto.COFRE_ENV_VAR, raising=False)
     crypto._resetar_para_testes()
+    # SEG-08: chave do banco e modo do arquivo em cache são por teste
+    cifra._resetar_para_testes()
+    cifra_troca.marcar_sem_chave(False)
     yield fake
     crypto._resetar_para_testes()
+    cifra._resetar_para_testes()
+    cifra_troca.marcar_sem_chave(False)
     keyring.set_keyring(previous)
+
+
+@pytest.fixture(autouse=True)
+def sem_ia_local_de_verdade(monkeypatch):
+    """IA-07a/b: nenhum teste fala com o Ollama/LM Studio de quem roda os
+    testes — porta fechada; os testes que precisam sobem um falso."""
+    from app.assistente import local
+
+    monkeypatch.setattr(local, "OLLAMA_PADRAO", "http://127.0.0.1:9")
+    monkeypatch.setattr(local, "LMSTUDIO_PADRAO", "http://127.0.0.1:9")
 
 
 @pytest.fixture(autouse=True)
@@ -213,3 +228,16 @@ def mock_imap(mocker):
         return mock_conn
 
     return _configure
+
+
+@pytest.fixture()
+def como_nuvem(monkeypatch):
+    """O provedor falso escuta em 127.0.0.1 e conta como local; pra testar o
+    que só vale na nuvem (histórico completo), ele passa a contar como nuvem."""
+    from dataclasses import replace
+
+    from app.assistente import chat
+
+    preparar = chat.preparar
+    monkeypatch.setattr(chat, "preparar", lambda conn: (lambda c, r, p: (c, r, replace(p, local=False)))(*preparar(conn)))
+

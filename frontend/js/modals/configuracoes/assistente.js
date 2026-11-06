@@ -36,6 +36,7 @@ import { enhanceSelect, destroyCustomSelect } from "../../components/custom-sele
 import { showConfirmModal } from "../confirm-modal.js";
 import { abrirGuia, fecharGuia } from "./assistente-guia.js";
 import { carregarLotes, lotesSectionHtml, wireLotes } from "./assistente-lotes.js";
+import { carregarLocal, localSectionHtml, wireLocal } from "./assistente-local.js";
 import { icon } from "../../components/icons.js";
 import { localeAtual, t } from "../../i18n.js";
 
@@ -75,6 +76,7 @@ export function buildAssistentePanel() {
         </div>
         <div id="cfg-ia-guia" class="cfg-ia-guia" hidden></div>
       </div>
+      ${localSectionHtml()}
 
       <div class="settings-section">
         <h4>${t("assistente.provedores")}</h4>
@@ -625,10 +627,13 @@ async function recarregar(wrap) {
   carregarLotes(wrap);
 }
 
+const emUsoLocal = () => (estadoIa?.provedor ? { catalogo: estadoIa.provedor.catalogo, modelo: estadoIa.provedor.modelo } : null);
+
 export async function carregarAssistente(wrap) {
   try {
     if (!catalogo.length) catalogo = await getCatalogo();
     await recarregar(wrap);
+    carregarLocal(wrap, emUsoLocal()); // IA-07a: sem esperar (sonda os programas locais)
   } catch (err) {
     status(wrap, "cfg-ia-status", textoDoErro(err), true);
   }
@@ -654,6 +659,7 @@ export function wireAssistenteTab(wrap) {
   wrap.querySelector("#cfg-ia-novo").addEventListener("click", () => abrirForm(wrap));
   wrap.querySelector("#cfg-ia-guia-btn").addEventListener("click", () => abrirGuiaAssistente(wrap));
   wireLotes(wrap); // IA-05: ações do assistente
+  wireLocal(wrap, { depoisDeUsar: () => recarregar(wrap).catch(() => {}) }); // IA-07a
   wrap.querySelector("#cfg-ia-limites-ok").addEventListener("click", () =>
     salvarConfig(
       wrap,

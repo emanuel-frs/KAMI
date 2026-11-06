@@ -1,14 +1,18 @@
 /**
- * Aba "segurança" das configurações: PIN (SEG-02) e a chave dos
- * segredos no cofre do sistema (SEG-01).
+ * Aba "segurança" das configurações: PIN (SEG-02), banco cifrado (SEG-08)
+ * e a chave dos segredos no cofre do sistema (SEG-01).
  * MAN-02: saiu de configuracoes-modal.js.
  */
 import {
   ativarPin,
   definirInatividade,
   desativarPin,
+  desligarCifra,
   getChave,
+  getCifra,
   getPin,
+  ligarCifra,
+  mostrarCodigoCifra,
   redefinirChave,
   trocarPin,
 } from "../../api/seguranca.js";
@@ -34,6 +38,12 @@ export function buildSegurancaPanel() {
         <p class="settings-desc">${t("seguranca.com_o_pin_ligado_o")}</p>
         <p class="settings-note">${t("seguranca.nota_pin")}</p>
         <div id="cfg-pin">${t("seguranca.verificando")}</div>
+      </div>
+      <div class="settings-section">
+        <h4>${t("cifra.titulo")}</h4>
+        <p class="settings-desc">${t("cifra.desc")}</p>
+        <p class="settings-note">${t("cifra.nota")}</p>
+        <div id="cfg-cifra">${t("seguranca.verificando")}</div>
       </div>
       <div class="settings-section">
         <h4>${t("seguranca.senhas_salvas")}</h4>
@@ -68,6 +78,9 @@ function pinDesligadoHtml() {
     <p class="settings-status" id="cfg-pin-status"></p>`;
 }
 
+// <details> recolhido das ações menos usadas (PIN e banco cifrado)
+const detalhes = (titulo, corpo) => `<details class="cfg-pin-mais"><summary>${titulo}</summary>${corpo}</details>`;
+
 function pinLigadoHtml(estado) {
   const opcoes = [[null, "desligado"], [5, "5 min"], [15, "15 min"], [30, "30 min"]];
   return `
@@ -79,18 +92,14 @@ function pinLigadoHtml(estado) {
       </div>
     </div>
     <div class="form-actions"><button class="btn sm" data-pin-acao="bloquear">${t("seguranca.bloquear_agora")}</button></div>
-    <details class="cfg-pin-mais">
-      <summary>${t("seguranca.trocar_o_pin")}</summary>
+    ${detalhes(t("seguranca.trocar_o_pin"), `
       ${PIN_INPUT("cfg-pin-atual", t("seguranca.pin_atual"))}
       ${PIN_INPUT("cfg-pin-troca", t("seguranca.pin_novo"))}
       ${PIN_INPUT("cfg-pin-troca2", t("seguranca.repita_o_pin_novo"))}
-      <div class="form-actions"><button class="btn sm" data-pin-acao="trocar">${t("seguranca.trocar_pin")}</button></div>
-    </details>
-    <details class="cfg-pin-mais">
-      <summary>${t("seguranca.desligar_o_pin")}</summary>
+      <div class="form-actions"><button class="btn sm" data-pin-acao="trocar">${t("seguranca.trocar_pin")}</button></div>`)}
+    ${detalhes(t("seguranca.desligar_o_pin"), `
       ${PIN_INPUT("cfg-pin-atual-off", t("seguranca.pin_atual"))}
-      <div class="form-actions"><button class="btn sm danger" data-pin-acao="desligar">${t("seguranca.desligar_pin")}</button></div>
-    </details>
+      <div class="form-actions"><button class="btn sm danger" data-pin-acao="desligar">${t("seguranca.desligar_pin")}</button></div>`)}
     <p class="settings-status" id="cfg-pin-status"></p>`;
 }
 
@@ -98,8 +107,8 @@ function avisarPinConfig(estado) {
   window.dispatchEvent(new CustomEvent("kami:pin-config", { detail: estado }));
 }
 
-function pinStatus(box, html, erro = false) {
-  const el = box.querySelector("#cfg-pin-status");
+function pinStatus(box, html, erro = false, alvo = "#cfg-pin-status") {
+  const el = box.querySelector(alvo);
   if (!el) return;
   el.innerHTML = html;
   el.classList.add("settings-status--visible");
@@ -191,6 +200,101 @@ async function loadPin(wrap) {
   }
 }
 
+// ── banco cifrado (SEG-08) ─────────────────────────────────────────────
+// Ligar converte o arquivo (o app fica parado alguns segundos) e mostra o
+// código de recuperação uma vez; ligado, dá pra ver o código de novo (com
+// o PIN, se houver) e desligar. Ver app/cifra.py.
+const cifraStatus = (box, html, erro = false) => pinStatus(box, html, erro, "#cfg-cifra-status");
+
+function cifraDesligadaHtml(estado) {
+  if (!estado.disponivel) {
+    const motivo = estado.motivo === "biblioteca" ? t("cifra.indisponivel_biblioteca") : t("cifra.indisponivel_cofre");
+    return `<p class="cfg-seg-chave" data-local="indisponivel"><span class="cfg-seg-warn">[!]</span> ${escapeHtml(motivo)}</p>`;
+  }
+  const copias = estado.copias_sem_cifra
+    ? `<label class="cfg-toggle"><input type="checkbox" id="cfg-cifra-limpa" checked>
+        ${icon("archive", { size: 12 })}
+        <span>${escapeHtml(t("cifra.apagar_copias", { n: estado.copias_sem_cifra }))} <small>${escapeHtml(t("cifra.apagar_copias_dica"))}</small></span></label>`
+    : "";
+  return `
+    <p class="cfg-seg-chave">${escapeHtml(t("cifra.desligada"))}</p>
+    ${copias}
+    <div class="form-actions"><button class="btn sm" data-cifra-acao="ligar">${t("cifra.ligar")}</button></div>
+    <p class="settings-status" id="cfg-cifra-status"></p>`;
+}
+
+function cifraLigadaHtml(estado, pinAtivo) {
+  const restantes = estado.copias_sem_cifra
+    ? `<p class="settings-note">${escapeHtml(t("cifra.copias_restantes", { n: estado.copias_sem_cifra }))}</p>`
+    : "";
+  return `
+    <p class="cfg-seg-chave" data-local="cofre">${icon("check", { size: 12 })} ${escapeHtml(t("cifra.ligada"))}</p>
+    ${restantes}
+    ${detalhes(t("cifra.mostrar_codigo"), `
+      ${pinAtivo ? PIN_INPUT("cfg-cifra-pin", t("seguranca.pin_atual")) : ""}
+      <div class="form-actions"><button class="btn sm" data-cifra-acao="codigo">${t("cifra.ver_codigo")}</button></div>
+      <div class="cfg-cifra-codigo"></div>`)}
+    ${detalhes(t("cifra.desligar"), `
+      <p class="settings-desc">${t("cifra.desligar_desc")}</p>
+      <div class="form-actions"><button class="btn sm danger" data-cifra-acao="desligar">${t("cifra.desligar")}</button></div>`)}
+    <p class="settings-status" id="cfg-cifra-status"></p>`;
+}
+
+function renderCifra(wrap, estado, pinAtivo) {
+  const box = wrap.querySelector("#cfg-cifra");
+  box.innerHTML = estado.ligada ? cifraLigadaHtml(estado, pinAtivo) : cifraDesligadaHtml(estado);
+  const falhou = (err) => cifraStatus(box, escapeHtml(err.message), true);
+
+  box.querySelector('[data-cifra-acao="ligar"]')?.addEventListener("click", async (e) => {
+    e.currentTarget.disabled = true;
+    cifraStatus(box, escapeHtml(t("cifra.cifrando")));
+    try {
+      const res = await ligarCifra(box.querySelector("#cfg-cifra-limpa")?.checked ?? false);
+      // o código aparece UMA vez aqui — só sai com o "guardei"
+      box.innerHTML = `${codigoRecuperacaoHtml(res.codigo, "cifra")}
+        <div class="form-actions"><button class="btn sm" data-cifra-acao="guardei">${t("seguranca.guardei_o_codigo")}</button></div>`;
+      wireCodigoRecuperacao(box);
+      box.querySelector('[data-cifra-acao="guardei"]').addEventListener("click", () => renderCifra(wrap, res, pinAtivo));
+    } catch (err) {
+      e.currentTarget.disabled = false;
+      falhou(err);
+    }
+  });
+
+  box.querySelector('[data-cifra-acao="codigo"]')?.addEventListener("click", async () => {
+    try {
+      const res = await mostrarCodigoCifra(box.querySelector("#cfg-cifra-pin")?.value ?? "");
+      const alvo = box.querySelector(".cfg-cifra-codigo");
+      alvo.innerHTML = codigoRecuperacaoHtml(res.codigo, "cifra");
+      wireCodigoRecuperacao(alvo);
+    } catch (err) {
+      falhou(err);
+    }
+  });
+
+  box.querySelector('[data-cifra-acao="desligar"]')?.addEventListener("click", async (e) => {
+    e.currentTarget.disabled = true;
+    cifraStatus(box, escapeHtml(t("cifra.desligando")));
+    try {
+      const res = await desligarCifra();
+      renderCifra(wrap, res, pinAtivo);
+      cifraStatus(box, `${icon("check", { size: 12 })} ${escapeHtml(t("cifra.desligado_ok"))}`);
+    } catch (err) {
+      e.currentTarget.disabled = false;
+      falhou(err);
+    }
+  });
+}
+
+async function loadCifra(wrap) {
+  try {
+    const [estado, pinEstado] = await Promise.all([getCifra(), getPin()]);
+    renderCifra(wrap, estado, pinEstado.ativo);
+  } catch (err) {
+    wrap.querySelector("#cfg-cifra").textContent = t("seguranca.erro_verificar", { erro: err.message });
+  }
+}
+
 function describeChave(estado) {
   if (estado.local === "cofre") {
     return `${icon("check", { size: 12 })} ${escapeHtml(t("seguranca.no_cofre", { cofre: estado.cofre }))}`;
@@ -224,7 +328,12 @@ async function loadSeguranca(wrap) {
 export function wireSegurancaTab(wrap) {
   wrap.querySelector('.cfg-tab[data-tab="seguranca"]').addEventListener("click", () => {
     loadPin(wrap);
+    loadCifra(wrap);
     loadSeguranca(wrap);
+  });
+  // ligar/desligar o PIN muda o "mostrar o código" (pede o PIN ou não)
+  window.addEventListener("kami:pin-config", () => {
+    if (wrap.isConnected) loadCifra(wrap);
   });
   const input = wrap.querySelector("#cfg-seg-confirm");
   const btn = wrap.querySelector("#cfg-seg-redefinir-btn");

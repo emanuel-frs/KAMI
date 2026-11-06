@@ -41,6 +41,19 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   dobrando até 15 min, mesmo fechando e abrindo o app. Ao ligar, aparece
   **uma vez** um código de recuperação. Bloqueio por inatividade é
   opcional (5, 15 ou 30 min).
+- **Banco cifrado (opcional, desde a 1.18).** Desligado por padrão; ligado
+  em configurações › segurança, o `kami.db` e as cópias automáticas viram
+  arquivos SQLCipher (AES-256, página por página) que não abrem sem a
+  chave. A chave é aleatória, fica no cofre do sistema (numa entrada só
+  dela, separada da chave das senhas salvas) e não depende do PIN; sem
+  cofre, a opção não liga. Ao ligar, aparece um **código de recuperação**
+  (a própria chave, em 52 letras e números): se o cofre perder a chave
+  (sistema reinstalado, cofre redefinido), o Kami abre trancado e só esse
+  código abre o banco. Ligar oferece apagar as cópias antigas sem cifra
+  (marcado) e faz na hora uma cópia nova, já cifrada. A conversão é
+  conferida tabela por tabela antes de trocar o arquivo, e antes dela fica
+  uma cópia. Desligar volta pro SQLite comum e mantém a chave no cofre,
+  pra que as cópias cifradas continuem restauráveis.
 - **Notas trancadas.** Com o PIN ligado, uma nota pode ser trancada: o
   texto vai cifrado com a mesma chave das senhas salvas, fica fora da
   busca e só abre com o PIN (o título continua visível).
@@ -88,7 +101,13 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
 
 - **Outro programa rodando com o seu usuário.** Ele lê o `kami.db`
   direto e pode pedir a chave ao cofre como o Kami pede. O PIN **não
-  cifra** o banco — protege a abertura do app.
+  cifra** o banco — protege a abertura do app. O banco cifrado também não
+  ajuda aqui: o cofre abre com o seu login. Ele protege o **arquivo**
+  longe da sua sessão (disco roubado, pasta copiada, backup na nuvem).
+- **Banco cifrado sem o código.** Se o cofre perder a chave e você não
+  tiver o código de recuperação, o banco não abre — é o que a cifra
+  garante. Guarde o código fora do computador; o backup exportado com
+  senha continua sendo a outra saída.
 - **Quem já tem a sua sessão do sistema aberta e o Kami destravado.** Use
   o bloqueio por inatividade ou "bloquear agora".
 - **Esqueci o PIN e o código.** É de propósito que dá pra entrar: com o
@@ -120,6 +139,11 @@ saldo, meta, atributo ou trilha parados) são regras que rodam no seu
 computador, **sem IA**: nada sai. "Perguntar ao assistente" num aviso só
 abre o painel com a pergunta escrita; ela só vai pro provedor se você
 apertar enviar.
+
+A **IA no computador** (1.18) só fala com a internet quando você clica:
+"instalar o Ollama" consulta a release oficial no GitHub do Ollama e baixa
+o instalador; "baixar" pede o modelo ao registro do Ollama. Nada seu vai
+nesses pedidos.
 
 ## Assistente de IA
 
@@ -216,6 +240,43 @@ muda e nada sensível sai; no pior caso, um modelo enganado só consegue
   registro do que foi enviado.
 - **Desligar:** configurações › assistente › desligar; "esconder o botão"
   tira o assistente do menu; remover o provedor apaga a chave.
+
+### IA no computador
+
+Configurações › assistente › IA no computador mostra o que a máquina tem
+(memória, disco, sistema, processador e a placa de vídeo quando dá pra
+saber) e recomenda um modelo que caiba nela. Com Ollama ou LM Studio,
+**nada sai do computador**: as perguntas e os dados vão só até o programa
+local.
+
+- O Kami só gerencia o Ollama **deste computador** (`127.0.0.1` /
+  `localhost`): baixar e remover modelo. Um provedor Ollama apontando pra
+  outra máquina da rede aparece como aviso, e nada é baixado nem apagado
+  lá.
+- Os modelos vêm do registro do Ollama, e o próprio Ollama confere o
+  SHA-256 de cada parte baixada.
+- **Instalar o Ollama pelo app** (desde a 1.18) usa sempre o instalador
+  oficial da última versão, conferido antes de rodar e só com o seu
+  clique. No **Windows**, o `OllamaSetup.exe` (~1,7 GB) é conferido pelo
+  SHA-256 publicado na release e pela **assinatura digital**, que tem que
+  ser válida e da Ollama; ele instala só pro seu usuário, sem
+  administrador, e é apagado depois. No **Linux**, o `install.sh` oficial
+  é conferido pelo SHA-256 e roda com a **sua senha** (janela de senha do
+  sistema), com a versão fixada na que foi conferida. Limite honesto: o
+  script baixa o pacote grande do site oficial por HTTPS, e o Kami confere
+  o script, não esse pacote. Se houver placa NVIDIA sem driver, o
+  instalador oficial também instala o driver. Sem a janela de senha, a tela
+  mostra o comando oficial pra rodar no terminal.
+- **Desinstalar** pela tela só vale pro Ollama que o Kami instalou; um
+  Ollama que você instalou por conta própria nunca é removido pelo Kami. Os
+  modelos baixados só saem se você marcar. O "remover tudo do computador"
+  oferece desinstalar esse Ollama junto (desmarcado).
+- **A porta do Ollama** (`11434`) fica aberta só neste computador — não
+  pra internet —, mas **outros programas daqui** também conseguem usá-la.
+  Isso é do Ollama, não do Kami.
+- Modelos pequenos erram mais que os da nuvem: com um provedor local, o
+  assistente recebe instruções mais curtas e menos ferramentas (as regras
+  de segurança continuam todas), e o painel lembra de conferir a prévia.
 
 ### Limites honestos
 

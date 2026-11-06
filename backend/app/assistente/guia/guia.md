@@ -89,6 +89,7 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 ## security_pin
 - PIN opcional pra abrir o app (configurações › segurança), com código de recuperação (mostrado uma vez) e bloqueio por inatividade (5, 15 ou 30 min).
 - Senhas salvas (e-mail, token do GitHub, chave da busca, chave da IA) ficam cifradas, com a chave no cofre do sistema. Se o cofre perder a chave, dá pra redefinir — os segredos salvos são apagados e precisam ser colados de novo.
+- Banco cifrado (opcional, desligado): configurações › segurança › banco cifrado. Ligado, o arquivo do banco e as cópias automáticas só abrem com uma chave do cofre do sistema (não depende do PIN). Ao ligar aparece um código de recuperação de 52 letras e números: se o cofre perder a chave (sistema reinstalado), o Kami pede esse código ao abrir; sem ele o banco não abre. Dá pra ver o código de novo na mesma tela (pede o PIN, se ligado) e desligar a cifra. Não protege contra quem usa o computador logado como a pessoa.
 
 ## language_currency_country
 - Configurações › aparência: idioma (10), moeda (só o formato; nada é convertido) e país dos feriados (usado no dia útil do salário e vencimentos). Formato de data, cor de destaque, efeitos e sons também ficam ali.
@@ -99,6 +100,8 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 - Ele pode PROPOR ações, mas nunca grava sozinho: ver o tópico assistant_actions.
 - "O que foi enviado" (no painel) mostra cada envio ao provedor. Há teto diário de chamadas e tokens pra provedor na nuvem.
 - Conversas ficam só no computador (ou nem isso, com "guardar conversas" desligado) e somem depois do prazo escolhido. Ele não lembra de conversas antigas.
+- IA no computador (configurações › assistente › IA no computador): mostra memória, disco, sistema, processador e placa de vídeo, e recomenda um modelo que cabe na máquina (com menos de 8 GB de memória, recomenda um provedor gratuito na nuvem). Com o Ollama aberto, dá pra baixar o modelo (com andamento e cancelar), "usar" (conecta na hora) e remover; com o LM Studio aberto, dá pra "usar" os modelos carregados nele. Roda 100% offline. Modelos pequenos erram mais: confira a prévia.
+- Sem o Ollama, "instalar o Ollama" (mesma tela) usa o instalador oficial conferido: no Linux pede a senha do sistema; no Windows confere a assinatura da Ollama e instala só pro usuário. Instalado e fechado: "ligar o Ollama". "Desinstalar" só aparece pro Ollama que o próprio Kami instalou (os modelos só saem se a pessoa marcar).
 
 ## assistant_actions
 - O assistente pode propor: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada) e o destino dos itens da caixa de entrada.

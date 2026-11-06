@@ -118,10 +118,17 @@ def _resumo_financeiro(conn, args):
     r = _js(lancamentos.get_summary(month=mes, db=conn))
     entradas = _js(renda.get_income_entries(month=mes, db=conn))
     carteira_resumo = _js(carteira.get_summary(db=conn))
+    anterior = _js(lancamentos.get_summary(month=_mes_anterior(mes), db=conn))
     return {
         "month": mes,
-        "income": r["total_in"], "expenses": r["total_out"], "balance": r["saldo"],
-        "previous_month_balance": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"],
+        # "net", não "balance": o modelo traduzia por "saldo" e dizia que a
+        # conta estava negativa (teste do Emanuel) — o que há nas contas é
+        # accounts_total_available
+        # sem entrada registrada no mês, "−R$ 10" vira "finanças no vermelho"
+        # (teste do Emanuel, com R$ 1.800 previstos pra dali a uma semana)
+        "income": r["total_in"], "expenses": r["total_out"], "net_this_month": r["saldo"] if r["total_in"] else None,
+        "previous_month_net": r["prev_month_saldo"], "change_vs_previous_pct": r["diff_pct"] if r["total_in"] else None,
+        "conclusions": _conclusoes_do_mes(r, anterior, entradas),
         "expenses_by_category": r["top_categories"],
         "expected_income": [{"label": e["label"], "amount": e["amount"], "expected_date": e["expected_date"],
                              "status": e["status"]} for e in entradas],
@@ -182,14 +189,116 @@ def _contas_a_vencer(conn, args):
 
 # ── metas, agenda, hábitos, aprendizado, progresso ───────────────────────
 
-def _metas(conn, args):
-    from app.routers import metas
+# O Kami faz as contas e tira as conclusões; o modelo só as põe em palavras
+# (IA-07a, teste do Emanuel: o qwen3.5:4b repetia os números crus e, quando
+# tentava concluir algo, errava a conta). Vale pra nuvem também.
+FOLGA_RITMO_PCT = 10  # dentro de ±10 pontos do esperado = no ritmo
+
+
+def _metas(conn, args, perm):
+    from app.routers import carteira, metas
 
     lista = _js(metas.list_goals(db=conn))
-    return {"goals": [
+    criadas = {r["id"]: r["created_at"] for r in conn.execute("SELECT id, created_at FROM goals")}
+    # dinheiro só com finanças liberadas — senão a meta não fala das contas
+    sobra = _sobra_media(conn) if perm.get("financas") else None
+    saida = {"today": _hoje().isoformat(), "goals": [
         {"title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
          "unit": g.get("unit_label") or g.get("unit"), "progress_pct": g["progress_pct"], "deadline": g["deadline"],
-         "status": g["status"]} for g in lista[:30]]}
+         "status": g["status"], **_ritmo(g, criadas.get(g["id"]), sobra, perm.get("financas"))} for g in lista[:30]]}
+    saida["summary"] = _resumo_metas(saida["goals"])
+    if perm.get("financas"):
+        saida["accounts_total_available"] = _js(carteira.get_summary(db=conn)).get("total_possui")
+    return saida
+
+
+def _resumo_metas(metas: list[dict]) -> dict:
+    """Contagens prontas (teste do Emanuel: com 1 no ritmo e 3 sem prazo, o
+    qwen3.5:4b disse "duas vencidas" e errou o total que falta)."""
+    ativas = [g for g in metas if g["status"] == "ativa"]
+    por_situacao = {s: sum(1 for g in ativas if g.get("situation") == s)
+                    for s in ("ahead", "on track", "behind", "overdue", "no deadline")}
+    out = {"active": len(ativas), "done": len(metas) - len(ativas),
+           **{k.replace(" ", "_"): v for k, v in por_situacao.items()}}
+    dinheiro = [g["remaining"] for g in ativas if g.get("unit") == "money"]
+    if dinheiro:
+        out["money_remaining_total"] = round(sum(dinheiro), 2)
+    return out
+
+
+MESES_DA_SOBRA = 3
+
+
+def _sobra_media(conn) -> float | None:
+    """Quanto sobra por mês (entradas − saídas), na média dos últimos meses
+    FECHADOS que tiveram entrada — o mês corrente pela metade não diz se uma
+    meta cabe (teste do Emanuel: −R$ 10 de um gasto só virou "não cabe").
+    Sem entrada registrada nesses meses = não dá pra saber (None)."""
+    from app.routers.financas import lancamentos
+
+    mes, sobras = _hoje().strftime("%Y-%m"), []
+    for _ in range(MESES_DA_SOBRA):
+        mes = _mes_anterior(mes)
+        r = _js(lancamentos.get_summary(month=mes, db=conn))
+        if r["total_in"]:
+            sobras.append(r["total_in"] - r["total_out"])
+    return round(sum(sobras) / len(sobras), 2) if sobras else None
+
+
+def _ritmo(g: dict, criada: str | None = None, sobra_media: float | None = None, financas: bool = False) -> dict:
+    """Quanto falta, o ritmo pra chegar no prazo e a situação (adiantada,
+    no ritmo, atrasada, vencida); meta em dinheiro diz também se a sobra
+    média por mês cobre o que ela pede por mês."""
+    falta = round(max((g["target_value"] or 0) - (g["current_value"] or 0), 0), 2)
+    if g["status"] != "ativa" or not falta:
+        return {"remaining": falta, "situation": "done"}
+    if not g["deadline"]:
+        return {"remaining": falta, "situation": "no deadline"}
+    prazo = date.fromisoformat(g["deadline"][:10])
+    dias = (prazo - _hoje()).days
+    if dias < 0:
+        return {"remaining": falta, "situation": "overdue", "overdue_days": -dias}
+    out = {"remaining": falta, "days_left": dias, "needed_per_week": round(falta / max(dias / 7, 1), 2)}
+    inicio = date.fromisoformat(criada[:10]) if criada else None
+    if inicio and prazo > inicio:
+        esperado = round(min(max((_hoje() - inicio).days / (prazo - inicio).days, 0), 1) * 100)
+        diferenca = (g["progress_pct"] or 0) - esperado
+        out["expected_progress_pct_today"] = esperado
+        out["situation"] = ("ahead" if diferenca > FOLGA_RITMO_PCT else
+                            "behind" if diferenca < -FOLGA_RITMO_PCT else "on track")
+    if g.get("unit") == "money" and financas:
+        por_mes = round(falta / max(dias / 30, 1), 2)
+        out["needed_per_month"] = por_mes
+        if sobra_media is None:
+            out["fits_monthly_leftover"] = "unknown: no income recorded in the last 3 months"
+        else:
+            out.update(average_monthly_leftover=sobra_media, fits_monthly_leftover=sobra_media >= por_mes)
+    return out
+
+
+def _mes_anterior(mes: str) -> str:
+    ano, m = int(mes[:4]), int(mes[5:7])
+    return f"{ano - 1}-12" if m == 1 else f"{ano:04d}-{m - 1:02d}"
+
+
+def _conclusoes_do_mes(r: dict, anterior: dict, entradas: list | tuple = ()) -> dict:
+    """"Estou gastando muito?": quanto sobrou do que entrou, gasto contra o
+    mês passado e onde o dinheiro mais foi — já calculados. Sem entrada
+    registrada no mês, não há "gastou mais do que ganhou": diz isso e o que
+    ainda está previsto entrar."""
+    entrou, saiu = r["total_in"] or 0, r["total_out"] or 0
+    if entrou:
+        out = {"spent_more_than_earned": saiu > entrou, "kept_pct_of_income": round((entrou - saiu) / entrou * 100, 1)}
+    else:
+        previsto = sum(e["amount"] or 0 for e in entradas if e.get("status") == "previsto")
+        out = {"no_income_recorded_yet": True, **({"income_still_expected": previsto} if previsto else {})}
+    if anterior["total_out"]:
+        out["expenses_vs_previous_month_pct"] = round((saiu - anterior["total_out"]) / anterior["total_out"] * 100, 1)
+    if saiu and r["top_categories"]:
+        maior = r["top_categories"][0]
+        out["biggest_category"] = {"category": maior["category"], "amount": maior["total"],
+                                   "share_of_expenses_pct": round(maior["total"] / saiu * 100, 1)}
+    return out
 
 
 def _agenda(conn, args):
@@ -333,7 +442,8 @@ def _visao_do_mes(conn, args, perm):
     visao = {"month": mes}
     if perm.get("financas"):
         f = _resumo_financeiro(conn, {"month": mes})
-        visao["finances"] = {k: f[k] for k in ("income", "expenses", "balance", "change_vs_previous_pct")}
+        visao["finances"] = {k: f[k] for k in ("income", "expenses", "net_this_month", "change_vs_previous_pct", "conclusions",
+                                                "accounts_total_available")}
         visao["finances"]["top_expense_categories"] = f["expenses_by_category"][:3]
         if mes == _hoje().strftime("%Y-%m"):
             contas = _contas_a_vencer(conn, {"days": 7})["unpaid"]
@@ -342,9 +452,10 @@ def _visao_do_mes(conn, args, perm):
     if perm.get("metas"):
         aportes = {r["goal_id"]: r["t"] for r in conn.execute(
             "SELECT goal_id, SUM(amount) AS t FROM goal_contributions WHERE substr(date, 1, 7) = ? GROUP BY goal_id", (mes,))}
+        situacao = {g["title"]: g["situation"] for g in _metas(conn, {}, perm)["goals"]}
         visao["goals"] = [
             {"title": g["title"], "progress_pct": g["progress_pct"], "status": g["status"], "deadline": g["deadline"],
-             "added_this_month": aportes.get(g["id"], 0)}
+             "situation": situacao.get(g["title"]), "added_this_month": aportes.get(g["id"], 0)}
             for g in _js(metas.list_goals(db=conn))[:15]]
     if perm.get("habitos"):
         visao["habits"] = [{k: h[k] for k in ("name", "streak", "success_30d_pct", "done_today")}
@@ -390,7 +501,10 @@ LEITURAS: list[Leitura] = [
             "use the specific tools only for details.",
             {"type": "object", "properties": _P_MES}, _visao_do_mes, por_area=True),
     Leitura("finance_summary", "financas",
-            "Monthly FINANCE summary from Kami: income, expenses, balance, change vs previous month, expenses by category, expected income and account totals.",
+            "Monthly FINANCE summary — use it for 'am I spending too much?', 'how are my finances?', 'where is my money going?'. "
+            "Income, expenses, balance, change vs previous month, Kami's computed "
+            "conclusions (share of income kept, spending vs previous month, biggest category), expenses by category, "
+            "expected income and account totals.",
             {"type": "object", "properties": _P_MES}, _resumo_financeiro),
     Leitura("largest_expenses", "financas",
             "The largest individual expenses of a month (up to 10), with description, amount, category and date.",
@@ -402,8 +516,11 @@ LEITURAS: list[Leitura] = [
     Leitura("bills_due", "financas",
             "Unpaid fixed bills, subscriptions, debts and installments due from today up to N days ahead (overdue ones of this month included).",
             {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "description": "default 30"}}}, _contas_a_vencer),
-    Leitura("goals", "metas", "The person's goals with current value, target, progress, deadline and status.",
-            _SEM_PARAMETROS, _metas),
+    Leitura("goals", "metas",
+            "The person's goals with current value, target, progress, deadline and status, plus Kami's computed "
+            "situation (ahead, on track, behind, overdue), remaining amount, pace needed and, for money goals, "
+            "whether the average monthly leftover covers it.",
+            _SEM_PARAMETROS, _metas, por_area=True),
     Leitura("agenda", "agenda",
             "Calendar items (events, reminders, bills, goal deadlines…) between two dates, at most 62 days apart.",
             {"type": "object", "properties": {"from": {"type": "string", "description": "YYYY-MM-DD; default today"},
@@ -428,9 +545,38 @@ LEITURAS: list[Leitura] = [
 _POR_NOME = {l.nome: l for l in LEITURAS}
 
 
-def disponiveis(cfg: dict) -> list[Leitura]:
+# IA-07a (P-160): no modelo local, menos ferramentas = menos confusão.
+# Saem as de detalhe que outra já cobre (maiores gastos ⊂ resumo do mês) e
+# as raramente pedidas (links, GitHub).
+FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories"}
+
+
+def disponiveis(cfg: dict, local: bool = False) -> list[Leitura]:
     perm = config.permissoes(cfg)
-    return [l for l in LEITURAS if l.area is None or perm.get(l.area)]
+    return [l for l in LEITURAS
+            if (l.area is None or perm.get(l.area)) and not (local and l.nome in FORA_DO_LOCAL)]
+
+
+# IA-07a: consultas que a tela mostra num quadro com os números do próprio
+# Kami — o modelo só comenta (teste do Emanuel: o 4B reescrevia os números
+# e errava). São dados da pessoa, no computador dela: não saem daqui.
+QUADROS = {"goals", "finance_summary", "month_overview"}
+_CORPO = re.compile(r'^<dados ferramenta="[^"]*">\n(.*)\n</dados>\n', re.DOTALL)
+
+
+def quadro(nome: str | None, resultado: str) -> dict | None:
+    """{nome, dados} pra tela, a partir do texto que foi pro modelo (já
+    filtrado) — ou None se a consulta não tem quadro ou deu erro."""
+    if nome not in QUADROS:
+        return None
+    m = _CORPO.match(resultado or "")
+    try:
+        dados = json.loads(m.group(1).replace("<\\/dados", "</dados")) if m else None
+    except ValueError:
+        return None
+    if not isinstance(dados, dict) or "error" in dados:
+        return None
+    return {"nome": nome, "dados": dados}
 
 
 def _embrulhar(nome: str, conteudo: str) -> str:

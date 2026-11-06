@@ -4,6 +4,24 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.18.0] - 2026-11-02
+
+_O assistente pode rodar no seu computador, sem nada sair dele — o Kami recomenda o modelo, instala o Ollama e mostra os seus números do jeito que leu —, e o banco pode ficar cifrado em disco._
+
+### Adicionado
+- IA no computador (configurações › assistente): o Kami mostra o que a máquina tem (memória, disco, sistema, processador e placa de vídeo) e recomenda um modelo que cabe nela, com quanto baixa, quanto ocupa e quanta memória usa. Com o Ollama aberto, dá para baixar o modelo com andamento (e cancelar), conectar com um clique em "usar" e remover; com o LM Studio aberto, dá para conectar os modelos dele. Modelos que não usam ferramentas aparecem marcados
+- instalar o Ollama pelo próprio Kami, com o instalador oficial conferido antes de rodar: no Windows, pelo checksum e pela assinatura digital da Ollama, só pro seu usuário; no Linux, pelo checksum e com a sua senha do sistema. Se ele estiver instalado mas fechado, "ligar o Ollama". "Desinstalar" vale só pro Ollama que o Kami instalou, e os modelos só saem se você marcar; o "remover tudo do computador" oferece levar esse Ollama junto
+- com um modelo no computador, o assistente recebe instruções mais curtas e menos ferramentas (modelos pequenos acertam mais assim), e o painel lembra de conferir a prévia. O raciocínio ("pensar") do modelo local fica desligado, e o painel já deixa as instruções lidas quando abre — sem placa de vídeo, a primeira resposta caía de mais de 1 minuto pra segundos. O Kami faz as contas e entrega a conclusão pronta ao assistente (com qualquer modelo): se cada meta está adiantada, no ritmo ou atrasada, quanto falta por semana e, nas metas em dinheiro, se o que sobra por mês (média dos últimos 3 meses) cobre e quanto há nas contas; nas finanças, quanto sobrou do que entrou, o gasto contra o mês passado e onde o dinheiro mais foi. O qwen3.5:4b, recomendado pra máquinas de 8 a 15 GB, foi medido nos 30 pedidos: 20/30, com o raciocínio desligado (consultas, risco e injeção certos; lançamentos de dinheiro ainda erram) — ver docs/QUALIDADE-IA.md
+- quando o assistente consulta metas, finanças ou o resumo do mês, os números aparecem num quadro montado pelo próprio Kami, acima da resposta — o modelo comenta, mas os valores mostrados são sempre os dos seus dados. O quadro usa as cores do sistema (o que entra em verde, o que sai em vermelho, o previsto em âmbar) e cada meta tem a situação e uma barra de progresso. No resumo do mês, um cartão por área liberada, lado a lado conforme a largura do painel: finanças, metas, hábitos (sequência e % dos últimos 30 dias), aprendizado (marcos do mês e progresso de cada trilha) e progresso (xp e dias ativos com seta contra o mês anterior, missões e conquistas); áreas sem nada no mês viram uma linha só no fim. Enquanto responde, o assistente mostra o que está fazendo (pensando, consultando metas, escrevendo) com o tempo correndo, e no fim quanto levou
+- respostas do assistente sem emojis e sem HTML solto: o Kami limpa o que sobrar, e no lugar de emoji o assistente usa os ícones do próprio Kami, na cor de destaque. Listas longas no quadro (10 metas, por exemplo) rolam dentro do cartão
+- o Kami confere os números da resposta do assistente: cada valor em dinheiro e cada data é comparado com os dados que ele consultou, e o que não bate aparece embaixo da resposta como "confira" — vale para qualquer modelo, na nuvem ou no computador
+
+### Segurança
+- banco cifrado em disco, opcional e desligado (configurações › segurança › banco cifrado): o arquivo do banco e as cópias automáticas passam a só abrir com uma chave guardada no cofre do sistema, que não depende do PIN. Ao ligar, aparece um código de recuperação; se o cofre perder a chave (sistema reinstalado), o Kami pede esse código ao abrir. Dá para ver o código de novo (com o PIN, se estiver ligado) e desligar a cifra. As cópias antigas sem cifra podem ser apagadas na hora, e uma cópia nova, já cifrada, é feita em seguida
+
+### Corrigido
+- uma proposta de ação mandada com um item só, fora da lista, ou com o nome da ferramenta grafado diferente ("Goals") era recusada até o assistente desistir e responder vazio; agora vale
+
 ## [1.17.0] - 2026-11-01
 
 _O assistente passa a propor ações, sempre numa prévia que você edita e aplica, e o Kami avisa no sino quando algo parece fora do lugar._

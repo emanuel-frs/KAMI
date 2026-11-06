@@ -15,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app import backup_auto
+from app import backup_auto, cifra, cifra_troca
 from app.database import get_connection, init_db
 from app.crypto import ChaveIndisponivel
 from app.erros import ErrosInesperadosMiddleware, corpo_erro, http_exception_handler
@@ -98,7 +98,14 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
+    # SEG-08: banco cifrado sem a chave no cofre → sobe trancado, pedindo
+    # o código de recuperação (app/cifra_troca.py)
+    try:
+        init_db()
+    except cifra.SemChave:
+        logging.getLogger(__name__).warning("banco cifrado e a chave não está no cofre — esperando o código de recuperação")
+        cifra_troca.marcar_sem_chave(True)
+        return
     # CONF-08: cópia semanal ao abrir — nunca impede o backend de subir
     try:
         conn = get_connection()

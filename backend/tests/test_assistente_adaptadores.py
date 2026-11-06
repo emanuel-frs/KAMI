@@ -114,6 +114,34 @@ def test_openai_repete_sem_stream_options_quando_recusado(falso):
     assert "stream_options" in falso.recebidas[0]["json"] and "stream_options" not in falso.recebidas[1]["json"]
 
 
+def test_modelo_local_nao_pensa_e_nuvem_nao_recebe_o_campo(falso):
+    """IA-07a: o qwen3.5 no Ollama "pensa" por padrão — sem placa de vídeo,
+    um "oi" levou 295 s. Local vai com o raciocínio desligado; o gpt-oss
+    não desliga e fica no mínimo; a nuvem não recebe nada."""
+    for _ in range(3):
+        falso.responder("/v1/chat/completions", sse=openai_texto("oi"))
+    _eventos(openai_compat.conversar(_p(falso, modelo="qwen3.5:4b"), [Mensagem("usuario", "x")]))
+    _eventos(openai_compat.conversar(_p(falso, modelo="gpt-oss:20b"), [Mensagem("usuario", "x")]))
+    nuvem = Provedor(tipo="openai", url_base=falso.url, modelo="m1", chave=CHAVE, local=False)
+    _eventos(openai_compat.conversar(nuvem, [Mensagem("usuario", "x")]))
+    assert [r["json"].get("reasoning_effort") for r in falso.recebidas] == ["none", "low", None]
+
+
+def test_local_que_recusa_reasoning_effort_repete_sem(falso):
+    falso.responder("/v1/chat/completions", status=400, json={"error": {"message": "unknown field reasoning_effort"}})
+    falso.responder("/v1/chat/completions", sse=openai_texto("oi"))
+    assert _texto(_eventos(openai_compat.conversar(_p(falso), [Mensagem("usuario", "x")]))) == "oi"
+    assert "reasoning_effort" not in falso.recebidas[1]["json"]
+
+
+def test_aquecer_le_sem_responder(falso):
+    falso.responder("/v1/chat/completions", json={"choices": [{"message": {"content": ""}}]})
+    openai_compat.aquecer(_p(falso, modelo="qwen3.5:4b"), [Mensagem("sistema", "sis"), Mensagem("usuario", "ok")], FERR)
+    corpo = falso.recebidas[0]["json"]
+    assert corpo["max_tokens"] == 1 and corpo["stream"] is False and corpo["reasoning_effort"] == "none"
+    assert corpo["messages"][0] == {"role": "system", "content": "sis"} and corpo["tools"][0]["function"]["name"] == "resumo_mes"
+
+
 def test_openai_erro_no_meio_do_stream(falso):
     falso.responder("/v1/chat/completions", sse=[*openai_texto("começo", uso=None)[:1], {"error": {"message": "rate limit exceeded", "code": 429}}])
     with pytest.raises(transporte.ErroProvedor) as e:

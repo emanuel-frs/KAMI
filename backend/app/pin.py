@@ -58,7 +58,17 @@ ROTAS_LIVRES = {
     ("GET", "/api/seguranca/pin"),
     ("POST", "/api/seguranca/pin/desbloquear"),
     ("POST", "/api/seguranca/pin/recuperar"),
+    # SEG-08: a tela de abertura confere o banco cifrado antes do PIN
+    ("GET", "/api/seguranca/cifra"),
     # erro de JavaScript da tela de bloqueio também tem que chegar no log
+    ("POST", "/api/sistema/erro-frontend"),
+}
+
+# SEG-08: banco cifrado sem a chave — só o estado e o código de recuperação
+ROTAS_LIVRES_SEM_CHAVE = {
+    ("GET", "/health"),
+    ("GET", "/api/seguranca/cifra"),
+    ("POST", "/api/seguranca/cifra/recuperar"),
     ("POST", "/api/sistema/erro-frontend"),
 }
 
@@ -290,6 +300,23 @@ class BloqueioMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        from app import cifra_troca
+
+        if (
+            scope["type"] == "http"
+            and scope["method"] != "OPTIONS"
+            and (scope["method"], scope["path"]) not in ROTAS_LIVRES_SEM_CHAVE
+            and cifra_troca.trancado()
+        ):
+            from starlette.responses import JSONResponse
+
+            resp = JSONResponse(
+                status_code=423,
+                content={"detail": "o banco está cifrado e a chave não está no cofre — digite o código de recuperação",
+                         "codigo": "cifra_sem_chave"},
+            )
+            await resp(scope, receive, send)
+            return
         if (
             scope["type"] == "http"
             and scope["method"] != "OPTIONS"
