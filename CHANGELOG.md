@@ -4,6 +4,11 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] - em desenvolvimento
+
+### Alterado
+- instalação nova começa sem fonte de renda: as duas fontes de exemplo ("parte 1" e "parte 2") que vinham cadastradas saem. Quem já tinha e nunca mexeu nem recebeu nada nelas também as perde na atualização; quem editou ou usou fica com elas
+
 ## [1.18.0] - 2026-11-02
 
 _O assistente pode rodar no seu computador, sem nada sair dele — o Kami recomenda o modelo, instala o Ollama e mostra os seus números do jeito que leu —, e o banco pode ficar cifrado em disco._

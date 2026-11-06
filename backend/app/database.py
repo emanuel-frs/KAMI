@@ -259,6 +259,7 @@ from app.migracoes import (
     _migrate_criado_por,
     _migrate_goals_created_at,
     _migrate_transacao_referencia,
+    _migrate_remove_renda_padrao,
 )
 
 
@@ -404,6 +405,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_goals_created_at(conn)  # IA-06
     _migrate_debts_quitacao(conn)
     _migrate_transacao_referencia(conn)
+    _migrate_remove_renda_padrao(conn)  # EST-00
     migrate_timestamps_to_local(conn)
     # I18N: por último — dependem das colunas das migrações acima
     _migrate_textos_sistema(conn)
@@ -460,25 +462,10 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
                 (new_id(), name),
             )
 
-    # renda recorrente (v2): parte 1 (5º dia útil) + parte 2 (+15 dias
-    # úteis após parte 1, via encadeamento offset_fonte) — mesmos valores
-    # default de sempre (decisão 06), agora editáveis via CRUD completo
-    # (GET/POST/PUT/DELETE /financas/income-sources) em vez de fixos.
-    cur.execute("SELECT COUNT(*) AS c FROM income_sources")
-    if cur.fetchone()["c"] == 0:
-        parte1_id = new_id()
-        cur.execute(
-            "INSERT INTO income_sources "
-            "(id, nome, valor, frequencia, tipo_data, nth_dia_util, active, unica) "
-            "VALUES (?, ?, ?, 'mensal', 'dia_util', ?, 1, 0)",
-            (parte1_id, "parte 1", 1800, 5),
-        )
-        cur.execute(
-            "INSERT INTO income_sources "
-            "(id, nome, valor, frequencia, tipo_data, fonte_referencia_id, offset_dias_uteis, active, unica) "
-            "VALUES (?, ?, ?, 'mensal', 'offset_fonte', ?, ?, 1, 0)",
-            (new_id(), "parte 2", 1300, parte1_id, 15),
-        )
+    # renda recorrente: sem seed — a instalação nova começa sem fonte de
+    # renda (EST-00, P-178: o "parte 1"/"parte 2" de antes eram valores
+    # reais do autor). Bancos antigos perdem as duas fontes padrão em
+    # migracoes._migrate_remove_renda_padrao, se nunca foram usadas.
 
     # dashboard: layout padrão por tela (LAY-02) — definido em
     # app/widgets.py (LAYOUT_PADRAO), junto do catálogo; o mesmo dado serve

@@ -13,27 +13,27 @@ from provedor_falso import ProvedorFalso, openai_texto
 HOJE = date(2026, 11, 2)
 FIN = ferramentas._embrulhar("finance_summary", json.dumps({
     "income": 0, "expenses": 10.0, "net_this_month": -10.0, "accounts_total_available": 0.0,
-    "expected_income": [{"label": "parte 1", "amount": 1800.0, "expected_date": "2026-11-09"}]}))
+    "expected_income": [{"label": "salário", "amount": 1250.0, "expected_date": "2026-11-09"}]}))
 META = ferramentas._embrulhar("goals", json.dumps({"goals": [
     {"target": 100.0, "deadline": "2026-11-25", "needed_per_week": 30.43, "days_left": 23}]}))
 
 
 def test_valores_nos_formatos_comuns():
-    assert conferir.valor("1.800,00") == 1800.0 and conferir.valor("1,800.00") == 1800.0
-    assert conferir.valor("30,43") == 30.43 and conferir.valor("1.809") == 1809.0
+    assert conferir.valor("1.250,00") == 1250.0 and conferir.valor("1,250.00") == 1250.0
+    assert conferir.valor("30,43") == 30.43 and conferir.valor("1.259") == 1259.0
     assert conferir.valor("49031,27") == 49031.27 and conferir.valor("10") == 10.0
-    assert conferir.soltos("previsto R$ 1 800 e 2\u00a0500,50 €", [FIN], "x", HOJE) == ["2\u00a0500,50 €"]
+    assert conferir.soltos("previsto R$ 1 250 e 2\u00a0500,50 €", [FIN], "x", HOJE) == ["2\u00a0500,50 €"]
 
 
 def test_acha_o_que_o_modelo_inventou():
     resposta = ("**Sim — você gastou mais do que ganhou.**\n- R$ 0 na conta, com entrada prevista de "
-                "R$ 1.809 no dia 02/11.\n- Saldo atual: R$ 49.031,27; vence em 15/11.")
+                "R$ 1.259 no dia 02/11.\n- Saldo atual: R$ 49.031,27; vence em 15/11.")
     assert conferir.soltos(resposta, [FIN], "estou gastando muito?", date(2026, 11, 3)) == [
-        "R$ 1.809", "02/11", "R$ 49.031,27", "15/11"]
+        "R$ 1.259", "02/11", "R$ 49.031,27", "15/11"]
 
 
 def test_nao_acusa_o_que_esta_nos_dados():
-    resposta = ("**Sim.** Gastou R$ 10,00 (saldo -R$ 10) e não entrou nada; R$ 1.800 previstos pra 09/11. "
+    resposta = ("**Sim.** Gastou R$ 10,00 (saldo -R$ 10) e não entrou nada; R$ 1.250 previstos pra 09/11. "
                 "A meta de R$ 100 vence em 25/11/26: ~R$ 30 por semana (R$ 30,43), 23 dias.")
     assert conferir.soltos(resposta, [FIN, META], "x", HOJE) == []
     # hoje e o que a própria pessoa escreveu também valem
@@ -127,7 +127,7 @@ def test_numero_de_uma_consulta_anterior_da_conversa_nao_e_acusado(client, falso
 # ── quadro: os números da consulta, do jeito que o Kami leu ──────────────
 
 def test_quadro_so_das_consultas_com_quadro_e_sem_erro():
-    assert ferramentas.quadro("finance_summary", FIN)["dados"]["expected_income"][0]["amount"] == 1800.0
+    assert ferramentas.quadro("finance_summary", FIN)["dados"]["expected_income"][0]["amount"] == 1250.0
     assert ferramentas.quadro("inbox", ferramentas._embrulhar("inbox", "{}")) is None
     assert ferramentas.quadro("goals", ferramentas._embrulhar("goals", '{"error": "x"}')) is None
     assert ferramentas.quadro("goals", "lixo") is None

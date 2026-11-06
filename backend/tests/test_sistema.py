@@ -146,7 +146,7 @@ def test_reset_reseeds_fresh_install_defaults(client):
     assert profile_rows[0]["display_name"] == "usuário"
 
     income = client.get("/api/sistema/export").json()["tables"]["income_sources"]
-    assert len(income) == 2
+    assert income == []  # EST-00: sem renda semeada
 
     dashboard_nucleo = client.get("/api/dashboard/nucleo").json()
     assert [w["widget_type"] for w in dashboard_nucleo] == [w for w, _l, _a in LAYOUT_PADRAO["nucleo"]]

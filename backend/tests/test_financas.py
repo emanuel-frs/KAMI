@@ -1,6 +1,8 @@
 """Testes do router app/routers/financas/ (renda, contas, lançamentos)."""
 import datetime
 
+import pytest
+
 from app.business_days import add_business_days, nth_business_day_of_month
 
 
@@ -35,6 +37,24 @@ def _create_account(
 
 
 # ==================== renda recorrente (v2) ====================
+
+
+@pytest.fixture(autouse=True)
+def _renda_em_duas_partes(request):
+    """
+    Duas fontes encadeadas (5º dia útil + 15 dias úteis depois) pros
+    testes de renda — o banco novo não traz mais fonte nenhuma (EST-00).
+    """
+    if "client" not in request.fixturenames:
+        return
+    client = request.getfixturevalue("client")
+    p1 = client.post("/api/financas/income-sources", json={
+        "nome": "parte 1", "valor": 1000, "frequencia": "mensal", "tipo_data": "dia_util", "nth_dia_util": 5,
+    }).json()
+    client.post("/api/financas/income-sources", json={
+        "nome": "parte 2", "valor": 500, "frequencia": "mensal", "tipo_data": "offset_fonte",
+        "fonte_referencia_id": p1["id"], "offset_dias_uteis": 15,
+    })
 
 
 def _get_sources(client):
@@ -918,3 +938,50 @@ def test_summary_handles_january_wrapping_to_previous_december(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["prev_month_saldo"] == 0
+
+# ==================== renda semeada até a 1.18 (EST-00) ====================
+
+
+def _semear_renda_antiga(conn, valor_p1=1800, pago=False):
+    """As duas fontes que a 1.18 criava em toda instalação nova."""
+    conn.execute(
+        "INSERT INTO income_sources (id, nome, valor, frequencia, tipo_data, nth_dia_util, active, unica) "
+        "VALUES ('p1', 'parte 1', ?, 'mensal', 'dia_util', 5, 1, 0)", (valor_p1,))
+    conn.execute(
+        "INSERT INTO income_sources (id, nome, valor, frequencia, tipo_data, fonte_referencia_id, offset_dias_uteis, active, unica) "
+        "VALUES ('p2', 'parte 2', 1300, 'mensal', 'offset_fonte', 'p1', 15, 1, 0)")
+    conn.execute(
+        "INSERT INTO income_entries (id, income_source_id, expected_date, paid_date, amount, status) "
+        "VALUES ('e1', 'p1', '2026-03-06', ?, ?, ?)",
+        ("2026-03-06" if pago else None, valor_p1, "pago" if pago else "previsto"))
+    conn.commit()
+
+
+def _fontes(conn):
+    return {r["nome"] for r in conn.execute("SELECT nome FROM income_sources")}
+
+
+def test_banco_novo_comeca_sem_renda(db_conn):
+    assert _fontes(db_conn) == set()
+
+
+def test_migracao_remove_renda_semeada_intacta(db_conn):
+    from app.migracoes import _migrate_remove_renda_padrao
+    _semear_renda_antiga(db_conn)
+    _migrate_remove_renda_padrao(db_conn)
+    _migrate_remove_renda_padrao(db_conn)
+    assert _fontes(db_conn) == set()
+    assert db_conn.execute("SELECT COUNT(*) FROM income_entries").fetchone()[0] == 0
+
+
+def test_migracao_mantem_renda_editada_ou_recebida(db_conn):
+    from app.migracoes import _migrate_remove_renda_padrao
+    _semear_renda_antiga(db_conn, valor_p1=2000)
+    _migrate_remove_renda_padrao(db_conn)
+    assert _fontes(db_conn) == {"parte 1", "parte 2"}
+
+    db_conn.execute("DELETE FROM income_entries")
+    db_conn.execute("DELETE FROM income_sources")
+    _semear_renda_antiga(db_conn, pago=True)
+    _migrate_remove_renda_padrao(db_conn)
+    assert _fontes(db_conn) == {"parte 1", "parte 2"}

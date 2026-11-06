@@ -5,7 +5,7 @@ que as ferramentas entregaram na conversa, e o que não bate vira um aviso
 "confira" embaixo da resposta.
 
 Visto no qwen3.5:4b sem placa de vídeo: consultou as finanças e ainda
-escreveu "R$ 1.809 no dia 02/11" (o dado era R$ 1.800 em 09/11); sem
+escreveu "R$ 1.259 no dia 02/11" (o dado era R$ 1.250 em 09/11); sem
 consultar, inventou um saldo de R$ 49.031. Vale pra qualquer modelo — é o
 Kami conferindo, não o modelo.
 
@@ -22,7 +22,7 @@ from datetime import date
 MAX_AVISOS = 5
 
 # símbolo antes (R$ 10, US$ 5, € 3) ou código/símbolo depois (10 €, 10 BRL)
-# milhar também com espaço ("R$ 1 800", "1\u00a0800 €")
+# milhar também com espaço ("R$ 1 250", "1\u00a0250 €")
 _NUM = r"\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d(?:[\d.,]*\d)?"
 _DINHEIRO = re.compile(
     rf"(?:(?:R\$|US\$|\$|€|£|¥|₹)\s?-?\s?({_NUM}))|(?:({_NUM})\s?(?:€|£|BRL|USD|EUR|reais))", re.IGNORECASE)
@@ -32,7 +32,7 @@ _DADOS = re.compile(r'<dados ferramenta="[^"]*">\n(.*?)\n</dados>', re.DOTALL)
 
 
 def valor(texto: str) -> float | None:
-    """'1.800,00', '1,800.00', '1800', '30,43', '1.809' → número. Com
+    """'1.250,00', '1,250.00', '1250', '30,43', '1.259' → número. Com
     vírgula e ponto, o último é o decimal; só um deles seguido de
     exatamente 3 dígitos é milhar."""
     t = re.sub(r"[\s\u00a0\u202f]", "", texto)

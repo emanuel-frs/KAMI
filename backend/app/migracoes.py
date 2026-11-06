@@ -866,3 +866,40 @@ def _migrate_criado_por(conn: sqlite3.Connection) -> None:
     if cols and "proposta" not in cols:
         conn.execute("ALTER TABLE assistente_mensagens ADD COLUMN proposta TEXT")
     conn.commit()
+
+
+def _migrate_remove_renda_padrao(conn: sqlite3.Connection) -> None:
+    """
+    EST-00 (P-178/P-191): até a 1.18 toda instalação nova ganhava duas
+    fontes de renda ("parte 1" R$ 1800 no 5º dia útil e "parte 2" R$ 1300
+    15 dias úteis depois), que eram valores reais do autor. Aqui elas saem
+    — só se continuam exatamente como foram semeadas (nome, valor, data,
+    sem conta) e nenhuma ocorrência foi marcada como recebida. Quem editou
+    ou usou as duas fica com elas. As ocorrências "previsto" geradas sozinhas
+    saem junto.
+    """
+    p1 = conn.execute(
+        "SELECT id FROM income_sources WHERE nome = 'parte 1' AND valor = 1800 AND frequencia = 'mensal' "
+        "AND tipo_data = 'dia_util' AND nth_dia_util = 5 AND conta_id IS NULL AND categoria IS NULL"
+    ).fetchone()
+    if p1 is None:
+        return
+    p2 = conn.execute(
+        "SELECT id FROM income_sources WHERE nome = 'parte 2' AND valor = 1300 AND frequencia = 'mensal' "
+        "AND tipo_data = 'offset_fonte' AND fonte_referencia_id = ? AND offset_dias_uteis = 15 "
+        "AND conta_id IS NULL AND categoria IS NULL",
+        (p1["id"],),
+    ).fetchone()
+    if p2 is None:
+        return
+    ids = (p1["id"], p2["id"])
+    usadas = conn.execute(
+        "SELECT 1 FROM income_entries WHERE income_source_id IN (?, ?) "
+        "AND (status != 'previsto' OR paid_date IS NOT NULL OR transaction_id IS NOT NULL)",
+        ids,
+    ).fetchone()
+    if usadas:
+        return
+    conn.execute("DELETE FROM income_entries WHERE income_source_id IN (?, ?)", ids)
+    conn.execute("DELETE FROM income_sources WHERE id IN (?, ?)", ids)
+    conn.commit()

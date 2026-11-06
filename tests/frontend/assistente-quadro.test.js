@@ -6,8 +6,8 @@ import { withDom } from "./helpers/dom.js";
 
 const FIN = {
   month: "2026-11", income: 0, expenses: 10, net_this_month: null, accounts_total_available: 0,
-  conclusions: { no_income_recorded_yet: true, income_still_expected: 1800, biggest_category: { category: "gasto", amount: 10, share_of_expenses_pct: 100 } },
-  expected_income: [{ label: "parte 1", amount: 1800, expected_date: "2026-11-09", status: "previsto" }],
+  conclusions: { no_income_recorded_yet: true, income_still_expected: 1250, biggest_category: { category: "gasto", amount: 10, share_of_expenses_pct: 100 } },
+  expected_income: [{ label: "salário", amount: 1250, expected_date: "2026-11-09", status: "previsto" }],
 };
 const METAS = {
   goals: [
@@ -28,7 +28,7 @@ test(
     assert.deepEqual(linhas(fin), [
       "entrou R$ 0,00 (nada registrado ainda)",
       "saiu R$ 10,00 · mais em gasto (100%)",
-      "previsto R$ 1.800,00 em 09/11",
+      "previsto R$ 1.250,00 em 09/11",
       "nas contas R$ 0,00",
     ]);
     assert.ok(!fin.textContent.includes("resultado do mês"), "sem entrada não tem resultado do mês");
@@ -45,7 +45,7 @@ test(
     assert.equal(meta[0].querySelector(":scope > .ia-quadro-extra").textContent.replace(/\s+/g, " "), "falta R$ 700,00 · R$ 233,33/semana · até 23/11");
     // cores do sistema: entrou sem nada fica neutro, saiu em vermelho, previsto em âmbar
     assert.equal(fin.querySelector(".ia-quadro-v--sai").textContent.replace(/\s+/g, " "), "R$ 10,00");
-    assert.equal(fin.querySelector(".ia-quadro-v--previsto").textContent.replace(/\s+/g, " "), "R$ 1.800,00");
+    assert.equal(fin.querySelector(".ia-quadro-v--previsto").textContent.replace(/\s+/g, " "), "R$ 1.250,00");
     assert.equal(fin.querySelector(".ia-quadro-v--entra"), null);
     assert.equal(noQuadro({ nome: "goals", dados: { goals: [] } }).querySelector(".ia-quadro-vazio").textContent, "nenhuma meta ativa");
     assert.equal(noQuadro({ nome: "inbox", dados: {} }), null);
@@ -54,7 +54,7 @@ test(
 
 const MES = {
   month: "2026-11",
-  finances: { income: 0, expenses: 10, net_this_month: null, accounts_total_available: 0, conclusions: { income_still_expected: 1800 } },
+  finances: { income: 0, expenses: 10, net_this_month: null, accounts_total_available: 0, conclusions: { income_still_expected: 1250 } },
   goals: [{ title: "teste", progress_pct: 0, status: "ativa", situation: "on track", deadline: "2026-11-25" }],
   habits: [{ name: "correr", streak: 4, success_30d_pct: 63, done_today: true }, { name: "ler", streak: 0, success_30d_pct: 10, done_today: false }],
   learning: { milestones_completed_this_month: 2, tracks: [{ track: "Java e Spring Boot", status: "em_andamento", progress_pct: 40 }] },
@@ -73,7 +73,7 @@ test(
     assert.deepEqual([...el.querySelectorAll(".ia-q-area")].map((x) => x.textContent),
       ["finanças", "metas", "hábitos", "aprendizado", "progresso"]);
     const f = filas(el);
-    for (const esperada of ["entrou = R$ 0,00", "saiu = R$ 10,00", "previsto = R$ 1.800,00", "nas contas = R$ 0,00",
+    for (const esperada of ["entrou = R$ 0,00", "saiu = R$ 10,00", "previsto = R$ 1.250,00", "nas contas = R$ 0,00",
       "teste no ritmo = 0%", "✓ correr = 4d · 63%", "ler = 0d · 10%", "marcos no mês = 2", "Java e Spring Boot = 40%",
       "xp no mês = +120 ↓", "dias ativos = 9 ↑", "missões = 3", "conquistas = 1"]) {
       assert.ok(f.includes(esperada), `${esperada} | ${f.join(" | ")}`);

@@ -82,6 +82,7 @@ verdade é o código e o teste.
 | FIN-16 | Lançamento gerado por outro módulo (conta fixa, assinatura, renda, meta, dívida) mostra a origem e só se desfaz por lá | `test_lancamentos.py::test_fin_16_transaction_from_another_module_is_marked_and_only_undone_there` |
 | FIN-17 | Lançamentos antigos ganham o vínculo com o xp pela descrição e ordem, então apagá-los também estorna | `test_lancamentos.py::test_fin_17_migration_links_old_transaction_xp_so_deleting_refunds_it` |
 | FIN-18 | Apagar o lançamento que concluiu uma missão volta a missão a pendente e estorna o bônus | `test_missoes.py::test_apagar_o_lancamento_volta_a_missao_e_estorna_o_bonus` |
+| FIN-19 | Instalação nova começa sem fonte de renda; as duas fontes que as versões até a 1.18 criavam saem na atualização, só se continuam como foram criadas e nada foi recebido | `test_financas.py::test_banco_novo_comeca_sem_renda`, `test_financas.py::test_migracao_remove_renda_semeada_intacta`, `test_financas.py::test_migracao_mantem_renda_editada_ou_recebida` |
 
 ## Carteira (bancos, contas, assinaturas, parcelas)
 
