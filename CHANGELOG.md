@@ -6,6 +6,9 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [2.0.0] - em desenvolvimento
 
+### Adicionado
+- relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia por e-mail, pelo seu programa de e-mail já preenchido, ou pelo GitHub, numa issue já preenchida. Nada sai pelo Kami: você confere e envia
+
 ### Alterado
 - instalação nova começa sem fonte de renda: as duas fontes de exemplo ("parte 1" e "parte 2") que vinham cadastradas saem. Quem já tinha e nunca mexeu nem recebeu nada nelas também as perde na atualização; quem editou ou usou fica com elas
 

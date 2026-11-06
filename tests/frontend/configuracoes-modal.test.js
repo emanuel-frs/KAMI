@@ -377,6 +377,30 @@ test(
       assert.match($("#cfg-diag-status").textContent, /copiado|copie à mão/);
     });
 
+    await t.test("sobre (EST-01): relatar erro abre o e-mail com o diagnóstico; ideia vai sem", async () => {
+      const abertos = [];
+      dom.window.open = (url) => abertos.push(url);
+      $("#cfg-ret-email").click();
+      await espera();
+      assert.match($("#cfg-ret-status").textContent, /escreva/);
+      assert.equal(abertos.length, 0);
+      digita($("#cfg-ret-texto"), "travou ao salvar");
+      $("#cfg-ret-email").click();
+      await espera();
+      assert.match(abertos[0], /^mailto:kami\.feedback@gmail\.com\?subject=Kami%201\.14\.0/);
+      assert.match(decodeURIComponent(abertos[0]), /travou ao salvar[\s\S]*kami 1\.14\.0/);
+      assert.match($("#cfg-ret-status").textContent, /kami\.feedback@gmail\.com/);
+      const sel = $("#cfg-ret-tipo");
+      sel.value = "ideia";
+      sel.dispatchEvent(new dom.window.Event("change"));
+      assert.equal($("#cfg-ret-diag").checked, false);
+      $("#cfg-ret-github").click();
+      await espera();
+      const gh = new URL(abertos[1]);
+      assert.equal(gh.searchParams.get("template"), "feedback.yml");
+      assert.equal(gh.searchParams.get("feedback"), "travou ao salvar");
+    });
+
     await t.test("assistente (IA-01): começa desligado; cadastrar o Ollama, buscar modelos, salvar e testar, ligar", async () => {
       await aba("assistente");
       await espera(60);

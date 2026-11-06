@@ -1,13 +1,16 @@
 /**
- * Aba "sobre" das configurações: versão, diagnóstico para copiar
- * (CONF-06) e relatar um problema.
+ * Aba "sobre" das configurações: versão, relatar um erro ou dar uma
+ * ideia (EST-01) e diagnóstico para copiar (CONF-06).
  * MAN-02: saiu de configuracoes-modal.js.
  */
 import { getDiagnostico } from "../../api/sistema.js";
 import { copyText } from "../../components/clipboard.js";
 import { escapeHtml, localDateKey } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
+import { openExternal } from "../../components/open-external.js";
+import { EMAIL, linkEmail, linkGithub } from "../../components/retorno.js";
 import { icon } from "../../components/icons.js";
+import { enhanceSelect } from "../../components/custom-select.js";
 import {
   temAtualizador,
   estadoAtualizacao,
@@ -19,9 +22,6 @@ import {
 } from "../../components/atualizacao.js";
 import { store } from "../../state/store.js";
 import { t } from "../../i18n.js";
-
-// CONF-06: relato de problema (templates em .github/ISSUE_TEMPLATE)
-const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
 
 // ── aba sobre (CONF-06) ────────────────────────────────────────────────
 // Versão do app e o "copiar diagnóstico": versão, sistema, tamanho do
@@ -51,13 +51,34 @@ export function buildSobrePanel() {
         <p class="settings-status" id="cfg-atualiza-status" aria-live="polite"></p>
       </div>
       <div class="settings-section">
+        <h4>${t("sobre.retorno.titulo")}</h4>
+        <p class="settings-desc">${t("sobre.retorno.desc")}</p>
+        <div class="field">
+          <select id="cfg-ret-tipo" aria-label="${t("sobre.retorno.tipo")}">
+            <option value="bug">${t("sobre.retorno.tipo_bug")}</option>
+            <option value="ideia">${t("sobre.retorno.tipo_ideia")}</option>
+          </select>
+        </div>
+        <div class="field">
+          <textarea id="cfg-ret-texto" rows="4" maxlength="4000" aria-label="${t("sobre.retorno.mensagem")}" placeholder="${t("sobre.retorno.placeholder")}"></textarea>
+        </div>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-ret-diag" checked>
+          <span>${t("sobre.retorno.incluir_diag")}<small>${t("sobre.retorno.incluir_diag_desc")}</small></span>
+        </label>
+        <div class="form-actions">
+          <button class="btn sm primary" id="cfg-ret-email">${t("sobre.retorno.enviar_email")}</button>
+          <button class="btn sm" id="cfg-ret-github">${t("sobre.retorno.abrir_github")}</button>
+        </div>
+        <p class="settings-status" id="cfg-ret-status" aria-live="polite"></p>
+      </div>
+      <div class="settings-section">
         <h4>${t("sobre.diagnostico")}</h4>
         <p class="settings-desc">${t("sobre.diag_desc")}</p>
         <div class="form-actions">
           <button class="btn sm" id="cfg-diag-copy">${t("sobre.copiar_diagnostico")}</button>
           <button class="btn sm" id="cfg-diag-save">${t("sobre.salvar_txt")}</button>
           <button class="btn sm" id="cfg-diag-folder" hidden>${t("sobre.abrir_pasta_do_log")}</button>
-          <button class="btn sm" id="cfg-diag-report" data-open-link="${ISSUES_URL}">${t("sobre.relatar_um_problema")}</button>
         </div>
         <p class="settings-status" id="cfg-diag-status"></p>
         <pre class="cfg-diag-preview" id="cfg-diag-preview" tabindex="0" aria-label="${t("sobre.previa_do_diagnostico")}">${t("geral.carregando")}</pre>
@@ -66,12 +87,14 @@ export function buildSobrePanel() {
 }
 
 let diagText = "";
+let versao = "";
 
 async function loadDiagnostico(wrap) {
   const pre = wrap.querySelector("#cfg-diag-preview");
   try {
     const diag = await getDiagnostico();
     diagText = `${diag.texto}\n\n--- tela ---\n${navigator.userAgent}`;
+    versao = diag.versao;
     wrap.querySelector("#cfg-sobre-versao").textContent = t("sobre.versao_n", { versao: diag.versao });
     pre.textContent = diagText;
   } catch (err) {
@@ -145,12 +168,57 @@ function diagStatus(wrap, html) {
   el.classList.add("settings-status--visible");
 }
 
+// ── relatar um erro ou dar uma ideia (EST-01) ──────────────────────────
+// Erro já leva o diagnóstico marcado; ideia, desmarcado.
+function wireRetorno(wrap) {
+  const tipo = wrap.querySelector("#cfg-ret-tipo");
+  const texto = wrap.querySelector("#cfg-ret-texto");
+  const comDiag = wrap.querySelector("#cfg-ret-diag");
+  const status = wrap.querySelector("#cfg-ret-status");
+  const avisar = (msg) => {
+    status.textContent = msg;
+    status.classList.add("settings-status--visible");
+  };
+  enhanceSelect(tipo);
+  tipo.addEventListener("change", () => {
+    comDiag.checked = tipo.value === "bug";
+  });
+  const enviar = async (onde) => {
+    const msg = texto.value.trim();
+    if (!msg) {
+      avisar(t("sobre.retorno.escreva_antes"));
+      texto.focus();
+      return;
+    }
+    if (!diagText) await loadDiagnostico(wrap);
+    const dados = {
+      tipo: tipo.value,
+      texto: msg,
+      diag: comDiag.checked ? diagText : "",
+      versao,
+      separador: t("sobre.retorno.separador"),
+      assunto: `Kami ${versao} · ${t(`sobre.retorno.tipo_${tipo.value}`)}`,
+    };
+    const { url, copiar } = onde === "email" ? linkEmail(dados) : linkGithub(dados);
+    if (copiar && !(await copyText(copiar))) {
+      avisar(t("sobre.nao_deu_pra_copiar_selecione"));
+      return;
+    }
+    openExternal(url);
+    if (copiar) avisar(t(onde === "email" ? "sobre.retorno.copiado_email" : "sobre.retorno.copiado_github"));
+    else avisar(onde === "email" ? t("sobre.retorno.abrindo_email", { email: EMAIL }) : t("sobre.retorno.abrindo_github"));
+  };
+  wrap.querySelector("#cfg-ret-email").addEventListener("click", () => enviar("email"));
+  wrap.querySelector("#cfg-ret-github").addEventListener("click", () => enviar("github"));
+}
+
 export function wireSobreTab(wrap) {
   wrap.querySelector('.cfg-tab[data-tab="sobre"]').addEventListener("click", () => {
     loadDiagnostico(wrap);
     renderAtualizacao(wrap);
   });
   wireAtualizacao(wrap);
+  wireRetorno(wrap);
   wrap.querySelector("#cfg-diag-copy").addEventListener("click", async () => {
     if (!diagText) await loadDiagnostico(wrap);
     const ok = diagText && (await copyText(diagText));

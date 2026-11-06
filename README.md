@@ -102,7 +102,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; uma cópia do banco
   sai sozinha toda semana e antes de importar ou apagar tudo, com "restaurar" em configurações › backup
   (e uma pasta extra opcional, como um pendrive); e em
-  configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
+  configurações › sobre dá para relatar um erro ou dar uma ideia por e-mail ou pelo GitHub, já com
+  um diagnóstico sem dados pessoais (você confere antes de enviar).
 - **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
   de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar
   (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.

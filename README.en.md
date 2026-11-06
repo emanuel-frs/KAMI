@@ -96,8 +96,9 @@ A personal project, maintained by one person. Built for my own use and published
   backend crashes, the app notices and restarts it on its own, without closing; before upgrading the
   database to a new version, Kami keeps a copy and goes back to it if the upgrade fails; a copy of the
   database is made automatically every week and before importing or erasing everything, with "restore"
-  in settings › backup (and an optional extra folder, such as a USB drive); and settings › about can
-  copy a diagnostic report, with no personal data, to report a problem.
+  in settings › backup (and an optional extra folder, such as a USB drive); and in settings › about you
+  can report a bug or share an idea by email or on GitHub, with a diagnostic report that has no personal
+  data (you review it before sending).
 - **Screens that arrange themselves:** widgets snap into aligned rows, at any window size and with any
   amount of data, and each screen has a default layout built to fit (with "reset layout"). A widget you
   remove and add back returns to its place. Optional: the app icon in the accent color.

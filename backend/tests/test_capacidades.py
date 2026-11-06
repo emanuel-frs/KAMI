@@ -27,7 +27,9 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
     ]
     assert not [n for n in nomes if n.startswith(("shell:", "fs:", "process:", "http:"))]
     opener = next(p for p in cap["permissions"] if isinstance(p, dict) and p["identifier"] == "opener:allow-open-url")
-    assert sorted(u["url"] for u in opener["allow"]) == ["http://*", "https://*"]  # nada de file:// ou esquemas do sistema
+    # nada de file:// ou esquemas do sistema; EST-01: mailto só pro endereço
+    # do relato (abre o programa de e-mail preenchido — quem envia é a pessoa)
+    assert sorted(u["url"] for u in opener["allow"]) == ["http://*", "https://*", "mailto:kami.feedback@gmail.com*"]
 
 
 def test_seg_23_csp_runs_only_the_apps_own_code_and_talks_only_to_the_local_backend():
