@@ -2,7 +2,7 @@
 
 Itens registrados para uma fase futura. Nenhum item desta lista está
 implementado; a lista geral de problemas conhecidos está no
-[README](../README.md#problemas-conhecidos-e-roadmap).
+[README](../README.md#limites-conhecidos).
 
 - **Assinatura de código no Windows:** decisão pendente do dono do
   projeto. A SignPath Foundation oferece assinatura gratuita quando o

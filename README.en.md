@@ -46,72 +46,85 @@ A personal project, maintained by one person. Built for my own use and published
 
 - **Core:** the five life attributes (Career, Finances, Learning, Organization and Goals), each with XP
   and a level, an overall player level, a filterable log of everything recorded, 50 automatic
-  achievements (with tiers and a few secret ones), achievements you create yourself ("10 learning
-  actions with 'english'") and a widget board you arrange however you like. Every action shows the XP
-  earned right away; leveling up opens its own screen and achievements pop up in a corner notice.
+  achievements (with tiers, some of them secret), achievements you create yourself ("10 learning actions
+  with 'english'") and a widget dashboard you arrange however you like. Each action shows the XP right
+  away; leveling up opens its own screen and achievements pop up in a corner notice.
 - **Habit loop:** a day streak with a pixel-art flame that grows with it and shields that cover a blank
-  day; three missions a day and one a week, drawn from what you can actually do right now; bonus XP for
-  the first action of the day, for the streak and for tending to the most neglected attribute; and the
-  radar warns you when an attribute has been idle for two weeks.
-- **Progression:** raising your overall level unlocks titles (shown under your name) and terminal
-  themes (phosphor, CRT and amber); your class (Scholar, Merchant, Artisan, Strategist, Archivist or
-  Polymath) comes from your strongest attribute; and every month opens an ASCII recap of the month that
-  ended, exportable as `.txt`.
-- **Old-terminal feel:** text that types itself, rolling numbers, cards that switch on like a CRT,
+  day; three missions a day and one a week, drawn from what you can actually do now; bonus XP for the
+  first action of the day, for the streak and for tending the attribute that is furthest behind; and the
+  radar warns when an attribute has been idle for two weeks.
+- **Progression:** raising your overall level unlocks titles (shown under your name) and terminal themes
+  (phosphor, CRT and amber); your class (Scholar, Merchant, Artisan, Strategist, Archivist or Polymath)
+  comes from your strongest attribute; and every month opens an ASCII retrospective of the month that
+  just ended, exportable as `.txt`.
+- **Old-terminal feel:** text that types itself, numbers that roll, cards that power on like a CRT,
   phosphor glow and a pixel-art cursor, plus 8-bit beeps generated on the fly for progress, clicks and
   notices. Effects (full, subtle or off) and sounds (per group, with volume) are set in settings ›
   appearance.
-- **Finances and Wallet:** recurring income with business-day calculation (holidays of the country you
-  pick), fixed bills, debts, subscriptions, installment purchases, credit cards, transactions by category
-  and a monthly view compared with the previous month. A mistyped transaction can be fixed or deleted,
-  and the balance and XP follow; paying off a debt can record the payment on an account.
+- **Finances and Wallet:** recurring income with real business-day math (holidays of the chosen
+  country), fixed bills, debts, subscriptions, installment purchases, credit cards, entries by category
+  and a monthly view compared with the previous month. A mistyped entry can be fixed or deleted, and the
+  balance and XP follow; paying off a debt can record the expense on the account.
 - **Learning:** study tracks with milestones, automatic progress, a reorderable roadmap and an activity
   heatmap.
 - **Personal goals:** types such as financial, health, reading, habit, learning and academic, with a
   weight that multiplies the XP. A financial goal can draw from a real Wallet account.
-- **Organization:** notes with a visual editor (saved as markdown, with tags, colors, links to goals,
-  tracks, events and positions, and notes locked by the PIN), the quick-capture inbox, categorized
-  links, the status of your GitHub repositories, IMAP e-mail read as clean text (no third-party HTML,
-  with a link to open it in your webmail) and an optional web search.
-- **Capture and search:** `Alt+Q` jots anything down from any screen — `$ 32.90 pharmacy yesterday`
+- **Organization:** notes with a visual editor (saved as Markdown, with tags, colors, links to goals,
+  tracks, events and positions, and notes locked by the PIN), the quick-capture inbox, categorized links,
+  the status of your GitHub repositories, e-mail over IMAP read as clean text (no third-party HTML, with a
+  link to open it in webmail) and optional web search.
+- **Capture and search:** `Alt+Q` jots down anything from any screen — `$ 32.90 pharmacy yesterday`
   becomes an expense, `# idea` a note, `! friday 2pm meeting` an event, `@ tomorrow 9am call the bank` a
-  reminder, and the rest goes to the inbox — dates and times in the app's language; `Ctrl+K` searches
-  everything (ignoring accents) and runs commands.
-- **Habits:** its own screen (`Alt+9`) with daily habits, on fixed days or "x times a week", a grid of
-  the last 12 weeks, streak and record per habit, pause and archive; checking one off gives XP and
-  counts toward missions and the overall streak.
-- **Reminders:** with date, time and repetition, linked to notes, bills, goals or habits, they notify
-  inside the app and through the system notification (with "snooze"); due-date notices grouped at a time
-  you choose. Optional: keep Kami in the tray when closed and start it with the system.
+  reminder, and the rest goes to the inbox — with dates and times in the app's language ("amanhã 9h",
+  "明天9点"); `Ctrl+K` searches everything (accent-insensitive) and runs commands.
+- **Habits:** its own screen (`Alt+9`) with daily habits, fixed days or "x times a week", a grid of the
+  last 12 weeks, streak and record per habit, pause and archive; checking one off gives XP and counts
+  toward missions and the overall streak.
+- **Reminders:** with a day, time and repetition, linked to notes, bills, goals or habits, they notify
+  inside the app and through the system notification (with "snooze"); due-date notices are grouped at a
+  time you choose. Optional: keep Kami in the tray when closing and start it with the system.
 - **Career and Calendar:** a timeline of positions, education and salary history; a monthly calendar
-  that brings together bills, debts, installments, goals, your own events and reminders.
+  that gathers bills, debts, installments, goals, your own events and reminders.
 - **Language, currency and country:** 10 languages (the system's on first launch, or the one chosen in
-  settings › appearance), with the currency (format only, nothing is converted) and the country whose
-  holidays count for business days chosen there too. Dates in the language's format or the one you
-  prefer. The translations were made with AI help and haven't been reviewed by native speakers —
-  corrections are welcome ([docs/TRADUCAO.md](./docs/TRADUCAO.md), in Portuguese).
+  settings › appearance), with the currency (formatting only, nothing is converted) and the country for
+  business-day holidays chosen there too. Dates in the language's format or the one you prefer. The
+  translations were made with the help of AI and were not reviewed by native speakers — corrections are
+  welcome ([docs/TRADUCAO.md](./docs/TRADUCAO.md)).
+- **Accessibility and screen size:** everything works from the keyboard (Tab, Enter, Space and `Alt`
+  shortcuts, listed in `Alt+H`), every control has a name for screen readers and contrast was checked
+  with axe-core on every screen; `Ctrl +` and `Ctrl −` make everything bigger or smaller, and `Ctrl 0`
+  goes back to normal.
 - **Profile:** an ASCII avatar generated inside the app from a photo; only the text is saved, never the
   photo.
-- **Reliability:** when something goes wrong a notice shows a code that is also in the log; if the
-  backend crashes, the app notices and restarts it on its own, without closing; before upgrading the
-  database to a new version, Kami keeps a copy and goes back to it if the upgrade fails; a copy of the
-  database is made automatically every week and before importing or erasing everything, with "restore"
-  in settings › backup (and an optional extra folder, such as a USB drive); and in settings › about you
-  can report a bug or share an idea by email or on GitHub, with a diagnostic report that has no personal
-  data (you review it before sending).
+- **Reliability:** when something goes wrong, a notice shows a code that is also in the log; if the
+  backend crashes, the app notices and restarts it without closing; before updating the database to a
+  new version, Kami keeps a copy and goes back to it if the update fails; a copy of the database is made
+  every week and before importing or erasing everything, with "restore" in settings › backup (and an
+  optional extra folder, such as a USB drive); and in settings › about you can report a bug or share an
+  idea by e-mail or on GitHub, with a diagnostic report that has no personal data (you review it before
+  sending).
 - **Screens that arrange themselves:** widgets snap into aligned rows, at any window size and with any
   amount of data, and each screen has a default layout built to fit (with "reset layout"). A widget you
   remove and add back returns to its place. Optional: the app icon in the accent color.
-- **Security:** an optional PIN to open the app (with a recovery code and an inactivity lock), backups
-  exported with a password, and saved passwords protected by a key in the system keyring. Details and
-  limits in [SECURITY.md](./SECURITY.md).
+- **Security:** an optional PIN to open the app (with a recovery code and an inactivity lock), an
+  optional encrypted database on disk (with a recovery code), backups exported with a password, and
+  saved passwords protected by a key in the system keyring. Details and limits in
+  [SECURITY.md](./SECURITY.md).
 - **AI assistant (optional, off by default):** a chat in the side panel (Alt+A) that answers about your
   data and about using Kami: it sums up your month, tells you what's due, explains missions. It works
   with a provider of your own, in the cloud (Gemini, Groq, OpenRouter, OpenAI, Anthropic) or on your
-  computer (Ollama, LM Studio), with a step-by-step guide to connect. In this version it only reads: it
-  doesn't create or delete anything; you choose which areas it can read and see everything that was
-  sent. No key ships with the app. What leaves your computer and the limits are in
-  [SECURITY.md](./SECURITY.md#assistente-de-ia) (in Portuguese).
+  computer (Ollama, LM Studio), with a step-by-step guide to connect. To run it on your computer, Kami
+  tells you which model fits your machine, installs the official Ollama (verified) and downloads the
+  model. It also proposes actions (notes, reminders, events, habits, money entries, even a pasted bank
+  statement, goals and study plans) in a preview you edit and apply in part, and an applied batch can be
+  undone as a whole; nothing is saved without your click. The math is Kami's own: goals, finances, bills,
+  habits and studies reach the model already analyzed and show up in a card with your real numbers; the
+  model only comments, and Kami flags any amount or date in the answer that isn't in your data. You
+  choose which areas it can read and see everything that was sent. No key ships with the app. What
+  leaves and the limits are in [SECURITY.md](./SECURITY.md#assistente-de-ia).
+- **Notices:** Kami warns in the bell when spending goes past the previous month, a fixed bill is due
+  without enough balance, or a goal, an attribute or a track has stalled. They are rules on your
+  computer, with no AI; you can dismiss them, silence one item or turn each rule off.
 
 ## Install
 
@@ -162,13 +175,19 @@ and to check for a new version (you can turn that off). There's no telemetry and
 | `api.tavily.com` | only if you add a search key | your searches and the key |
 | `duckduckgo.com` | only when you click "open search" | the search, opened in your browser |
 | `github.com` (Kami Releases) | on launch and once a day, with "check for updates" on (default; turn it off in settings › about) | only the request for the versions file (`latest.json`), nothing of yours; and the download of the new version, if you ask to "update now" |
-| The AI provider you choose | only with the assistant on, when you ask something | your message, the earlier ones in the same conversation and the data it looked up in the areas you allowed, with e-mails, cards, ID numbers, keys and phone numbers replaced by `[removido]`. With Ollama or LM Studio, nothing leaves your computer |
+| Ollama's GitHub and its model registry | only when you click to install Ollama or download a model | nothing of yours: the request for the installer or the model |
+| The AI provider you choose | only with the assistant on, when you ask something (notices don't use AI) | your message (with card numbers, CPF/CNPJ, bank branch+account and IBAN hidden), the earlier ones in the same conversation and the data it looked up in the areas you allowed, with e-mails, cards, ID numbers, keys and phone numbers replaced by `[removido]`. With Ollama or LM Studio, nothing leaves your computer |
 | Microsoft (Windows) | only during install, if WebView2 is missing | runtime download |
 
 App passwords and tokens are encrypted in the database, with the key in the system keyring (Credential
 Manager on Windows, Secret Service on Linux), not in the data folder. That doesn't protect against
 another program running as your user; [SECURITY.md](./SECURITY.md) describes what Kami protects and what
-it doesn't.
+it doesn't. With the encrypted database on (settings › security), the database file and the automatic
+copies also only open with a key from the keyring.
+
+Your data is yours: the export (with or without a password) is a JSON file whose format is described in
+[docs/FORMATO-DO-EXPORT.md](./docs/FORMATO-DO-EXPORT.md), with a Python snippet to open the password-protected
+file without Kami.
 
 ## How it works inside
 
@@ -224,32 +243,24 @@ service for each saved link's icon. I replaced it with a local initial, and the 
 only what really leaves the machine.
 
 **No framework or bundler in the frontend.** It was a choice for simplicity and for learning the
-platform, and it has a cost: some files got big (see the roadmap).
+platform, and it has a cost: without a framework's conventions, the module layout and the tests of each
+screen rely on rules written in the repository itself ([docs/REGRAS-DE-NEGOCIO.md](./docs/REGRAS-DE-NEGOCIO.md)
+ties every rule to the tests that guarantee it).
 
-## Known issues and roadmap
+The project's other choices, each with its reason, are in [docs/DECISOES.md](./docs/DECISOES.md) (in Portuguese).
 
-No dates. Up to **2.0** (the version where Kami goes on pause, with no new features for a while), the
-plan is:
+## Known limits
 
-- ~~**Foundation:**~~ done in 1.14: updates announced by the app itself (it installs only when you
-  want), automatic backups (including to a second folder, like a USB drive), uninstalling that leaves
-  nothing behind, automated tests covering every screen, and big files split up.
-- ~~**Languages:**~~ done in 1.15: Portuguese, English, Spanish, French, Italian, German, Chinese,
-  Japanese, Korean and Hindi, with your choice of currency and holiday country.
-- **AI assistant (optional, off by default):** the chat that reads your data shipped in 1.16; still to
-  come: actions always with a preview and confirmation, notices, and installing local AI from the app
-  itself. No key ships with the app.
-- **Encrypted database on disk**, optional.
-
-Left out, at least until 2.0:
-
-- **Windows:** code signing. The SmartScreen warning keeps showing up, because the free option for open
-  source doesn't apply to the current license (see [SECURITY.md](./SECURITY.md#instaladores)). CI
-  validates installation and the backend, but not each PC's antivirus behavior.
-- **macOS, phones and sync between devices.**
-- **Link icons** stored locally, **PyInstaller in folder mode** (fewer false positives) and publishing
-  to the AUR and other repositories. See [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md) (in
-  Portuguese).
+- **Windows:** the installer has no code signature, so SmartScreen warns "unknown publisher" (see
+  [SECURITY.md](./SECURITY.md#instaladores) and the [install guide](./docs/INSTALACAO.en.md)). CI installs
+  and tests the app on Windows and Linux, but not how each computer's antivirus behaves.
+- **Doesn't exist:** a macOS version, a phone app and sync between devices.
+- **AI assistant:** language models make mistakes, and the small ones that run on your computer make
+  more. How well each one does is measured in [docs/QUALIDADE-IA.md](./docs/QUALIDADE-IA.md); check the
+  preview before applying an action.
+- **Screen readers:** the screens were checked with axe-core and used from the keyboard only, but screen
+  readers were barely tested (NVDA, on Windows, not at all).
+- **Translations:** made with the help of AI, without review by native speakers.
 
 ## License and contributing
 
@@ -383,7 +394,7 @@ backend/      FastAPI, SQLite, tests and the sidecar entrypoint (run_server.py)
 frontend/     plain HTML, CSS and JS: pages/, widgets/, modals/, api/, i18n/ (the 10 dictionaries)
 src-tauri/    desktop shell (Rust, Tauri v2)
 scripts/      install, version, demo seed and CI tests
-docs/         install guide, translation guide, roadmap and download page
+docs/         guides (install, translation, export format), business rules and download page
 ```
 
 </details>

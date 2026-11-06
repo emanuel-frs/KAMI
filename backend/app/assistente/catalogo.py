@@ -5,7 +5,7 @@ chave, links da chave e da política de dados, selo "testado"). Princípio
 8: nenhum modelo listado aqui — a lista vem do /models do provedor.
 
 Ficar num arquivo de dados é de propósito: quando um provedor mudar de
-endereço depois da pausa da 2.0, a correção é trocar uma linha de JSON.
+endereço, a correção é trocar uma linha de JSON.
 """
 import json
 from functools import lru_cache
