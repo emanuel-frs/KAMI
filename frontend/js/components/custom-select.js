@@ -465,6 +465,11 @@ function buildUI(select, opts) {
 
   const labelId = labelIdFor(select);
   if (labelId) trigger.setAttribute("aria-labelledby", labelId);
+  // EST-03: sem <label for>, o nome vem do aria-label do <select> (axe: button-name)
+  else if (select.getAttribute("aria-label")) {
+    trigger.setAttribute("aria-label", select.getAttribute("aria-label"));
+    list.setAttribute("aria-label", select.getAttribute("aria-label"));
+  }
 
   wrap.appendChild(trigger);
   select.insertAdjacentElement("afterend", wrap);

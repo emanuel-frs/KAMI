@@ -31,6 +31,10 @@
 
   --accent: #8fbf8f;       /* default — sobrescrito por accent_color do perfil */
   --accent-dim: color-mix(in srgb, var(--accent) 58%, black);
+  /* EST-03: texto pequeno "na cor de destaque mais apagado". --accent-dim
+     (escurecido) dava 3,55:1 no verde e ~2:1 no vermelho; clarear com o
+     --text mantém o tom e fica ≥ 5,3:1 com qualquer cor do seletor */
+  --accent-texto: color-mix(in srgb, var(--accent) 80%, var(--text));
   --amber: #b3a06a;
   /* #b06060 dava ≈4,69:1 contra --bg, mas caía pra ≈4,34:1 contra
      --card (auditoria do item 5) — abaixo do mínimo de 4,5:1, e é

@@ -20,6 +20,7 @@ import { wireSkipLink } from "./components/skip-link.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
+import { wireClickableA11y } from "./components/clickable-a11y.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { startLembretesAgendador } from "./components/lembretes-agendador.js";
@@ -450,6 +451,9 @@ async function boot() {
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();
+  // EST-03: o módulo existia desde a 1.7, mas nunca era ligado — os ícones
+  // de ação, abas e filtros feitos de <span> ficavam fora do Tab
+  wireClickableA11y();
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startLembretesAgendador(); // ORG-05

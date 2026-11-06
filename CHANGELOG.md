@@ -10,6 +10,9 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador
 - relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia por e-mail, pelo seu programa de e-mail já preenchido, ou pelo GitHub, numa issue já preenchida. Nada sai pelo Kami: você confere e envia
 
+### Corrigido
+- acessibilidade pelo teclado e leitor de tela: os ícones de ação (editar, remover), abas e filtros que não eram botões passam a ser alcançados pelo Tab e acionados com Enter ou Espaço, com nome para o leitor de tela; setas de mês, seletores e o campo da captura rápida ganharam nome; as listas com rolagem (conquistas, eventos do dia) dá para rolar pelo teclado; e textos pequenos na cor de destaque ou bem apagados ficaram com contraste suficiente em qualquer cor escolhida
+
 ### Alterado
 - instalação nova começa sem fonte de renda: as duas fontes de exemplo ("parte 1" e "parte 2") que vinham cadastradas saem. Quem já tinha e nunca mexeu nem recebeu nada nelas também as perde na atualização; quem editou ou usou fica com elas
 

@@ -48,6 +48,7 @@
  * (o mouse não tem foco a preservar). modal-accessibility.js também usa
  * restoreFocusFor() quando o elemento que abriu o modal já foi redesenhado.
  */
+import { t } from "../i18n.js";
 
 // ── nomes de linha (pra rótulos como "remover dívida — Cartão X") ────────
 const NAME_SEL = [
@@ -69,6 +70,11 @@ function rowName(el) {
 }
 
 const isOn = (el) => el.classList.contains("on");
+
+function nomeAvatar(el, acao) {
+  const vazio = el.classList.contains("mini-avatar--vazio") || !!el.querySelector?.("[data-avatar-vazio]");
+  return vazio ? `${clip(clean(el.textContent), 80)} — ${acao}` : acao;
+}
 
 /**
  * Regras.
@@ -143,9 +149,14 @@ const RULES = [
   // linhas inteiras clicáveis
   { sel: ".email-item" },
   // ORG-01: notas (item da lista, filtros de tag)
-  { sel: ".nota-item[data-nt-abrir]" },
+  // o item segue listitem da lista; o título é o botão (EST-03)
+  { sel: ".nota-item[data-nt-abrir]", proxy: ".nota-item-titulo" },
   { sel: ".nota-tag-filtro", state: { attr: "aria-pressed", get: isOn } },
-  { sel: ".pw-avatar-btn" },
+  // avatar do widget de perfil e da barra lateral: abrem o editor. Sem
+  // avatar, o nome começa pelo texto que aparece ("sem avatar ainda…");
+  // com avatar, o desenho em ASCII não é lido (axe: label-content-name-mismatch)
+  { sel: ".pw-avatar-btn", label: (el) => nomeAvatar(el, t("perfil_w.avatar")) },
+  { sel: "#sidebar-avatar", label: (el) => nomeAvatar(el, t("perfil.editar_avatar")) },
   // qualquer outro trecho de texto que abre um endereço externo (ex.: o
   // link "tavily.com" dentro dos modais de chave de busca)
   { sel: "[data-open-link]", role: "link" },
@@ -291,7 +302,7 @@ let last = null; // { sig, ts }
 let pointerActive = false;
 const focusInfo = new WeakMap(); // alvo (mesmo desconectado) -> assinatura
 
-const esc = (v) => (window.CSS?.escape ? CSS.escape(v) : String(v).replace(/["\\]/g, "\\$&"));
+const esc = (v) => (window.CSS?.escape ? window.CSS.escape(v) : String(v).replace(/["\\]/g, "\\$&"));
 
 function baseOf(target) {
   return info.get(target)?.container || target;

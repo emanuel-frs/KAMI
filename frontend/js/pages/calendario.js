@@ -678,9 +678,9 @@ export async function mount(container) {
   container.innerHTML = `
     <div class="cal-toolbar">
       <div class="cal-nav">
-        <button type="button" class="btn icon-btn-square" id="cal-prev" data-tooltip="${t("calendario.mes_anterior")}">${icon("arrow-left", { size: 13 })}</button>
+        <button type="button" class="btn icon-btn-square" id="cal-prev" aria-label="${t("calendario.mes_anterior")}" data-tooltip="${t("calendario.mes_anterior")}">${icon("arrow-left", { size: 13 })}</button>
         <div class="cal-month-label" id="cal-month-label"></div>
-        <button type="button" class="btn icon-btn-square" id="cal-next" data-tooltip="${t("calendario.proximo_mes")}">${icon("arrow-right", { size: 13 })}</button>
+        <button type="button" class="btn icon-btn-square" id="cal-next" aria-label="${t("calendario.proximo_mes")}" data-tooltip="${t("calendario.proximo_mes")}">${icon("arrow-right", { size: 13 })}</button>
       </div>
       <div class="cal-toolbar-actions">
         <button type="button" class="btn sm" id="cal-new-event-btn">${icon("plus", { size: 12 })}&nbsp;${t("calendario.novo_evento")}</button>
@@ -705,7 +705,7 @@ export async function mount(container) {
         <div id="cal-painel-dia">
           <div class="card-head" id="cal-day-panel-head">${t("calendario.selecione_um_dia")}</div>
           <div class="cal-day-filters" id="cal-day-filters"></div>
-          <div class="cal-day-events" id="cal-day-events"></div>
+          <div class="cal-day-events" id="cal-day-events" role="region" tabindex="0" aria-labelledby="cal-day-panel-head"></div>
         </div>
         <div class="cal-lembretes" id="cal-lembretes" hidden></div>
       </div>
