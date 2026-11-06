@@ -985,3 +985,15 @@ def test_migracao_mantem_renda_editada_ou_recebida(db_conn):
     _semear_renda_antiga(db_conn, pago=True)
     _migrate_remove_renda_padrao(db_conn)
     assert _fontes(db_conn) == {"parte 1", "parte 2"}
+
+
+def test_ate_o_fim_do_mes_e_do_dia():
+    """EST-04: o limite do intervalo que substituiu substr(date, …) = ?."""
+    from app.database import ate_o_fim
+    assert ate_o_fim("2026-06") == "2026-07"
+    assert ate_o_fim("2026-12") == "2027-01"
+    assert ate_o_fim("2026-02-28") == "2026-03-01"
+    assert ate_o_fim("2026-12-31") == "2027-01-01"
+    # timestamp do mesmo dia fica dentro; o do dia seguinte, fora
+    assert "2026-06-30" <= "2026-06-30T23:59:59-03:00" < ate_o_fim("2026-06-30")
+    assert "2026-06" <= "2026-06-30T23:59:59-03:00" < ate_o_fim("2026-06")

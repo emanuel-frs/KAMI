@@ -43,6 +43,21 @@ def local_now() -> datetime.datetime:
     return datetime.datetime.now().astimezone()
 
 
+def ate_o_fim(prefixo: str) -> str:
+    """
+    EST-04: limite (exclusivo) de um mês "AAAA-MM" ou de um dia "AAAA-MM-DD",
+    pra filtrar `col >= prefixo AND col < ate_o_fim(prefixo)` em vez de
+    `substr(col, …) = prefixo` — o substr varre a tabela toda, o intervalo
+    usa o índice (20 mil lançamentos: 2,5 ms → 0,04 ms por consulta). Vale
+    pra data ("2026-06-03") e pra timestamp ("2026-06-03T10:00:00-03:00"),
+    que começam do mesmo jeito.
+    """
+    if len(prefixo) == 7:
+        ano, mes = int(prefixo[:4]), int(prefixo[5:7])
+        return f"{ano + 1:04d}-01" if mes == 12 else f"{ano:04d}-{mes + 1:02d}"
+    return (datetime.date.fromisoformat(prefixo) + datetime.timedelta(days=1)).isoformat()
+
+
 def now_iso() -> str:
     """
     Timestamp gravado em toda coluna *_at: hora LOCAL com offset

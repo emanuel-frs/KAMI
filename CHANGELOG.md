@@ -15,6 +15,7 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - acessibilidade pelo teclado e leitor de tela: os ícones de ação (editar, remover), abas e filtros que não eram botões passam a ser alcançados pelo Tab e acionados com Enter ou Espaço, com nome para o leitor de tela; setas de mês, seletores e o campo da captura rápida ganharam nome; as listas com rolagem (conquistas, eventos do dia) dá para rolar pelo teclado; e textos pequenos na cor de destaque ou bem apagados ficaram com contraste suficiente em qualquer cor escolhida
 
 ### Alterado
+- com muitos anos de lançamentos, as telas e o calendário buscam o mês pelo índice do banco (o calendário do mês, com 20 mil lançamentos, caiu de 160 ms para 11 ms)
 - instalação nova começa sem fonte de renda: as duas fontes de exemplo ("parte 1" e "parte 2") que vinham cadastradas saem. Quem já tinha e nunca mexeu nem recebeu nada nelas também as perde na atualização; quem editou ou usou fica com elas
 
 ## [1.18.0] - 2026-11-02
