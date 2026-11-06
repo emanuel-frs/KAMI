@@ -42,6 +42,8 @@ def test_seg_23_csp_runs_only_the_apps_own_code_and_talks_only_to_the_local_back
     assert "script-src" not in csp  # cai no default-src 'self': sem inline, sem eval
     assert csp["connect-src"] == ["'self'", "http://127.0.0.1:*"]
     assert not any("unsafe-eval" in v for vals in csp.values() for v in vals)
+    # EST-05: as três que não caem no default-src
+    assert csp["object-src"] == ["'none'"] and csp["base-uri"] == ["'none'"] and csp["form-action"] == ["'self'"]
 
 
 def test_seg_23_rust_commands_exposed_to_the_window_are_known():

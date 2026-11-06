@@ -89,7 +89,8 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   quem envia é você) e o seletor de
   pasta do sistema (que só devolve o caminho escolhido — usado na pasta
   extra das cópias automáticas). A CSP só roda o
-  código do próprio app e só fala com o backend local. Um teste fixa essa
+  código do próprio app (sem script inline nem `eval`, sem plugins, sem
+  `<base>`, formulário só pro próprio app) e só fala com o backend local. Um teste fixa essa
   lista — liberar algo novo é uma mudança consciente. Os únicos comandos
   novos (1.13) ligam e desligam a bandeja e o "iniciar com o sistema",
   que ficam desligados até você ligar; essa escolha mora num arquivo da
@@ -266,7 +267,11 @@ local.
   é conferido pelo SHA-256 e roda com a **sua senha** (janela de senha do
   sistema), com a versão fixada na que foi conferida. Limite honesto: o
   script baixa o pacote grande do site oficial por HTTPS, e o Kami confere
-  o script, não esse pacote. Se houver placa NVIDIA sem driver, o
+  o script, não esse pacote. Entre a conferência e a janela de senha, o
+  script fica na pasta de dados (só o seu usuário escreve nela); um
+  programa rodando com o seu usuário poderia trocá-lo nesse intervalo —
+  o mesmo programa que, de qualquer forma, já lê os seus dados (ver "O
+  que o Kami NÃO protege"). Se houver placa NVIDIA sem driver, o
   instalador oficial também instala o driver. Sem a janela de senha, a tela
   mostra o comando oficial pra rodar no terminal.
 - **Desinstalar** pela tela só vale pro Ollama que o Kami instalou; um
@@ -300,6 +305,23 @@ local.
   substitui ajuda profissional.
 - Um provedor local acessado pela rede (`http` em outro computador) não
   é cifrado no caminho.
+
+## Revisão da 2.0
+
+Em novembro de 2026 o código todo passou por uma revisão: API e token,
+SQL montado em código (só nomes de lista fixa, valores sempre como
+parâmetro), caminhos de arquivo (restaurar cópia, pasta extra), HTML
+montado no app (dado sempre escapado ou posto como texto; e-mail nunca
+vira HTML), Markdown (link só `http`/`https`/`mailto`), logs, comandos
+do app e o CI. Achados corrigidos: o seletor de cargo do registro de
+salário não escapava o nome, e a CSP ganhou `object-src`, `base-uri` e
+`form-action`. As auditorias de dependências deram zero vulnerabilidades.
+
+Avisos que sobram, sem correção do nosso lado (vêm de bibliotecas do
+Tauri no Linux, não do código do Kami; revistos a cada auditoria):
+`proc-macro-error`, `zvariant`, `zvariant_derive` e `zbus_names` sem
+manutenção, e `glib` 0.18 marcado como "unsound" (um iterador que o código do Kami
+não usa diretamente).
 
 ## Instaladores
 
