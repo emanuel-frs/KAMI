@@ -376,3 +376,60 @@ def test_metas_trazem_o_resumo_contado():
         "active": 4, "done": 1, "ahead": 0, "on_track": 1, "behind": 0, "overdue": 0, "no_deadline": 3,
         "money_remaining_total": 187.5}
 
+
+
+# ── P-173c: o Kami tira as conclusões também em contas, hábitos e aprendizado ──
+
+def test_conclusoes_das_contas_a_vencer():
+    hoje = dt.date(2026, 11, 6)
+    itens = [
+        {"title": "luz", "amount": 120.0, "due_date": "2026-11-03", "overdue": True},
+        {"title": "internet", "amount": 99.9, "due_date": "2026-11-08", "overdue": False},
+        {"title": "aluguel", "amount": 1000.0, "due_date": "2026-11-20", "overdue": False},
+    ]
+    c = ferramentas._conclusoes_contas(itens, hoje, 500.0)
+    assert c == {"unpaid_count": 3, "unpaid_total": 1219.9, "overdue_count": 1, "overdue_total": 120.0,
+                 "due_next_7_days_count": 1, "due_next_7_days_total": 99.9,
+                 "next_due": {"title": "internet", "due_date": "2026-11-08", "amount": 99.9, "days_left": 2},
+                 "accounts_total_available": 500.0, "accounts_cover_all": False, "short_by": 719.9}
+    assert ferramentas._conclusoes_contas(itens, hoje, 5000.0)["accounts_cover_all"] is True
+    assert "accounts_cover_all" not in ferramentas._conclusoes_contas(itens, hoje, None)
+    assert ferramentas._conclusoes_contas([], hoje, 10.0) == {"nothing_due": True}
+
+
+def test_conclusoes_dos_habitos():
+    h = lambda nome, **k: {"name": nome, "status": "ativo", "due_today": True, "done_today": False,  # noqa: E731
+                           "streak": 0, "success_30d_pct": None, **k}
+    c = ferramentas._conclusoes_habitos([
+        h("ler", done_today=True, streak=12, success_30d_pct=90.0),
+        h("correr", streak=3, success_30d_pct=40.0),
+        h("meditar", due_today=False, success_30d_pct=65.0),
+        h("pausado", status="pausado", streak=99),
+    ])
+    assert c == {"active": 3, "done_today": 1, "still_due_today": ["correr"],
+                 "streaks_at_risk_today": [{"name": "correr", "streak": 3}],
+                 "longest_current_streak": {"name": "ler", "streak": 12},
+                 "average_success_30d_pct": 65.0, "weakest_30d": {"name": "correr", "success_30d_pct": 40.0}}
+    assert ferramentas._conclusoes_habitos([h("x", status="pausado")]) == {"no_active_habits": True}
+
+
+def test_conclusoes_do_aprendizado():
+    tr = lambda nome, feitos, total, **k: {"track": nome, "status": "ativa", "completed": feitos, "total": total,  # noqa: E731
+                                           "progress_pct": round(feitos / total * 100) if total else 0,
+                                           "next_milestone": f"próximo de {nome}", **k}
+    paradas = [{"track": "rust", "days_without_milestone": 20}]
+    c = ferramentas._conclusoes_aprendizado([tr("java", 3, 4), tr("rust", 1, 5), tr("feita", 2, 2), tr("pausa", 0, 3, status="pausada")], paradas)
+    assert c == {"active_tracks": 3, "milestones_completed": 6, "milestones_total": 11, "stalled_tracks": paradas,
+                 "closest_to_finish": {"track": "java", "progress_pct": 75, "milestones_left": 1, "next_milestone": "próximo de java"}}
+    assert ferramentas._conclusoes_aprendizado([], []) == {"no_active_tracks": True}
+
+
+def test_contas_habitos_e_aprendizado_trazem_as_conclusoes(client, dados):
+    _, contas = _rodar(dados, "bills_due")
+    assert contas["conclusions"]["unpaid_count"] == len(contas["unpaid"])
+    assert contas["conclusions"]["accounts_total_available"] == client.get("/api/carteira/summary").json()["total_possui"]
+    _, apr = _rodar(dados, "learning")
+    assert apr["conclusions"]["active_tracks"] == sum(1 for t in apr["tracks"] if t["status"] == "ativa")
+    assert all("next_milestone" in t for t in apr["tracks"])
+    _, hab = _rodar(dados, "habits")
+    assert "conclusions" in hab

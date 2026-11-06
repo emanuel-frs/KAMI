@@ -3165,5 +3165,17 @@
   "zoom.aumentar": "ingrandisci",
   "zoom.padrao": "torna al 100%",
   "zoom.aviso": "dimensione dello schermo: {pct}%",
-  "zoom.atalho": "ingrandire, rimpicciolire o tornare alla dimensione normale dello schermo"
+  "zoom.atalho": "ingrandire, rimpicciolire o tornare alla dimensione normale dello schermo",
+  "assistente.quadro.contas": "conti da pagare",
+  "assistente.quadro.sem_contas": "niente da pagare nel periodo",
+  "assistente.quadro.em_aberto": {"one": "{n} da pagare · {valor}", "other": "{n} da pagare · {valor}"},
+  "assistente.quadro.vencidas": {"one": "{n} scaduto ({valor})", "other": "{n} scaduti ({valor})"},
+  "assistente.quadro.falta_cobrir": "manca sui conti",
+  "assistente.quadro.sem_habitos": "nessuna abitudine attiva",
+  "assistente.quadro.feitos_hoje": "{feitos} su {total} fatte oggi",
+  "assistente.quadro.falta_hoje": "manca oggi: {nomes}",
+  "assistente.quadro.sem_trilhas": "nessun percorso attivo",
+  "assistente.quadro.trilhas_ativas": {"one": "{n} percorso attivo", "other": "{n} percorsi attivi"},
+  "assistente.quadro.marcos_feitos": "{feitos}/{total} tappe",
+  "assistente.quadro.paradas": "fermo: {nomes}"
 }

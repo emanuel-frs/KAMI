@@ -3160,5 +3160,17 @@
   "zoom.aumentar": "aumentar",
   "zoom.padrao": "voltar a 100%",
   "zoom.aviso": "tamanho da tela: {pct}%",
-  "zoom.atalho": "aumentar, diminuir ou voltar ao tamanho normal da tela"
+  "zoom.atalho": "aumentar, diminuir ou voltar ao tamanho normal da tela",
+  "assistente.quadro.contas": "contas a pagar",
+  "assistente.quadro.sem_contas": "nada a pagar no período",
+  "assistente.quadro.em_aberto": {"one": "{n} em aberto · {valor}", "other": "{n} em aberto · {valor}"},
+  "assistente.quadro.vencidas": {"one": "{n} vencida ({valor})", "other": "{n} vencidas ({valor})"},
+  "assistente.quadro.falta_cobrir": "falta nas contas",
+  "assistente.quadro.sem_habitos": "nenhum hábito ativo",
+  "assistente.quadro.feitos_hoje": "{feitos} de {total} feitos hoje",
+  "assistente.quadro.falta_hoje": "falta hoje: {nomes}",
+  "assistente.quadro.sem_trilhas": "nenhuma trilha ativa",
+  "assistente.quadro.trilhas_ativas": {"one": "{n} trilha ativa", "other": "{n} trilhas ativas"},
+  "assistente.quadro.marcos_feitos": "{feitos}/{total} marcos",
+  "assistente.quadro.paradas": "parada: {nomes}"
 }

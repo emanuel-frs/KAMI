@@ -3163,5 +3163,17 @@
   "zoom.aumentar": "बड़ा करें",
   "zoom.padrao": "100% पर लौटें",
   "zoom.aviso": "स्क्रीन का आकार: {pct}%",
-  "zoom.atalho": "स्क्रीन बड़ी, छोटी या सामान्य आकार में करें"
+  "zoom.atalho": "स्क्रीन बड़ी, छोटी या सामान्य आकार में करें",
+  "assistente.quadro.contas": "चुकाने वाले बिल",
+  "assistente.quadro.sem_contas": "इस अवधि में कुछ नहीं चुकाना",
+  "assistente.quadro.em_aberto": {"one": "{n} बाकी · {valor}", "other": "{n} बाकी · {valor}"},
+  "assistente.quadro.vencidas": {"one": "{n} बकाया ({valor})", "other": "{n} बकाया ({valor})"},
+  "assistente.quadro.falta_cobrir": "खातों में कमी",
+  "assistente.quadro.sem_habitos": "कोई सक्रिय आदत नहीं",
+  "assistente.quadro.feitos_hoje": "आज {total} में से {feitos} पूरे",
+  "assistente.quadro.falta_hoje": "आज बाकी: {nomes}",
+  "assistente.quadro.sem_trilhas": "कोई सक्रिय ट्रैक नहीं",
+  "assistente.quadro.trilhas_ativas": {"one": "{n} सक्रिय ट्रैक", "other": "{n} सक्रिय ट्रैक"},
+  "assistente.quadro.marcos_feitos": "{feitos}/{total} पड़ाव",
+  "assistente.quadro.paradas": "रुका हुआ: {nomes}"
 }

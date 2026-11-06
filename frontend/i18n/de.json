@@ -3163,5 +3163,17 @@
   "zoom.aumentar": "größer",
   "zoom.padrao": "zurück auf 100 %",
   "zoom.aviso": "Bildschirmgröße: {pct} %",
-  "zoom.atalho": "Bildschirm vergrößern, verkleinern oder auf normale Größe zurücksetzen"
+  "zoom.atalho": "Bildschirm vergrößern, verkleinern oder auf normale Größe zurücksetzen",
+  "assistente.quadro.contas": "offene Rechnungen",
+  "assistente.quadro.sem_contas": "in diesem Zeitraum nichts zu zahlen",
+  "assistente.quadro.em_aberto": {"one": "{n} offen · {valor}", "other": "{n} offen · {valor}"},
+  "assistente.quadro.vencidas": {"one": "{n} überfällig ({valor})", "other": "{n} überfällig ({valor})"},
+  "assistente.quadro.falta_cobrir": "fehlt auf den Konten",
+  "assistente.quadro.sem_habitos": "keine aktiven Gewohnheiten",
+  "assistente.quadro.feitos_hoje": "{feitos} von {total} heute erledigt",
+  "assistente.quadro.falta_hoje": "heute noch: {nomes}",
+  "assistente.quadro.sem_trilhas": "keine aktiven Lernpfade",
+  "assistente.quadro.trilhas_ativas": {"one": "{n} aktiver Lernpfad", "other": "{n} aktive Lernpfade"},
+  "assistente.quadro.marcos_feitos": "{feitos}/{total} Meilensteine",
+  "assistente.quadro.paradas": "steht still: {nomes}"
 }

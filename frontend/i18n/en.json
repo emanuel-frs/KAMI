@@ -3163,5 +3163,17 @@
   "zoom.aumentar": "bigger",
   "zoom.padrao": "back to 100%",
   "zoom.aviso": "screen size: {pct}%",
-  "zoom.atalho": "make the screen bigger, smaller or back to normal"
+  "zoom.atalho": "make the screen bigger, smaller or back to normal",
+  "assistente.quadro.contas": "bills to pay",
+  "assistente.quadro.sem_contas": "nothing to pay in this period",
+  "assistente.quadro.em_aberto": {"one": "{n} unpaid · {valor}", "other": "{n} unpaid · {valor}"},
+  "assistente.quadro.vencidas": {"one": "{n} overdue ({valor})", "other": "{n} overdue ({valor})"},
+  "assistente.quadro.falta_cobrir": "short in the accounts",
+  "assistente.quadro.sem_habitos": "no active habits",
+  "assistente.quadro.feitos_hoje": "{feitos} of {total} done today",
+  "assistente.quadro.falta_hoje": "still today: {nomes}",
+  "assistente.quadro.sem_trilhas": "no active tracks",
+  "assistente.quadro.trilhas_ativas": {"one": "{n} active track", "other": "{n} active tracks"},
+  "assistente.quadro.marcos_feitos": "{feitos}/{total} milestones",
+  "assistente.quadro.paradas": "stalled: {nomes}"
 }

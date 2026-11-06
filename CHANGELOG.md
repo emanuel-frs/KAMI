@@ -7,6 +7,7 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [2.0.0] - em desenvolvimento
 
 ### Adicionado
+- o assistente agora recebe pronto, do próprio Kami, o que concluir sobre contas a vencer (quanto está em aberto, o que venceu, o que vence na semana e se o dinheiro nas contas cobre), hábitos (o que falta hoje, sequências em risco, a maior e o mais fraco) e aprendizado (o próximo marco de cada trilha, as paradas e a mais perto do fim); e mostra esses números num quadro, como já fazia com metas e finanças
 - tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador
 - relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia por e-mail, pelo seu programa de e-mail já preenchido, ou pelo GitHub, numa issue já preenchida. Nada sai pelo Kami: você confere e envia
 

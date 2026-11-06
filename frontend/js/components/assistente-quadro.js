@@ -188,10 +188,57 @@ function linhasMetas(metas) {
   return [`<div class="ia-q-lista ia-q-lista--alta"${ativas.length > MAX_METAS ? ` tabindex="0"` : ""}>${ativas.map(linhaMeta).join("")}</div>`];
 }
 
+// ── P-173c: contas a vencer, hábitos e aprendizado — o resumo contado pelo
+// Kami no topo (como em metas) e a lista embaixo ────────────────────────
+const resumo = (partes) => `<p class="ia-q-resumo">${escapeHtml(partes.filter(Boolean).join(" · "))}</p>`;
+
+function corpoContas(d) {
+  const c = d.conclusions || {};
+  const itens = d.unpaid || [];
+  if (c.nothing_due || !itens.length) return vazio(t("assistente.quadro.sem_contas"));
+  const topo = [
+    t("assistente.quadro.em_aberto", { n: c.unpaid_count, valor: fmtMoeda(c.unpaid_total || 0) }),
+    c.overdue_count ? t("assistente.quadro.vencidas", { n: c.overdue_count, valor: fmtMoeda(c.overdue_total) }) : "",
+  ];
+  const filas = itens.map((i) => fila(`${i.title} · ${fmtDataCompacta(i.due_date)}`, fmtMoeda(i.amount || 0), i.overdue ? "sai" : ""));
+  let fim = "";
+  if (c.accounts_total_available != null) {
+    fim = fila(t("assistente.quadro.nas_contas"), fmtMoeda(c.accounts_total_available), "forte")
+      + (c.accounts_cover_all ? "" : fila(t("assistente.quadro.falta_cobrir"), fmtMoeda(c.short_by || 0), "sai"));
+  }
+  return resumo(topo) + rolavel(itens.length, filas.join("")) + fim;
+}
+
+function corpoHabitos(d) {
+  const c = d.conclusions || {};
+  const lista = (d.habits || []).filter((h) => h.status === "ativo");
+  if (c.no_active_habits || !lista.length) return vazio(t("assistente.quadro.sem_habitos"));
+  const topo = [
+    t("assistente.quadro.feitos_hoje", { feitos: c.done_today ?? 0, total: c.active ?? lista.length }),
+    c.still_due_today?.length ? t("assistente.quadro.falta_hoje", { nomes: c.still_due_today.join(", ") }) : "",
+  ];
+  return resumo(topo) + cartaoHabitos(lista);
+}
+
+function corpoAprendizado(d) {
+  const c = d.conclusions || {};
+  const ativas = (d.tracks || []).filter((tr) => tr.status === "ativa");
+  if (c.no_active_tracks || !ativas.length) return vazio(t("assistente.quadro.sem_trilhas"));
+  const topo = [
+    t("assistente.quadro.trilhas_ativas", { n: c.active_tracks ?? ativas.length }),
+    t("assistente.quadro.marcos_feitos", { feitos: c.milestones_completed ?? 0, total: c.milestones_total ?? 0 }),
+    c.stalled_tracks?.length ? t("assistente.quadro.paradas", { nomes: c.stalled_tracks.map((p) => p.track).join(", ") }) : "",
+  ];
+  return resumo(topo) + rolavel(ativas.length, ativas.map((tr) => filaComBarra(tr.track, tr.progress_pct)).join(""));
+}
+
 function corpoDo(nome, d) {
   if (nome === "finance_summary") return { titulo: fmtMesAno(d.month), linhas: linhasFinancas(d, d.expected_income) };
   if (nome === "goals") return { titulo: t("assistente.quadro.metas"), linhas: [...resumoMetas(d.summary), ...linhasMetas(d.goals)] };
   if (nome === "month_overview") return { titulo: fmtMesAno(d.month), html: corpoMes(d) };
+  if (nome === "bills_due") return { titulo: t("assistente.quadro.contas"), html: corpoContas(d) };
+  if (nome === "habits") return { titulo: t("assistente.quadro.secao.habitos"), html: corpoHabitos(d) };
+  if (nome === "learning") return { titulo: t("assistente.quadro.secao.aprendizado"), html: corpoAprendizado(d) };
   return null;
 }
 

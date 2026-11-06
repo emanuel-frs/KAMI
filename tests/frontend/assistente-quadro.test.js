@@ -140,3 +140,38 @@ test(
     assert.equal(r.querySelector("code").textContent, ":target:", "dentro de código fica como está");
   }),
 );
+
+// P-173c: contas a vencer, hábitos e aprendizado também mostram o que o Kami contou
+test(
+  "quadro: contas a vencer, hábitos e aprendizado com o resumo do Kami no topo",
+  withDom("<!doctype html><body></body>", async () => {
+    const { noQuadro } = await import("../../frontend/js/components/assistente-quadro.js");
+    const contas = noQuadro({ nome: "bills_due", dados: {
+      conclusions: { unpaid_count: 2, unpaid_total: 219.9, overdue_count: 1, overdue_total: 120, accounts_total_available: 100, accounts_cover_all: false, short_by: 119.9 },
+      unpaid: [{ title: "luz", amount: 120, due_date: "2026-11-03", overdue: true }, { title: "internet", amount: 99.9, due_date: "2026-11-08", overdue: false }],
+    } });
+    assert.equal(contas.querySelector(".ia-quadro-titulo").textContent, "contas a pagar");
+    assert.equal(contas.querySelector(".ia-q-resumo").textContent.replace(/\s/g, " "), "2 em aberto · R$ 219,90 · 1 vencida (R$ 120,00)");
+    const filas = [...contas.querySelectorAll(".ia-q-fila")].map((f) => f.textContent.replace(/\s+/g, " ").trim());
+    assert.equal(filas.length, 4);
+    assert.match(filas[0], /^luz · .*R\$ 120,00$/);
+    assert.ok(contas.querySelector(".ia-q-fila .ia-quadro-v--sai"), "vencida em vermelho");
+    assert.match(filas.at(-1), /^falta nas contas\s*R\$\s119,90$/);
+    assert.match(noQuadro({ nome: "bills_due", dados: { conclusions: { nothing_due: true }, unpaid: [] } }).textContent, /nada a pagar/);
+
+    const hab = noQuadro({ nome: "habits", dados: {
+      conclusions: { active: 2, done_today: 1, still_due_today: ["correr"] },
+      habits: [{ name: "ler", status: "ativo", done_today: true, streak: 12, success_30d_pct: 90 },
+               { name: "correr", status: "ativo", done_today: false, streak: 0, success_30d_pct: 40 }],
+    } });
+    assert.equal(hab.querySelector(".ia-q-resumo").textContent.replace(/\s/g, " "), "1 de 2 feitos hoje · falta hoje: correr");
+    assert.equal(hab.querySelectorAll(".ia-q-fila").length, 2);
+
+    const apr = noQuadro({ nome: "learning", dados: {
+      conclusions: { active_tracks: 2, milestones_completed: 4, milestones_total: 9, stalled_tracks: [{ track: "rust", days_without_milestone: 20 }] },
+      tracks: [{ track: "java", status: "ativa", progress_pct: 75 }, { track: "rust", status: "ativa", progress_pct: 20 }, { track: "velha", status: "pausada", progress_pct: 0 }],
+    } });
+    assert.equal(apr.querySelector(".ia-q-resumo").textContent.replace(/\s/g, " "), "2 trilhas ativas · 4/9 marcos · parada: rust");
+    assert.equal(apr.querySelectorAll(".ia-q-barra-fila").length, 2, "só as ativas");
+  })
+);

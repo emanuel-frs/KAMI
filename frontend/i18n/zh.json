@@ -3129,5 +3129,17 @@
   "zoom.aumentar": "放大",
   "zoom.padrao": "恢复 100%",
   "zoom.aviso": "屏幕大小：{pct}%",
-  "zoom.atalho": "放大、缩小或恢复正常屏幕大小"
+  "zoom.atalho": "放大、缩小或恢复正常屏幕大小",
+  "assistente.quadro.contas": "待付账单",
+  "assistente.quadro.sem_contas": "此期间没有要付的",
+  "assistente.quadro.em_aberto": {"other": "{n} 笔未付 · {valor}"},
+  "assistente.quadro.vencidas": {"other": "{n} 笔逾期（{valor}）"},
+  "assistente.quadro.falta_cobrir": "账户缺口",
+  "assistente.quadro.sem_habitos": "没有进行中的习惯",
+  "assistente.quadro.feitos_hoje": "今天完成 {feitos}/{total}",
+  "assistente.quadro.falta_hoje": "今天还差：{nomes}",
+  "assistente.quadro.sem_trilhas": "没有进行中的路线",
+  "assistente.quadro.trilhas_ativas": {"other": "{n} 条进行中的路线"},
+  "assistente.quadro.marcos_feitos": "里程碑 {feitos}/{total}",
+  "assistente.quadro.paradas": "停滞：{nomes}"
 }
