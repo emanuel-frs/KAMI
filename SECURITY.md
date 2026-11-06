@@ -95,9 +95,9 @@ destravado** (com o PIN ligado) e contra **entrada malformada** na API.
   novos (1.13) ligam e desligam a bandeja e o "iniciar com o sistema",
   que ficam desligados até você ligar; essa escolha mora num arquivo da
   máquina, não no backup.
-- **Dependências auditadas.** Em todo PR e toda semana, `pip-audit`,
+- **Dependências auditadas.** Em todo PR e uma vez por mês, `pip-audit`,
   `npm audit` e `cargo audit` rodam no CI e falham com vulnerabilidade
-  alta ou crítica; o Dependabot propõe atualizações toda semana; as
+  alta ou crítica; o Dependabot propõe atualizações uma vez por mês; as
   actions do GitHub são fixadas por SHA.
 
 ### O que o Kami NÃO protege

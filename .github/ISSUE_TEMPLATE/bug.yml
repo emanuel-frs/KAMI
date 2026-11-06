@@ -5,12 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Obrigado por testar o Kami! Antes de enviar, **não cole dados pessoais**.
+        Obrigado por relatar! Antes de enviar, **não cole dados pessoais**.
+        Dica: em configurações › sobre › "relatar um erro ou dar uma ideia", o Kami abre esta página já
+        preenchida com a versão e um diagnóstico sem dados pessoais.
   - type: input
     id: versao
     attributes:
       label: Versão do Kami
-      description: "Está no nome do instalador, por exemplo 1.8.1"
+      description: "Em configurações › sobre, por exemplo 2.0.0"
     validations:
       required: true
   - type: dropdown
