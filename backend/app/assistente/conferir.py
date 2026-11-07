@@ -112,6 +112,9 @@ def conhecidos(resultados: list[str], pergunta: str, hoje: date) -> tuple[set, s
                 pass
             for m in _DATA_ISO.finditer(corpo):
                 datas.add((int(m.group(3)), int(m.group(2))))
+            # "a/b" escrito nos dados: "notebook (5/10)", conquistas "16/50"
+            for m in _DATA.finditer(corpo):
+                datas.add((int(m.group(1)), int(m.group(2))))
     _do_texto(pergunta, numeros, datas)
     return numeros, datas
 
@@ -131,7 +134,10 @@ def soltos(resposta: str, resultados: list[str], pergunta: str, hoje: date) -> l
             achados.append((m.start(), m.group(0).strip()))
     for m in _DATA.finditer(resposta):
         dia, mes = int(m.group(1)), int(m.group(2))
-        if 1 <= dia <= 31 and 1 <= mes <= 12 and (dia, mes) not in datas:
+        # "3/5" sem ano com os dois números nos dados é fração (marcos
+        # feitos/total, parcela 5 de 10), não data (teste do Emanuel)
+        fracao = m.group(3) is None and float(dia) in numeros and float(mes) in numeros
+        if 1 <= dia <= 31 and 1 <= mes <= 12 and (dia, mes) not in datas and not fracao:
             achados.append((m.start(), m.group(0)))
     vistos, saida = set(), []
     for _, t in sorted(achados):

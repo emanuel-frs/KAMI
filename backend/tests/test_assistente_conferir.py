@@ -190,3 +190,15 @@ def test_soma_de_itens_da_mesma_lista_nao_e_acusada():
     assert conferir.soltos("total R$ 78; dois: R$ 3", [muitos], "x", HOJE) == []
     assert conferir.soltos("três primeiros: R$ 6,50", [muitos], "x", HOJE) == ["R$ 6,50"]
 
+
+
+def test_fracao_nao_e_data():
+    """Teste do Emanuel: "notebook (5/10)" e "3/5 marcos" viravam "confira"."""
+    contas = ferramentas._embrulhar("bills_due", json.dumps({"bills": [
+        {"name": "notebook (5/10)", "amount": 200.0, "due_date": "2026-12-01", "installment": 5, "installments": 10}]}))
+    trilhas = ferramentas._embrulhar("learning", json.dumps({"tracks": [
+        {"track": "inglês", "completed": 3, "total": 5, "progress_pct": 60}], "achievements": "16/50"}))
+    resposta = "Parcela 5/10 do notebook em 01/12. Inglês: 3/5 marcos (60%). Conquistas 16/50."
+    assert conferir.soltos(resposta, [contas, trilhas], "x", HOJE) == []
+    # data de verdade que não está nos dados continua sendo acusada
+    assert conferir.soltos("vence em 15/11", [contas, trilhas], "x", HOJE) == ["15/11"]

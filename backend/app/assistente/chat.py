@@ -79,6 +79,10 @@ def _so_texto(m: dict) -> dict:
     return {**m, "chamadas": []}
 
 
+RESULTADO_ANTIGO = ("[earlier result in this conversation — the data may have changed since; "
+                    "for a new question, call the tool again]\n")
+
+
 def _historico(mensagens: list[dict], local: bool = False) -> list[Mensagem]:
     """As mensagens guardadas desta conversa no formato neutro, das mais
     recentes pra trás até o limite — começando sempre numa mensagem da
@@ -105,6 +109,10 @@ def _historico(mensagens: list[dict], local: bool = False) -> list[Mensagem]:
         if m["papel"] == "assistente" and not m["texto"] and not m["chamadas"]:
             continue  # resposta que falhou antes do 1º pedaço
         texto = m["texto"] + (acoes.estado_pro_modelo(m["proposta"]) if m.get("proposta") else "")
+        if m["papel"] == "ferramenta" and not m.get("proposta"):
+            # teste do Emanuel: criou um hábito e, na mesma conversa, o modelo
+            # repetiu "você não tem hábitos" do resultado antigo
+            texto = RESULTADO_ANTIGO + texto
         saida.append(Mensagem(m["papel"], texto, [ChamadaFerramenta(**c) for c in m["chamadas"]],
                               id_chamada=m.get("id_chamada"), nome_ferramenta=m.get("nome_ferramenta")))
     return saida
