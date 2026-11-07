@@ -209,3 +209,11 @@ def test_icone_inventado_sai_e_os_do_kami_ficam():
     assert conferir.arrumar(":todinho: 1 hábito ativo") == "1 hábito ativo"
     assert conferir.arrumar(":target: meta em dia às 10:30") == ":target: meta em dia às 10:30"
     assert conferir.arrumar("veja https://x.com/a:b:c e ```\n:todinho:\n```") == "veja https://x.com/a:b:c e ```\n:todinho:\n```"
+
+
+def test_dinheiro_escrito_no_nome_dos_dados_nao_e_acusado():
+    """Teste do Emanuel: meta "Reserva de emergência R$5.000" → "! confira — R$5.000"."""
+    metas = ferramentas._embrulhar("month_overview", json.dumps({"goals": {"active": [
+        {"title": "Reserva de emergência R$5.000", "situation": "on_track"}]}}))
+    assert conferir.soltos("Reserva de emergência R$5.000 (no prazo)", [metas], "x", HOJE) == []
+    assert conferir.soltos("faltam R$ 4.000", [metas], "x", HOJE) == ["R$ 4.000"]

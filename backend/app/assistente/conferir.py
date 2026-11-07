@@ -117,6 +117,11 @@ def conhecidos(resultados: list[str], pergunta: str, hoje: date) -> tuple[set, s
             # "a/b" escrito nos dados: "notebook (5/10)", conquistas "16/50"
             for m in _DATA.finditer(corpo):
                 datas.add((int(m.group(1)), int(m.group(2))))
+            # dinheiro escrito em texto dos dados: meta "Reserva de emergência R$5.000"
+            for m in _DINHEIRO.finditer(corpo):
+                v = valor(m.group(1) or m.group(2))
+                if v is not None:
+                    numeros.add(abs(v))
     _do_texto(pergunta, numeros, datas)
     return numeros, datas
 
