@@ -128,6 +128,11 @@ Nada, a não ser que você ative uma integração — a tabela completa está no
 IMAP do seu e-mail e a busca, cada um só quando você cadastra. Não há
 telemetria nem conta de usuário.
 
+O relato de erro ou ideia (configurações › sobre) sai pela conta de e-mail
+que você ligou, por SMTP com TLS, só quando você clica em enviar, e sempre
+para o endereço do projeto (`kami.feedback@gmail.com`): a rota não aceita
+outro destinatário, então não serve para mandar e-mail a mais ninguém.
+
 A única consulta que o Kami faz sozinho é o **aviso de versão nova**
 (DIST-01): ao abrir e uma vez por dia, ele pede o `latest.json` da página
 de Releases do Kami no GitHub — sem nada seu no pedido além do que qualquer

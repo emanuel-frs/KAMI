@@ -101,8 +101,8 @@ A personal project, maintained by one person. Built for my own use and published
   new version, Kami keeps a copy and goes back to it if the update fails; a copy of the database is made
   every week and before importing or erasing everything, with "restore" in settings › backup (and an
   optional extra folder, such as a USB drive); and in settings › about you can report a bug or share an
-  idea by e-mail or on GitHub, with a diagnostic report that has no personal data (you review it before
-  sending).
+  idea straight from the app, through the e-mail account you connected in Kami, or on GitHub, with a
+  diagnostic report that has no personal data (you review it before sending).
 - **Screens that arrange themselves:** widgets snap into aligned rows, at any window size and with any
   amount of data, and each screen has a default layout built to fit (with "reset layout"). A widget you
   remove and add back returns to its place. Optional: the app icon in the accent color.
@@ -172,6 +172,7 @@ and to check for a new version (you can turn that off). There's no telemetry and
 |---|---|---|
 | `api.github.com` | only if you add a repository or token | repository names and the token (in a header) |
 | Your e-mail provider (IMAP) | only if you add an account | user and app password, over SSL |
+| Your e-mail provider (SMTP), to `kami.feedback@gmail.com` | only when you click "send by email" in settings › about | the message you wrote and, if checked, the diagnostic report (no personal data), sent from your address |
 | `api.tavily.com` | only if you add a search key | your searches and the key |
 | `duckduckgo.com` | only when you click "open search" | the search, opened in your browser |
 | `github.com` (Kami Releases) | on launch and once a day, with "check for updates" on (default; turn it off in settings › about) | only the request for the versions file (`latest.json`), nothing of yours; and the download of the new version, if you ask to "update now" |

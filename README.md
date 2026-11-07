@@ -106,8 +106,9 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; uma cópia do banco
   sai sozinha toda semana e antes de importar ou apagar tudo, com "restaurar" em configurações › backup
   (e uma pasta extra opcional, como um pendrive); e em
-  configurações › sobre dá para relatar um erro ou dar uma ideia por e-mail ou pelo GitHub, já com
-  um diagnóstico sem dados pessoais (você confere antes de enviar).
+  configurações › sobre dá para relatar um erro ou dar uma ideia direto do app, pela sua conta de
+  e-mail ligada no Kami, ou pelo GitHub, já com um diagnóstico sem dados pessoais (você confere antes
+  de enviar).
 - **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
   de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar
   (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.
@@ -177,6 +178,7 @@ e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria ne
 |---|---|---|
 | `api.github.com` | só se você cadastrar um repositório ou token | nomes de repositórios e o token (no header) |
 | Seu provedor de e-mail (IMAP) | só se você cadastrar uma conta | usuário e senha de app, por conexão SSL |
+| Seu provedor de e-mail (SMTP), para `kami.feedback@gmail.com` | só quando você clica em "enviar por e-mail" em configurações › sobre | a mensagem que você escreveu e, se marcado, o diagnóstico (sem dados pessoais), saindo do seu endereço |
 | `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
 | `github.com` (Releases do Kami) | ao abrir e uma vez por dia, com "procurar atualizações" ligado (padrão; desliga em configurações › sobre) | só o pedido do arquivo de versões (`latest.json`), sem nada seu; e o download da versão nova, se você pedir "atualizar agora" |

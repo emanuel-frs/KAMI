@@ -16,4 +16,6 @@ export const importProtegido = (confirmation, cifrado, senha) =>
 export const resetData = (confirmation) => post("/api/sistema/reset", { confirmation });
 // CONF-06: texto pra relato de problema, já sem dado pessoal. O `t` fura o
 // cache de GET do client (20 s) — o fim do log muda a cada segundo.
-export const getDiagnostico = () => get(`/api/sistema/diagnostico?t=${Date.now()}`);
+export const getDiagnostico = () => get(`/api/sistema/diagnostico?t=${Date.now()}`);// EST-01 (P-194): relato pela conta de e-mail ligada no Kami (routers/retorno.py)
+export const contasParaRetorno = () => get(`/api/retorno/contas?t=${Date.now()}`);
+export const enviarRetorno = (dados) => post("/api/retorno/enviar", dados);

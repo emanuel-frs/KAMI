@@ -24,7 +24,7 @@ const PERFIL = {
 function backendFalso() {
   const chamadas = [];
   const estado = {
-    perfil: { ...PERFIL }, pin: { ativo: false, inatividade_min: null }, contas: [], gh: false,
+    perfil: { ...PERFIL }, pin: { ativo: false, inatividade_min: null }, contas: [], gh: false, retornoContas: [],
     backups: {
       copias: [{ nome: "kami-antes-de-apagar-tudo-20261021-090000.db", tipo: "antes", acao: "apagar-tudo", quando: "2026-10-21T09:00:00-03:00", tamanho: 2048 }],
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
@@ -62,6 +62,8 @@ function backendFalso() {
     "POST /api/sistema/import": () => ({ ok: true }),
     "POST /api/sistema/reset": () => ({ ok: true }),
     "GET /api/sistema/diagnostico": () => ({ texto: "kami 1.14.0\nsistema: teste", versao: "1.14.0" }),
+    "GET /api/retorno/contas": () => estado.retornoContas,
+    "POST /api/retorno/enviar": (b) => ({ enviado: true, de: "eu@exemplo.com", para: "kami.feedback@gmail.com", recebido: b }),
     "GET /api/seguranca/chave": () => ({ local: "cofre", cofre: "Secret Service", motivo: null, segredos_salvos: 0 }),
     "GET /api/seguranca/pin": () => estado.pin,
     "POST /api/seguranca/pin": () => ((estado.pin = { ativo: true, inatividade_min: null }), { ...estado.pin, codigo_recuperacao: "KAMI-AAAA-BBBB-CCCC" }),
@@ -390,19 +392,39 @@ test(
       assert.match($("#cfg-diag-status").textContent, /copiado|copie à mão/);
     });
 
-    await t.test("sobre (EST-01): relatar erro abre o e-mail com o diagnóstico; ideia vai sem", async () => {
+    await t.test("sobre (EST-01/P-194): envia pela conta ligada; sem conta, avisa e oferece ligar ou o programa de e-mail", async () => {
       const abertos = [];
       dom.window.open = (url) => abertos.push(url);
       $("#cfg-ret-email").click();
       await espera();
       assert.match($("#cfg-ret-status").textContent, /escreva/);
-      assert.equal(abertos.length, 0);
       digita($("#cfg-ret-texto"), "travou ao salvar");
+
+      // sem conta ligada: nada sai, o aviso aparece com as duas saídas
       $("#cfg-ret-email").click();
+      await espera();
+      assert.equal($("#cfg-ret-falta-conta").hidden, false);
+      assert.equal(pedidos("POST", "/api/retorno/enviar").length, 0);
+      $("#cfg-ret-mailto").click();
       await espera();
       assert.match(abertos[0], /^mailto:kami\.feedback@gmail\.com\?subject=Kami%201\.14\.0/);
       assert.match(decodeURIComponent(abertos[0]), /travou ao salvar[\s\S]*kami 1\.14\.0/);
-      assert.match($("#cfg-ret-status").textContent, /kami\.feedback@gmail\.com/);
+
+      // com uma conta: envia direto, com o diagnóstico, e limpa o campo
+      back.estado.retornoContas = [{ id: "e1", label: "pessoal", username: "eu@exemplo.com" }];
+      $("#cfg-ret-email").click();
+      await espera(40);
+      assert.equal($("#cfg-ret-falta-conta").hidden, true);
+      const [envio] = pedidos("POST", "/api/retorno/enviar");
+      assert.equal(envio.corpo.conta_id, "e1");
+      assert.equal(envio.corpo.mensagem, "travou ao salvar");
+      assert.match(envio.corpo.assunto, /^Kami 1\.14\.0 · /);
+      assert.match(envio.corpo.diagnostico, /^--- diagnóstico ---\nkami 1\.14\.0/);
+      assert.match($("#cfg-ret-status").textContent, /eu@exemplo\.com[\s\S]*kami\.feedback@gmail\.com/);
+      assert.equal($("#cfg-ret-texto").value, "");
+      assert.equal($("#cfg-ret-de-campo").hidden, true, "uma conta só: sem escolha de remetente");
+
+      digita($("#cfg-ret-texto"), "travou ao salvar");
       const sel = $("#cfg-ret-tipo");
       sel.value = "ideia";
       sel.dispatchEvent(new dom.window.Event("change"));
