@@ -119,7 +119,7 @@ A personal project, maintained by one person. Built for my own use and published
   statement, goals and study plans) in a preview you edit and apply in part, and an applied batch can be
   undone as a whole; nothing is saved without your click. The math is Kami's own: goals, finances, bills,
   habits and studies reach the model already analyzed and show up in a card with your real numbers; the
-  model only comments, and Kami flags any amount or date in the answer that isn't in your data. You
+  model only comments. You
   choose which areas it can read and see everything that was sent. No key ships with the app. What
   leaves and the limits are in [SECURITY.md](./SECURITY.md#assistente-de-ia).
 - **Notices:** Kami warns in the bell when spending goes past the previous month, a fixed bill is due

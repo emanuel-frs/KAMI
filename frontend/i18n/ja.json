@@ -2766,7 +2766,6 @@
   "assistente.chat.pronto": "準備できました。何を手伝いましょうか？",
   "assistente.chat.o_que_faz": "Kami のアシスタントです。家計、キャリア、学習、目標、習慣、整理、そしてアプリの使い方を手伝います。バーチャルな友達ではないので、それ以外の話題はお断りします。",
   "assistente.chat.interrompida": "（応答は中断されました）",
-  "assistente.chat.conferir": "確認してください：Kami が調べたデータにありません — {valores}",
   "assistente.etapa.pensando": "考えています",
   "assistente.etapa.preparando": "モデルを準備しています（最初の質問）",
   "assistente.etapa.lendo": "データを読んでいます",

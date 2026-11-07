@@ -2795,7 +2795,6 @@
   "assistente.chat.pronto": "pronto. no que posso ajudar?",
   "assistente.chat.o_que_faz": "sou o assistente do Kami: ajudo com finanças, carreira, aprendizado, metas, hábitos, organização e com o próprio app. não sou um amigo virtual — assunto fora disso eu recuso.",
   "assistente.chat.interrompida": "(resposta interrompida)",
-  "assistente.chat.conferir": "confira: não está nos dados que o Kami consultou — {valores}",
   "assistente.etapa.pensando": "pensando",
   "assistente.etapa.preparando": "preparando o modelo (1ª pergunta)",
   "assistente.etapa.lendo": "lendo os dados",

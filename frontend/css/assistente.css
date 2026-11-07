@@ -98,8 +98,6 @@
 @keyframes ia-pisca { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ia-cursor { animation: none; } }
 .ia-interrompida { display: block; margin-top: 4px; color: var(--text-faint); font-size: 10px; }
-.ia-conferir { margin: 6px 0 0; color: var(--amber); font-size: 11px; }
-.ia-conferir::before { content: "! "; }
 .ia-falha { margin: 6px 0 0; color: var(--red); font-size: 11px; }
 .ia-falha svg { vertical-align: -1px; }
 .ia-falha small { display: block; color: var(--text-faint); }

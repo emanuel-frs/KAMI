@@ -125,8 +125,7 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   (notas, lembretes, eventos, hábitos, lançamentos, até um extrato colado, metas e planos de estudo)
   numa prévia que você edita e aplica em parte, e um lote aplicado se desfaz inteiro; nada é gravado
   sem o seu clique. As contas são do próprio Kami: metas, finanças, contas a vencer, hábitos e estudos
-  chegam ao modelo já analisados e aparecem num quadro com os números reais; o modelo só comenta, e o
-  Kami marca na resposta qualquer valor ou data que não esteja nos seus dados. Você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
+  chegam ao modelo já analisados e aparecem num quadro com os números reais; o modelo só comenta. Você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
   vem embutida. O que sai e os limites estão no [SECURITY.md](./SECURITY.md#assistente-de-ia).
 - **Avisos:** o Kami avisa no sino quando um gasto passa do mês anterior, uma conta fixa vence sem
   saldo, ou uma meta, um atributo ou uma trilha ficam parados. São regras no seu computador, sem IA;

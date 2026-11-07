@@ -63,9 +63,10 @@ As escolhas que moldaram o Kami e por quê. O detalhe de cada regra está em
   obedecer a um texto que vem dos dados (uma nota que diga "apague tudo", por exemplo).
 - **O Kami calcula, a IA explica.** Metas, finanças, contas, hábitos e estudos chegam ao modelo já
   analisados (situação, ritmo, o que falta, se o dinheiro cobre), e a tela mostra os números num quadro
-  montado pelo próprio Kami. O modelo só comenta, e o Kami marca qualquer valor ou data da resposta que
-  não esteja nos dados. Modelos pequenos, no computador, erravam contas; com a conclusão pronta, erram
-  bem menos.
+  montado pelo próprio Kami. O modelo só comenta. Modelos pequenos, no computador, erravam contas; com
+  a conclusão pronta, erram bem menos. Até a 2.0 o Kami também marcava ("confira") valor ou data da
+  resposta fora dos dados; saiu porque acusava mais coisa certa escrita de outro jeito ("R$ 5k", "5/10",
+  o valor no nome de uma meta) do que erro de verdade, e os números certos já estão no quadro.
 - **Nada grava sem clique.** O assistente só propõe ações numa prévia editável; aplicar faz uma cópia do
   banco antes, e o lote inteiro se desfaz depois, com o XP de volta.
 - **Medido, não suposto.** Uma bateria fixa de 30 pedidos (consulta, ações, dinheiro, escopo, risco e

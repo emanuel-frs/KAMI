@@ -109,14 +109,14 @@ test(
       assert.equal(box.querySelector("a").textContent, "findahelpline.com");
     });
 
-    await t.test("IA-07a: modelo local aquece ao abrir e número fora dos dados ganha o aviso", async () => {
+    await t.test("IA-07a: modelo local aquece ao abrir; a resposta limpa pelo Kami substitui a que veio, sem \"confira\"", async () => {
       const aquecer = pedidos.find((p) => p.caminho === "/api/assistente/aquecer");
       assert.deepEqual(aquecer?.corpo, { tela: "financas", idioma: "pt" });
       resposta = [
         { tipo: "inicio", conversa_id: "c1" },
         { tipo: "ferramenta", nome: "finance_summary" },
         { tipo: "texto", delta: "Seu saldo é r$ 49.031." },
-        { tipo: "conferido", texto: "Seu saldo é R$ 49.031.", valores: ["R$ 49.031"] },
+        { tipo: "conferido", texto: "Seu saldo é R$ 49.031." },
         { tipo: "fim", motivo: "fim" },
       ];
       $("#ia-texto").value = "estou gastando muito?";
@@ -124,7 +124,7 @@ test(
       await ate(() => $("#ia-form").dataset.enviando === "false");
       const ultima = doc.querySelector(".ia-msg--kami:last-child");
       assert.equal(ultima.querySelector(".ia-msg-texto").textContent, "Seu saldo é R$ 49.031.");
-      assert.equal(ultima.querySelector(".ia-conferir").textContent, "confira: não está nos dados que o Kami consultou — R$ 49.031");
+      assert.match(ultima.textContent, /^(?!.*confira)/s, "o aviso \"confira\" saiu (teste do Emanuel)");
     });
 
     await t.test("IA-07a: 1ª pergunta durante o aquecimento mostra \"preparando o modelo\"", async () => {

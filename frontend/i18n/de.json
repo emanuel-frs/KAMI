@@ -2798,7 +2798,6 @@
   "assistente.chat.pronto": "Bereit. Wobei kann ich helfen?",
   "assistente.chat.o_que_faz": "Ich bin der Assistent von Kami: Ich helfe bei Finanzen, Karriere, Lernen, Zielen, Gewohnheiten, Organisation und bei der App selbst. Ich bin kein virtueller Freund — alles andere lehne ich ab.",
   "assistente.chat.interrompida": "(Antwort abgebrochen)",
-  "assistente.chat.conferir": "Prüf das: nicht in den Daten, die Kami abgefragt hat — {valores}",
   "assistente.etapa.pensando": "Denkt nach",
   "assistente.etapa.preparando": "Modell wird vorbereitet (1. Frage)",
   "assistente.etapa.lendo": "Liest die Daten",

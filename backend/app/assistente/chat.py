@@ -12,8 +12,8 @@ frontend em SSE.
     {"tipo": "mascarado", "n", "texto"}              P-139: números de conta/documento
                                                      trocados na mensagem da pessoa
     {"tipo": "cuidado", "servico"}                   P-111: o Kami respondeu sozinho
-    {"tipo": "conferido", "texto", "valores"}        IA-07a: resposta com a moeda arrumada e os
-                                                     valores/datas que não estão nos dados (conferir.py)
+    {"tipo": "conferido", "texto"}                   IA-07a: a resposta limpa (moeda, emojis, HTML,
+                                                     ícones inventados — conferir.py) no lugar da que veio
     {"tipo": "fim", "motivo", "uso_hoje"}            fim | limite | parado | rodadas | cuidado | outro
     {"tipo": "falha", "status", "chave", "detail", "vars", "uso_hoje"}
 
@@ -359,21 +359,14 @@ def turno(conn, conversa_id: str | None, texto: str, idioma: str, tela: str | No
     conferido = None
     if resposta and not erro:
         arrumada = conferir.arrumar(resposta)
-        # tudo o que foi consultado NA CONVERSA: no local, o histórico não leva
-        # os dados antigos, mas o modelo repete números de respostas anteriores
-        consultados = [m["texto"] for m in conversa["mensagens"] if m["papel"] == "ferramenta"]
-        valores = conferir.soltos(arrumada, consultados + [m.texto for m in mensagens if m.papel == "ferramenta"],
-                                  texto, local_now().date())
-        if valores or arrumada != resposta:
-            resposta, conferido = arrumada, {"tipo": "conferido", "texto": arrumada, "valores": valores}
+        if arrumada != resposta:
+            resposta, conferido = arrumada, {"tipo": "conferido", "texto": arrumada}
     if parcial:
         conversas.remover_mensagens(conn, cid, [parcial["id"]])  # volta emendada, no fim da conversa
     # "limite" = o provedor cortou pelo máximo de tokens: também dá pra continuar
     conversas.adicionar_mensagem(conn, cid, "assistente", resposta, provedor=row["nome"], modelo=p.modelo,
                                  interrompida=motivo in ("parado", "limite") or erro is not None,
-                                 erro_chave=erro.chave if erro else None,
-                                 aviso={"tipo": "conferir", "valores": conferido["valores"]}
-                                 if conferido and conferido["valores"] else None)
+                                 erro_chave=erro.chave if erro else None)
     if conferido:
         yield conferido
     if erro:

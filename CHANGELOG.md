@@ -21,6 +21,9 @@ _O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 
 - tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador. Com zoom alto ou a janela estreita (meia tela), o menu da esquerda vira um botão na barra de título que o abre por cima
 - relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia direto do Kami, pela conta de e-mail que você ligou em organização › e-mail (sem conta ligada, o Kami leva até lá ou abre o seu programa de e-mail já preenchido), ou pelo GitHub, numa issue já preenchida. Nada sai antes do seu clique
 
+### Removido
+- o aviso "confira" embaixo das respostas do assistente (valor ou data fora dos dados): acusava mais coisa certa escrita de outro jeito do que erro de verdade, e os números certos já aparecem no quadro do Kami
+
 ### Corrigido
 - acessibilidade pelo teclado e leitor de tela: os ícones de ação (editar, remover), abas e filtros que não eram botões passam a ser alcançados pelo Tab e acionados com Enter ou Espaço, com nome para o leitor de tela; setas de mês, seletores e o campo da captura rápida ganharam nome; as listas com rolagem (conquistas, eventos do dia) dá para rolar pelo teclado; e textos pequenos na cor de destaque ou bem apagados ficaram com contraste suficiente em qualquer cor escolhida
 

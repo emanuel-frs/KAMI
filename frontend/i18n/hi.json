@@ -2798,7 +2798,6 @@
   "assistente.chat.pronto": "तैयार हूँ। मैं कैसे मदद करूँ?",
   "assistente.chat.o_que_faz": "मैं Kami का असिस्टेंट हूँ: वित्त, करियर, सीखना, लक्ष्य, आदतें, व्यवस्था और ऐप के इस्तेमाल में मदद करता हूँ। मैं वर्चुअल दोस्त नहीं हूँ — इसके बाहर की बातें मना कर देता हूँ।",
   "assistente.chat.interrompida": "(जवाब बीच में रुका)",
-  "assistente.chat.conferir": "जाँच लो: Kami ने जो डेटा देखा उसमें यह नहीं है — {valores}",
   "assistente.etapa.pensando": "सोच रहा है",
   "assistente.etapa.preparando": "मॉडल तैयार हो रहा है (पहला सवाल)",
   "assistente.etapa.lendo": "डेटा पढ़ रहा है",
