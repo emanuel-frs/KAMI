@@ -99,7 +99,7 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
 - **Acessibilidade e tamanho da tela:** tudo funciona pelo teclado (Tab, Enter, Espaço e atalhos com
   `Alt`, listados em `Alt+H`), com nome para o leitor de tela em cada controle e o contraste conferido
   com o axe-core em todas as telas; `Ctrl +` e `Ctrl −` aumentam ou diminuem tudo, e `Ctrl 0` volta ao
-  normal.
+  normal. Com zoom alto ou a janela estreita, o menu da esquerda vira um botão na barra de título.
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para

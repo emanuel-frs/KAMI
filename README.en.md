@@ -93,7 +93,7 @@ A personal project, maintained by one person. Built for my own use and published
 - **Accessibility and screen size:** everything works from the keyboard (Tab, Enter, Space and `Alt`
   shortcuts, listed in `Alt+H`), every control has a name for screen readers and contrast was checked
   with axe-core on every screen; `Ctrl +` and `Ctrl −` make everything bigger or smaller, and `Ctrl 0`
-  goes back to normal.
+  goes back to normal. With a high zoom or a narrow window, the left menu becomes a button in the title bar.
 - **Profile:** an ASCII avatar generated inside the app from a photo; only the text is saved, never the
   photo.
 - **Reliability:** when something goes wrong, a notice shows a code that is also in the log; if the

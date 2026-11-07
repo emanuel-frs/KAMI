@@ -18,7 +18,7 @@ _O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 
 
 ### Adicionado
 - o assistente agora recebe pronto, do próprio Kami, o que concluir sobre contas a vencer (quanto está em aberto, o que venceu, o que vence na semana e se o dinheiro nas contas cobre), hábitos (o que falta hoje, sequências em risco, a maior e o mais fraco) e aprendizado (o próximo marco de cada trilha, as paradas e a mais perto do fim); e mostra esses números num quadro, como já fazia com metas e finanças
-- tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador
+- tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador. Com zoom alto ou a janela estreita (meia tela), o menu da esquerda vira um botão na barra de título que o abre por cima
 - relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia direto do Kami, pela conta de e-mail que você ligou em organização › e-mail (sem conta ligada, o Kami leva até lá ou abre o seu programa de e-mail já preenchido), ou pelo GitHub, numa issue já preenchida. Nada sai antes do seu clique
 
 ### Corrigido
