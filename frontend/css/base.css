@@ -53,10 +53,13 @@ a { color: var(--text-bright); }
  * Primeiro elemento do body (ver index.html) — fora da tela por
  * padrão, só aparece com foco de teclado (Tab a partir do topo da
  * página). z-index acima da titlebar (400) e da textura de scanline
- * (999) pra nunca ficar coberto, não importa em qual tela. */
+ * (999) pra nunca ficar coberto, não importa em qual tela.
+ * Escondido pela PRÓPRIA altura (translateY -100%), não por um top fixo:
+ * com zoom abaixo de 100% o WebKit segura o tamanho mínimo do texto, o
+ * link fica mais alto que os 40px de antes e aparecia no topo (EST-03). */
 .skip-link {
   position: absolute;
-  top: -40px;
+  top: 0;
   left: 8px;
   z-index: 1000;
   background: var(--bg-alt);
@@ -65,10 +68,11 @@ a { color: var(--text-bright); }
   padding: 8px 14px;
   font-size: 12px;
   text-decoration: none;
-  transition: top 0.15s ease;
+  transform: translateY(calc(-100% - 8px));
+  transition: transform 0.15s ease;
 }
 .skip-link:focus {
-  top: 8px;
+  transform: translateY(8px);
 }
 
 /* ── scrollbar temática: "blocos listrados" (AJU-04) ─────────────────

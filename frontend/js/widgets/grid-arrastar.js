@@ -6,6 +6,7 @@
  */
 import { icon } from "../components/icons.js";
 import {
+  escolherAltura,
   WG_GAP,
   WG_MIN_H,
   snapResizeHeight,
@@ -44,9 +45,8 @@ export function attachResizeHandle(card, container, getCommit, pauseObservers, r
   reset.innerHTML = icon("undo", { size: 11, title: t("grid.tamanho_auto") });
   reset.onclick = () => {
     const cols = currentCols(container);
-    card.style.height = "";
+    escolherAltura(card, null);
     card.dataset.span = card.dataset.origSpan ?? card.dataset.span;
-    delete card.dataset.manual;
     placeCard(card, cols);
     getCommit()();
   };
@@ -67,8 +67,7 @@ export function attachResizeHandle(card, container, getCommit, pauseObservers, r
       // mesmo drag, e isso afeta quebra de linha/altura do conteúdo)
       const floor = Math.max(WG_MIN_H, contentMinHeight(card));
       const newH = snapResizeHeight(Math.max(floor, startH + dy));
-      card.style.height = `${newH}px`;
-      card.dataset.manual = "1";
+      escolherAltura(card, newH);
 
       const dx = e.clientX - startX;
       const deltaCols = Math.round(dx / colStep);

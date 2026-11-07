@@ -8,6 +8,8 @@ import { WIDGET_CATALOG } from "./registry.js";
 import { icon } from "../components/icons.js";
 import { openWidgetShortcutsModal } from "../modals/widget-shortcuts-modal.js";
 import {
+  escolherAltura,
+  alturaEscolhida,
   WG_MIN_H,
   WG_RESIZE_STEP,
   snapResizeHeight,
@@ -146,13 +148,7 @@ function restoreCardOrder(container, orderedCards) {
 
 function restoreCardSize(card, snapshot) {
   card.dataset.span = snapshot.span;
-  if (snapshot.height === "") {
-    card.style.height = "";
-  } else {
-    card.style.height = snapshot.height;
-  }
-  if (snapshot.manual) card.dataset.manual = "1";
-  else delete card.dataset.manual;
+  escolherAltura(card, snapshot.manual ? snapshot.height : null);
   placeCard(card, currentCols(card.parentElement));
 }
 
@@ -294,8 +290,8 @@ export function createKeyboardReorder(container, getCommit) {
         snapshot: movableCards(container),
         sizeSnapshot: {
           span: preselected.dataset.span,
-          height: preselected.style.height,
-          manual: preselected.dataset.manual === "1",
+          height: alturaEscolhida(preselected),
+          manual: alturaEscolhida(preselected) > 0,
         },
       };
       selected.card.classList.remove("kw-preselected");
@@ -328,8 +324,7 @@ export function createKeyboardReorder(container, getCommit) {
         snapResizeHeight(currentHeight + delta)
       );
       if (nextHeight === currentHeight) return false;
-      card.style.height = `${nextHeight}px`;
-      card.dataset.manual = "1";
+      escolherAltura(card, nextHeight);
     }
 
     placeCard(card, cols);
