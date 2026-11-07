@@ -179,6 +179,12 @@ a { color: var(--text-bright); }
   user-select: none;
   position: relative;
   z-index: 400;
+  /* camada própria na composição (EST-03, teste do Emanuel): rolando as
+     telas, os widgets — que o WebKit compõe numa camada própria, junto da
+     área rolável — eram desenhados 1px por cima da borda de baixo da
+     barra, que só aparecia nos vãos entre eles. Com a barra também numa
+     camada, o z-index vale na composição. */
+  transform: translateZ(0);
 }
 .win-ctrls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .win-ctrl-btn {
