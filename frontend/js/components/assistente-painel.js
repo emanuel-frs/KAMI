@@ -443,7 +443,7 @@ function noMensagem(m, i) {
 // Kami — só estes (a mesma lista vai nas instruções, instrucoes.ICONES)
 export const ICONES_IA = new Set(["check", "target", "trending-up", "trending-down", "star", "zap", "calendar-days",
   "clock", "receipt", "credit-card", "triangle-alert", "bell"]);
-const MARCA_ICONE = /:([a-z-]+):/g;
+const MARCA_ICONE = /(?<![\w:/]):([a-z][a-z0-9_-]{1,30}):(?![\w:/])/g;
 
 /** Troca :nome: por ícone nos textos da resposta (fora de código). */
 export function trocarIcones(raiz) {
@@ -459,13 +459,18 @@ export function trocarIcones(raiz) {
     const pedacos = doc.createDocumentFragment();
     let resto = 0;
     for (const achado of n.data.matchAll(MARCA_ICONE)) {
-      if (!ICONES_IA.has(achado[1])) continue;
       pedacos.append(n.data.slice(resto, achado.index));
+      resto = achado.index + achado[0].length;
+      if (!ICONES_IA.has(achado[1])) {
+        // inventado pelo modelo (":todinho:", ":marco:"): some — o backend já
+        // tira das respostas novas; isto cobre as gravadas antes
+        if (n.data[resto] === " ") resto += 1;
+        continue;
+      }
       const span = doc.createElement("span");
       span.className = "ia-texto-icone";
       span.innerHTML = icon(achado[1], { size: 12 });
       pedacos.append(span);
-      resto = achado.index + achado[0].length;
     }
     if (!resto) continue;
     pedacos.append(n.data.slice(resto));

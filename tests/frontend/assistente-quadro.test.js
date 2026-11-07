@@ -128,15 +128,15 @@ test(
 );
 
 test(
-  "resposta: :nome: vira o ícone do Kami (só os liberados, fora de código)",
+  "resposta: :nome: vira o ícone do Kami (só os liberados, fora de código); inventado some",
   withDom("<!doctype html><body><div id='r'></div></body>", async (dom) => {
     const { trocarIcones } = await import("../../frontend/js/components/assistente-painel.js");
     const r = dom.window.document.querySelector("#r");
-    r.innerHTML = "<p>meta :target: no ritmo e :rocket: não existe</p><pre><code>:target:</code></pre>";
+    r.innerHTML = "<p>meta :target: no ritmo e :rocket: não existe às 10:30</p><pre><code>:target:</code></pre>";
     trocarIcones(r);
     const p = r.querySelector("p");
     assert.equal(p.querySelectorAll(".ia-texto-icone svg.icon-target").length, 1);
-    assert.equal(p.textContent.replace(/\s+/g, " "), "meta no ritmo e :rocket: não existe");
+    assert.equal(p.textContent.replace(/\s+/g, " "), "meta no ritmo e não existe às 10:30");
     assert.equal(r.querySelector("code").textContent, ":target:", "dentro de código fica como está");
   }),
 );
