@@ -798,9 +798,20 @@ async function responder({ texto = "", acao }, resposta) {
     modoEnviando(false);
     renderProvedor();
     renderConversa();
-    const lido = resposta.erro ? corpo().querySelector(".ia-msg:last-child .ia-falha")?.textContent : resposta.texto;
-    announce(`${t("assistente.chat.resposta_pronta")} ${lido || ""}`.trim());
-    campo.focus();
+    // teste do Emanuel com o Orca: a resposta não era lida. O foco voltando
+    // pro campo (mesmo já estando nele) fazia o leitor falar o campo e
+    // descartar o anúncio — e o anúncio era o Markdown cru ("**", "#").
+    // Agora: o foco só volta se tiver saído, e o anúncio, com o texto como
+    // está na tela, sai depois do foco assentar.
+    const ultima = corpo().querySelector(".ia-msg:last-child");
+    const lido = resposta.erro
+      ? ultima?.querySelector(".ia-falha")?.textContent
+      : (() => {
+          const el = ultima?.querySelector(".ia-msg-texto");
+          return (el && (el.innerText ?? el.textContent)) || resposta.texto;
+        })();
+    if (document.activeElement !== campo) campo.focus();
+    setTimeout(() => announce(`${t("assistente.chat.resposta_pronta")} ${lido || ""}`.trim()), 250);
   }
 }
 

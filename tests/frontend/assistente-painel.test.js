@@ -125,6 +125,11 @@ test(
       assert.match(resposta.textContent, /<img src=x/);
       assert.match($("#ia-provedor").textContent, /4/, "uso do dia atualizado pelo fim");
       assert.equal($("#ia-texto").value, "");
+      // leitor de tela (teste do Emanuel com o Orca): a resposta é anunciada
+      // como está na tela, sem o Markdown cru, e o foco fica na caixa
+      await ate(() => /você gastou pouco/.test(doc.getElementById("kami-announcer")?.textContent || ""));
+      assert.doesNotMatch(doc.getElementById("kami-announcer").textContent, /\*\*/);
+      assert.equal(doc.activeElement.id, "ia-texto");
     });
 
     await t.test("a próxima mensagem continua a mesma conversa", async () => {

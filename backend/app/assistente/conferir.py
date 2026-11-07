@@ -19,6 +19,8 @@ import json
 import re
 from datetime import date
 
+from app.assistente.instrucoes import ICONES
+
 MAX_AVISOS = 5
 
 # símbolo antes (R$ 10, US$ 5, € 3) ou código/símbolo depois (10 €, 10 BRL)
@@ -189,7 +191,19 @@ def sem_emoji(resposta: str) -> str:
     return re.sub(f"(?:{_EMOJI.pattern})+ ?", "", resposta)
 
 
+# ":nome:" que não é ícone do Kami (teste do Emanuel: ":todinho: 1 hábito
+# ativo") — a tela só troca os da lista; o resto aparecia como texto
+_CODIGO_ICONE = re.compile(r"(?<![\w:/]):([a-z][a-z0-9_-]{1,30}):(?![\w:/]) ?")
+
+
+def sem_icone_inventado(resposta: str) -> str:
+    partes = resposta.split(_CODIGO)  # dentro de ``` fica como está
+    for i in range(0, len(partes), 2):
+        partes[i] = _CODIGO_ICONE.sub(lambda m: m.group(0) if m.group(1) in ICONES else "", partes[i])
+    return _CODIGO.join(partes)
+
+
 def arrumar(resposta: str) -> str:
-    """HTML vira Markdown simples, emojis saem e a moeda fica certa."""
-    return arrumar_moeda(sem_emoji(sem_html(resposta)))
+    """HTML vira Markdown simples, emojis e ícones inventados saem e a moeda fica certa."""
+    return arrumar_moeda(sem_icone_inventado(sem_emoji(sem_html(resposta))))
 

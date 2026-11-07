@@ -202,3 +202,10 @@ def test_fracao_nao_e_data():
     assert conferir.soltos(resposta, [contas, trilhas], "x", HOJE) == []
     # data de verdade que não está nos dados continua sendo acusada
     assert conferir.soltos("vence em 15/11", [contas, trilhas], "x", HOJE) == ["15/11"]
+
+
+def test_icone_inventado_sai_e_os_do_kami_ficam():
+    """Teste do Emanuel: ":todinho: 1 hábito ativo"."""
+    assert conferir.arrumar(":todinho: 1 hábito ativo") == "1 hábito ativo"
+    assert conferir.arrumar(":target: meta em dia às 10:30") == ":target: meta em dia às 10:30"
+    assert conferir.arrumar("veja https://x.com/a:b:c e ```\n:todinho:\n```") == "veja https://x.com/a:b:c e ```\n:todinho:\n```"
