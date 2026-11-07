@@ -126,10 +126,23 @@ test(
       assert.match($("#ia-provedor").textContent, /4/, "uso do dia atualizado pelo fim");
       assert.equal($("#ia-texto").value, "");
       assert.equal($("#ia-form").hasAttribute("aria-busy"), false, "aria-busy faz o Orca reler o painel");
-      // leitor de tela (teste do Emanuel com o Orca): a resposta é anunciada
-      // como está na tela, sem o Markdown cru, e o foco fica na caixa
-      await ate(() => /você gastou pouco/.test(doc.getElementById("kami-announcer")?.textContent || ""));
-      assert.doesNotMatch(doc.getElementById("kami-announcer").textContent, /\*\*/);
+      // leitor de tela (teste do Emanuel com o Orca): a resposta vira um
+      // artigo focável com "kami disse" + o texto como nome, e recebe o foco
+      await ate(() => doc.activeElement === resposta || doc.activeElement?.classList?.contains("ia-msg"));
+      const foco = doc.activeElement;
+      assert.equal(foco.getAttribute("role"), "article");
+      assert.equal(foco.tabIndex, 0);
+      const nome = foco.getAttribute("aria-labelledby").split(" ").map((id) => doc.getElementById(id).textContent).join(" ");
+      assert.match(nome, /^kami disse você gastou pouco/);
+      assert.doesNotMatch(nome, /\*\*/);
+      const pergunta = doc.querySelector(".ia-msg--usuario");
+      assert.equal(pergunta.getAttribute("role"), "article");
+      assert.match(doc.getElementById(pergunta.getAttribute("aria-labelledby").split(" ")[0]).textContent, /você disse/);
+      // digitar numa mensagem volta pra caixa; Esc também
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
+      assert.equal(doc.activeElement.id, "ia-texto");
+      foco.focus();
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       assert.equal(doc.activeElement.id, "ia-texto");
     });
 

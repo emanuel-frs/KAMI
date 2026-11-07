@@ -354,6 +354,41 @@ function atualizarEtapas() {
   if (m?.carregando && velho) velho.replaceWith(noEtapas(m));
 }
 
+// Teste do Emanuel com o Orca: a resposta não era lida (anúncio em região
+// live não chega pelo WebKitGTK de forma confiável). Cada mensagem é um
+// "artigo" focável cujo nome é o autor + o quadro + o texto, do jeito que
+// está na tela — Tab passa de mensagem em mensagem e, quando a resposta
+// termina, o foco vai pra ela (o leitor sempre lê o foco). Digitar ou Esc
+// numa mensagem volta pra caixa, com a tecla já entrando nela.
+function navegavel(div, m, i) {
+  if (m.carregando) return;
+  const autor = document.createElement("span");
+  autor.className = "sr-only";
+  autor.id = `ia-m${i}-autor`;
+  autor.textContent = t(m.papel === "usuario" ? "assistente.chat.voce_disse" : "assistente.chat.kami_disse");
+  div.prepend(autor);
+  const partes = [autor, ...div.querySelectorAll(":scope > .ia-quadro, :scope > .ia-msg-texto, :scope > .ia-falha, :scope > .ia-cuidado")];
+  partes.forEach((el, k) => {
+    if (!el.id) el.id = `ia-m${i}-p${k}`;
+  });
+  div.setAttribute("role", "article");
+  div.setAttribute("aria-labelledby", partes.map((el) => el.id).join(" "));
+  div.tabIndex = 0;
+}
+
+function voltarPraCaixa(e) {
+  if (e.target !== e.currentTarget) return; // botões dentro da mensagem têm o deles
+  const caixa = painel.querySelector("#ia-texto");
+  if (!caixa) return;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    caixa.focus();
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    caixa.focus(); // a própria tecla cai na caixa
+  }
+}
+
 function noMensagem(m, i) {
   const div = document.createElement("div");
   div.className = `ia-msg ia-msg--${m.papel === "usuario" ? "usuario" : "kami"}`;
@@ -374,6 +409,8 @@ function noMensagem(m, i) {
       nota.textContent = t("assistente.chat.mascarados", { n: m.mascarados });
       div.append(nota);
     }
+    navegavel(div, m, i);
+    div.addEventListener("keydown", voltarPraCaixa);
     return div;
   }
   if (m.carregando && m.inicio) {
@@ -391,6 +428,8 @@ function noMensagem(m, i) {
   }
   if (m.aviso?.tipo === "cuidado") {
     div.append(noCuidado(m.aviso.servico));
+    navegavel(div, m, i);
+    div.addEventListener("keydown", voltarPraCaixa);
     return div;
   }
   // IA-07a: os números da consulta, do jeito que o Kami leu
@@ -430,6 +469,8 @@ function noMensagem(m, i) {
     const acoes = noAcoes(m, i);
     if (acoes) div.append(acoes);
   }
+  navegavel(div, m, i);
+  div.addEventListener("keydown", voltarPraCaixa);
   return div;
 }
 
@@ -535,8 +576,13 @@ function renderConversa() {
   lista.setAttribute("role", "log");
   lista.setAttribute("aria-label", t("assistente.chat.conversa"));
   mensagens.forEach((m, i) => lista.append(noMensagem(m, i)));
+  // redesenho com o foco numa mensagem (leitor de tela lendo a resposta):
+  // o foco continua nela, senão cairia no body e o leitor se perderia
+  const ativo = document.activeElement;
+  const focoI = ativo?.matches?.(".ia-msg[role='article']") && corpo().contains(ativo) ? ativo.dataset.i : null;
   corpo().replaceChildren(lista);
   rolarProFim();
+  if (focoI != null) lista.querySelector(`.ia-msg[data-i="${focoI}"]`)?.focus();
 }
 
 /** Aplicou/desfez/descartou no cartão: redesenha a conversa e, se o banco
@@ -584,9 +630,11 @@ function atualizarUltima() {
     const i = mensagens.length - 1;
     const velho = lista.querySelector(`:scope > .ia-msg[data-i="${i}"]`);
     const novo = noMensagem(mensagens[i], i);
+    const tinhaFoco = velho && document.activeElement === velho; // a resposta que o leitor está lendo
     if (velho) velho.replaceWith(novo);
     else lista.append(novo);
     rolarProFim();
+    if (tinhaFoco) novo.focus();
   });
 }
 
@@ -800,20 +848,12 @@ async function responder({ texto = "", acao }, resposta) {
     modoEnviando(false);
     renderProvedor();
     renderConversa();
-    // teste do Emanuel com o Orca: a resposta não era lida. O foco voltando
-    // pro campo (mesmo já estando nele) fazia o leitor falar o campo e
-    // descartar o anúncio — e o anúncio era o Markdown cru ("**", "#").
-    // Agora: o foco só volta se tiver saído, e o anúncio, com o texto como
-    // está na tela, sai depois do foco assentar.
-    const ultima = corpo().querySelector(".ia-msg:last-child");
-    const lido = resposta.erro
-      ? ultima?.querySelector(".ia-falha")?.textContent
-      : (() => {
-          const el = ultima?.querySelector(".ia-msg-texto");
-          return (el && (el.innerText ?? el.textContent)) || resposta.texto;
-        })();
-    if (document.activeElement !== campo) campo.focus();
-    setTimeout(() => announce(`${t("assistente.chat.resposta_pronta")} ${lido || ""}`.trim()), 250);
+    // a resposta (ou a falha) recebe o foco: o leitor de tela lê "kami
+    // disse…" com o texto inteiro (ver navegavel). Quem enxerga continua
+    // digitando: a tecla volta pra caixa.
+    const ultima = corpo().querySelector(".ia-msg:last-child[role='article']");
+    if (ultima) ultima.focus();
+    else if (document.activeElement !== campo) campo.focus();
   }
 }
 

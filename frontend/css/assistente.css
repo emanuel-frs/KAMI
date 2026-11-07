@@ -75,6 +75,9 @@
 
 .ia-mensagens { display: flex; flex-direction: column; gap: 14px; }
 .ia-msg { line-height: 1.6; overflow-wrap: anywhere; }
+/* mensagem focável (leitor de tela, Tab): contorno só com teclado */
+.ia-msg:focus { outline: none; }
+.ia-msg:focus-visible { outline: 1px dashed var(--accent-dim); outline-offset: 4px; }
 /* quem fala, de relance: a pergunta é uma "linha de comando" em bloco; a
    resposta abre com o prompt "kami" na cor de destaque (nome da marca,
    não se traduz) */
