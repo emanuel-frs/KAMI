@@ -132,12 +132,12 @@ test(
       const foco = doc.activeElement;
       assert.equal(foco.getAttribute("role"), "article");
       assert.equal(foco.tabIndex, 0);
-      const nome = foco.getAttribute("aria-labelledby").split(" ").map((id) => doc.getElementById(id).textContent).join(" ");
-      assert.match(nome, /^kami disse você gastou pouco/);
+      const nome = foco.getAttribute("aria-label");
+      assert.match(nome, /^kami disse: você gastou pouco/);
       assert.doesNotMatch(nome, /\*\*/);
       const pergunta = doc.querySelector(".ia-msg--usuario");
       assert.equal(pergunta.getAttribute("role"), "article");
-      assert.match(doc.getElementById(pergunta.getAttribute("aria-labelledby").split(" ")[0]).textContent, /você disse/);
+      assert.equal(pergunta.getAttribute("aria-label"), "você disse: quanto gastei?");
       // digitar numa mensagem volta pra caixa; Esc também
       foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
       assert.equal(doc.activeElement.id, "ia-texto");

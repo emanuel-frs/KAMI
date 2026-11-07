@@ -360,19 +360,54 @@ function atualizarEtapas() {
 // está na tela — Tab passa de mensagem em mensagem e, quando a resposta
 // termina, o foco vai pra ela (o leitor sempre lê o foco). Digitar ou Esc
 // numa mensagem volta pra caixa, com a tecla já entrando nela.
+// Blocos que viram uma frase cada no texto falado (com pausa entre eles).
+const BLOCOS_FALADOS = "h1, h2, h3, h4, h5, h6, p, li, pre, tr, .ia-quadro-titulo, .ia-quadro-linha, .ia-quadro-meta-cab, .ia-quadro-meta-progresso";
+const FIM_DE_FRASE = /[.!?:;…]$/;
+
+/** O texto da mensagem como o leitor de tela deve falar: um bloco por
+ *  frase, com ponto no fim de cada (o Orca só pausa na pontuação — teste do
+ *  Emanuel: "lê tudo rápido, sem separação"). Linha de quadro vira
+ *  "rótulo: valor"; tabela, células separadas por vírgula. */
+export function textoFalado(raiz) {
+  const frases = [];
+  const limpo = (x) => x.replace(/\s+/g, " ").trim();
+  for (const bloco of raiz.querySelectorAll(BLOCOS_FALADOS)) {
+    // o texto do próprio bloco, sem o de blocos dentro dele (lista dentro de item)
+    const copia = bloco.cloneNode(true);
+    copia.querySelectorAll(BLOCOS_FALADOS).forEach((n) => n.remove());
+    let frase;
+    if (bloco.matches(".ia-quadro-linha")) {
+      const dt = limpo(copia.querySelector("dt")?.textContent || "");
+      const dd = limpo(copia.querySelector("dd")?.textContent || "");
+      frase = dt && dd ? `${dt}: ${dd}` : dt || dd;
+    } else if (bloco.matches("tr")) {
+      frase = [...copia.children].map((c) => limpo(c.textContent)).filter(Boolean).join(", ");
+    } else {
+      frase = limpo(copia.textContent);
+    }
+    if (frase) frases.push(FIM_DE_FRASE.test(frase) ? frase : `${frase}.`);
+  }
+  // texto solto fora de bloco (mensagem da pessoa, falha curta)
+  if (!frases.length) {
+    const tudo = limpo(raiz.textContent);
+    if (tudo) frases.push(FIM_DE_FRASE.test(tudo) ? tudo : `${tudo}.`);
+  }
+  return frases.join(" ");
+}
+
+// Teste do Emanuel com o Orca: a resposta não era lida (anúncio em região
+// live não chega pelo WebKitGTK de forma confiável). Cada mensagem é um
+// "artigo" focável cujo nome é o autor + o quadro + o texto — Tab passa de
+// mensagem em mensagem e, quando a resposta termina, o foco vai pra ela
+// (o leitor sempre lê o foco). Digitar ou Esc numa mensagem volta pra
+// caixa, com a tecla já entrando nela.
 function navegavel(div, m, i) {
   if (m.carregando) return;
-  const autor = document.createElement("span");
-  autor.className = "sr-only";
-  autor.id = `ia-m${i}-autor`;
-  autor.textContent = t(m.papel === "usuario" ? "assistente.chat.voce_disse" : "assistente.chat.kami_disse");
-  div.prepend(autor);
-  const partes = [autor, ...div.querySelectorAll(":scope > .ia-quadro, :scope > .ia-msg-texto, :scope > .ia-falha, :scope > .ia-cuidado")];
-  partes.forEach((el, k) => {
-    if (!el.id) el.id = `ia-m${i}-p${k}`;
-  });
+  const partes = [...div.querySelectorAll(":scope > .ia-quadro, :scope > .ia-msg-texto, :scope > .ia-falha, :scope > .ia-cuidado")];
+  const autor = t(m.papel === "usuario" ? "assistente.chat.voce_disse" : "assistente.chat.kami_disse");
+  const corpoFalado = partes.map(textoFalado).filter(Boolean).join(" ");
   div.setAttribute("role", "article");
-  div.setAttribute("aria-labelledby", partes.map((el) => el.id).join(" "));
+  div.setAttribute("aria-label", `${autor}: ${corpoFalado}`);
   div.tabIndex = 0;
 }
 

@@ -175,3 +175,20 @@ test(
     assert.equal(apr.querySelectorAll(".ia-q-barra-fila").length, 2, "só as ativas");
   })
 );
+
+// Teste do Emanuel com o Orca: "lê tudo rápido, sem separação" — cada bloco
+// vira uma frase com ponto (o leitor pausa na pontuação)
+test(
+  "texto falado: um bloco por frase, quadro como 'rótulo: valor', sem duplicar lista aninhada",
+  withDom("<!doctype html><body><div id='r'></div></body>", async (dom) => {
+    const { textoFalado } = await import("../../frontend/js/components/assistente-painel.js");
+    const r = dom.window.document.querySelector("#r");
+    r.innerHTML = `<div class="ia-quadro"><div class="ia-quadro-titulo">hábitos</div><div class="ia-quadro-corpo">
+      <div class="ia-quadro-linha"><dt>feitos hoje</dt><dd><span>1 de 2</span></dd></div></div></div>
+      <h3>Resumo de novembro</h3><p>Sem renda registrada ainda</p>
+      <ul><li>7 metas<ul><li>2 concluídas</li></ul></li><li>Inglês atrasado (0%)</li></ul>
+      <table><tr><td>mercado</td><td>R$ 10</td></tr></table>`;
+    assert.equal(textoFalado(r),
+      "hábitos. feitos hoje: 1 de 2. Resumo de novembro. Sem renda registrada ainda. 7 metas. 2 concluídas. Inglês atrasado (0%). mercado, R$ 10.");
+  }),
+);
