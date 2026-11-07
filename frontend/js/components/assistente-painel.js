@@ -703,7 +703,11 @@ function modoEnviando(sim) {
   const botao = painel.querySelector("#ia-enviar");
   botao.textContent = sim ? t("assistente.chat.parar") : t("assistente.chat.enviar");
   botao.classList.toggle("warn", sim);
-  painel.querySelector("#ia-form").setAttribute("aria-busy", String(sim));
+  // data-, não aria-busy: com aria-busy no formulário (ancestral da caixa
+  // em foco) o Orca trata como página carregando — interrompe a fala e, no
+  // fim, relê "kami> assistente… pergunte algo" por cima da resposta
+  // (teste do Emanuel). O estado pro leitor já vai pelo anúncio.
+  painel.querySelector("#ia-form").dataset.enviando = String(sim);
 }
 
 async function enviar() {
