@@ -17,6 +17,7 @@ import { wireShortcutsHelp } from "./modals/shortcuts-help-modal.js";
 import { wireGlobalShortcuts } from "./components/global-shortcuts.js";
 import { wireZoom } from "./components/zoom.js";
 import { wireSkipLink } from "./components/skip-link.js";
+import { wireMenuRecolhivel } from "./components/menu-recolhivel.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
@@ -412,6 +413,7 @@ async function boot() {
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
+  wireMenuRecolhivel(); // EST-03 (P-195): zoom alto ou janela estreita
   // CONF-01: primeiro de tudo — qualquer erro daqui pra frente já tem aviso
   wireErrorNotice();
   // CONF-02: backend caiu → faixa no topo + reinício (sozinho uma vez, e

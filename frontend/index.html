@@ -54,6 +54,7 @@
 <a href="#page-root" class="skip-link" data-i18n="geral.pular_conteudo">pular para o conteúdo</a>
 
 <div class="titlebar" data-tauri-drag-region>
+<button class="win-ctrl-btn titlebar-menu" id="btn-menu" type="button" hidden aria-expanded="false" aria-controls="sidebar" title="menu" aria-label="menu" data-i18n-attr="title:sidebar.menu;aria-label:sidebar.menu"></button>
 <div class="titlebar-text" data-tauri-drag-region>kami</div>
 <div class="win-ctrls">
 <button class="win-ctrl-btn win-ctrl-minimize" id="win-minimize" type="button" title="minimizar" aria-label="minimizar" data-i18n-attr="title:janela.minimizar;aria-label:janela.minimizar"></button>
@@ -63,7 +64,7 @@
 </div>
 
 <div class="layout">
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
   <!-- .sidebar-brand removido -->
 
   <div class="nav-tree" id="nav-tree">
