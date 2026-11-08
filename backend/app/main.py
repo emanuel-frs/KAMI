@@ -36,6 +36,7 @@ from app.routers import entrada
 from app.routers import busca as busca_router
 from app.routers import dashboard
 from app.routers import sistema
+from app.routers import retorno
 from app.routers import widgets
 from app.routers import calendario
 from app.routers import carreira
@@ -202,6 +203,7 @@ app.include_router(busca_router.router, prefix="/api/busca", tags=["busca"])
 app.include_router(organizacao.router, prefix="/api/organizacao", tags=["organizacao"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(sistema.router, prefix="/api/sistema", tags=["sistema"])
+app.include_router(retorno.router, prefix="/api/retorno", tags=["sistema"])
 app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
 app.include_router(calendario.router, prefix="/api/calendario", tags=["calendario"])
 app.include_router(carreira.router, prefix="/api/carreira", tags=["carreira"])

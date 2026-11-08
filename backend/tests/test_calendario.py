@@ -197,8 +197,10 @@ def test_multiple_action_logs_same_day_all_appear(client):
 
 
 def test_no_income_events_in_calendar(client):
-    # renda recorrente ainda é seedada/gerada normalmente em Finanças,
-    # mas não deve aparecer no calendário
+    # renda recorrente é gerada normalmente em Finanças, mas não deve
+    # aparecer no calendário
+    client.post("/api/financas/income-sources", json={
+        "nome": "salário", "valor": 100, "frequencia": "mensal", "tipo_data": "dia_fixo", "dia_mes": 10})
     client.get("/api/financas/income-entries", params={"month": _current_month()})
     resp = client.get("/api/calendario/events", params={"month": _current_month()})
     assert "renda" not in {e["type"] for e in resp.json()}

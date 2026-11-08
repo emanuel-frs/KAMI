@@ -91,5 +91,14 @@ test(
 
     t.mock.timers.tick(30);
     assert.equal(region.textContent, "trilha movida para a posição 2 de 5");
+
+    // o Orca só lê "texto inserido" em região live: o nó de texto é sempre
+    // o mesmo (recriar vira "filho adicionado", que ele ignora)
+    const no = region.firstChild;
+    announce("resposta pronta");
+    t.mock.timers.tick(30);
+    assert.equal(region.firstChild, no);
+    assert.equal(region.childNodes.length, 1);
+    assert.equal(region.textContent, "resposta pronta");
   })
 );

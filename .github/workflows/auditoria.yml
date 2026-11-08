@@ -12,7 +12,7 @@ on:
   push:
     branches: ['release/**']
   schedule:
-    - cron: "0 11 * * 1" # segunda, 8h em Brasília
+    - cron: "0 11 1 * *" # dia 1 de cada mês, 8h em Brasília (EST-07; era toda segunda)
   workflow_dispatch:
 
 permissions:

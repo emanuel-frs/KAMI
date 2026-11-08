@@ -75,10 +75,20 @@ if (typeof document !== "undefined" && document.body) ensureAnnouncer();
 
 export function announce(text) {
   const el = ensureAnnouncer();
-  // limpa antes: repetir exatamente o mesmo texto não dispararia um
+  // Teste do Emanuel com o Orca: nada era lido. Trocar textContent recria o
+  // nó de texto e o WebKitGTK avisa isso como "filho adicionado" — evento
+  // que o Orca ignora em região live (ele só lê "texto inserido"). Agora o
+  // nó de texto é sempre o mesmo e só o conteúdo dele muda.
+  let no = el.firstChild;
+  if (!no || no.nodeType !== 3 || el.childNodes.length > 1) {
+    el.textContent = "";
+    no = el.ownerDocument.createTextNode("");
+    el.appendChild(no);
+  }
+  // esvazia antes: repetir exatamente o mesmo texto não dispararia um
   // novo anúncio (ex.: mover duas vezes seguidas pra "posição 2 de 5").
-  el.textContent = "";
+  no.data = "";
   setTimeout(() => {
-    el.textContent = text;
+    no.data = text;
   }, 30);
 }

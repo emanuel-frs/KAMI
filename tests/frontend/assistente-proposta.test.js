@@ -87,7 +87,7 @@ test(
     await espera(60);
     $("#ia-texto").value = "organiza minha caixa";
     $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+    await ate(() => $("#ia-form").dataset.enviando === "false");
 
     await t.test("o cartão aparece na resposta, com o item com problema desmarcado", () => {
       const itens = $$(".ia-proposta .ia-prop-item");
@@ -164,7 +164,7 @@ test(
     await t.test("a mensagem seguinte não cai dentro do cartão anterior", async () => {
       $("#ia-texto").value = "e mais isso";
       $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       assert.equal($$(".ia-mensagens > .ia-msg").length, 4);
       assert.equal($$(".ia-proposta .ia-msg").length, 0);
       assert.equal($$(".ia-mensagens > .ia-msg")[1].querySelectorAll(".ia-prop-item").length, 4);

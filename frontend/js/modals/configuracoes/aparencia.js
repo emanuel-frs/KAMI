@@ -15,6 +15,7 @@ import { estado } from "./estado.js";
 import { IDIOMAS, carregarIdioma, idiomaAtual, localeAtual, t } from "../../i18n.js";
 import { enhanceSelect, refreshCustomSelect } from "../../components/custom-select.js";
 import { openExternal } from "../../components/open-external.js";
+import { ZOOM_MAX, ZOOM_MIN, aumentarZoom, diminuirZoom, restaurarZoom, zoomAtual } from "../../components/zoom.js";
 import { descricaoTema, rotuloTema, rotuloTitulo } from "../../components/textos-sistema.js";
 
 // I18N-01 (P-84): onde mandar uma correção de tradução
@@ -66,6 +67,16 @@ export function buildAparenciaPanel() {
           <input type="checkbox" id="cfg-icone-tema">
           <span>${t("aparencia.icone_do_app_na_cor")}<small>${t("aparencia.a_janela_e_a_barra")}</small></span>
         </label>
+      </div>
+      <div class="settings-section">
+        <h4>${t("zoom.titulo")}</h4>
+        <p class="settings-desc">${t("zoom.desc")}</p>
+        <div class="cfg-zoom" role="group" aria-label="${t("zoom.titulo")}">
+          <button type="button" class="btn sm" id="cfg-zoom-diminuir" aria-label="${t("zoom.diminuir")}" data-tooltip="${t("zoom.diminuir")}">${icon("minus", { size: 12 })}</button>
+          <span id="cfg-zoom-valor" aria-live="polite"></span>
+          <button type="button" class="btn sm" id="cfg-zoom-aumentar" aria-label="${t("zoom.aumentar")}" data-tooltip="${t("zoom.aumentar")}">${icon("plus", { size: 12 })}</button>
+          <button type="button" class="btn sm" id="cfg-zoom-padrao">${t("zoom.padrao")}</button>
+        </div>
       </div>
       <div class="settings-section">
         <h4>${t("aparencia.efeitos_visuais")}</h4>
@@ -340,6 +351,27 @@ export async function selectEffectsMode(wrap, value) {
 }
 
 // ── sons (GAM-13) ──────────────────────────────────────────────────────
+// EST-03: tamanho da tela (components/zoom.js) — os botões e o Ctrl+/−/0
+// mexem no mesmo valor; o evento kami:zoom mantém os dois em dia
+export function wireZoomAparencia(wrap) {
+  const valor = wrap.querySelector("#cfg-zoom-valor");
+  const menos = wrap.querySelector("#cfg-zoom-diminuir");
+  const mais = wrap.querySelector("#cfg-zoom-aumentar");
+  const padrao = wrap.querySelector("#cfg-zoom-padrao");
+  const mostrar = () => {
+    const f = zoomAtual();
+    valor.textContent = `${Math.round(f * 100)}%`;
+    menos.disabled = f <= ZOOM_MIN;
+    mais.disabled = f >= ZOOM_MAX;
+    padrao.disabled = f === 1;
+  };
+  menos.addEventListener("click", () => diminuirZoom());
+  mais.addEventListener("click", () => aumentarZoom());
+  padrao.addEventListener("click", () => restaurarZoom());
+  window.addEventListener("kami:zoom", mostrar);
+  mostrar();
+}
+
 export function renderSoundOptions(wrap, profile) {
   wrap.querySelector("#cfg-sound-on").checked = Boolean(profile.som_ativo);
   wrap.querySelector("#cfg-sound-volume").value = profile.som_volume ?? 60;

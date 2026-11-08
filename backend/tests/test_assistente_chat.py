@@ -455,6 +455,21 @@ def test_historico_local_so_com_texto_e_curto():
     assert [m.texto[0] for m in chat._historico(longo, local=True)] == ["z", "w"]
 
 
+def test_resultado_antigo_vai_marcado_como_possivelmente_desatualizado():
+    """Teste do Emanuel: sem hábitos, perguntou; criou um; perguntou de novo na
+    mesma conversa e o modelo repetiu o resultado antigo."""
+    pedido = {"id": "c1", "nome": "habits", "argumentos": {}}
+    dados = '<dados ferramenta="habits">\n{"habits": []}\n</dados>'
+    msgs = [_m("usuario", "como estão meus hábitos?"), _m("assistente", "", [pedido]),
+            _m("ferramenta", dados), _m("assistente", "Nenhum hábito.")]
+    nuvem = chat._historico(msgs)
+    ferramenta = next(m for m in nuvem if m.papel == "ferramenta")
+    assert ferramenta.texto == chat.RESULTADO_ANTIGO + dados
+    assert "call the tool again" in ferramenta.texto
+    # e as instruções (nuvem e local) mandam consultar de novo
+    assert "call the tool again" in instrucoes._DADOS and "call the tool again" in instrucoes._DADOS_LOCAL
+
+
 def test_estado_do_aquecimento_pra_tela(client, aquecer_limpo):
     assert client.get("/api/assistente/aquecer").json() == {"aquecendo": False}
     aquecer_limpo._aquecendo.acquire()

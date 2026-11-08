@@ -82,7 +82,7 @@ function spanFromStyle(value, fallback) {
  * A largura de cada card fica em data-scaled (applyScaled/setScaled) e a
  * altura natural em data-rows (placeCard); o crescimento das faixas vem por
  * min-height — o `height` do card continua sendo o do conteúdo (ou o
- * manual), e é ele que é salvo.
+ * escolhido), e o que vai pro layout salvo é só o escolhido (escolherAltura).
  */
 export function packCards(container, cols, { alinhar = true } = {}) {
   const els = [...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder")];
@@ -229,6 +229,28 @@ export function maxScaled(card, cols) {
 }
 
 /**
+ * Define (px) ou limpa (null) a altura que a pessoa escolheu pro card. É
+ * ela que vai pro layout salvo; a altura na tela é decidida em placeCard.
+ */
+export function escolherAltura(card, px) {
+  if (px) {
+    card.dataset.alturaEscolhida = String(px);
+    card.dataset.manual = "1";
+    card.style.height = `${px}px`;
+  } else {
+    delete card.dataset.alturaEscolhida;
+    delete card.dataset.manual;
+    card.style.height = "";
+  }
+}
+
+/** A altura escolhida do card, em px (0 = automático). */
+export function alturaEscolhida(card) {
+  if (card.dataset.manual !== "1") return 0;
+  return parseInt(card.dataset.alturaEscolhida, 10) || 0;
+}
+
+/**
  * Aplica gridColumn e gridRowEnd no card de acordo com:
  *   - data-span / data-min-span / data-max-span (em sextos)
  *   - altura real do card em px (via getBoundingClientRect)
@@ -252,33 +274,21 @@ export function placeCard(card, cols) {
   // mesma folga) — por isso a altura "não seguia a lógica".
   if (card.classList.contains("editing")) return;
 
-  // cura alturas manuais persistidas (vindas do backend, ou de um resize
-  // manual antigo) que ficaram menores que o conteúdo real precisa —
-  // ex: conteúdo assíncrono que carregou depois e cresceu, ou um valor
-  // salvo desatualizado. Nunca deixa a informação aparecer cortada.
-  if (card.dataset.manual === "1" && card.style.height) {
-    const min = Math.max(WG_MIN_H, contentMinHeight(card));
-    const current = parseInt(card.style.height, 10);
-    if (!Number.isNaN(current) && current < min) {
-      card.style.height = `${snapHeight(min)}px`;
-    } else if (!Number.isNaN(current) && current !== snapHeight(current)) {
-      // realinha valores antigos persistidos (que estavam na rede 24N-16)
-      // pra rede atual de 6px, sem nunca encolher abaixo do conteúdo
-      card.style.height = `${snapHeight(current)}px`;
-    }
-  }
-
-  // Cards automáticos devem ser dimensionados pelo conteúdo, não pela área
-  // de linhas que ainda está aplicada — mas a altura final é arredondada
-  // pro próximo múltiplo de WG_SNAP (6px) e aplicada como height explícito,
-  // em vez de confiar no align-self:stretch até a área de linha do grid
-  // (que sobraria até 20px de folga embaixo do conteúdo). Como o resize
-  // manual usa exatamente o mesmo passo, o tamanho padrão é alcançável
-  // na mão, e o padrão em si fica o mais justo possível ao conteúdo.
+  // Altura escolhida (resize manual, ou salva no layout) × altura desenhada.
+  // A escolhida fica em data-altura-escolhida e NUNCA é reescrita aqui; a
+  // desenhada é a maior entre ela e o que o conteúdo precisa agora, então a
+  // informação nunca aparece cortada. Antes as duas eram o mesmo
+  // style.height: um zoom (a grade cai de 4 pra 2 colunas, o card fica
+  // estreito e alto) inflava a altura, que não voltava ao tirar o zoom —
+  // e o vizinho crescia junto pra fechar a faixa.
   let h;
-  if (card.dataset.manual === "1" && card.style.height) {
-    h = parseInt(card.style.height, 10) || card.getBoundingClientRect().height;
+  const escolhida = alturaEscolhida(card);
+  if (escolhida) {
+    const min = Math.max(WG_MIN_H, contentMinHeight(card));
+    h = Math.max(snapHeight(escolhida), snapHeight(min));
+    card.style.height = `${h}px`;
   } else {
+    // automáticos: a altura do conteúdo, arredondada pro passo da grade
     const raw = contentMinHeight(card);
     h = raw > 0 ? snapAutoHeight(raw) : 0;
     card.style.height = h > 0 ? `${h}px` : "";
@@ -425,12 +435,8 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
           w.width = Math.max(minSpan, Math.min(maxSpan, span));
         }
 
-        if (card.dataset.manual === "1" && card.style.height) {
-          const h = parseInt(card.style.height, 10);
-          if (!Number.isNaN(h)) w.height = h; // pixels puro, backend não valida unidade
-        } else {
-          w.height = null;
-        }
+        // a escolhida, não a desenhada (que pode estar maior pelo conteúdo)
+        w.height = alturaEscolhida(card) || null; // pixels puro, backend não valida unidade
       });
 
       onLayoutChange?.(widgets);
@@ -458,10 +464,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     card.dataset.minSpan = def.min_span    ?? 1;
     card.dataset.maxSpan = def.max_span    ?? WG_UNITS;
 
-    if (widget.height) {
-      card.style.height   = `${widget.height}px`;
-      card.dataset.manual = "1";
-    }
+    if (widget.height) escolherAltura(card, widget.height);
 
     // palpite inicial (linhas de 4px) só até o ResizeObserver medir de verdade
     card.style.gridRowEnd = `span ${gridRowsForHeight(WG_MIN_H)}`;

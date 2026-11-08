@@ -590,7 +590,7 @@
   letter-spacing: 0.3px;
   color: var(--text-faint);
 }
-.email-filter-opt.on .email-filter-count { color: var(--accent-dim); }
+.email-filter-opt.on .email-filter-count { color: var(--accent-texto); }
 
 /* selo de conta virou a cor do próprio avatar do e-mail (--chip-color,
    ver .email-avatar acima) — não uma tag cheia por item, que destoava

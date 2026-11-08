@@ -137,7 +137,7 @@ export async function render(el, widget) {
         ${filterButtons(achievements, selected)}
         <button type="button" class="ach-create" data-create-custom>${t("conquistas.criar")}</button>
       </div>
-      <div class="ach-grid">
+      <div class="ach-grid" role="region" tabindex="0" aria-label="${t("perfil_w.conquistas")}">
         ${sortAchievements(visible).map(card).join("")}
       </div>
     `;

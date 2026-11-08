@@ -37,7 +37,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.database import get_db, new_id, now_iso
+from app.database import ate_o_fim, get_db, new_id, now_iso
 from app.business_days import months_between
 from app.limites import Entrada
 from app.lembretes import ocorrencias as ocorrencias_lembrete
@@ -119,8 +119,8 @@ def _validate_evento(payload: EventoIn) -> None:
 
 def _acao_events(db, month_str: str) -> List[dict]:
     rows = db.execute(
-        "SELECT * FROM action_logs WHERE substr(created_at,1,7) = ? ORDER BY created_at",
-        (month_str,),
+        "SELECT * FROM action_logs WHERE created_at >= ? AND created_at < ? ORDER BY created_at",
+        (month_str, ate_o_fim(month_str)),
     ).fetchall()
     events = []
     for r in rows:

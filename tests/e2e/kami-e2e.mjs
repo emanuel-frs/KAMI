@@ -534,7 +534,7 @@ async function main() {
     await etapa("assistente: passo a passo, pergunta, parar, continuar, refazer, histórico e enviados (IA-02/IA-04)", async () => {
       const falso = await provedorFalso();
       const ultimaResposta = () => wd.execute("return document.querySelector('.ia-msg--kami:last-child .ia-msg-texto')?.innerText || ''");
-      const respondeu = (o_que) => waitFor(o_que, () => wd.execute("return document.querySelector('#ia-form')?.getAttribute('aria-busy') === 'false'"), { timeout: 30000, every: 300 });
+      const respondeu = (o_que) => waitFor(o_que, () => wd.execute("return document.querySelector('#ia-form')?.dataset.enviando === 'false'"), { timeout: 30000, every: 300 });
       const perguntar = async (texto) => {
         await focar("#ia-texto");
         await wd.keys(texto, { texto: true });

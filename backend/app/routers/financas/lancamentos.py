@@ -10,7 +10,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.database import get_db, new_id
+from app.database import ate_o_fim, get_db, new_id
 from app.actions import register_action, revert_actions
 from app.achievements import relock_unmet_achievements
 from app.finance_utils import create_saida_transaction, create_entrada_transaction
@@ -76,8 +76,8 @@ class SummaryOut(BaseModel):
 def list_transactions(month: str, db=Depends(get_db)):
     _validate_month(month)
     rows = db.execute(
-        "SELECT * FROM transactions WHERE substr(date,1,7) = ? ORDER BY date DESC",
-        (month,),
+        "SELECT * FROM transactions WHERE date >= ? AND date < ? ORDER BY date DESC",
+        (month, ate_o_fim(month)),
     ).fetchall()
     return [dict(r) | texto_da_linha(r) | {"origem": _origem_transacao(db, r["id"])} for r in rows]
 
@@ -335,8 +335,8 @@ def get_summary(month: str, db=Depends(get_db)):
             "SELECT "
             "COALESCE(SUM(CASE WHEN type='entrada' THEN amount ELSE 0 END), 0) AS total_in, "
             "COALESCE(SUM(CASE WHEN type='saida' THEN amount ELSE 0 END), 0) AS total_out "
-            "FROM transactions WHERE substr(date,1,7) = ?",
-            (m,),
+            "FROM transactions WHERE date >= ? AND date < ?",
+            (m, ate_o_fim(m)),
         ).fetchone()
         return row["total_in"], row["total_out"]
 
@@ -354,9 +354,9 @@ def get_summary(month: str, db=Depends(get_db)):
 
     cat_rows = db.execute(
         "SELECT category, SUM(amount) AS total FROM transactions "
-        "WHERE substr(date,1,7) = ? AND type = 'saida' "
+        "WHERE date >= ? AND date < ? AND type = 'saida' "
         "GROUP BY category ORDER BY total DESC",
-        (month,),
+        (month, ate_o_fim(month)),
     ).fetchall()
 
     return {

@@ -117,26 +117,21 @@ export function showToast({
   });
 
   if (onClick) {
+    // EST-03 (axe "nested-interactive"): o aviso inteiro era role="button"
+    // com o fechar e as ações dentro — botão dentro de botão confunde o
+    // leitor de tela. Agora um botão transparente cobre o aviso (irmão do
+    // conteúdo, não pai): clique em qualquer lugar e Enter/Espaço abrem;
+    // fechar e ações ficam por cima dele, separados.
     el.classList.add("clickable");
-    el.setAttribute("role", "button");
-    el.setAttribute("tabindex", "0");
-    el.addEventListener("click", (e) => {
-      if (e.target.closest(".toast-close, [data-toast-action]")) return;
+    const abrir = document.createElement("button");
+    abrir.type = "button";
+    abrir.className = "toast-abrir";
+    abrir.setAttribute("aria-label", message ? `${title}. ${message}` : title);
+    abrir.addEventListener("click", () => {
       onClick();
       dismiss();
     });
-    // div não é focável/ativável por teclado por padrão (ver
-    // role="button"+tabindex acima, que só resolve a metade da
-    // navegação) — sem isto quem usa teclado conseguia dar Tab até
-    // aqui mas nunca conseguia "clicar" de fato.
-    el.addEventListener("keydown", (e) => {
-      if (e.target.closest(".toast-close")) return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onClick();
-        dismiss();
-      }
-    });
+    el.prepend(abrir);
   }
 
   let hideTimer = null;

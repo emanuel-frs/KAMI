@@ -75,6 +75,9 @@
 
 .ia-mensagens { display: flex; flex-direction: column; gap: 14px; }
 .ia-msg { line-height: 1.6; overflow-wrap: anywhere; }
+/* mensagem focável (leitor de tela, Tab): contorno só com teclado */
+.ia-msg:focus { outline: none; }
+.ia-msg:focus-visible { outline: 1px dashed var(--accent-dim); outline-offset: 4px; }
 /* quem fala, de relance: a pergunta é uma "linha de comando" em bloco; a
    resposta abre com o prompt "kami" na cor de destaque (nome da marca,
    não se traduz) */
@@ -98,8 +101,6 @@
 @keyframes ia-pisca { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ia-cursor { animation: none; } }
 .ia-interrompida { display: block; margin-top: 4px; color: var(--text-faint); font-size: 10px; }
-.ia-conferir { margin: 6px 0 0; color: var(--amber); font-size: 11px; }
-.ia-conferir::before { content: "! "; }
 .ia-falha { margin: 6px 0 0; color: var(--red); font-size: 11px; }
 .ia-falha svg { vertical-align: -1px; }
 .ia-falha small { display: block; color: var(--text-faint); }

@@ -91,8 +91,8 @@ export async function render(el, widget) {
 
   el.innerHTML = `
     <div class="view-mode">
-      <div class="pw-avatar-btn" data-tooltip="${t("perfil_w.avatar")}" aria-label="${t("perfil_w.avatar")}">
-        <pre id="pw-avatar-ascii" style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? t("perfil_w.sem_avatar"))}</pre>
+      <div class="pw-avatar-btn" data-tooltip="${t("perfil_w.avatar")}">
+        <pre id="pw-avatar-ascii"${profile.avatar_ascii ? "" : " data-avatar-vazio"} style="margin:0; white-space:pre; color:var(--accent);">${escapeHtml(profile.avatar_ascii ?? t("perfil_w.sem_avatar"))}</pre>
       </div>
       <div style="flex:1 1 200px; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">

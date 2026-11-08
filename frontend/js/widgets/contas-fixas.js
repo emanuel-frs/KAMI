@@ -90,7 +90,7 @@ export async function render(el, widget) {
                 ${period && period.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("contas.gerou_tx")}">${simboloMoeda()}</span>` : ""}
                 ${b.active
                   ? `<button class="cf-toggle${paga ? " paga" : ""}" data-toggle-period="${period ? period.id : ""}" data-bill-id="${b.id}"
-                      data-tooltip="${tooltip}" aria-label="${tooltip}">
+                      data-tooltip="${tooltip}">
                       ${paga ? t("contas.paga") : t("contas.marcar_paga")}
                     </button>`
                   : `<span class="cf-inactive-tag">${t("renda.inativa")}</span>`}

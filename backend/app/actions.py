@@ -16,7 +16,7 @@ a soma do log e as contagens das conquistas continuam batendo, e
 """
 from typing import Iterable, List, Optional, Union
 
-from app.database import new_id, now_iso
+from app.database import ate_o_fim, new_id, now_iso
 from app.mensagens import ErroKami, colunas_do_texto
 from app.xp import level_from_xp
 from app.achievements import check_achievements, relock_unmet_achievements
@@ -225,6 +225,6 @@ def has_action(
     )
     args = [*tipos, referencia_id]
     if only_today:
-        query += " AND substr(created_at, 1, 10) = ?"
-        args.append(today_prefix())
+        query += " AND created_at >= ? AND created_at < ?"
+        args += [today_prefix(), ate_o_fim(today_prefix())]
     return db.execute(query + " LIMIT 1", args).fetchone() is not None

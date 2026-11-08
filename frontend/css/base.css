@@ -53,10 +53,13 @@ a { color: var(--text-bright); }
  * Primeiro elemento do body (ver index.html) — fora da tela por
  * padrão, só aparece com foco de teclado (Tab a partir do topo da
  * página). z-index acima da titlebar (400) e da textura de scanline
- * (999) pra nunca ficar coberto, não importa em qual tela. */
+ * (999) pra nunca ficar coberto, não importa em qual tela.
+ * Escondido pela PRÓPRIA altura (translateY -100%), não por um top fixo:
+ * com zoom abaixo de 100% o WebKit segura o tamanho mínimo do texto, o
+ * link fica mais alto que os 40px de antes e aparecia no topo (EST-03). */
 .skip-link {
   position: absolute;
-  top: -40px;
+  top: 0;
   left: 8px;
   z-index: 1000;
   background: var(--bg-alt);
@@ -65,10 +68,11 @@ a { color: var(--text-bright); }
   padding: 8px 14px;
   font-size: 12px;
   text-decoration: none;
-  transition: top 0.15s ease;
+  transform: translateY(calc(-100% - 8px));
+  transition: transform 0.15s ease;
 }
 .skip-link:focus {
-  top: 8px;
+  transform: translateY(8px);
 }
 
 /* ── scrollbar temática: "blocos listrados" (AJU-04) ─────────────────
@@ -175,6 +179,12 @@ a { color: var(--text-bright); }
   user-select: none;
   position: relative;
   z-index: 400;
+  /* camada própria na composição (EST-03, teste do Emanuel): rolando as
+     telas, os widgets — que o WebKit compõe numa camada própria, junto da
+     área rolável — eram desenhados 1px por cima da borda de baixo da
+     barra, que só aparecia nos vãos entre eles. Com a barra também numa
+     camada, o z-index vale na composição. */
+  transform: translateZ(0);
 }
 .win-ctrls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .win-ctrl-btn {
@@ -217,6 +227,11 @@ a { color: var(--text-bright); }
   border-color: var(--red);
 }
 .titlebar-text { color: var(--text-dim); font-size: 12px; letter-spacing: 0.5px; }
+/* EST-03 (P-195): botão do menu recolhível — só existe com pouca largura
+   (components/menu-recolhivel.js tira o hidden) */
+.titlebar-menu[hidden] { display: none; }
+.titlebar-menu:hover,
+body.menu-aberto .titlebar-menu { color: var(--accent); border-color: var(--accent); }
 /* (AJU-02) o cursor piscando depois do "kami" saiu a pedido do
    Emanuel — o nome fica só no texto, na mesma cor de sempre. */
 
@@ -224,6 +239,40 @@ a { color: var(--text-bright); }
   display: grid;
   grid-template-columns: 230px 1fr;
   height: calc(100vh - var(--titlebar-h));
+}
+
+/* ---------- MENU RECOLHÍVEL (EST-03, P-195) ----------
+   Até 940px de largura (zoom alto, janela estreita) o menu sai do lado e
+   abre por cima, pelo botão da barra de título; o fundo escurece e fecha
+   ao clicar. A classe vem de components/menu-recolhivel.js. */
+.menu-fundo { display: none; }
+body.menu-recolhido .layout { grid-template-columns: 1fr; }
+body.menu-recolhido .sidebar {
+  position: fixed;
+  top: var(--titlebar-h);
+  bottom: 0;
+  left: 0;
+  width: 230px;
+  z-index: 350;
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.18s ease, visibility 0s linear 0.18s;
+}
+body.menu-recolhido.menu-aberto .sidebar {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.18s ease;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
+}
+body.menu-recolhido.menu-aberto .menu-fundo {
+  display: block;
+  position: fixed;
+  inset: var(--titlebar-h) 0 0 0;
+  z-index: 340;
+  background: rgba(0, 0, 0, 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.menu-recolhido .sidebar { transition: none; }
 }
 
 /* ---------- SIDEBAR ---------- */

@@ -73,7 +73,7 @@ async function loadPositionOptions(wrap, selectedId) {
   }
   select.innerHTML =
     `<option value="">${t("salario.nenhuma")}</option>` +
-    positions.map((p) => `<option value="${p.id}">${p.role} — ${p.company}</option>`).join("");
+    positions.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(`${p.role} — ${p.company}`)}</option>`).join("");
   select.value = selectedId || "";
   refreshCustomSelect(select);
 }
