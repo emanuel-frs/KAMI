@@ -406,8 +406,13 @@ function navegavel(div, m, i) {
   const partes = [...div.querySelectorAll(":scope > .ia-quadro, :scope > .ia-msg-texto, :scope > .ia-falha, :scope > .ia-cuidado")];
   const autor = t(m.papel === "usuario" ? "assistente.chat.voce_disse" : "assistente.chat.kami_disse");
   const corpoFalado = partes.map(textoFalado).filter(Boolean).join(" ");
+  // artigo dentro de feed: o Orca fala só o nome e "3 de 4"; artigo solto
+  // ele lia o nome e depois a 1ª linha do conteúdo — o quadro por cima da
+  // mensagem (teste do Emanuel: "está lendo a tabela, não a mensagem")
   div.setAttribute("role", "article");
   div.setAttribute("aria-label", `${autor}: ${corpoFalado}`);
+  div.setAttribute("aria-posinset", String(i + 1));
+  div.setAttribute("aria-setsize", String(mensagens.length));
   div.tabIndex = 0;
 }
 
@@ -419,6 +424,13 @@ function voltarPraCaixa(e) {
     e.preventDefault();
     e.stopPropagation();
     caixa.focus();
+  } else if (e.key === "PageDown" || e.key === "PageUp") {
+    // padrão de feed: Page Down/Up vão pra mensagem seguinte/anterior
+    const irmao = e.key === "PageDown" ? e.currentTarget.nextElementSibling : e.currentTarget.previousElementSibling;
+    if (irmao?.matches("[role='article']")) {
+      e.preventDefault();
+      irmao.focus();
+    }
   } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
     caixa.focus(); // a própria tecla cai na caixa
   }
@@ -608,7 +620,7 @@ function renderConversa() {
   }
   const lista = document.createElement("div");
   lista.className = "ia-mensagens";
-  lista.setAttribute("role", "log");
+  lista.setAttribute("role", "feed");
   lista.setAttribute("aria-label", t("assistente.chat.conversa"));
   mensagens.forEach((m, i) => lista.append(noMensagem(m, i)));
   // redesenho com o foco numa mensagem (leitor de tela lendo a resposta):
@@ -644,7 +656,7 @@ function renderConversaSemRolar() {
   if (!lista) return;
   const novo = document.createElement("div");
   novo.className = lista.className;
-  novo.setAttribute("role", "log");
+  novo.setAttribute("role", "feed");
   novo.setAttribute("aria-label", t("assistente.chat.conversa"));
   mensagens.forEach((m, i) => novo.append(noMensagem(m, i)));
   const foco = document.activeElement?.closest?.(".ia-msg")?.dataset.i;

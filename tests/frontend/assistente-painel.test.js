@@ -138,6 +138,14 @@ test(
       const pergunta = doc.querySelector(".ia-msg--usuario");
       assert.equal(pergunta.getAttribute("role"), "article");
       assert.equal(pergunta.getAttribute("aria-label"), "você disse: quanto gastei?");
+      // feed (o Orca fala só nome + posição; artigo solto ele lia o quadro por cima)
+      assert.equal(foco.parentElement.getAttribute("role"), "feed");
+      assert.equal(foco.getAttribute("aria-posinset"), "2");
+      assert.equal(foco.getAttribute("aria-setsize"), "2");
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "PageUp", bubbles: true }));
+      assert.equal(doc.activeElement, pergunta);
+      pergunta.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
+      assert.equal(doc.activeElement, foco);
       // digitar numa mensagem volta pra caixa; Esc também
       foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
       assert.equal(doc.activeElement.id, "ia-texto");
