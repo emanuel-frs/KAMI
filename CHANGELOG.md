@@ -4,7 +4,7 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [2.0.0] - em desenvolvimento
+## [2.0.0] - 2026-11-08
 
 _O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 idiomas, com um assistente de IA opcional que pode rodar no seu computador — e, nesta versão, acessível pelo teclado, mais rápido com anos de dados e com um jeito de relatar erros pelo próprio app._
 
