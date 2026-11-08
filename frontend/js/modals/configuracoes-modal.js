@@ -169,7 +169,7 @@ function buildModal() {
     <div class="modal cfg-modal">
       <div class="modal-head">${t("configuracoes.configuracoes")} <button type="button" class="close" data-action="close" aria-label="${t("geral.fechar")}">${icon("x")}</button></div>
       <div class="modal-body cfg-shell">
-        <nav class="cfg-sidebar">${buildTabsHtml()}</nav>
+        <nav class="cfg-sidebar" aria-label="${t("configuracoes.configuracoes")}">${buildTabsHtml()}</nav>
         <div class="cfg-content">
           ${buildAparenciaPanel()}
           ${buildPerfilPanel()}

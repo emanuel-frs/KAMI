@@ -42,6 +42,7 @@ const CENAS = [
   { nome: "novo lembrete", abrir: `import("/js/modals/lembrete-modal.js").then((m) => m.openLembreteModal({}))` },
   { nome: "novo evento", abrir: `import("/js/modals/calendario-evento-modal.js").then((m) => m.openCalendarioEventoModal({ date: "2026-11-10" }))` },
   { nome: "paleta (Ctrl+K)", abrir: `Promise.resolve(document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true })))` },
+  { nome: "aviso clicável (toast)", abrir: `import("/js/components/toast.js").then((m) => m.showToast({ title: "lembrete", message: "pagar a conta", duration: 0, onClick: () => {}, actions: [{ label: "adiar", onClick: () => true }] }))` },
   { nome: "assistente (Alt+A)", abrir: `import("/js/components/assistente-painel.js").then((m) => m.alternarAssistente())` },
 ];
 

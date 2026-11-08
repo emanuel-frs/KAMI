@@ -47,9 +47,24 @@
   opacity: 1;
   transform: translateY(0);
 }
-.toast-item.clickable { cursor: pointer; }
+.toast-item.clickable { cursor: pointer; position: relative; }
 .toast-item.clickable:hover { border-color: var(--accent-dim); }
-.toast-item.clickable:focus-visible {
+/* botão que cobre o aviso clicável (toast.js) — o fechar e as ações ficam por cima */
+.toast-abrir {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.toast-abrir:focus { outline: none; }
+.toast-item.clickable .toast-close,
+.toast-item.clickable .toast-actions { position: relative; z-index: 1; }
+.toast-item.clickable:has(.toast-abrir:focus-visible) {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
