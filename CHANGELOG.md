@@ -27,6 +27,10 @@ _O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 
 ### Corrigido
 - acessibilidade pelo teclado e leitor de tela: os ícones de ação (editar, remover), abas e filtros que não eram botões passam a ser alcançados pelo Tab e acionados com Enter ou Espaço, com nome para o leitor de tela; setas de mês, seletores e o campo da captura rápida ganharam nome; as listas com rolagem (conquistas, eventos do dia) dá para rolar pelo teclado; e textos pequenos na cor de destaque ou bem apagados ficaram com contraste suficiente em qualquer cor escolhida
 
+- leitor de tela (Orca): o Kami aberto de um terminal do VS Code ficava invisível para ele; avisos não eram lidos; e a resposta do assistente agora é lida ao terminar, com pausas entre os trechos — as mensagens da conversa viram itens navegáveis (Tab, Page Up/Down; digitar ou Esc volta para a caixa)
+- com zoom: os widgets com altura escolhida não ficam mais altos depois de aumentar e voltar o zoom, e abaixo de 100% o "pular para o conteúdo" não aparece no topo nem os avisos ficam um sobre o outro
+- o assistente consulta os dados de novo a cada pergunta (antes repetia, na mesma conversa, um resultado antigo) e não mostra mais códigos de ícone inventados (":todinho:")
+
 ### Segurança
 - revisão de segurança do código todo para a 2.0: o seletor de cargo do registro de salário passou a escapar o texto, e a política de conteúdo da janela ganhou `object-src`, `base-uri` e `form-action`. As auditorias de dependências (Python, JavaScript e Rust) deram zero vulnerabilidades; os avisos que sobram, de bibliotecas do Tauri no Linux, estão no SECURITY.md
 - Dependabot e auditoria de dependências passam a rodar uma vez por mês (a auditoria continua em todo PR)
