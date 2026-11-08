@@ -103,7 +103,9 @@ def enviar(payload: RetornoIn, db=Depends(get_db)):
     msg["From"] = conta["username"]
     msg["To"] = DESTINO
     msg["Reply-To"] = conta["username"]
-    msg["Subject"] = payload.assunto.strip() or "Kami"
+    # cabeçalho numa linha só: quebra de linha no assunto viraria erro 500
+    # (o email do Python recusa — o que impede injetar "Bcc:")
+    msg["Subject"] = " ".join(payload.assunto.split()) or "Kami"
     corpo = mensagem
     if payload.diagnostico.strip():
         corpo += "\n\n" + payload.diagnostico.strip()

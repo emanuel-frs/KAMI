@@ -259,8 +259,9 @@ The project's other choices, each with its reason, are in [docs/DECISOES.md](./d
 - **AI assistant:** language models make mistakes, and the small ones that run on your computer make
   more. How well each one does is measured in [docs/QUALIDADE-IA.md](./docs/QUALIDADE-IA.md); check the
   preview before applying an action.
-- **Screen readers:** the screens were checked with axe-core and used from the keyboard only, but screen
-  readers were barely tested (NVDA, on Windows, not at all).
+- **Screen readers:** the screens were checked with axe-core and used from the keyboard only, and Orca,
+  on Linux, was used for real (menu, screens and the assistant, whose answer it reads when it finishes);
+  NVDA, on Windows, not at all.
 - **Translations:** made with the help of AI, without review by native speakers.
 
 ## License and contributing

@@ -102,3 +102,12 @@ def test_mensagem_vazia_recusada(client, smtp):
     r = client.post("/api/retorno/enviar", json={"assunto": "x", "mensagem": "   "})
     assert r.status_code == 422
     smtp.ssl.assert_not_called()
+
+
+def test_assunto_com_quebra_de_linha_vira_uma_linha_e_nao_injeta_cabecalho(client, smtp):
+    _conta(client)
+    r = client.post("/api/retorno/enviar", json={"assunto": "Kami\r\nBcc: outro@x.com", "mensagem": "oi"})
+    assert r.status_code == 200, r.text
+    msg = smtp.send_message.call_args.args[0]
+    assert msg["Subject"] == "Kami Bcc: outro@x.com"
+    assert msg["Bcc"] is None and msg["To"] == "kami.feedback@gmail.com"

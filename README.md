@@ -265,8 +265,9 @@ As outras escolhas do projeto, com o porquê de cada uma, estão em [docs/DECISO
 - **Assistente de IA:** modelo de linguagem erra, e os pequenos, que rodam no computador, erram mais.
   O quanto cada um acerta está medido em [docs/QUALIDADE-IA.md](./docs/QUALIDADE-IA.md); confira a
   prévia antes de aplicar uma ação.
-- **Leitores de tela:** as telas foram conferidas com o axe-core e usadas só pelo teclado, mas leitores
-  de tela foram pouco testados (o NVDA, no Windows, nenhuma vez).
+- **Leitores de tela:** as telas foram conferidas com o axe-core e usadas só pelo teclado, e o Orca, no
+  Linux, foi usado de verdade (menu, telas e o assistente, cuja resposta ele lê ao terminar); o NVDA, no
+  Windows, nenhuma vez.
 - **Traduções:** feitas com ajuda de IA, sem revisão de falante nativo.
 
 ## Licença e contribuição
