@@ -607,6 +607,11 @@ async function main() {
         await clicar('[data-ia="nova"]');
         await perguntar("e2e-acao: anota duas coisas");
         await waitFor("o cartão da proposta", () => visivel('.ia-proposta--pendente [data-prop="aplicar"]'), { timeout: 15000 });
+        // o cartão aparece ainda travado enquanto a resposta chega (caixas e
+        // "aplicar" desabilitados): clicar a caixa nessa hora não fazia nada
+        // e o lote saía inteiro (falhou 1 vez no CI da 2.0) — espera liberar
+        await respondeu("o fim da resposta da proposta");
+        await waitFor("o cartão liberado", () => wd.execute(`return !document.querySelector('.ia-prop-item[data-item="1"] [data-prop="marcar"]')?.disabled`), { timeout: 5000 });
         await clicar('.ia-prop-item[data-item="1"] [data-prop="marcar"]');
         await print("assistente-proposta");
         await clicar('.ia-proposta--pendente [data-prop="aplicar"]');
