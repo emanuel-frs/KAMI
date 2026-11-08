@@ -3,9 +3,13 @@
 // (zoom → grade de 2 colunas → card estreito e alto), o card cresce na
 // tela, mas volta à escolhida quando o conteúdo deixa — e o layout salvo
 // continua com a escolhida. Antes, a altura inflada ficava pra sempre.
+//
+// Fica em frontend-carga/ (fora da medição de cobertura): importar o
+// grid.js puxa grid-arrastar e grid-teclado (~1.400 linhas de DOM), e o
+// Node conta todo arquivo importado — derrubou a cobertura do CI pra 78%.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { withDom } from "./helpers/dom.js";
+import { withDom } from "../frontend/helpers/dom.js";
 
 const HTML = `<!doctype html><body><div id="g"><div class="card" data-span="3"></div></div></body>`;
 
