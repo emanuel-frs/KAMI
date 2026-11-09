@@ -42,9 +42,9 @@ export async function render(el, widget) {
     el.innerHTML = `
       <div class="widget-inline-toolbar">
         <div class="month-nav">
-          <button type="button" class="btn sm" data-action="prev-month">${icon("arrow-left", { size: 11 })}</button>
+          <button type="button" class="btn sm" data-action="prev-month" aria-label="${t("calendario.mes_anterior")}" data-tooltip="${t("calendario.mes_anterior")}">${icon("arrow-left", { size: 11 })}</button>
           <span class="month-label">${monthLabel(month)}</span>
-          <button type="button" class="btn sm" data-action="next-month">${icon("arrow-right", { size: 11 })}</button>
+          <button type="button" class="btn sm" data-action="next-month" aria-label="${t("calendario.proximo_mes")}" data-tooltip="${t("calendario.proximo_mes")}">${icon("arrow-right", { size: 11 })}</button>
         </div>
       </div>
       <div class="chart-categorias-list">

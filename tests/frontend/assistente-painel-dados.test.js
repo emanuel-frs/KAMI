@@ -74,7 +74,7 @@ test(
         { tipo: "fim", motivo: "fim" },
       ];
       doc.querySelectorAll(".ia-sugestao")[0].click();
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       assert.equal(pedidos.find((p) => p.caminho === "/api/assistente/mensagens").corpo.texto, "resuma meu mês");
       assert.match($(".ia-msg--kami .ia-consulta").textContent, /^consultou: resumo financeiro, maiores gastos · \d+ s$/);
       assert.equal($(".ia-msg--kami strong").textContent, "R$ 900");
@@ -88,7 +88,7 @@ test(
       ];
       $("#ia-texto").value = "quero me matar";
       $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const box = doc.querySelector(".ia-msg--kami:last-child .ia-cuidado");
       assert.ok(box, "resposta de cuidado desenhada");
       assert.match(box.textContent, /não precisa lidar com isso sem apoio/);
@@ -103,28 +103,28 @@ test(
       ];
       $("#ia-texto").value = "I want to die";
       $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const box = doc.querySelector(".ia-msg--kami:last-child .ia-cuidado");
       assert.match(box.querySelector(".ia-cuidado-servico").textContent, /serviço de apoio gratuito/);
       assert.equal(box.querySelector("a").textContent, "findahelpline.com");
     });
 
-    await t.test("IA-07a: modelo local aquece ao abrir e número fora dos dados ganha o aviso", async () => {
+    await t.test("IA-07a: modelo local aquece ao abrir; a resposta limpa pelo Kami substitui a que veio, sem \"confira\"", async () => {
       const aquecer = pedidos.find((p) => p.caminho === "/api/assistente/aquecer");
       assert.deepEqual(aquecer?.corpo, { tela: "financas", idioma: "pt" });
       resposta = [
         { tipo: "inicio", conversa_id: "c1" },
         { tipo: "ferramenta", nome: "finance_summary" },
         { tipo: "texto", delta: "Seu saldo é r$ 49.031." },
-        { tipo: "conferido", texto: "Seu saldo é R$ 49.031.", valores: ["R$ 49.031"] },
+        { tipo: "conferido", texto: "Seu saldo é R$ 49.031." },
         { tipo: "fim", motivo: "fim" },
       ];
       $("#ia-texto").value = "estou gastando muito?";
       $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const ultima = doc.querySelector(".ia-msg--kami:last-child");
       assert.equal(ultima.querySelector(".ia-msg-texto").textContent, "Seu saldo é R$ 49.031.");
-      assert.equal(ultima.querySelector(".ia-conferir").textContent, "confira: não está nos dados que o Kami consultou — R$ 49.031");
+      assert.match(ultima.textContent, /^(?!.*confira)/s, "o aviso \"confira\" saiu (teste do Emanuel)");
     });
 
     await t.test("IA-07a: 1ª pergunta durante o aquecimento mostra \"preparando o modelo\"", async () => {
@@ -143,7 +143,7 @@ test(
       assert.match(etapa(), /^pensando/);
       ctrl.enqueue(enc.encode(`event: fim\ndata: ${JSON.stringify({ tipo: "fim", motivo: "fim" })}\n\n`));
       ctrl.close();
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
     });
 
     await t.test("IA-07a: etapas com o tempo enquanto responde; no fim, uma linha com o tempo", async () => {
@@ -168,7 +168,7 @@ test(
       await ate(() => /escrevendo/.test(etapas().join()));
       manda({ tipo: "fim", motivo: "fim" });
       ctrl.close();
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const ultima = doc.querySelector(".ia-msg--kami:last-child");
       assert.equal(ultima.querySelector(".ia-etapas"), null);
       assert.match(ultima.querySelector(".ia-consulta").textContent, /^consultou: metas · \d+ s$/);

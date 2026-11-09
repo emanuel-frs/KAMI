@@ -4,6 +4,46 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] - 2026-11-08
+
+_O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 idiomas, com um assistente de IA opcional que pode rodar no seu computador — e, nesta versão, acessível pelo teclado, mais rápido com anos de dados e com um jeito de relatar erros pelo próprio app._
+
+### Da 1.9 à 2.0
+
+- **Organização.** Notas com editor visual, tags e notas trancadas; captura rápida (`Alt+Q`) que entende gasto, nota, evento e lembrete numa linha; busca em tudo e comandos (`Ctrl+K`); hábitos com tela própria; lembretes com notificação do sistema; datas no formato do país. As telas passaram a se organizar sozinhas em faixas alinhadas, cada uma com um layout padrão.
+- **Confiabilidade e atualização.** Quando algo dá errado, o Kami mostra um código que também está no log e se recupera sozinho se o backend cair. O banco é copiado antes de cada atualização (e volta sozinho se ela falhar), toda semana e antes de importar ou apagar tudo. O próprio app avisa de versão nova e instala quando você pede, conferindo a assinatura; desinstalar não deixa rastro.
+- **Segurança.** PIN opcional para abrir o app, backup exportado com senha, senhas salvas protegidas por uma chave no cofre do sistema, limites em toda entrada da API, auditoria das dependências em todo PR e banco cifrado em disco opcional.
+- **Idiomas.** Português, inglês, espanhol, francês, italiano, alemão, chinês, japonês, coreano e hindi, com a moeda e o país dos feriados escolhidos por você.
+- **Assistente de IA.** Opcional e desligado por padrão, com o provedor que você escolher, na nuvem ou no seu computador (o Kami recomenda o modelo e instala o Ollama oficial). Lê os seus dados pelas áreas que você libera, propõe ações numa prévia que você edita e desfaz, e recebe as contas já feitas pelo próprio Kami, que mostra os números num quadro e confere os da resposta. Os avisos do sino são regras locais, sem IA.
+
+### Adicionado
+- o assistente agora recebe pronto, do próprio Kami, o que concluir sobre contas a vencer (quanto está em aberto, o que venceu, o que vence na semana e se o dinheiro nas contas cobre), hábitos (o que falta hoje, sequências em risco, a maior e o mais fraco) e aprendizado (o próximo marco de cada trilha, as paradas e a mais perto do fim); e mostra esses números num quadro, como já fazia com metas e finanças
+- tamanho da tela: Ctrl + e Ctrl − aumentam ou diminuem tudo no Kami, de 50% a 200%, e Ctrl 0 volta ao normal; também em configurações › aparência. Fica guardado neste computador. Com zoom alto ou a janela estreita (meia tela), o menu da esquerda vira um botão na barra de título que o abre por cima
+- relatar um erro ou dar uma ideia em configurações › sobre: você escreve, escolhe se vai junto o diagnóstico (versão, sistema e o fim do log, sem dados pessoais) e envia direto do Kami, pela conta de e-mail que você ligou em organização › e-mail (sem conta ligada, o Kami leva até lá ou abre o seu programa de e-mail já preenchido), ou pelo GitHub, numa issue já preenchida. Nada sai antes do seu clique
+
+### Removido
+- o aviso "confira" embaixo das respostas do assistente (valor ou data fora dos dados): acusava mais coisa certa escrita de outro jeito do que erro de verdade, e os números certos já aparecem no quadro do Kami
+
+### Corrigido
+- acessibilidade pelo teclado e leitor de tela: os ícones de ação (editar, remover), abas e filtros que não eram botões passam a ser alcançados pelo Tab e acionados com Enter ou Espaço, com nome para o leitor de tela; setas de mês, seletores e o campo da captura rápida ganharam nome; as listas com rolagem (conquistas, eventos do dia) dá para rolar pelo teclado; e textos pequenos na cor de destaque ou bem apagados ficaram com contraste suficiente em qualquer cor escolhida
+
+- leitor de tela (Orca): o Kami aberto de um terminal do VS Code ficava invisível para ele; avisos não eram lidos; e a resposta do assistente agora é lida ao terminar, com pausas entre os trechos — as mensagens da conversa viram itens navegáveis (Tab, Page Up/Down; digitar ou Esc volta para a caixa)
+- com zoom: os widgets com altura escolhida não ficam mais altos depois de aumentar e voltar o zoom, e abaixo de 100% o "pular para o conteúdo" não aparece no topo nem os avisos ficam um sobre o outro
+- o assistente consulta os dados de novo a cada pergunta (antes repetia, na mesma conversa, um resultado antigo) e não mostra mais códigos de ícone inventados (":todinho:")
+
+### Segurança
+- revisão de segurança do código todo para a 2.0: o seletor de cargo do registro de salário passou a escapar o texto, e a política de conteúdo da janela ganhou `object-src`, `base-uri` e `form-action`. As auditorias de dependências (Python, JavaScript e Rust) deram zero vulnerabilidades; os avisos que sobram, de bibliotecas do Tauri no Linux, estão no SECURITY.md
+- Dependabot e auditoria de dependências passam a rodar uma vez por mês (a auditoria continua em todo PR)
+
+### Documentação
+- o formato do export (com e sem senha), com um trecho em Python para abrir o arquivo com senha sem o Kami: docs/FORMATO-DO-EXPORT.md
+- as decisões do projeto e o porquê de cada uma: docs/DECISOES.md
+- README em inglês atualizado com tudo o que entrou desde a 1.16, e "limites conhecidos" no lugar do roadmap
+
+### Alterado
+- com muitos anos de lançamentos, as telas e o calendário buscam o mês pelo índice do banco (o calendário do mês, com 20 mil lançamentos, caiu de 160 ms para 11 ms)
+- instalação nova começa sem fonte de renda: as duas fontes de exemplo ("parte 1" e "parte 2") que vinham cadastradas saem. Quem já tinha e nunca mexeu nem recebeu nada nelas também as perde na atualização; quem editou ou usou fica com elas
+
 ## [1.18.0] - 2026-11-02
 
 _O assistente pode rodar no seu computador, sem nada sair dele — o Kami recomenda o modelo, instala o Ollama e mostra os seus números do jeito que leu —, e o banco pode ficar cifrado em disco._

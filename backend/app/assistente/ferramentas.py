@@ -166,7 +166,7 @@ _FINANCEIROS = {"conta_fixa": "fixed bill", "assinatura": "subscription", "divid
 
 
 def _contas_a_vencer(conn, args):
-    from app.routers import calendario
+    from app.routers import calendario, carteira
 
     dias = _inteiro(args, "days", 30, 1, 60)
     hoje = _hoje()
@@ -184,7 +184,32 @@ def _contas_a_vencer(conn, args):
             itens.append({"title": ev["title"], "kind": _FINANCEIROS[ev["type"]], "amount": ev.get("amount"),
                           "due_date": ev["date"], "overdue": quando < hoje})
     itens.sort(key=lambda i: i["due_date"])
-    return {"today": hoje.isoformat(), "until": fim.isoformat(), "unpaid": itens[:40]}
+    nas_contas = _js(carteira.get_summary(db=conn)).get("total_possui")
+    return {"today": hoje.isoformat(), "until": fim.isoformat(), "conclusions": _conclusoes_contas(itens, hoje, nas_contas),
+            "unpaid": itens[:40]}
+
+
+def _conclusoes_contas(itens: list[dict], hoje: date, nas_contas: float | None) -> dict:
+    """P-173c: quanto está em aberto, o que venceu, o que vem na semana, a
+    próxima e se o que há nas contas cobre — contado pelo Kami."""
+    if not itens:
+        return {"nothing_due": True}
+    valor = lambda lista: round(sum(i["amount"] or 0 for i in lista), 2)  # noqa: E731
+    vencidas = [i for i in itens if i["overdue"]]
+    semana = [i for i in itens if not i["overdue"] and date.fromisoformat(i["due_date"]) <= hoje + timedelta(days=7)]
+    c = {"unpaid_count": len(itens), "unpaid_total": valor(itens),
+         "overdue_count": len(vencidas), "overdue_total": valor(vencidas),
+         "due_next_7_days_count": len(semana), "due_next_7_days_total": valor(semana)}
+    proxima = next((i for i in itens if not i["overdue"]), None)
+    if proxima:
+        c["next_due"] = {"title": proxima["title"], "due_date": proxima["due_date"], "amount": proxima["amount"],
+                         "days_left": (date.fromisoformat(proxima["due_date"]) - hoje).days}
+    if nas_contas is not None:
+        c["accounts_total_available"] = nas_contas
+        c["accounts_cover_all"] = nas_contas >= c["unpaid_total"]
+        if not c["accounts_cover_all"]:
+            c["short_by"] = round(c["unpaid_total"] - nas_contas, 2)
+    return c
 
 
 # ── metas, agenda, hábitos, aprendizado, progresso ───────────────────────
@@ -324,25 +349,71 @@ def _habitos(conn, args):
     from app.routers import habitos
 
     lista = _js(habitos.listar(arquivados=False, db=conn))
-    return {"habits": [
+    itens = [
         {"name": h["nome"], "frequency": h["frequencia"], "due_today": h["vale_hoje"], "done_today": h["feito_hoje"],
          "done_this_week": h["feitas_na_semana"], "streak": h["sequencia"], "best_streak": h["recorde"],
-         "success_30d_pct": h["aproveitamento_30d"], "status": h["status"]} for h in lista[:30]]}
+         "success_30d_pct": h["aproveitamento_30d"], "status": h["status"]} for h in lista[:30]]
+    return {"conclusions": _conclusoes_habitos(itens), "habits": itens}
+
+
+def _conclusoes_habitos(itens: list[dict]) -> dict:
+    """P-173c: o que falta hoje, sequências em risco, a maior, a média e o
+    mais fraco dos últimos 30 dias."""
+    ativos = [h for h in itens if h["status"] == "ativo"]
+    if not ativos:
+        return {"no_active_habits": True}
+    pendentes = [h for h in ativos if h["due_today"] and not h["done_today"]]
+    c = {"active": len(ativos), "done_today": sum(1 for h in ativos if h["done_today"]),
+         "still_due_today": [h["name"] for h in pendentes],
+         "streaks_at_risk_today": [{"name": h["name"], "streak": h["streak"]} for h in pendentes if h["streak"]]}
+    maior = max(ativos, key=lambda h: h["streak"] or 0)
+    if maior["streak"]:
+        c["longest_current_streak"] = {"name": maior["name"], "streak": maior["streak"]}
+    taxas = [h for h in ativos if h["success_30d_pct"] is not None]
+    if taxas:
+        c["average_success_30d_pct"] = round(sum(h["success_30d_pct"] for h in taxas) / len(taxas), 1)
+    if len(taxas) > 1:
+        fraco = min(taxas, key=lambda h: h["success_30d_pct"])
+        c["weakest_30d"] = {"name": fraco["name"], "success_30d_pct": fraco["success_30d_pct"]}
+    return c
 
 
 def _aprendizado(conn, args):
+    from app import avisos
     from app.routers import aprendizado
 
     trilhas = []
     for t in _js(aprendizado.list_tracks(db=conn))[:15]:
         marcos = _js(aprendizado.list_milestones(track_id=t["id"], db=conn))
+        proximo = next((m["title"] for m in marcos if m["status"] != "concluido"), None)
         trilhas.append({
             "track": t["name"], "goal": t["general_goal"], "status": t["status"],
             "completed": t["completed_milestones"], "total": t["total_milestones"], "progress_pct": t["progress_pct"],
+            "next_milestone": proximo,
             "milestones": [{"title": m["title"], "status": m["status"], "last_activity": m["last_activity_at"]}
                            for m in marcos[:20]],
         })
-    return {"tracks": trilhas}
+    # parada = a mesma regra do aviso do sino (avisos.trilha_parada), pra os dois nunca discordarem
+    paradas = [{"track": o.nome, "days_without_milestone": o.vars["dias"]}
+               for o in avisos.trilha_parada(conn, _hoje())]
+    return {"conclusions": _conclusoes_aprendizado(trilhas, paradas), "tracks": trilhas}
+
+
+def _conclusoes_aprendizado(trilhas: list[dict], paradas: list[dict]) -> dict:
+    """P-173c: trilhas ativas, marcos no total, as paradas e a mais perto do fim."""
+    ativas = [t for t in trilhas if t["status"] == "ativa"]
+    if not ativas:
+        return {"no_active_tracks": True}
+    c = {"active_tracks": len(ativas),
+         "milestones_completed": sum(t["completed"] for t in ativas),
+         "milestones_total": sum(t["total"] for t in ativas),
+         "stalled_tracks": paradas}
+    em_curso = [t for t in ativas if t["total"] and t["completed"] < t["total"]]
+    if em_curso:
+        perto = max(em_curso, key=lambda t: t["progress_pct"])
+        c["closest_to_finish"] = {"track": perto["track"], "progress_pct": perto["progress_pct"],
+                                  "milestones_left": perto["total"] - perto["completed"], "next_milestone": perto["next_milestone"]}
+    return c
 
 
 def _progresso(conn, args):
@@ -514,7 +585,10 @@ LEITURAS: list[Leitura] = [
             "they already use. Read it before proposing money entries.",
             _SEM_PARAMETROS, _contas_e_categorias),
     Leitura("bills_due", "financas",
-            "Unpaid fixed bills, subscriptions, debts and installments due from today up to N days ahead (overdue ones of this month included).",
+            "BILLS to pay — use it for 'what do I have to pay?', 'can I pay my bills?', 'anything overdue?'. Unpaid fixed bills, "
+            "subscriptions, debts and installments due from today up to N days ahead (overdue ones of this month included), plus "
+            "Kami's computed conclusions (total unpaid, overdue, due in the next 7 days, the next one and whether the money "
+            "in the accounts covers them).",
             {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "description": "default 30"}}}, _contas_a_vencer),
     Leitura("goals", "metas",
             "The person's goals with current value, target, progress, deadline and status, plus Kami's computed "
@@ -525,9 +599,15 @@ LEITURAS: list[Leitura] = [
             "Calendar items (events, reminders, bills, goal deadlines…) between two dates, at most 62 days apart.",
             {"type": "object", "properties": {"from": {"type": "string", "description": "YYYY-MM-DD; default today"},
                                               "to": {"type": "string", "description": "YYYY-MM-DD; default from + 7 days"}}}, _agenda),
-    Leitura("habits", "habitos", "Active habits: frequency, done today, this week, streaks and 30-day success rate.",
+    Leitura("habits", "habitos",
+            "HABITS — use it for 'how are my habits?', 'what is left for today?', 'am I keeping my streaks?'. Active habits "
+            "(frequency, done today, this week, streaks, 30-day success rate) plus Kami's computed conclusions (still due "
+            "today, streaks at risk, longest streak, average and weakest success rate).",
             _SEM_PARAMETROS, _habitos),
-    Leitura("learning", "aprendizado", "Learning tracks with progress and their milestones (status pendente/concluido/esquecido = stale).",
+    Leitura("learning", "aprendizado",
+            "STUDIES — use it for 'how are my studies?', 'what should I study next?', 'which track is stalled?'. Learning "
+            "tracks with progress, the next milestone and all milestones (status pendente/concluido/esquecido = stale), plus "
+            "Kami's computed conclusions (active tracks, milestones done, stalled tracks, the one closest to finishing).",
             _SEM_PARAMETROS, _aprendizado),
     Leitura("progress", "progresso", "Game progress: level, xp, streak, class/title, achievements, attributes and today's/this week's missions.",
             _SEM_PARAMETROS, _progresso),
@@ -560,7 +640,7 @@ def disponiveis(cfg: dict, local: bool = False) -> list[Leitura]:
 # IA-07a: consultas que a tela mostra num quadro com os números do próprio
 # Kami — o modelo só comenta (teste do Emanuel: o 4B reescrevia os números
 # e errava). São dados da pessoa, no computador dela: não saem daqui.
-QUADROS = {"goals", "finance_summary", "month_overview"}
+QUADROS = {"goals", "finance_summary", "month_overview", "bills_due", "habits", "learning"}
 _CORPO = re.compile(r'^<dados ferramenta="[^"]*">\n(.*)\n</dados>\n', re.DOTALL)
 
 

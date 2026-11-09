@@ -73,7 +73,7 @@
   border-top: 1px dashed var(--border-soft);
   letter-spacing: 0.3px;
 }
-.ach.unlocked .a-date { color: var(--accent-dim); }
+.ach.unlocked .a-date { color: var(--accent-texto); }
 .ach .a-status {
   font-size: 8.5px;
   letter-spacing: 0.5px;
@@ -126,7 +126,7 @@
   background: var(--bg-alt);
 }
 .ach-filter-count { color: var(--text-faint); }
-.ach-filter.on .ach-filter-count { color: var(--accent-dim); }
+.ach-filter.on .ach-filter-count { color: var(--accent-texto); }
 
 /* marca de nível (I/II/III) no canto do ícone */
 .ach-tier {

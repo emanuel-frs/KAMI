@@ -96,13 +96,19 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   útil escolhidos ali também. Datas no formato do idioma ou no que você preferir. As traduções foram
   feitas com ajuda de IA e não passaram por falante nativo — correções são bem-vindas
   ([docs/TRADUCAO.md](./docs/TRADUCAO.md)).
+- **Acessibilidade e tamanho da tela:** tudo funciona pelo teclado (Tab, Enter, Espaço e atalhos com
+  `Alt`, listados em `Alt+H`), com nome para o leitor de tela em cada controle e o contraste conferido
+  com o axe-core em todas as telas; `Ctrl +` e `Ctrl −` aumentam ou diminuem tudo, e `Ctrl 0` volta ao
+  normal. Com zoom alto ou a janela estreita, o menu da esquerda vira um botão na barra de título.
 - **Perfil:** avatar em ASCII gerado no próprio app a partir de uma foto; só o texto é salvo, a foto não.
 - **Confiabilidade:** quando algo dá errado aparece um aviso com um código que também está no log;
   se o backend cair, o app percebe e o reinicia sozinho, sem fechar; antes de atualizar o banco para
   uma versão nova, o Kami guarda uma cópia e volta para ela se a atualização falhar; uma cópia do banco
   sai sozinha toda semana e antes de importar ou apagar tudo, com "restaurar" em configurações › backup
   (e uma pasta extra opcional, como um pendrive); e em
-  configurações › sobre dá para copiar um diagnóstico, sem dados pessoais, para relatar um problema.
+  configurações › sobre dá para relatar um erro ou dar uma ideia direto do app, pela sua conta de
+  e-mail ligada no Kami, ou pelo GitHub, já com um diagnóstico sem dados pessoais (você confere antes
+  de enviar).
 - **Telas que se organizam:** os widgets se encaixam sozinhos em faixas alinhadas, em qualquer tamanho
   de janela e com qualquer quantidade de dados, e cada tela tem um layout padrão montado para combinar
   (com "restaurar padrão"). Um widget removido e adicionado de novo volta para o lugar dele.
@@ -118,7 +124,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   Kami diz qual modelo cabe na sua máquina, instala o Ollama oficial (conferido) e baixa o modelo. Ele também propõe ações
   (notas, lembretes, eventos, hábitos, lançamentos, até um extrato colado, metas e planos de estudo)
   numa prévia que você edita e aplica em parte, e um lote aplicado se desfaz inteiro; nada é gravado
-  sem o seu clique. Você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
+  sem o seu clique. As contas são do próprio Kami: metas, finanças, contas a vencer, hábitos e estudos
+  chegam ao modelo já analisados e aparecem num quadro com os números reais; o modelo só comenta. Você escolhe quais áreas ele pode ler e vê tudo o que foi enviado. Nenhuma chave
   vem embutida. O que sai e os limites estão no [SECURITY.md](./SECURITY.md#assistente-de-ia).
 - **Avisos:** o Kami avisa no sino quando um gasto passa do mês anterior, uma conta fixa vence sem
   saldo, ou uma meta, um atributo ou uma trilha ficam parados. São regras no seu computador, sem IA;
@@ -170,6 +177,7 @@ e para saber se saiu uma versão nova (dá pra desligar). Não há telemetria ne
 |---|---|---|
 | `api.github.com` | só se você cadastrar um repositório ou token | nomes de repositórios e o token (no header) |
 | Seu provedor de e-mail (IMAP) | só se você cadastrar uma conta | usuário e senha de app, por conexão SSL |
+| Seu provedor de e-mail (SMTP), para `kami.feedback@gmail.com` | só quando você clica em "enviar por e-mail" em configurações › sobre | a mensagem que você escreveu e, se marcado, o diagnóstico (sem dados pessoais), saindo do seu endereço |
 | `api.tavily.com` | só se você cadastrar uma chave de busca | suas buscas e a chave |
 | `duckduckgo.com` | só ao clicar em "abrir busca" | a busca, aberta no navegador |
 | `github.com` (Releases do Kami) | ao abrir e uma vez por dia, com "procurar atualizações" ligado (padrão; desliga em configurações › sobre) | só o pedido do arquivo de versões (`latest.json`), sem nada seu; e o download da versão nova, se você pedir "atualizar agora" |
@@ -182,6 +190,10 @@ Credenciais no Windows, Secret Service no Linux), não na pasta de dados. Isso n
 programa rodando com o seu usuário; o [SECURITY.md](./SECURITY.md) descreve o que o Kami protege e o
 que não protege. Com o banco cifrado ligado (configurações › segurança), o arquivo do banco e as cópias
 automáticas também só abrem com uma chave do cofre.
+
+Os dados são seus: o export (com ou sem senha) é um JSON cujo formato está em
+[docs/FORMATO-DO-EXPORT.md](./docs/FORMATO-DO-EXPORT.md), com um trecho em Python para abrir o arquivo
+com senha sem o Kami.
 
 ## Como funciona por dentro
 
@@ -237,30 +249,26 @@ se o app sumir sem avisar.
 só o que realmente sai da máquina.
 
 **Sem framework nem bundler no frontend.** Foi uma escolha de simplicidade e de aprender a plataforma, e
-tem custo: alguns arquivos ficaram grandes (veja o roadmap).
+tem custo: sem as convenções de um framework, a organização em módulos e os testes de cada tela ficam
+por conta de regras escritas no próprio repositório ([docs/REGRAS-DE-NEGOCIO.md](./docs/REGRAS-DE-NEGOCIO.md)
+liga cada regra aos testes que a garantem).
 
-## Problemas conhecidos e roadmap
+As outras escolhas do projeto, com o porquê de cada uma, estão em [docs/DECISOES.md](./docs/DECISOES.md).
 
-Sem datas. Até a **2.0** (a versão em que o Kami entra em pausa, sem novidades por um tempo), o plano é:
+## Limites conhecidos
 
-- ~~**Base:**~~ feito na 1.14: atualização avisada pelo próprio app (instala só quando você quiser),
-  backup automático (inclusive numa segunda pasta, como um pendrive), desinstalação que não deixa nada
-  para trás, testes automáticos cobrindo todas as telas e arquivos grandes divididos.
-- ~~**Idiomas:**~~ feito na 1.15: português, inglês, espanhol, francês, italiano, alemão, chinês,
-  japonês, coreano e hindi, com moeda e país dos feriados à escolha.
-- **Assistente de IA (opcional, desligado por padrão):** o chat que lê os seus dados saiu na 1.16, e
-  as ações com prévia e os avisos na 1.17, e a IA no computador (recomendar, instalar o Ollama e baixar o
-  modelo pelo app) na 1.18. Nenhuma chave vem embutida.
-- ~~**Banco cifrado em disco**, opcional:~~ feito na 1.18.
-
-Ficam de fora, pelo menos até a 2.0:
-
-- **Windows:** assinatura de código. O aviso do SmartScreen continua aparecendo, porque a opção gratuita
-  para open source não vale para a licença atual (veja o [SECURITY.md](./SECURITY.md#instaladores)). O CI
-  valida instalação e backend, mas não o comportamento do antivírus de cada PC.
-- **macOS, celular e sincronização entre dispositivos.**
-- **Ícones dos links** guardados localmente, **PyInstaller em modo pasta** (reduz falsos positivos) e
-  publicação no AUR e em outros repositórios. Veja [docs/ROADMAP-INSTALACAO.md](./docs/ROADMAP-INSTALACAO.md).
+- **Windows:** o instalador não tem assinatura de código, então o SmartScreen avisa "editor
+  desconhecido" (veja o [SECURITY.md](./SECURITY.md#instaladores) e o
+  [guia de instalação](./docs/INSTALACAO.md)). O CI instala e testa o app no Windows e no Linux, mas não
+  o comportamento do antivírus de cada computador.
+- **Não existe:** versão para macOS, aplicativo de celular e sincronização entre dispositivos.
+- **Assistente de IA:** modelo de linguagem erra, e os pequenos, que rodam no computador, erram mais.
+  O quanto cada um acerta está medido em [docs/QUALIDADE-IA.md](./docs/QUALIDADE-IA.md); confira a
+  prévia antes de aplicar uma ação.
+- **Leitores de tela:** as telas foram conferidas com o axe-core e usadas só pelo teclado, e o Orca, no
+  Linux, foi usado de verdade (menu, telas e o assistente, cuja resposta ele lê ao terminar); o NVDA, no
+  Windows, nenhuma vez.
+- **Traduções:** feitas com ajuda de IA, sem revisão de falante nativo.
 
 ## Licença e contribuição
 
@@ -397,7 +405,7 @@ backend/      FastAPI, SQLite, testes e entrypoint do sidecar (run_server.py)
 frontend/     HTML, CSS e JS puro: pages/, widgets/, modals/, api/, i18n/ (os 10 dicionários)
 src-tauri/    casca desktop (Rust, Tauri v2)
 scripts/      instalação, versão, seed do modo demo e testes de CI
-docs/         guia de instalação, guia de tradução, roadmap e página de download
+docs/         guias (instalação, tradução, formato do export), regras de negócio e página de download
 ```
 
 </details>

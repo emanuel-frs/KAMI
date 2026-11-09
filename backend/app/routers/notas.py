@@ -51,7 +51,7 @@ from pydantic import BaseModel, Field
 from app import pin
 from app.actions import register_action, revert_actions, today_prefix
 from app.crypto import decrypt_password, encrypt_password
-from app.database import get_db, new_id, now_iso
+from app.database import ate_o_fim, get_db, new_id, now_iso
 from app.limites import Entrada
 from app.mensagens import ErroKami, Texto, erro_de
 
@@ -400,8 +400,8 @@ def criar_nota(payload: NotaIn, db=Depends(get_db)):
     db.commit()
 
     hoje = db.execute(
-        "SELECT COUNT(*) FROM action_logs WHERE referencia_tipo = 'nota' AND substr(created_at, 1, 10) = ?",
-        (today_prefix(),),
+        "SELECT COUNT(*) FROM action_logs WHERE referencia_tipo = 'nota' AND created_at >= ? AND created_at < ?",
+        (today_prefix(), ate_o_fim(today_prefix())),
     ).fetchone()[0]
     if hoje < NOTAS_XP_POR_DIA:
         register_action(

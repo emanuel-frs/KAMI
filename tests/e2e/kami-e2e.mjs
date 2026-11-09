@@ -534,7 +534,7 @@ async function main() {
     await etapa("assistente: passo a passo, pergunta, parar, continuar, refazer, histórico e enviados (IA-02/IA-04)", async () => {
       const falso = await provedorFalso();
       const ultimaResposta = () => wd.execute("return document.querySelector('.ia-msg--kami:last-child .ia-msg-texto')?.innerText || ''");
-      const respondeu = (o_que) => waitFor(o_que, () => wd.execute("return document.querySelector('#ia-form')?.getAttribute('aria-busy') === 'false'"), { timeout: 30000, every: 300 });
+      const respondeu = (o_que) => waitFor(o_que, () => wd.execute("return document.querySelector('#ia-form')?.dataset.enviando === 'false'"), { timeout: 30000, every: 300 });
       const perguntar = async (texto) => {
         await focar("#ia-texto");
         await wd.keys(texto, { texto: true });
@@ -607,6 +607,11 @@ async function main() {
         await clicar('[data-ia="nova"]');
         await perguntar("e2e-acao: anota duas coisas");
         await waitFor("o cartão da proposta", () => visivel('.ia-proposta--pendente [data-prop="aplicar"]'), { timeout: 15000 });
+        // o cartão aparece ainda travado enquanto a resposta chega (caixas e
+        // "aplicar" desabilitados): clicar a caixa nessa hora não fazia nada
+        // e o lote saía inteiro (falhou 1 vez no CI da 2.0) — espera liberar
+        await respondeu("o fim da resposta da proposta");
+        await waitFor("o cartão liberado", () => wd.execute(`return !document.querySelector('.ia-prop-item[data-item="1"] [data-prop="marcar"]')?.disabled`), { timeout: 5000 });
         await clicar('.ia-prop-item[data-item="1"] [data-prop="marcar"]');
         await print("assistente-proposta");
         await clicar('.ia-proposta--pendente [data-prop="aplicar"]');

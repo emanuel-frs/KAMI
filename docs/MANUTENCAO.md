@@ -21,7 +21,7 @@ mesmo commit e rode o CI inteiro (PR para `main`, que inclui o e2e).
 
 1. `git pull` em `main` e `develop`; confira se há PRs do Dependabot
    abertos e se a auditoria (`.github/workflows/auditoria.yml`) está
-   falhando. Ela roda toda segunda; vulnerabilidade alta ou crítica a faz
+   falhando. Ela roda no dia 1 de cada mês (e em todo PR); vulnerabilidade alta ou crítica a faz
    falhar, e uma exceção vencida em `.github/auditoria-excecoes.toml`
    também.
 2. Recrie os ambientes locais: `python3.14 -m venv .venv` +
@@ -55,6 +55,24 @@ deprecated/removed".
   (`WEBVIEW2_BROWSER_EXECUTABLE_FOLDER`).
 - O build do Windows usa `windows-latest`: normalmente basta continuar
   funcionando.
+
+## Quando a auditoria falhar
+
+1. Abra a execução (Actions → Auditoria de dependências): o resumo lista
+   o ecossistema, o pacote, o identificador (GHSA, PYSEC, RUSTSEC) e a
+   gravidade; os relatórios completos ficam no artefato
+   `auditoria-relatorios`.
+2. **Tem versão corrigida:** atualize só esse pacote numa branch
+   (`pip`: suba o mínimo em `backend/requirements.txt`; `cargo update -p
+   <pacote>`; `npm update <pacote>`), rode o CI completo e publique uma
+   correção (seção abaixo).
+3. **Não tem correção, ou não afeta o Kami** (a função vulnerável não é
+   usada): registre em `.github/auditoria-excecoes.toml` com o motivo e
+   um `revisar_ate` de no máximo três meses, e escreva a exceção no
+   `SECURITY.md`. Vencida a data, a auditoria volta a falhar. Uma falha
+   **crítica** sem correção segura a próxima versão.
+4. Avisos de "sem manutenção" ou "unsound" não fazem a auditoria falhar;
+   revise-os na próxima atualização de dependências.
 
 ## Atualizar dependências em bloco
 

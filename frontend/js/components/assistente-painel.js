@@ -354,6 +354,88 @@ function atualizarEtapas() {
   if (m?.carregando && velho) velho.replaceWith(noEtapas(m));
 }
 
+// Teste do Emanuel com o Orca: a resposta não era lida (anúncio em região
+// live não chega pelo WebKitGTK de forma confiável). Cada mensagem é um
+// "artigo" focável cujo nome é o autor + o quadro + o texto, do jeito que
+// está na tela — Tab passa de mensagem em mensagem e, quando a resposta
+// termina, o foco vai pra ela (o leitor sempre lê o foco). Digitar ou Esc
+// numa mensagem volta pra caixa, com a tecla já entrando nela.
+// Blocos que viram uma frase cada no texto falado (com pausa entre eles).
+const BLOCOS_FALADOS = "h1, h2, h3, h4, h5, h6, p, li, pre, tr, .ia-quadro-titulo, .ia-quadro-linha, .ia-quadro-meta-cab, .ia-quadro-meta-progresso";
+const FIM_DE_FRASE = /[.!?:;…]$/;
+
+/** O texto da mensagem como o leitor de tela deve falar: um bloco por
+ *  frase, com ponto no fim de cada (o Orca só pausa na pontuação — teste do
+ *  Emanuel: "lê tudo rápido, sem separação"). Linha de quadro vira
+ *  "rótulo: valor"; tabela, células separadas por vírgula. */
+export function textoFalado(raiz) {
+  const frases = [];
+  const limpo = (x) => x.replace(/\s+/g, " ").trim();
+  for (const bloco of raiz.querySelectorAll(BLOCOS_FALADOS)) {
+    // o texto do próprio bloco, sem o de blocos dentro dele (lista dentro de item)
+    const copia = bloco.cloneNode(true);
+    copia.querySelectorAll(BLOCOS_FALADOS).forEach((n) => n.remove());
+    let frase;
+    if (bloco.matches(".ia-quadro-linha")) {
+      const dt = limpo(copia.querySelector("dt")?.textContent || "");
+      const dd = limpo(copia.querySelector("dd")?.textContent || "");
+      frase = dt && dd ? `${dt}: ${dd}` : dt || dd;
+    } else if (bloco.matches("tr")) {
+      frase = [...copia.children].map((c) => limpo(c.textContent)).filter(Boolean).join(", ");
+    } else {
+      frase = limpo(copia.textContent);
+    }
+    if (frase) frases.push(FIM_DE_FRASE.test(frase) ? frase : `${frase}.`);
+  }
+  // texto solto fora de bloco (mensagem da pessoa, falha curta)
+  if (!frases.length) {
+    const tudo = limpo(raiz.textContent);
+    if (tudo) frases.push(FIM_DE_FRASE.test(tudo) ? tudo : `${tudo}.`);
+  }
+  return frases.join(" ");
+}
+
+// Teste do Emanuel com o Orca: a resposta não era lida (anúncio em região
+// live não chega pelo WebKitGTK de forma confiável). Cada mensagem é um
+// "artigo" focável cujo nome é o autor + o quadro + o texto — Tab passa de
+// mensagem em mensagem e, quando a resposta termina, o foco vai pra ela
+// (o leitor sempre lê o foco). Digitar ou Esc numa mensagem volta pra
+// caixa, com a tecla já entrando nela.
+function navegavel(div, m, i) {
+  if (m.carregando) return;
+  const partes = [...div.querySelectorAll(":scope > .ia-quadro, :scope > .ia-msg-texto, :scope > .ia-falha, :scope > .ia-cuidado")];
+  const autor = t(m.papel === "usuario" ? "assistente.chat.voce_disse" : "assistente.chat.kami_disse");
+  const corpoFalado = partes.map(textoFalado).filter(Boolean).join(" ");
+  // artigo dentro de feed: o Orca fala só o nome e "3 de 4"; artigo solto
+  // ele lia o nome e depois a 1ª linha do conteúdo — o quadro por cima da
+  // mensagem (teste do Emanuel: "está lendo a tabela, não a mensagem")
+  div.setAttribute("role", "article");
+  div.setAttribute("aria-label", `${autor}: ${corpoFalado}`);
+  div.setAttribute("aria-posinset", String(i + 1));
+  div.setAttribute("aria-setsize", String(mensagens.length));
+  div.tabIndex = 0;
+}
+
+function voltarPraCaixa(e) {
+  if (e.target !== e.currentTarget) return; // botões dentro da mensagem têm o deles
+  const caixa = painel.querySelector("#ia-texto");
+  if (!caixa) return;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    caixa.focus();
+  } else if (e.key === "PageDown" || e.key === "PageUp") {
+    // padrão de feed: Page Down/Up vão pra mensagem seguinte/anterior
+    const irmao = e.key === "PageDown" ? e.currentTarget.nextElementSibling : e.currentTarget.previousElementSibling;
+    if (irmao?.matches("[role='article']")) {
+      e.preventDefault();
+      irmao.focus();
+    }
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    caixa.focus(); // a própria tecla cai na caixa
+  }
+}
+
 function noMensagem(m, i) {
   const div = document.createElement("div");
   div.className = `ia-msg ia-msg--${m.papel === "usuario" ? "usuario" : "kami"}`;
@@ -374,6 +456,8 @@ function noMensagem(m, i) {
       nota.textContent = t("assistente.chat.mascarados", { n: m.mascarados });
       div.append(nota);
     }
+    navegavel(div, m, i);
+    div.addEventListener("keydown", voltarPraCaixa);
     return div;
   }
   if (m.carregando && m.inicio) {
@@ -391,6 +475,8 @@ function noMensagem(m, i) {
   }
   if (m.aviso?.tipo === "cuidado") {
     div.append(noCuidado(m.aviso.servico));
+    navegavel(div, m, i);
+    div.addEventListener("keydown", voltarPraCaixa);
     return div;
   }
   // IA-07a: os números da consulta, do jeito que o Kami leu
@@ -406,12 +492,6 @@ function noMensagem(m, i) {
     trocarIcones(txt);
   }
   div.append(txt);
-  if (m.aviso?.tipo === "conferir" && !m.carregando) {
-    const conf = document.createElement("p");
-    conf.className = "ia-conferir";
-    conf.textContent = t("assistente.chat.conferir", { valores: m.aviso.valores.join(", ") });
-    div.append(conf);
-  }
   if (m.proposta) div.append(noProposta(m.proposta, { conversaId, carregando: m.carregando, aoMudar: depoisDaProposta }));
   if (m.carregando) {
     const cursor = document.createElement("span");
@@ -436,6 +516,8 @@ function noMensagem(m, i) {
     const acoes = noAcoes(m, i);
     if (acoes) div.append(acoes);
   }
+  navegavel(div, m, i);
+  div.addEventListener("keydown", voltarPraCaixa);
   return div;
 }
 
@@ -443,7 +525,7 @@ function noMensagem(m, i) {
 // Kami — só estes (a mesma lista vai nas instruções, instrucoes.ICONES)
 export const ICONES_IA = new Set(["check", "target", "trending-up", "trending-down", "star", "zap", "calendar-days",
   "clock", "receipt", "credit-card", "triangle-alert", "bell"]);
-const MARCA_ICONE = /:([a-z-]+):/g;
+const MARCA_ICONE = /(?<![\w:/]):([a-z][a-z0-9_-]{1,30}):(?![\w:/])/g;
 
 /** Troca :nome: por ícone nos textos da resposta (fora de código). */
 export function trocarIcones(raiz) {
@@ -459,13 +541,18 @@ export function trocarIcones(raiz) {
     const pedacos = doc.createDocumentFragment();
     let resto = 0;
     for (const achado of n.data.matchAll(MARCA_ICONE)) {
-      if (!ICONES_IA.has(achado[1])) continue;
       pedacos.append(n.data.slice(resto, achado.index));
+      resto = achado.index + achado[0].length;
+      if (!ICONES_IA.has(achado[1])) {
+        // inventado pelo modelo (":todinho:", ":marco:"): some — o backend já
+        // tira das respostas novas; isto cobre as gravadas antes
+        if (n.data[resto] === " ") resto += 1;
+        continue;
+      }
       const span = doc.createElement("span");
       span.className = "ia-texto-icone";
       span.innerHTML = icon(achado[1], { size: 12 });
       pedacos.append(span);
-      resto = achado.index + achado[0].length;
     }
     if (!resto) continue;
     pedacos.append(n.data.slice(resto));
@@ -533,11 +620,16 @@ function renderConversa() {
   }
   const lista = document.createElement("div");
   lista.className = "ia-mensagens";
-  lista.setAttribute("role", "log");
+  lista.setAttribute("role", "feed");
   lista.setAttribute("aria-label", t("assistente.chat.conversa"));
   mensagens.forEach((m, i) => lista.append(noMensagem(m, i)));
+  // redesenho com o foco numa mensagem (leitor de tela lendo a resposta):
+  // o foco continua nela, senão cairia no body e o leitor se perderia
+  const ativo = document.activeElement;
+  const focoI = ativo?.matches?.(".ia-msg[role='article']") && corpo().contains(ativo) ? ativo.dataset.i : null;
   corpo().replaceChildren(lista);
   rolarProFim();
+  if (focoI != null) lista.querySelector(`.ia-msg[data-i="${focoI}"]`)?.focus();
 }
 
 /** Aplicou/desfez/descartou no cartão: redesenha a conversa e, se o banco
@@ -564,7 +656,7 @@ function renderConversaSemRolar() {
   if (!lista) return;
   const novo = document.createElement("div");
   novo.className = lista.className;
-  novo.setAttribute("role", "log");
+  novo.setAttribute("role", "feed");
   novo.setAttribute("aria-label", t("assistente.chat.conversa"));
   mensagens.forEach((m, i) => novo.append(noMensagem(m, i)));
   const foco = document.activeElement?.closest?.(".ia-msg")?.dataset.i;
@@ -585,9 +677,11 @@ function atualizarUltima() {
     const i = mensagens.length - 1;
     const velho = lista.querySelector(`:scope > .ia-msg[data-i="${i}"]`);
     const novo = noMensagem(mensagens[i], i);
+    const tinhaFoco = velho && document.activeElement === velho; // a resposta que o leitor está lendo
     if (velho) velho.replaceWith(novo);
     else lista.append(novo);
     rolarProFim();
+    if (tinhaFoco) novo.focus();
   });
 }
 
@@ -698,7 +792,11 @@ function modoEnviando(sim) {
   const botao = painel.querySelector("#ia-enviar");
   botao.textContent = sim ? t("assistente.chat.parar") : t("assistente.chat.enviar");
   botao.classList.toggle("warn", sim);
-  painel.querySelector("#ia-form").setAttribute("aria-busy", String(sim));
+  // data-, não aria-busy: com aria-busy no formulário (ancestral da caixa
+  // em foco) o Orca trata como página carregando — interrompe a fala e, no
+  // fim, relê "kami> assistente… pergunte algo" por cima da resposta
+  // (teste do Emanuel). O estado pro leitor já vai pelo anúncio.
+  painel.querySelector("#ia-form").dataset.enviando = String(sim);
 }
 
 async function enviar() {
@@ -771,9 +869,8 @@ async function responder({ texto = "", acao }, resposta) {
             resposta.aviso = { tipo: "cuidado", servico: ev.servico };
             atualizarUltima();
           } else if (ev.tipo === "conferido") {
-            // IA-07a: o Kami conferiu os números com os dados (conferir.py)
+            // IA-07a: a resposta limpa pelo Kami (conferir.py) no lugar da que veio
             resposta.texto = ev.texto;
-            if (ev.valores.length) resposta.aviso = { tipo: "conferir", valores: ev.valores };
             atualizarUltima();
           } else if (ev.tipo === "fim" || ev.tipo === "falha") {
             if (ev.tipo === "falha") resposta.erro = ev;
@@ -798,9 +895,12 @@ async function responder({ texto = "", acao }, resposta) {
     modoEnviando(false);
     renderProvedor();
     renderConversa();
-    const lido = resposta.erro ? corpo().querySelector(".ia-msg:last-child .ia-falha")?.textContent : resposta.texto;
-    announce(`${t("assistente.chat.resposta_pronta")} ${lido || ""}`.trim());
-    campo.focus();
+    // a resposta (ou a falha) recebe o foco: o leitor de tela lê "kami
+    // disse…" com o texto inteiro (ver navegavel). Quem enxerga continua
+    // digitando: a tecla volta pra caixa.
+    const ultima = corpo().querySelector(".ia-msg:last-child[role='article']");
+    if (ultima) ultima.focus();
+    else if (document.activeElement !== campo) campo.focus();
   }
 }
 
@@ -847,7 +947,7 @@ export function deConversa(lista) {
       texto: m.texto,
       interrompida: m.interrompida,
       erro: m.erro_chave ? { chave: m.erro_chave, vars: {} } : null,
-      aviso: ["cuidado", "conferir"].includes(m.aviso?.tipo) && m.papel === "assistente" ? m.aviso : null,
+      aviso: m.aviso?.tipo === "cuidado" && m.papel === "assistente" ? m.aviso : null,
       ...(proposta && m.papel === "assistente" ? { proposta } : {}),
       ...(quadros.length && m.papel === "assistente" ? { quadros, ferramentas: quadros.map((q) => q.nome) } : {}),
     });

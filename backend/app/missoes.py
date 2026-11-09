@@ -34,7 +34,7 @@ desmarca e estorna o bônus. Só missões do dia/semana atuais são avaliadas
 import datetime
 import random
 
-from app.database import new_id, now_iso
+from app.database import ate_o_fim, new_id, now_iso
 from app.habitos import carregar as carregar_habitos, dias_com_tudo_feito
 from app.mensagens import Texto
 
@@ -195,8 +195,8 @@ def garantir_missoes(db, hoje: datetime.date = None) -> None:
 def _conta(db, where: str, args: tuple, inicio: str, fim: str, select: str = "COUNT(*)") -> int:
     return db.execute(
         f"SELECT {select} AS c FROM action_logs l "
-        f"WHERE {_LOG_VALIDO} AND substr(l.created_at, 1, 10) BETWEEN ? AND ? AND ({where})",
-        (inicio, fim, *args),
+        f"WHERE {_LOG_VALIDO} AND l.created_at >= ? AND l.created_at < ? AND ({where})",
+        (inicio, ate_o_fim(fim), *args),
     ).fetchone()["c"]
 
 
@@ -247,8 +247,8 @@ def progresso(db, m) -> int:
         feito = db.execute(
             f"SELECT COUNT(DISTINCT ala.attribute_id) AS c FROM action_logs l "
             f"JOIN action_log_attributes ala ON ala.action_log_id = l.id "
-            f"WHERE {_LOG_VALIDO} AND substr(l.created_at, 1, 10) BETWEEN ? AND ?",
-            (inicio, fim),
+            f"WHERE {_LOG_VALIDO} AND l.created_at >= ? AND l.created_at < ?",
+            (inicio, ate_o_fim(fim)),
         ).fetchone()["c"]
     elif tipo == "habito":
         feito = _conta(

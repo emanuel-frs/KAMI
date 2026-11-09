@@ -459,6 +459,13 @@ mod limpeza; // DIST-03: remover tudo do Kami deste computador
 mod janela; // ORG-05: bandeja e iniciar com o sistema
 
 fn main() {
+    // EST-03: o Electron (terminal do VS Code, por exemplo) põe
+    // NO_AT_BRIDGE=1 em tudo o que abre, e o GTK então não liga a ponte de
+    // acessibilidade — o Kami aberto de lá ficava invisível pro Orca (só
+    // "tab"). Tirado antes do GTK iniciar; ainda sem outras threads.
+    #[cfg(target_os = "linux")]
+    std::env::remove_var("NO_AT_BRIDGE");
+
     tauri::Builder::default()
         // ORG-05 (P-67/P-68): abrir o kami de novo mostra a janela que já
         // está aberta (ou escondida na bandeja) em vez de uma segunda — tem

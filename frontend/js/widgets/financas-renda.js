@@ -105,7 +105,7 @@ export async function render(el, widget) {
             <div class="renda-meta">
               <span class="renda-data">${pago ? formatDate(e.paid_date) : t("renda.previsto", { data: formatDate(e.expected_date) })}</span>
               ${pago && e.gerou_transacao ? `<span class="cf-tx-tag" data-tooltip="${t("renda.gerou_tx")}">${simboloMoeda()}</span>` : ""}
-              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}" aria-label="${tooltip}">
+              <button class="renda-toggle${pago ? " pago" : ""}" data-toggle-entry="${e.id}" data-tooltip="${tooltip}">
                 ${pago ? t("renda.pago") : t("renda.marcar_paga")}
               </button>
             </div>

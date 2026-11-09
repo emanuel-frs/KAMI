@@ -15,10 +15,13 @@ import { wireHelpButton } from "./modals/help-menu.js";
 import { wireShortcuts } from "./components/shortcuts.js";
 import { wireShortcutsHelp } from "./modals/shortcuts-help-modal.js";
 import { wireGlobalShortcuts } from "./components/global-shortcuts.js";
+import { wireZoom } from "./components/zoom.js";
 import { wireSkipLink } from "./components/skip-link.js";
+import { wireMenuRecolhivel } from "./components/menu-recolhivel.js";
 import { maybeShowBackupReminder } from "./components/backup-reminder.js";
 import { wireModalEscapeClose } from "./components/modal-escape.js";
 import { wireModalAccessibility } from "./components/modal-accessibility.js";
+import { wireClickableA11y } from "./components/clickable-a11y.js";
 import { wireTooltips } from "./components/tooltip.js";
 import { startCalendarNotifications } from "./components/calendar-notifications.js";
 import { startLembretesAgendador } from "./components/lembretes-agendador.js";
@@ -381,6 +384,7 @@ async function boot() {
   // cor e tema da última vez, antes de qualquer coisa aparecer (o perfil
   // só chega depois — e com o PIN ligado, só depois do desbloqueio)
   restaurarAparencia();
+  wireZoom(); // EST-03: o tamanho da tela da última vez, antes do splash
   // I18N-01: o idioma antes de qualquer texto (a tela de PIN vem antes do
   // perfil): o da última vez ou, na primeira abertura, o do sistema
   await carregarIdioma(idiomaGuardado() || idiomaDoSistema());
@@ -409,6 +413,7 @@ async function boot() {
   wireSounds(); // GAM-13: bipes 8-bit (começam ligados)
 
   wireSkipLink();
+  wireMenuRecolhivel(); // EST-03 (P-195): zoom alto ou janela estreita
   // CONF-01: primeiro de tudo — qualquer erro daqui pra frente já tem aviso
   wireErrorNotice();
   // CONF-02: backend caiu → faixa no topo + reinício (sozinho uma vez, e
@@ -448,6 +453,9 @@ async function boot() {
   wireNotificationBell();
   wireModalEscapeClose();
   wireModalAccessibility();
+  // EST-03: o módulo existia desde a 1.7, mas nunca era ligado — os ícones
+  // de ação, abas e filtros feitos de <span> ficavam fora do Tab
+  wireClickableA11y();
   wireTooltips();
   startCalendarNotifications({ onNavigate: (moduleName) => showPage(moduleName) });
   startLembretesAgendador(); // ORG-05

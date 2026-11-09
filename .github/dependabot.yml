@@ -1,7 +1,7 @@
-# SEG-04 (decisão P-21): atualizações de dependências toda semana, num PR
-# por ecossistema pro develop — TUDO de cada ecossistema junto, inclusive
+# SEG-04 (decisão P-21): atualizações de dependências uma vez por mês
+# (EST-07, desde a 2.0; era toda semana), num PR por ecossistema pro develop — TUDO de cada ecossistema junto, inclusive
 # versão maior (a primeira leva, com um PR por versão maior, abriu 13 PRs
-# e 26 execuções de CI de uma vez). No máximo 4 PRs por semana; o CI de
+# e 26 execuções de CI de uma vez). No máximo 4 PRs por mês; o CI de
 # cada um diz se a atualização quebra algo. As actions do GitHub estão
 # fixadas por SHA nos workflows, e o Dependabot atualiza o SHA e o
 # comentário da versão.
@@ -10,7 +10,7 @@ updates:
   - package-ecosystem: pip
     directory: /backend
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 1
     commit-message: { prefix: "chore(deps)" }
     groups:
@@ -20,7 +20,7 @@ updates:
   - package-ecosystem: cargo
     directory: /src-tauri
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 1
     commit-message: { prefix: "chore(deps)" }
     groups:
@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: npm
     directory: /
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 1
     commit-message: { prefix: "chore(deps)" }
     groups:
@@ -40,7 +40,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 1
     commit-message: { prefix: "chore(ci)" }
     groups:

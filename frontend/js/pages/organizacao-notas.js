@@ -168,9 +168,12 @@ function renderLista() {
       : st.filtro.arquivadas
         ? t("organizacao_notas.nenhuma_nota_arquivada")
         : t("organizacao_notas.vazio", { atalho: "<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>" });
+    // EST-03: lista vazia não é lista (axe: aria-required-children)
+    el.removeAttribute("role");
     el.innerHTML = `<div class="empty-state">${vazio}</div>`;
     return;
   }
+  el.setAttribute("role", "list");
   el.innerHTML = novaNaLista + st.notas.map(itemHtml).join("");
 }
 

@@ -28,7 +28,7 @@ import calendar
 import datetime
 from dataclasses import dataclass, field
 
-from app.database import local_now, new_id, now_iso
+from app.database import ate_o_fim, local_now, new_id, now_iso
 
 REGRAS = ("categoria_acima", "conta_sem_saldo", "meta_parada", "atributo_esquecido", "trilha_parada")
 
@@ -73,15 +73,15 @@ def categoria_acima(db, dia: datetime.date) -> list[Ocorrencia]:
         r["category"]: (r["total"], r["n"])
         for r in db.execute(
             "SELECT category, SUM(amount) AS total, COUNT(*) AS n FROM transactions "
-            "WHERE type = 'saida' AND substr(date, 1, 7) = ? GROUP BY category",
-            (anterior,),
+            "WHERE type = 'saida' AND date >= ? AND date < ? GROUP BY category",
+            (anterior, ate_o_fim(anterior)),
         ).fetchall()
     }
     saida = []
     for r in db.execute(
         "SELECT category, SUM(amount) AS total FROM transactions "
-        "WHERE type = 'saida' AND substr(date, 1, 7) = ? GROUP BY category",
-        (mes,),
+        "WHERE type = 'saida' AND date >= ? AND date < ? GROUP BY category",
+        (mes, ate_o_fim(mes)),
     ).fetchall():
         antes, n = soma.get(r["category"], (0, 0))
         if n < ACIMA_MIN_LANCAMENTOS or antes <= 0 or r["total"] < antes * (1 + ACIMA_PCT):

@@ -29,7 +29,7 @@ Regras combinadas com o Emanuel em 2026-10-09:
 """
 import datetime
 
-from app.database import now_iso
+from app.database import ate_o_fim, now_iso
 from app.mensagens import Texto
 
 REF_BONUS = "bonus"
@@ -79,8 +79,8 @@ def elegivel(source: str, referencia_tipo) -> bool:
 def _tem_primeira_hoje(db) -> bool:
     return db.execute(
         "SELECT 1 FROM action_logs WHERE referencia_tipo = ? AND description = ? "
-        "AND substr(created_at, 1, 10) = ? LIMIT 1",
-        (REF_BONUS, str(DESC_PRIMEIRA), now_iso()[:10]),
+        "AND created_at >= ? AND created_at < ? LIMIT 1",
+        (REF_BONUS, str(DESC_PRIMEIRA), now_iso()[:10], ate_o_fim(now_iso()[:10])),
     ).fetchone() is not None
 
 

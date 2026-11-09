@@ -17,6 +17,7 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
     nomes = sorted(p if isinstance(p, str) else p["identifier"] for p in cap["permissions"])
     assert nomes == [
         "core:default",
+        "core:webview:allow-set-webview-zoom",  # EST-03: Ctrl+/−/0 e configurações › aparência
         "core:window:allow-close",
         "core:window:allow-minimize",
         "core:window:allow-start-dragging",
@@ -27,7 +28,9 @@ def test_seg_23_window_permissions_are_the_minimum_the_app_uses():
     ]
     assert not [n for n in nomes if n.startswith(("shell:", "fs:", "process:", "http:"))]
     opener = next(p for p in cap["permissions"] if isinstance(p, dict) and p["identifier"] == "opener:allow-open-url")
-    assert sorted(u["url"] for u in opener["allow"]) == ["http://*", "https://*"]  # nada de file:// ou esquemas do sistema
+    # nada de file:// ou esquemas do sistema; EST-01: mailto só pro endereço
+    # do relato (abre o programa de e-mail preenchido — quem envia é a pessoa)
+    assert sorted(u["url"] for u in opener["allow"]) == ["http://*", "https://*", "mailto:kami.feedback@gmail.com*"]
 
 
 def test_seg_23_csp_runs_only_the_apps_own_code_and_talks_only_to_the_local_backend():
@@ -40,6 +43,8 @@ def test_seg_23_csp_runs_only_the_apps_own_code_and_talks_only_to_the_local_back
     assert "script-src" not in csp  # cai no default-src 'self': sem inline, sem eval
     assert csp["connect-src"] == ["'self'", "http://127.0.0.1:*"]
     assert not any("unsafe-eval" in v for vals in csp.values() for v in vals)
+    # EST-05: as três que não caem no default-src
+    assert csp["object-src"] == ["'none'"] and csp["base-uri"] == ["'none'"] and csp["form-action"] == ["'self'"]
 
 
 def test_seg_23_rust_commands_exposed_to_the_window_are_known():

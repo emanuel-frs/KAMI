@@ -137,7 +137,7 @@
 .registro-conta-col .r-bank-icon .ph{ font-size:6px; color:var(--text-faint); }
 .registro-conta-names{ display:flex; align-items:center; gap:4px; min-width:0; }
 .registro-conta-names .r-bank-name{ font-size:9.5px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.registro-conta-names .r-account-name{ font-size:9px; color:var(--text-faint); opacity:0.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.registro-conta-names .r-account-name{ font-size:9px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .registro-date{ flex:0 0 auto; font-size:9.5px; color:var(--text-faint); }
 
 

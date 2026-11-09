@@ -116,7 +116,7 @@ test(
         ],
       };
       await enviar("quanto gastei?");
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const pedido = back.estado.pedidos.find((p) => p.caminho === "/api/assistente/mensagens");
       assert.deepEqual(pedido.corpo, { texto: "quanto gastei?", conversa_id: null, tela: "financas", idioma: "pt" });
       const resposta = doc.querySelector(".ia-msg--kami:last-child");
@@ -125,12 +125,39 @@ test(
       assert.match(resposta.textContent, /<img src=x/);
       assert.match($("#ia-provedor").textContent, /4/, "uso do dia atualizado pelo fim");
       assert.equal($("#ia-texto").value, "");
+      assert.equal($("#ia-form").hasAttribute("aria-busy"), false, "aria-busy faz o Orca reler o painel");
+      // leitor de tela (teste do Emanuel com o Orca): a resposta vira um
+      // artigo focável com "kami disse" + o texto como nome, e recebe o foco
+      await ate(() => doc.activeElement === resposta || doc.activeElement?.classList?.contains("ia-msg"));
+      const foco = doc.activeElement;
+      assert.equal(foco.getAttribute("role"), "article");
+      assert.equal(foco.tabIndex, 0);
+      const nome = foco.getAttribute("aria-label");
+      assert.match(nome, /^kami disse: você gastou pouco/);
+      assert.doesNotMatch(nome, /\*\*/);
+      const pergunta = doc.querySelector(".ia-msg--usuario");
+      assert.equal(pergunta.getAttribute("role"), "article");
+      assert.equal(pergunta.getAttribute("aria-label"), "você disse: quanto gastei?");
+      // feed (o Orca fala só nome + posição; artigo solto ele lia o quadro por cima)
+      assert.equal(foco.parentElement.getAttribute("role"), "feed");
+      assert.equal(foco.getAttribute("aria-posinset"), "2");
+      assert.equal(foco.getAttribute("aria-setsize"), "2");
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "PageUp", bubbles: true }));
+      assert.equal(doc.activeElement, pergunta);
+      pergunta.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
+      assert.equal(doc.activeElement, foco);
+      // digitar numa mensagem volta pra caixa; Esc também
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
+      assert.equal(doc.activeElement.id, "ia-texto");
+      foco.focus();
+      foco.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      assert.equal(doc.activeElement.id, "ia-texto");
     });
 
     await t.test("a próxima mensagem continua a mesma conversa", async () => {
       back.estado.resposta = { eventos: [{ tipo: "texto", delta: "ok" }, { tipo: "fim", motivo: "fim" }] };
       await enviar("e no mês passado?");
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const pedidos = back.estado.pedidos.filter((p) => p.caminho === "/api/assistente/mensagens");
       assert.equal(pedidos.at(-1).corpo.conversa_id, "c9");
       assert.equal(doc.querySelectorAll(".ia-msg").length, 4);
@@ -140,9 +167,9 @@ test(
       back.estado.resposta = { eventos: Array.from({ length: 40 }, (_, i) => ({ tipo: "texto", delta: `p${i} ` })), atraso: 15 };
       await enviar("conta tudo");
       await ate(() => doc.querySelector(".ia-msg--kami:last-child")?.textContent.includes("p2"));
-      assert.equal($("#ia-form").getAttribute("aria-busy"), "true");
+      assert.equal($("#ia-form").dataset.enviando, "true");
       $("#ia-enviar").click(); // no meio, o botão é "parar"
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const ultima = doc.querySelector(".ia-msg--kami:last-child");
       assert.ok(ultima.querySelector(".ia-interrompida"));
       assert.ok(!ultima.textContent.includes("p39"));
@@ -156,7 +183,7 @@ test(
         ],
       };
       await enviar("oi");
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       const erro = doc.querySelector(".ia-msg--kami:last-child .ia-falha");
       assert.match(erro.textContent, /recusou a chave/);
       assert.match(erro.textContent, /Invalid API Key/);
@@ -166,7 +193,7 @@ test(
     await t.test("recusa antes do streaming (teto) também aparece na conversa", async () => {
       back.estado.resposta = { status: 429, corpo: { detail: "teto", chave: "erro.assistente.teto.chamadas", vars: { usado: 150, teto: 150 } } };
       await enviar("mais uma");
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       assert.match(doc.querySelector(".ia-msg--kami:last-child .ia-falha").textContent, /teto de 150 chamadas/);
     });
 

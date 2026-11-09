@@ -188,7 +188,7 @@ function montar() {
     <div class="paleta captura" role="dialog" aria-modal="true" aria-label="${t("captura.captura_rapida")}">
       <div class="paleta-entrada">
         <span class="paleta-prompt" aria-hidden="true">+</span>
-        <input type="text" id="captura-q" autocomplete="off" spellcheck="true" maxlength="2000"
+        <input type="text" id="captura-q" aria-label="${t("captura.captura_rapida")}" autocomplete="off" spellcheck="true" maxlength="2000"
           placeholder="${t("captura.anote_qualquer_coisa")}" aria-describedby="captura-previa">
       </div>
       <div class="captura-previa" id="captura-previa" aria-live="polite"></div>

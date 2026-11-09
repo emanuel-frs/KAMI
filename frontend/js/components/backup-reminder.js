@@ -74,6 +74,8 @@ function ocuparCanto(px) {
   document.documentElement.style.setProperty("--canto-ocupado", `${px}px`);
 }
 
+const observado = new WeakSet();
+
 export function hideBackupReminder() {
   if (!toastEl) return;
   clearTimeout(hideTimer);
@@ -104,4 +106,14 @@ export function maybeShowBackupReminder(profile) {
     toastEl.classList.add("open");
     ocuparCanto(toastEl.offsetHeight + 10);
   });
+  // a altura muda com o zoom (abaixo de 100% o WebKit segura o tamanho
+  // mínimo do texto e o lembrete fica mais alto) e com o idioma: mede de
+  // novo, senão a pilha de avisos caía em cima dele (EST-03)
+  if (typeof ResizeObserver === "function" && !observado.has(toastEl)) {
+    observado.add(toastEl);
+    const el = toastEl;
+    new ResizeObserver(() => {
+      if (el === toastEl && el.classList.contains("open")) ocuparCanto(el.offsetHeight + 10);
+    }).observe(el);
+  }
 }

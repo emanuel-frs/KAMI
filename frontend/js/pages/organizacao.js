@@ -137,7 +137,7 @@ let unsubscribeEmailsRead = null;
 
 /**
  * @param {HTMLElement} container
- * @param {{ tab?: string, accountId?: string, focusEmailId?: string, focusSearch?: boolean }} [opts] -
+ * @param {{ tab?: string, accountId?: string, focusEmailId?: string, focusSearch?: boolean, novaContaEmail?: boolean }} [opts] -
  *   ver components/navigate.js. Usado pelo modal de notificações
  *   (modals/notificacoes-modal.js) pra abrir Organização já na aba de
  *   e-mail, com a conta certa selecionada e o e-mail clicado aberto —
@@ -226,6 +226,8 @@ export async function focus(opts) {
 async function applyFocus(opts) {
   if (!opts) return;
   if (opts.tab) switchTab(opts.tab);
+  // configurações › sobre › "ligar uma conta de e-mail" (EST-01, P-194)
+  if (opts.novaContaEmail) openAccountModal();
   if (opts.tab === "notas" && (opts.notaId || opts.novaNota || opts.vinculo)) await focarNotas(opts);
   if (opts.focusSearch) {
     // campo de busca fica acima das abas, sempre visível — não depende

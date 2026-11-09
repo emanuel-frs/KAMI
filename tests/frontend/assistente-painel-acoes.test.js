@@ -67,7 +67,7 @@ test(
       $("#ia-texto").value = texto;
       $("#ia-texto").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
       await espera(20);
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
     };
     const ultimoPedido = () => pedidos.filter((p) => p.caminho === "/api/assistente/mensagens").at(-1).corpo;
     const acoes = () => [...doc.querySelectorAll(".ia-msg--kami:last-child .ia-acoes .ia-acao")].map((b) => b.dataset.ia);
@@ -101,7 +101,7 @@ test(
       resposta = [{ tipo: "inicio", conversa_id: "c1" }, { tipo: "texto", delta: "outra versão" }, { tipo: "fim", motivo: "fim" }];
       $('[data-ia="refazer"]').click();
       await espera(20);
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       assert.deepEqual({ ...ultimoPedido(), tela: undefined, idioma: undefined }, { texto: "", acao: "refazer", conversa_id: "c1", tela: undefined, idioma: undefined });
       const kami = [...doc.querySelectorAll(".ia-msg--kami .ia-msg-texto")].map((e) => e.textContent);
       assert.deepEqual(kami, ["outra versão"]);
@@ -118,7 +118,7 @@ test(
       resposta = [{ tipo: "inicio", conversa_id: "c1" }, { tipo: "texto", delta: " e fim." }, { tipo: "fim", motivo: "fim" }];
       $('[data-ia="continuar"]').click();
       await espera(20);
-      await ate(() => $("#ia-form").getAttribute("aria-busy") === "false");
+      await ate(() => $("#ia-form").dataset.enviando === "false");
       assert.equal(ultimoPedido().acao, "continuar");
       assert.equal($(".ia-msg--kami:last-child .ia-msg-texto").textContent, "começo e fim.");
       assert.equal($(".ia-msg--kami:last-child .ia-interrompida"), null);

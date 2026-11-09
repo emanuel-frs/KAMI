@@ -67,7 +67,7 @@ export async function render(el, widget) {
             <div class="divida-meta">
               <span class="divida-valor">${brl(d.amount)}</span>
               <span class="divida-due">${formatDate(d.due_date)}</span>
-              <select class="divida-status" data-status-for="${d.id}">
+              <select class="divida-status" data-status-for="${d.id}" aria-label="${escapeHtml(`${t("divida.status")} — ${d.description}`)}">
                 <option value="aberta"${d.status === "aberta" ? " selected" : ""}>${t("dividas.aberta")}</option>
                 <option value="paga"${d.status === "paga" ? " selected" : ""}>${t("dividas.paga")}</option>
               </select>
