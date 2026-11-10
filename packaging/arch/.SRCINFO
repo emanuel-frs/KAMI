@@ -1,6 +1,6 @@
 pkgbase = kami-bin
 	pkgdesc = Sistema pessoal de organização gamificada, local-first
-	pkgver = 2.0.0
+	pkgver = 2.0.1
 	pkgrel = 1
 	url = https://github.com/emanuel-frs/KAMI
 	arch = x86_64
@@ -9,8 +9,8 @@ pkgbase = kami-bin
 	depends = gtk3
 	optdepends = noto-fonts-cjk: chinês, japonês e coreano
 	optdepends = noto-fonts: hindi (devanágari)
-	source = kami-2.0.0-linux-amd64.deb::https://github.com/emanuel-frs/KAMI/releases/download/v2.0.0/kami-2.0.0-linux-amd64.deb
-	source = SHA256SUMS::https://github.com/emanuel-frs/KAMI/releases/download/v2.0.0/SHA256SUMS
+	source = kami-2.0.1-linux-amd64.deb::https://github.com/emanuel-frs/KAMI/releases/download/v2.0.1/kami-2.0.1-linux-amd64.deb
+	source = SHA256SUMS::https://github.com/emanuel-frs/KAMI/releases/download/v2.0.1/SHA256SUMS
 	sha256sums = SKIP
 	sha256sums = SKIP
 
