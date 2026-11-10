@@ -149,3 +149,8 @@ segundo existe porque a 1.18 → 2.0.0 falhou no Fedora sem nenhum teste
 ver: o plugin do Tauri rodava `rpm -U` puro, e o rpm 6 recusa pacote sem
 GPG. O `.rpm` agora é instalado pelo próprio Kami
 (`src-tauri/src/atualizacao.rs` › `instalar_rpm`).
+Além disso, todo dia 1 o Smoke test roda sozinho na `main` (P-197): se
+uma distro ou o Windows mudar e quebrar instalação ou atualização, o
+GitHub manda e-mail. Depois de 60 dias sem atividade no repositório o
+GitHub desliga o agendamento (avisa antes); reative em Actions › Smoke
+test › Enable workflow.
