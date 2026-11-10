@@ -44,6 +44,9 @@ As escolhas que moldaram o Kami e por quê. O detalhe de cada regra está em
 - **Atualização só avisa.** O app nunca baixa nem instala sozinho; quando a pessoa pede, o pacote é
   conferido por uma assinatura própria das atualizações. O instalador do Windows não tem assinatura de
   código: a opção gratuita exige licença open source, e a paga não se justifica num projeto pessoal.
+  No `.rpm`, o Kami instala com `rpm -U --nosignature` em vez de assinar o pacote com GPG: assinar não
+  bastaria, porque o rpm só aceita a chave depois de a pessoa importá-la, e a origem já é garantida pela
+  assinatura das atualizações (2.0.1).
 - **Superfície mínima da janela.** Sem permissão de shell, arquivos ou processos; uma CSP que só roda o
   código do app. Um teste fixa a lista de permissões, então liberar algo novo é sempre uma mudança
   consciente.

@@ -57,6 +57,7 @@ let onRecoveredCb = null;
 let checking = null;
 let active = false;
 let listenerWindow = null; // onde o listener foi registrado (testes trocam de jsdom)
+let pausado = false; // P-196: o backend caiu de propósito (instalando versão nova)
 
 function onApiError(e) {
   if (e.detail?.status === 0) check();
@@ -67,6 +68,30 @@ const tauri = () => (typeof window !== "undefined" ? window.__TAURI__?.core : nu
 /** error-notice.js pergunta isso pra não duplicar o aviso de "sem conexão". */
 export function watchdogHandlesConnection() {
   return active;
+}
+
+/**
+ * P-196: "atualizar agora" derruba o backend de propósito, e no .rpm a
+ * janela de senha do sistema pode ficar aberta o tempo que for — sem a
+ * pausa, o vigia via a queda, tentava reiniciar (o Rust recusa: "instalando
+ * a versão nova") e deixava a faixa vermelha na tela.
+ */
+export function pausarVigia() {
+  pausado = true;
+}
+
+/**
+ * A instalação falhou e o Rust já subiu outro backend — numa porta e com
+ * um token novos. Esquece a conexão antiga (sem isto a tela ficava presa
+ * na porta velha e a faixa nunca saía) e confere de novo, sem alarde.
+ */
+export async function retomarVigiaDepoisDaInstalacao() {
+  pausado = false;
+  resetBackendConnection();
+  if (state === "fora") hideBanner();
+  state = "ok";
+  autoRestartTried = false;
+  await check();
 }
 
 /** Só pra testes: estado atual do vigia. */
@@ -202,10 +227,13 @@ export async function restart({ manual = false } = {}) {
 
 /** Um ciclo do vigia. Nunca roda dois ao mesmo tempo. */
 export function check() {
+  // antes de criar a promise: um return síncrono lá dentro rodaria o
+  // finally (checking = null) ANTES da atribuição, e `checking` ficava
+  // preso numa promise resolvida — o vigia parava de testar pra sempre
+  if (pausado || state === "reiniciando") return Promise.resolve();
   if (checking) return checking;
   checking = (async () => {
     try {
-      if (state === "reiniciando") return;
       if (await pingBackend()) {
         if (state !== "ok") recovered();
         return;
@@ -253,5 +281,6 @@ export function stopBackendWatchdog() {
   state = "ok";
   autoRestartTried = false;
   checking = null;
+  pausado = false;
   hideBanner();
 }

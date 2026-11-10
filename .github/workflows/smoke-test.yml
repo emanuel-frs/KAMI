@@ -229,6 +229,46 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P-196: dois .rpm (a versão atual e a seguinte) assinados com uma chave
+      # DESCARTÁVEL e com http liberado, pro job rpm-update-fedora atualizar
+      # um pelo outro pelo app. Fica DEPOIS do e2e e do preparo dos
+      # artefatos acima: recompila o mesmo target/ e trocaria o binário deles.
+      - name: Build two signed .rpm for the update test
+        if: env.RUN_E2E == 'true'
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/atualizacao-rpm"
+          mkdir -p "$out"
+          cargo tauri signer generate --ci -w "$out/teste.key" -p teste
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$out/teste.key")"
+          export TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD=teste
+          antiga="$(tr -d '[:space:]' < ../VERSION)"
+          nova="$(python -c "import sys; v = sys.argv[1].split('-')[0].split('.'); v[2] = str(int(v[2]) + 1); print('.'.join(v))" "$antiga")"
+          for v in "$antiga" "$nova"; do
+            python - "$out/teste.key.pub" "$v" > "$out/config-$v.json" <<'PYEOF'
+          import json, sys
+          pub = open(sys.argv[1], encoding="utf-8").read().strip()
+          print(json.dumps({"version": sys.argv[2], "plugins": {"updater": {"pubkey": pub}}}))
+          PYEOF
+            cargo tauri build --bundles rpm --config ci/teste-atualizacao.json --config "$out/config-$v.json"
+          done
+          cp "$(find target/release/bundle/rpm -maxdepth 1 -name "*-${antiga}-1.x86_64.rpm" -print -quit)" "$out/antiga.rpm"
+          cp "$(find target/release/bundle/rpm -maxdepth 1 -name "*-${nova}-1.x86_64.rpm" -print -quit)" "$out/nova.rpm"
+          cp "$(find target/release/bundle/rpm -maxdepth 1 -name "*-${nova}-1.x86_64.rpm.sig" -print -quit)" "$out/nova.rpm.sig"
+          cp "$HOME/.cargo/bin/tauri-driver" "$out/tauri-driver"
+          printf '{"antiga": "%s", "nova": "%s"}\n' "$antiga" "$nova" > "$out/versoes.json"
+          rm -f "$out"/teste.key* "$out"/config-*.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.RUN_E2E == 'true'
+        with:
+          name: linux-update-test
+          path: ${{ runner.temp }}/atualizacao-rpm
+          if-no-files-found: error
+          retention-days: 3
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -373,6 +413,49 @@ jobs:
           path: /tmp/kami-backend.log
           if-no-files-found: warn
           retention-days: 7
+
+  # P-196: a 1.18 → 2.0.0 falhou no Fedora ("Failed to install package"): o
+  # rpm 6 exige assinatura GPG e o plugin rodava `rpm -U` puro. Instala a
+  # versão atual com dnf num Fedora de verdade e atualiza pelo próprio app
+  # pra seguinte (tests/e2e/atualizacao-rpm-e2e.mjs) — com a janela de
+  # senha cancelada e depois de verdade, até o app reabrir na versão nova.
+  rpm-update-fedora:
+    name: Update the .rpm through the app (fedora-latest)
+    needs: linux-build
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-22.04
+    container:
+      image: fedora:latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-update-test
+          path: atualizacao
+
+      - name: Install test tools (Node, Xvfb, WebKitWebDriver)
+        run: dnf install -y nodejs python3 xorg-x11-server-Xvfb webkitgtk6.0 dbus-daemon
+
+      - name: Update the installed .rpm through the app itself
+        env:
+          KAMI_E2E_ATUALIZACAO: atualizacao
+          KAMI_E2E_TAURI_DRIVER: atualizacao/tauri-driver
+          KAMI_E2E_PYTHON: python3
+          KAMI_E2E_OUT: ${{ runner.temp }}/atualizacao-rpm
+          # o contêiner do runner não deixa o bubblewrap do WebKit criar o sandbox
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+        run: |
+          chmod +x atualizacao/tauri-driver
+          dbus-run-session -- xvfb-run -a -s "-screen 0 1600x1000x24" node tests/e2e/atualizacao-rpm-e2e.mjs
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: atualizacao-rpm-log
+          path: ${{ runner.temp }}/atualizacao-rpm
+          if-no-files-found: warn
+          retention-days: 14
 
   windows-smoke:
     name: Windows sidecar and installer smoke test

@@ -343,6 +343,12 @@ atualização saiu da release do Kami — não é a assinatura de código do
 Windows, então o SmartScreen continua avisando "editor desconhecido". O
 endereço consultado só aceita https no app publicado. Antes de instalar, o
 Kami guarda uma cópia do banco (`backups/kami-antes-de-atualizar-…`).
+No `.rpm`, a instalação roda `rpm -U --nosignature` com a sua senha
+(janela de senha do sistema): o rpm 6 do Fedora exige assinatura GPG, que
+os pacotes do Kami não têm (até a 2.0.0 a atualização falhava ali). O
+`--nosignature` desliga só essa conferência — a origem já foi garantida
+pela assinatura das atualizações, e o rpm continua conferindo a
+integridade do pacote.
 
 Assinatura, no futuro: a opção gratuita da
 [SignPath Foundation](https://signpath.org/) exige uma licença open

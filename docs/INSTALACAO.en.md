@@ -194,7 +194,11 @@ has "check now".
   (`backups/kami-antes-de-atualizar-…`), downloads the new version, checks
   the update signature and installs it; Kami closes and reopens already
   updated. With the `.rpm` the system asks for your password at that point
-  (pkexec). On Windows SmartScreen may show "unknown publisher" again —
+  (pkexec). Up to 2.0.0, on Fedora, the button failed with "Failed to
+  install package": if you're on one of those versions, install the new
+  one **once** by hand (`sudo dnf install ./kami-<version>-linux-x86_64.rpm`,
+  downloaded from the Release); from then on the button works.
+  On Windows SmartScreen may show "unknown publisher" again —
   it's the same warning as at install time (see
   [Unsigned Windows installer](#unsigned-windows-installer)).
 - **`.deb` and AUR**: the notice shows up the same way, but the system's

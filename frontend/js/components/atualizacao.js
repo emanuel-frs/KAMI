@@ -6,6 +6,7 @@ import { openExternal } from "./open-external.js";
 import { showConfirmModal } from "../modals/confirm-modal.js";
 import { showErrorModal } from "../modals/err-modal.js";
 import { t } from "../i18n.js";
+import { pausarVigia, retomarVigiaDepoisDaInstalacao } from "./backend-watchdog.js";
 
 /**
  * components/atualizacao.js — aviso de versão nova (DIST-01, P-75).
@@ -21,8 +22,10 @@ import { t } from "../i18n.js";
  *     versão" tira do sino; configurações › sobre mostra sempre;
  *   - "atualizar agora" (Windows e AppImage): confirma, faz a cópia
  *     `kami-antes-de-atualizar` (P-90), baixa com o progresso num aviso e
- *     instala. `.deb`/`.rpm`/AUR: só o aviso e a página da versão — o
- *     gerenciador de pacotes do sistema é quem atualiza.
+ *     instala. `.rpm`: o mesmo, com a senha do sistema (pkexec) — se não
+ *     instalar, mensagemDeFalha diz o porquê e como instalar à mão.
+ *     `.deb`/AUR: só o aviso e a página da versão — o gerenciador de
+ *     pacotes do sistema é quem atualiza.
  *
  * Fora do app instalado (navegador de dev) nada disso existe.
  */
@@ -158,9 +161,14 @@ export async function atualizarAgora() {
       const { baixado, total } = payload;
       msgEl.textContent = total ? `${Math.min(100, Math.round((baixado / total) * 100))}%` : `${(baixado / 1048576).toFixed(1)} MB`;
     });
+    pausarVigia();
     try {
       // daqui o app fecha e reabre na versão nova (no Windows, pelo instalador)
       await invoke("atualizacao_instalar");
+    } catch (err) {
+      // não instalou: o Rust já subiu o backend de novo (porta nova)
+      await retomarVigiaDepoisDaInstalacao();
+      throw err;
     } finally {
       parar();
     }
@@ -168,6 +176,22 @@ export async function atualizarAgora() {
     fecharAviso?.();
     instalando = false;
     avisarMudou();
-    showErrorModal(String(err?.message || err), t("atualizacao.nao_deu_pra_atualizar"));
+    showErrorModal(mensagemDeFalha(err, versao), t("atualizacao.nao_deu_pra_atualizar"));
   }
+}
+
+/**
+ * O Rust devolve `rpm:<motivo>[:detalhe]` quando o .rpm não instala
+ * (atualizacao.rs › instalar_rpm, P-196); o resto já vem como frase.
+ */
+export function mensagemDeFalha(err, versao) {
+  const texto = String(err?.message || err);
+  const m = /^rpm:([a-z-]+)(?::([\s\S]*))?$/.exec(texto);
+  if (!m) return texto;
+  const arquivo = `kami-${versao}-linux-x86_64.rpm`;
+  const manual = t("atualizacao.rpm_manual", { arquivo });
+  if (m[1] === "canceled") return t("atualizacao.rpm_cancelado");
+  if (m[1] === "denied") return `${t("atualizacao.rpm_sem_permissao")} ${manual}`;
+  if (m[1] === "no-pkexec") return `${t("atualizacao.rpm_sem_pkexec")} ${manual}`;
+  return `${t("atualizacao.rpm_falhou", { versao, detalhe: m[2] || "?" })} ${manual}`;
 }

@@ -13,8 +13,9 @@
 //!   pública embutida — pacote com assinatura errada é recusado pelo plugin
 //!   antes de qualquer coisa —, derruba o backend e instala. Windows: o
 //!   instalador NSIS fecha o app e abre a versão nova. AppImage: o arquivo é
-//!   trocado e o app reinicia. `.rpm`: o plugin roda `rpm -U` pelo pkexec
-//!   (o sistema pede a senha) e o app reinicia na versão nova.
+//!   trocado e o app reinicia. `.rpm`: o kami roda `rpm -U --nosignature`
+//!   pelo pkexec (o sistema pede a senha; ver `instalar_rpm`) e o app
+//!   reinicia na versão nova.
 //!
 //! Dá pra instalar daqui no Windows (NSIS), no AppImage e no `.rpm` (o
 //! latest.json tem a entrada `linux-x86_64-rpm`). `.deb` e AUR: o
@@ -168,11 +169,140 @@ pub async fn atualizacao_instalar(app: AppHandle) -> Result<(), String> {
     if !cfg!(target_os = "windows") {
         crate::parar_backend(&app);
     }
-    if let Err(e) = update.install(&bytes) {
+    #[cfg(target_os = "linux")]
+    let instalado = if pacote() == "rpm" { linux::instalar_rpm(&bytes) } else { instalar_pelo_plugin(&update, &bytes) };
+    #[cfg(not(target_os = "linux"))]
+    let instalado = instalar_pelo_plugin(&update, &bytes);
+    if let Err(e) = instalado {
         INSTALANDO.store(false, Ordering::SeqCst);
         // o backend caiu de propósito: sobe de novo pro app continuar usável
+        // (numa porta nova — o frontend reconecta, ver atualizacao.js)
         crate::subir_backend_de_novo(&app);
-        return Err(format!("não deu pra instalar a versão {}: {}", update.version, e));
+        return Err(e);
     }
     app.restart();
+}
+
+fn instalar_pelo_plugin(update: &Update, bytes: &[u8]) -> Result<(), String> {
+    update
+        .install(bytes)
+        .map_err(|e| format!("não deu pra instalar a versão {}: {}", update.version, e))
+}
+
+#[cfg(target_os = "linux")]
+mod linux {
+    /// `.rpm` (P-196): instalado aqui, e não pelo plugin. O plugin roda
+    /// `pkexec rpm -U`, e o rpm 6 (Fedora 44 em diante) exige assinatura GPG por
+    /// padrão (`%_pkgverify_level all`): o pacote da Release, sem GPG, era
+    /// recusado com "Failed to install package" (visto na 1.18 → 2.0.0).
+    ///
+    /// `--nosignature` desliga só a conferência GPG do rpm. A autenticidade já
+    /// foi conferida no download pela assinatura do kami (minisign, chave
+    /// embutida no app), e os resumos (digests) do pacote o rpm continua
+    /// conferindo. Sem os fallbacks do plugin (zenity/kdialog/sudo no terminal):
+    /// janela de senha em inglês e um `sudo` sem terminal só confundiam.
+    ///
+    /// Erros voltam como `rpm:<motivo>[:detalhe]` — o frontend traduz
+    /// (atualizacao.js › mensagemDeFalha).
+    pub(super) fn instalar_rpm(bytes: &[u8]) -> Result<(), String> {
+        // "\xED\xAB\xEE\xDB": o começo de todo .rpm (o plugin confere o mesmo)
+        if !bytes.starts_with(&[0xED, 0xAB, 0xEE, 0xDB]) {
+            return Err("rpm:failed:o arquivo baixado não é um .rpm".into());
+        }
+        let pasta = pasta_temporaria().map_err(|e| format!("rpm:failed:{}", e))?;
+        let arquivo = pasta.join("kami.rpm");
+        let resultado = std::fs::write(&arquivo, bytes)
+            .map_err(|e| format!("rpm:failed:{}", e))
+            .and_then(|_| rodar_rpm(&arquivo));
+        let _ = std::fs::remove_dir_all(&pasta);
+        resultado
+    }
+
+    /// Pasta só do usuário (0700) no /tmp: o root, pelo pkexec, lê dela.
+    fn pasta_temporaria() -> std::io::Result<std::path::PathBuf> {
+        use std::os::unix::fs::DirBuilderExt;
+        let pasta = std::env::temp_dir().join(format!("kami-atualizacao-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pasta);
+        std::fs::DirBuilder::new().mode(0o700).create(&pasta)?;
+        Ok(pasta)
+    }
+
+    /// O comando que instala (separado pro teste conferir os argumentos).
+    fn comando_rpm(arquivo: &std::path::Path) -> std::process::Command {
+        let mut cmd = std::process::Command::new("pkexec");
+        cmd.args(["rpm", "-U", "--nosignature"]).arg(arquivo);
+        cmd.stdin(std::process::Stdio::null());
+        cmd
+    }
+
+    fn rodar_rpm(arquivo: &std::path::Path) -> Result<(), String> {
+        let saida = comando_rpm(arquivo).output().map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                "rpm:no-pkexec".to_string()
+            } else {
+                format!("rpm:failed:{}", e)
+            }
+        })?;
+        match saida.status.code() {
+            Some(0) => Ok(()),
+            // pkexec: 126 = a pessoa fechou a janela da senha; 127 = sem
+            // autorização (senha errada 3×, ou o polkit não deixa)
+            Some(126) => Err("rpm:canceled".into()),
+            Some(127) => Err("rpm:denied".into()),
+            _ => Err(format!(
+                "rpm:failed:{}",
+                ultima_linha(&saida.stderr, &saida.stdout)
+            )),
+        }
+    }
+
+    /// A última linha com texto do que o rpm disse (é onde fica o motivo).
+    fn ultima_linha(stderr: &[u8], stdout: &[u8]) -> String {
+        let texto = String::from_utf8_lossy(if stderr.iter().any(|b| !b.is_ascii_whitespace()) {
+            stderr
+        } else {
+            stdout
+        });
+        let linha = texto
+            .lines()
+            .rev()
+            .map(str::trim)
+            .find(|l| !l.is_empty())
+            .unwrap_or("")
+            .to_string();
+        linha.chars().take(300).collect()
+    }
+
+    #[cfg(test)]
+    mod testes {
+        use super::*;
+
+        #[test]
+        fn rpm_usa_nosignature_e_nada_mais() {
+            let cmd = comando_rpm(std::path::Path::new("/tmp/x/kami.rpm"));
+            let args: Vec<_> = cmd
+                .get_args()
+                .map(|a| a.to_string_lossy().into_owned())
+                .collect();
+            assert_eq!(args, ["rpm", "-U", "--nosignature", "/tmp/x/kami.rpm"]);
+        }
+
+        #[test]
+        fn arquivo_que_nao_e_rpm_e_recusado_antes_do_pkexec() {
+            assert_eq!(
+                instalar_rpm(b"<html>").unwrap_err(),
+                "rpm:failed:o arquivo baixado não é um .rpm"
+            );
+        }
+
+        #[test]
+        fn ultima_linha_pega_o_motivo() {
+            let err = b"aviso qualquer\n\tpackage kami-0:2.0.0-1.x86_64 does not verify: no signature\n\n";
+            assert_eq!(
+                ultima_linha(err, b""),
+                "package kami-0:2.0.0-1.x86_64 does not verify: no signature"
+            );
+            assert_eq!(ultima_linha(b"  \n", b"so no stdout\n"), "so no stdout");
+        }
+    }
 }
