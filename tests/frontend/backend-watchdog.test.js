@@ -191,3 +191,52 @@ test(
     assert.match(banner().querySelector(".backend-banner-message").textContent, /não pôde ser iniciado/);
   })
 );
+
+test(
+  "P-196: atualizando, o vigia pausa; a instalação falhou → reconecta na porta nova sem faixa nem reinício",
+  withDom("<body></body>", async (dom, t) => {
+    const { wd, server, invoked, banner } = await setup(dom, t);
+    // só responde na porta atual: a porta velha morreu com o backend antigo
+    globalThis.fetch.mock.mockImplementation(async (url) => {
+      if (!server.up || !String(url).includes(`:${server.port}/`)) throw new TypeError("Failed to fetch");
+      return { ok: true, status: 200, json: async () => ({ status: "ok" }) };
+    });
+    let recarregou = 0;
+    wd.startBackendWatchdog({ onRecovered: () => recarregou++ });
+    await wd.check();
+    assert.equal(wd.watchdogState(), "ok");
+
+    wd.pausarVigia();
+    server.up = false; // o Rust derrubou o backend; a janela de senha está aberta
+    await wd.check();
+    assert.ok(!banner() || banner().hidden, "pausado: nada de faixa vermelha");
+    assert.deepEqual(invoked.filter((c) => c === "restart_backend"), [], "pausado: não tenta reiniciar");
+
+    // o rpm recusou: o Rust subiu outro backend, numa porta nova
+    server.up = true;
+    server.port += 1;
+    const { pingBackend } = await import("../../frontend/js/api/client.js");
+    assert.equal(await pingBackend(), false, "a porta velha não responde mais");
+    await wd.retomarVigiaDepoisDaInstalacao();
+    const urls = globalThis.fetch.mock.calls.map((c) => String(c.arguments[0]));
+    assert.equal(urls.at(-1), `http://127.0.0.1:${server.port}/health`, "testou de verdade, já na porta nova");
+    assert.equal(wd.watchdogState(), "ok");
+    assert.ok(!banner() || banner().hidden);
+    assert.deepEqual(invoked.filter((c) => c === "restart_backend"), []);
+    assert.equal(recarregou, 0, "sem 'backend de volta' nem recarga: pra quem usa, ele nunca caiu");
+  })
+);
+
+test(
+  "uma checagem que sai na hora (reiniciando) não trava o vigia: a seguinte testa de novo",
+  withDom("<body></body>", async (dom, t) => {
+    const { wd } = await setup(dom, t);
+    wd.startBackendWatchdog();
+    wd.pausarVigia();
+    await wd.check(); // sai sem testar nada
+    await wd.retomarVigiaDepoisDaInstalacao();
+    const antes = globalThis.fetch.mock.callCount();
+    await wd.check();
+    assert.ok(globalThis.fetch.mock.callCount() > antes, "o vigia continua testando o /health");
+  })
+);

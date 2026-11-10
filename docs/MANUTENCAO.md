@@ -140,3 +140,12 @@ release.
 `--config ci/teste-atualizacao.json` (única configuração que aceita http)
 e aponte o app pra um servidor local com `KAMI_ATUALIZACAO_URL=http://127.0.0.1:<porta>/latest.json`
 — o `scripts/gerar_latest_json.py` monta o arquivo a partir dos `.sig`.
+O CI faz isso sozinho nos PRs pra `main`: Windows
+(`tests/e2e/atualizacao-e2e.mjs`) e `.rpm` num Fedora com o rpm exigindo
+assinatura GPG (`tests/e2e/atualizacao-rpm-e2e.mjs`, job
+`rpm-update-fedora`), pela tela, da versão atual pra seguinte — com a
+janela de senha cancelada e depois de verdade, até o app reabrir. Esse
+segundo existe porque a 1.18 → 2.0.0 falhou no Fedora sem nenhum teste
+ver: o plugin do Tauri rodava `rpm -U` puro, e o rpm 6 recusa pacote sem
+GPG. O `.rpm` agora é instalado pelo próprio Kami
+(`src-tauri/src/atualizacao.rs` › `instalar_rpm`).

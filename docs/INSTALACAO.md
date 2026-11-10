@@ -200,6 +200,10 @@ sobre › "procurar atualizações", e lá também tem "procurar agora".
   (`backups/kami-antes-de-atualizar-…`), baixa a versão nova, confere a
   assinatura das atualizações e instala; o Kami fecha e abre de novo já
   atualizado. No `.rpm` o sistema pede a sua senha nessa hora (pkexec).
+  Até a 2.0.0, no Fedora, o botão falhava com "Failed to install
+  package": quem está nessas versões instala a nova **uma vez** à mão
+  (`sudo dnf install ./kami-<versão>-linux-x86_64.rpm`, baixado da
+  Release); daí em diante o botão funciona.
   No Windows o SmartScreen pode mostrar "editor desconhecido" de novo —
   é o mesmo aviso da instalação (veja
   [Windows sem assinatura](#windows-sem-assinatura)).

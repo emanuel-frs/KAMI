@@ -4,6 +4,15 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.1] - 2026-11-09
+
+_**Fedora (`.rpm`):** se "atualizar agora" falhar com "Failed to install package", instale esta versão uma vez pelo terminal — baixe o `.rpm` em github.com/emanuel-frs/KAMI/releases e rode `sudo dnf install ./kami-2.0.1-linux-x86_64.rpm`. Seus dados ficam onde estão. Daí em diante o botão funciona._
+
+### Corrigido
+- atualizar pelo app no `.rpm` falhava no Fedora com "Failed to install package": o rpm do Fedora atual recusa pacotes sem assinatura GPG. Agora o Kami instala o pacote depois de conferir a assinatura própria das atualizações, como já fazia, e o rpm segue conferindo a integridade dele. Se a instalação não acontece (janela de senha fechada, senha recusada), o aviso diz o motivo no seu idioma e como instalar à mão
+- depois de uma atualização que não deu certo, a faixa vermelha "o backend do kami parou" ficava na tela mesmo com tudo funcionando; agora o Kami volta a falar com o backend sozinho, sem faixa
+
+
 ## [2.0.0] - 2026-11-08
 
 _O Kami completo: organização, finanças, estudos e metas como um jogo, em 10 idiomas, com um assistente de IA opcional que pode rodar no seu computador — e, nesta versão, acessível pelo teclado, mais rápido com anos de dados e com um jeito de relatar erros pelo próprio app._

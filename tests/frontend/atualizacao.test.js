@@ -60,3 +60,19 @@ test(
     assert.equal(at.estadoAtualizacao().disponivel, null, "desligar esquece a versão encontrada");
   })
 );
+
+test("P-196: falha do .rpm vira frase traduzida, com o jeito de instalar à mão", async () => {
+  const { mensagemDeFalha } = await import("../../frontend/js/components/atualizacao.js");
+  const cancelado = mensagemDeFalha("rpm:canceled", "2.0.1");
+  assert.doesNotMatch(cancelado, /^rpm:|sudo/, "cancelou: só avisa, sem instrução de terminal");
+  const recusou = mensagemDeFalha("rpm:failed:package kami-0:2.0.1-1.x86_64 does not verify: no signature", "2.0.1");
+  assert.match(recusou, /does not verify: no signature/, "o motivo do rpm aparece");
+  assert.match(recusou, /sudo dnf install \.\/kami-2\.0\.1-linux-x86_64\.rpm/);
+  for (const e of ["rpm:denied", "rpm:no-pkexec"]) {
+    const m = mensagemDeFalha(e, "2.0.1");
+    assert.doesNotMatch(m, /^rpm:/);
+    assert.match(m, /kami-2\.0\.1-linux-x86_64\.rpm/);
+  }
+  // os outros erros (Windows, AppImage, download) já vêm como frase
+  assert.equal(mensagemDeFalha(new Error("não deu pra baixar a versão 2.0.1: x"), "2.0.1"), "não deu pra baixar a versão 2.0.1: x");
+});
