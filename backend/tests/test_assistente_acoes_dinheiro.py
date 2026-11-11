@@ -15,12 +15,15 @@ aplica, e desfazer volta TUDO exatamente (saldo, fatura e xp).
 """
 import datetime as dt
 import json
+import re
 
 import pytest
 
 from app import database
 from app.assistente import conversas, ferramentas
 from provedor_falso import ProvedorFalso, openai_texto
+
+_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
 @pytest.fixture()
@@ -276,9 +279,11 @@ def test_cartao_e_cpf_somem_antes_de_sair_e_valores_ficam(client, db_conn, falso
     assert "4111" not in enviado and "123.456.789-09" not in enviado and "56789" not in enviado
     assert "120,50" in enviado
     cid = ev[0]["conversa_id"]
-    guardado = client.get(f"/api/assistente/conversas/{cid}").json()
-    assert "4111" not in json.dumps(guardado, ensure_ascii=False)
-    assert "4111" not in json.dumps(client.get("/api/assistente/envios").json(), ensure_ascii=False)
+    # sem os ids: um UUID aleatório pode conter "4111" (falhou assim no CI,
+    # "cb5a2d5a-0704-4111-…") sem nenhum número da pessoa ter vazado
+    sem_ids = lambda r: _UUID.sub("<id>", json.dumps(r.json(), ensure_ascii=False))
+    assert "4111" not in sem_ids(client.get(f"/api/assistente/conversas/{cid}"))
+    assert "4111" not in sem_ids(client.get("/api/assistente/envios"))
     # texto sem nada pra mascarar: nenhum evento
     falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
     assert not [e for e in _eventos(client, "gastei 45,90 no dia 21/10") if e["tipo"] == "mascarado"]

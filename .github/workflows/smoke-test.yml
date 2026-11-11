@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [develop, main, 'release/**']
   workflow_dispatch:
+  # P-197: na pausa depois da 2.0 o CI não roda sozinho, e a 2.0.0 mostrou
+  # que o sistema muda por baixo do Kami (o rpm 6 do Fedora passou a recusar
+  # o pacote). Todo dia 1, a main é compilada e testada inteira — instalação
+  # nas distros, e2e e atualização pelo app no Windows e no .rpm. Falhou →
+  # o GitHub manda e-mail. O GitHub desliga agendamentos depois de 60 dias
+  # sem atividade no repositório (avisa antes por e-mail; reativa em
+  # Actions › Smoke test › Enable workflow).
+  schedule:
+    - cron: "0 12 1 * *" # dia 1 de cada mês, 9h em Brasília (1 h depois da auditoria)
 
 permissions:
   contents: read
@@ -19,7 +28,7 @@ permissions:
 # release/** e no disparo manual (decisão P-02) — reaproveita o app que os
 # jobs de build já compilam, então não refaz build nenhum.
 env:
-  RUN_E2E: ${{ github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/') }}
+  RUN_E2E: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/') }}
 
 jobs:
   tests:
@@ -422,7 +431,7 @@ jobs:
   rpm-update-fedora:
     name: Update the .rpm through the app (fedora-latest)
     needs: linux-build
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-22.04
     container:
       image: fedora:latest
@@ -693,7 +702,7 @@ jobs:
   e2e-windows:
     name: Windows end-to-end test (compiled app)
     needs: windows-smoke
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.base_ref == 'main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

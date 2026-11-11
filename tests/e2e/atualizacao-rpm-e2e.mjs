@@ -172,7 +172,13 @@ async function main() {
     };
     const copias = () => (existsSync(join(DATA_DIR, "backups")) ? readdirSync(join(DATA_DIR, "backups")).filter((n) => n.startsWith("kami-antes-de-atualizar")).length : 0);
     await waitFor("a tela inicial", () => visivel("#btn-open-settings"), { timeout: 60000 });
-    await clicar("#btn-open-settings", "o botão de configurações");
+    // a abertura do app ainda pode estar montando a tela quando o botão
+    // aparece (no CI um clique cedo se perdeu): clica de novo até abrir
+    await waitFor("as configurações abertas", async () => {
+      if (await visivel('.cfg-tab[data-tab="sobre"]')) return true;
+      if (await visivel("#btn-open-settings")) await ui("document.getElementById('btn-open-settings').click()");
+      return false;
+    }, { timeout: 60000, every: 3000 });
     await clicar('.cfg-tab[data-tab="sobre"]', "a aba sobre");
     await clicar("#cfg-atualiza-agora", "procurar agora");
     await waitFor("o botão atualizar agora", () => visivel("#cfg-atualiza-instalar"), { timeout: 30000 });
@@ -235,6 +241,10 @@ async function main() {
     log(`reabriu sozinho (pid ${novos.join(",")}), backend na porta ${porta3}`);
     if (pastasTemporarias().length) throw new Error(`pasta temporária ficou: ${pastasTemporarias()}`);
     log(`pedidos ao servidor: ${pedidos.join(", ")}`);
+  } catch (e) {
+    // print da tela no momento da falha (vai no artefato do job)
+    await wd.screenshot().then((png) => writeFileSync(join(OUT, "falha.png"), png)).catch(() => {});
+    throw e;
   } finally {
     await wd.quit().catch(() => {});
     driver.kill();
