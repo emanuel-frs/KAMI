@@ -89,66 +89,61 @@ test(
 );
 
 test(
-  "nunca alarga um card pros lados, e sem alinhar (resize manual) não cresce ninguém",
+  "ninguém estica nem alarga: cada card fica do tamanho dele",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
     const items = [{ span: 3, rows: 40 }, { span: 2, rows: 50 }, { span: 6, rows: 20 }];
     const pos = packLayout(items, 6);
     ocupacao(items, pos, 6);
     assert.deepEqual(pos.map((p) => p.span), [3, 2, 6]);
-    // o de baixo começa depois do mais alto; o vão embaixo do 1º fecha
+    assert.deepEqual(pos.map((p) => p.rows), [40, 50, 20]);
+    // o largo vai embaixo do mais baixo dos dois de cima
     assert.equal(pos[2].row, 51);
-    assert.equal(pos[0].rows, 50);
-    assert.deepEqual(packLayout(items, 6, { alinhar: false }).map((p) => p.rows), [40, 50, 20]);
   })
 );
 
 test(
-  "faixas: vizinhos de lado terminam juntos e a faixa seguinte começa reta (núcleo)",
+  "gráficos lado a lado com alturas diferentes: o largo fica embaixo do mais baixo e o vão do mais curto é ocupado",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
-    // missões 64 | registrar 57; galeria 114 | log 77, e embaixo do log radar + prioridades
+    // finanças em 4 colunas: resumo (2) | entradas×saídas (1) | evolução (1), wallet (2) embaixo
+    // dos gráficos, depois um widget de 1 coluna que cabe no vão embaixo da evolução
     const items = [
-      { span: 2, rows: 64 },
-      { span: 2, rows: 57 },
-      { span: 2, rows: 114 },
-      { span: 2, rows: 77 },
-      { span: 1, rows: 59 },
-      { span: 1, rows: 48 },
+      { span: 2, rows: 40 }, // resumo
+      { span: 1, rows: 70 }, // entradas × saídas (mais alto)
+      { span: 1, rows: 55 }, // evolução (mais curto)
+      { span: 2, rows: 90 }, // wallet
+      { span: 1, rows: 15 }, // cabe no vão de 15 linhas embaixo da evolução
+      { span: 1, rows: 30 }, // não cabe em vão nenhum
     ];
     const pos = packLayout(items, 4);
-    const fim = (p) => p.row + p.rows;
-    assert.equal(fim(pos[0]), fim(pos[1])); // registrar cresceu até a base de missões
-    assert.equal(pos[2].row, pos[3].row); // galeria e log começam na mesma linha
-    // radar e prioridades empilham embaixo do log, lado a lado
-    assert.deepEqual([pos[4].col, pos[4].row, pos[5].col, pos[5].row], [3, fim(pos[3]), 4, fim(pos[3])]);
-    // e tudo termina junto: a galeria cresce até a pilha
-    assert.equal(fim(pos[2]), fim(pos[4]));
-    assert.equal(fim(pos[4]), fim(pos[5]));
-    assert.deepEqual(pos.map((p) => p.span), [2, 2, 2, 2, 1, 1]);
+    ocupacao(items, pos, 4);
+    assert.deepEqual(pos.map((p) => p.rows), [40, 70, 55, 90, 15, 30], "ninguém estica");
+    // a wallet sobe pro lugar mais alto em que cabe: embaixo do resumo
+    assert.deepEqual([pos[3].col, pos[3].row], [1, 41]);
+    // o pequeno vai pro vão embaixo da evolução (coluna 4, logo abaixo dela)
+    assert.deepEqual([pos[4].col, pos[4].row], [4, 56]);
+    // o seguinte, sem vão que caiba, vai pro ponto mais alto que sobrou
+    assert.deepEqual([pos[5].col, pos[5].row], [3, 71]);
   })
 );
 
 test(
-  "pilha ao lado de um card alto não estica o de cima (perfil: radar + atividade embaixo do perfil)",
+  "widget largo embaixo de dois de alturas diferentes fica logo abaixo do mais baixo, e o vão é preenchido",
   withDom("<body></body>", async () => {
     const { packLayout } = await grid();
-    const items = [{ span: 2, rows: 75, pinned: true }, { span: 2, rows: 141 }, { span: 1, rows: 62 }, { span: 1, rows: 64 }];
-    const pos = packLayout(items, 4);
-    assert.equal(pos[0].rows, 75); // o perfil fica do tamanho dele
-    assert.deepEqual([pos[2].row, pos[3].row], [76, 76]);
-    assert.equal(pos[2].row + pos[2].rows, pos[1].row + pos[1].rows);
-    assert.equal(pos[3].row + pos[3].rows, pos[1].row + pos[1].rows);
-  })
-);
-
-test(
-  "card que não cabe nem pela metade na faixa abre uma faixa nova",
-  withDom("<body></body>", async () => {
-    const { packLayout } = await grid();
-    // 60 | 20; o seguinte (100) caberia embaixo do de 20, mas só 40 dele ficariam na faixa
-    const pos = packLayout([{ span: 2, rows: 60 }, { span: 2, rows: 20 }, { span: 2, rows: 100 }], 4);
-    assert.equal(pos[1].rows, 60); // a faixa fechou: o baixo cresceu
-    assert.equal(pos[2].row, 61);
+    // grade de 2 colunas: os dois gráficos ocupam a largura toda
+    const items = [
+      { span: 1, rows: 70 }, // gráfico mais alto
+      { span: 1, rows: 50 }, // gráfico mais curto
+      { span: 2, rows: 100 }, // wallet: largura dos dois → embaixo do mais baixo
+      { span: 1, rows: 20 }, // cabe no vão de 20 embaixo do curto
+      { span: 1, rows: 30 }, // não cabe: vai embaixo da wallet
+    ];
+    const pos = packLayout(items, 2);
+    ocupacao(items, pos, 2);
+    assert.deepEqual([pos[2].col, pos[2].row], [1, 71]);
+    assert.deepEqual([pos[3].col, pos[3].row], [2, 51]);
+    assert.deepEqual([pos[4].col, pos[4].row], [1, 171]);
   })
 );

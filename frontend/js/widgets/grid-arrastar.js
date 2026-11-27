@@ -7,14 +7,13 @@
 import { icon } from "../components/icons.js";
 import {
   escolherAltura,
+  pisoAltura,
   WG_GAP,
-  WG_MIN_H,
   snapResizeHeight,
   packCards,
   currentCols,
   getScaled,
   setScaled,
-  contentMinHeight,
   minScaled,
   maxScaled,
   placeCard,
@@ -61,11 +60,11 @@ export function attachResizeHandle(card, container, getCommit, pauseObservers, r
   function onMove(e) {
     try {
       const dy = e.clientY - startY;
-      // piso real = o maior entre o mínimo absoluto do app e a altura que
-      // o conteúdo atual precisa pra não cortar nada (regra 3) — mede na
-      // largura já aplicada nesse frame (a largura pode ter mudado no
+      // piso = a altura que o conteúdo precisa pra não cortar nada (regra
+      // 3) — com o tamanho automático desligado, só até o mínimo máximo do
+      // widget (o resto rola) — mede na largura já aplicada nesse frame (a largura pode ter mudado no
       // mesmo drag, e isso afeta quebra de linha/altura do conteúdo)
-      const floor = Math.max(WG_MIN_H, contentMinHeight(card));
+      const floor = pisoAltura(card);
       const newH = snapResizeHeight(Math.max(floor, startH + dy));
       escolherAltura(card, newH);
 
@@ -84,9 +83,7 @@ export function attachResizeHandle(card, container, getCommit, pauseObservers, r
       container.querySelectorAll(":scope > .card").forEach((c) => {
         if (c !== card) placeCard(c, cols);
       });
-      // sem faixas durante o resize manual: o card mostra a altura que a
-      // pessoa está escolhendo, não a alinhada
-      packCards(container, cols, { alinhar: false });
+      packCards(container, cols);
     } catch (err) {
       console.error("erro no resize:", err);
     }

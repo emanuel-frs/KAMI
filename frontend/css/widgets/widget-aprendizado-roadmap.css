@@ -13,10 +13,15 @@
   min-height: 200px;
 }
 
-/* Opcional: borda separadora */
+/* A lista de trilhas não decide a altura da linha: quem decide é o bloco
+   dos módulos (cabeçalho + canvas, que tem teto). height:0 tira a lista
+   do cálculo e min-height:100% a estica até a altura do bloco da direita;
+   o resto rola dentro dela. */
 .apr-left {
   border-right: 1px solid var(--border-soft);
   padding-right: 12px;
+  height: 0;
+  min-height: 100%;
   overflow-y: auto;
 }
 
@@ -25,6 +30,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 200px;   /* sem trilha escolhida ou trilha sem módulos o bloco é
+                          baixo, e a lista (que segue esta altura) mostraria
+                          um item só */
   overflow: hidden;
 }
 
@@ -261,8 +269,10 @@ textarea {
 /* ── canvas do roadmap: fundo liso, altura limitada, pan por arraste ──── */
 .roadmap-canvas {
   position: relative;
-  height: 100%;
-  max-height: 260px;
+  /* altura fixa (era height:100% + max-height): a lista de trilhas segue a
+     altura deste bloco, e o 100% o WebKit às vezes resolvia contra o piso
+     de .apr-right em vez do conteúdo — o bloco e a lista ficavam baixos */
+  height: 260px;
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border-soft);

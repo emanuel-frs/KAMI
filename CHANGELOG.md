@@ -4,6 +4,23 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Novo
+- assistente: além de criar, agora ele propõe mexer no que já existe — alterar (nome, datas, valor, alvo, prazo, situação da trilha ou do hábito…), apagar, concluir ou reabrir (módulo, tarefa, o hábito de hoje), reordenar os módulos de uma trilha e pôr um módulo novo numa trilha que já existe. Tudo passa pelo mesmo cartão de aprovação, que mostra o "antes" de cada alteração
+- assistente: "desfazer" também vale pras edições — o que foi alterado volta ao que era e o que foi apagado volta com o histórico e o xp exatos (um lançamento apagado volta refazendo o saldo)
+- assistente: salvar, alterar e apagar links
+
+### Mudado
+- o tamanho mínimo de um widget continua sendo o conteúdo, mas agora tem um limite (o tamanho da galeria de conquistas; menor nos widgets estreitos): um widget de lista longa (compras parceladas com muitas compras, ainda mais com o zoom baixo) não ocupa mais a tela inteira sem poder diminuir. Passando do limite, o resto rola por dentro; no compras parceladas, a lista de compras e a fatura do mês rolam cada uma. O jeito antigo (sempre do tamanho do conteúdo, sem limite) virou uma opção em configurações › aparência › tamanho dos widgets, desligada
+- os widgets não esticam mais pra alinhar com o vizinho: cada um fica do tamanho dele, o de baixo fica logo abaixo do mais baixo dos que estão em cima, e o vão que sobra embaixo de um widget mais curto é ocupado pelo primeiro widget que couber nele
+
+### Corrigido
+- os filtros de registros financeiros e de assinaturas abriam a lista de opções do sistema, fora do visual do Kami; agora usam a mesma lista dos outros formulários
+- campos de data e hora ficavam um pouco mais altos que os outros campos (no Linux); agora têm a mesma altura
+- aprendizado: a lista de trilhas ficava mais alta que o quadro dos módulos ao lado; agora as duas colunas têm a mesma altura e a lista rola por dentro
+
+
 ## [2.0.1] - 2026-11-09
 
 _**Fedora (`.rpm`):** se "atualizar agora" falhar com "Failed to install package", instale esta versão uma vez pelo terminal — baixe o `.rpm` em github.com/emanuel-frs/KAMI/releases e rode `sudo dnf install ./kami-2.0.1-linux-x86_64.rpm`. Seus dados ficam onde estão. Daí em diante o botão funciona._

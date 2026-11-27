@@ -25,6 +25,7 @@ import {
 } from "./grid-teclado.js";
 import { attachResizeHandle, attachDragHandle } from "./grid-arrastar.js";
 import { t } from "../i18n.js";
+import { store } from "../state/store.js";
 
 const WG_UNITS  = 6;   // "sextos" — mesmo valor do protótipo
 const WG_ROW    = 4;   // grid-auto-rows em px   (grid.css)
@@ -32,6 +33,52 @@ export const WG_GAP    = 16;  // column-gap em px       (grid.css)
 const WG_ROW_MARGIN = 16; // espaço vertical entre cards, em px — aplicado como
                           // margin-bottom no card (grid.css), NÃO como row-gap
 export const WG_MIN_H  = 88;  // altura mínima em px — nunca deixa o widget ilegível
+
+// Tamanho automático (configurações › aparência, perfil.widgets_altura_auto).
+// LIGADO: o widget é sempre do tamanho do conteúdo e o resize não desce
+// abaixo dele (o comportamento de antes). DESLIGADO (padrão): o mínimo do
+// widget continua sendo o conteúdo — nada aparece cortado à toa —, mas esse
+// mínimo tem um LIMITE (o "mínimo máximo"): passando dele, o widget pode
+// ficar daquele tamanho e o resto rola por dentro. Ligado, uma lista longa
+// (compras parceladas com 6 compras, pior ainda com zoom baixo) deixava o
+// widget do tamanho da tela e sem como diminuir.
+// O padrão é o tamanho da galeria de conquistas (lista de 320px + cabeçalho
+// ≈ 400px); widget estreito (1 coluna numa grade de 2 ou 4) é mais baixo,
+// já que costuma ter pouca coisa e botões.
+const MINIMO_MAXIMO_PADRAO = 400;
+const MINIMO_MAXIMO_ESTREITO = 280;
+// Por widget, em px. null = sem limite (o mínimo é sempre o conteúdo):
+// formulários, que não ficam bons rolando. O resto usa os padrões acima.
+const MINIMO_MAXIMO = {
+  profile: null,
+  registrar: null,
+  carreira_perfil: null,
+};
+
+/** O tamanho automático (sempre o conteúdo) está ligado? */
+export function alturaAutomatica() {
+  return Boolean(store.get("profile")?.widgets_altura_auto);
+}
+
+function minimoMaximo(card) {
+  const tipo = card.dataset.widget;
+  if (tipo in MINIMO_MAXIMO) return MINIMO_MAXIMO[tipo];
+  const cols = card.parentElement ? currentCols(card.parentElement) : WG_UNITS;
+  const estreito = cols > 1 && parseInt(card.dataset.scaled, 10) === 1;
+  return estreito ? MINIMO_MAXIMO_ESTREITO : MINIMO_MAXIMO_PADRAO;
+}
+
+/**
+ * O menor tamanho que o card pode ter agora (resize de mouse e de teclado,
+ * e a altura desenhada): o conteúdo — limitado ao mínimo máximo do widget
+ * quando o tamanho automático está desligado. 0 = ainda sem conteúdo medido.
+ */
+export function pisoAltura(card) {
+  const conteudo = contentMinHeight(card);
+  if (conteudo <= 0) return 0;
+  const limite = alturaAutomatica() ? null : minimoMaximo(card);
+  return Math.max(WG_MIN_H, limite == null ? conteudo : Math.min(conteudo, limite));
+}
 
 // Passo ÚNICO de altura de card, em px.
 //
@@ -80,11 +127,11 @@ function spanFromStyle(value, fallback) {
 /**
  * Aplica packLayout nos cards (e no placeholder do arrasto) na ordem do DOM.
  * A largura de cada card fica em data-scaled (applyScaled/setScaled) e a
- * altura natural em data-rows (placeCard); o crescimento das faixas vem por
- * min-height — o `height` do card continua sendo o do conteúdo (ou o
- * escolhido), e o que vai pro layout salvo é só o escolhido (escolherAltura).
+ * altura em data-rows (placeCard); ninguém estica pra alinhar com o
+ * vizinho — o `height` do card é o do conteúdo (ou o escolhido), e o que
+ * vai pro layout salvo é só o escolhido (escolherAltura).
  */
-export function packCards(container, cols, { alinhar = true } = {}) {
+export function packCards(container, cols) {
   const els = [...container.querySelectorAll(":scope > .card, :scope > .wg-placeholder")];
   const pos = packLayout(
     els.map((el) => ({
@@ -92,15 +139,12 @@ export function packCards(container, cols, { alinhar = true } = {}) {
       rows: parseInt(el.dataset.rows, 10) || spanFromStyle(el.style.gridRowEnd, gridRowsForHeight(WG_MIN_H)),
       pinned: el.hasAttribute("data-pinned"),
     })),
-    cols,
-    { alinhar }
+    cols
   );
   els.forEach((el, i) => {
     const p = pos[i];
     el.style.gridColumn = `${p.col} / span ${p.span}`;
     el.style.gridRow = `${p.row} / span ${p.rows}`;
-    const natural = parseInt(el.dataset.rows, 10);
-    el.style.minHeight = natural && p.rows > natural ? `${p.rows * WG_ROW - WG_ROW_MARGIN}px` : "";
   });
 }
 
@@ -158,9 +202,10 @@ export function setScaled(card, scaled, cols) {
  */
 export function contentMinHeight(card) {
   const prevHeight = card.style.height;
-  const prevMinHeight = card.style.minHeight; // crescimento das faixas — não é conteúdo
+  const prevMinHeight = card.style.minHeight;
   const prevAlignSelf = card.style.alignSelf;
   const prevManual = card.dataset.manual;
+  const prevFixa = card.dataset.alturaFixa;
   card.style.height = "";
   card.style.minHeight = "";
   // Com align-self:stretch, medir sem quebrar o stretch ainda devolveria
@@ -173,11 +218,13 @@ export function contentMinHeight(card) {
   // o conteúdo em vez do teto padrão (a lista já rola por dentro, não
   // precisa de mais que isso pra não cortar informação).
   delete card.dataset.manual;
+  delete card.dataset.alturaFixa; // idem: listas sem teto e corpo rolável (ver placeCard)
   const h = Math.ceil(card.getBoundingClientRect().height);
   card.style.height = prevHeight;
   card.style.minHeight = prevMinHeight;
   card.style.alignSelf = prevAlignSelf;
   if (prevManual !== undefined) card.dataset.manual = prevManual;
+  if (prevFixa !== undefined) card.dataset.alturaFixa = prevFixa;
   return h;
 }
 
@@ -231,6 +278,7 @@ export function maxScaled(card, cols) {
 /**
  * Define (px) ou limpa (null) a altura que a pessoa escolheu pro card. É
  * ela que vai pro layout salvo; a altura na tela é decidida em placeCard.
+
  */
 export function escolherAltura(card, px) {
   if (px) {
@@ -281,18 +329,34 @@ export function placeCard(card, cols) {
   // style.height: um zoom (a grade cai de 4 pra 2 colunas, o card fica
   // estreito e alto) inflava a altura, que não voltava ao tirar o zoom —
   // e o vizinho crescia junto pra fechar a faixa.
+  //
+  // Com o tamanho automático desligado (padrão), o piso é o conteúdo só
+  // até o mínimo máximo do widget (pisoAltura): o card começa nesse
+  // tamanho e a pessoa pode deixá-lo maior, mas não menor — o que passar
+  // do mínimo máximo rola por dentro.
   let h;
+  const auto = alturaAutomatica();
   const escolhida = alturaEscolhida(card);
-  if (escolhida) {
+  if (!auto) {
+    const piso = pisoAltura(card);
+    h = Math.max(escolhida, piso);
+    h = h > 0 ? snapHeight(h) : 0;
+    card.style.height = h > 0 ? `${h}px` : "";
+  } else if (escolhida) {
     const min = Math.max(WG_MIN_H, contentMinHeight(card));
     h = Math.max(snapHeight(escolhida), snapHeight(min));
     card.style.height = `${h}px`;
   } else {
-    // automáticos: a altura do conteúdo, arredondada pro passo da grade
+    // a altura do conteúdo, arredondada pro passo da grade
     const raw = contentMinHeight(card);
     h = raw > 0 ? snapAutoHeight(raw) : 0;
     card.style.height = h > 0 ? `${h}px` : "";
   }
+  // altura que não segue o conteúdo: as listas internas perdem o teto
+  // próprio e preenchem o card, e o corpo rola o que não couber
+  // (widgets.css e card-base.css)
+  if (escolhida || !auto) card.dataset.alturaFixa = "1";
+  else delete card.dataset.alturaFixa;
   if (h > 0) {
     const rowSpan = gridRowsForHeight(h);
     card.style.gridRowEnd = `span ${rowSpan}`;
@@ -396,6 +460,15 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
 
   const containerRO = new ResizeObserver(() => syncGrid(container));
   containerRO.observe(container);
+
+  // trocou o tamanho automático em configurações › aparência: redesenha
+  let autoAntes = alturaAutomatica();
+  const pararDeOuvirPerfil = store.subscribe("profile", () => {
+    const agora = alturaAutomatica();
+    if (agora === autoAntes) return;
+    autoAntes = agora;
+    syncGrid(container);
+  });
 
   const mutationObs = new MutationObserver(() => syncGrid(container));
   mutationObs.observe(container, { childList: true });
@@ -601,6 +674,7 @@ export function initGrid(container, { screen, widgets: initialWidgets, onLayoutC
     containerRO.disconnect();
     mutationObs.disconnect();
     cardRO.disconnect();
+    pararDeOuvirPerfil();
     bodyObservers.forEach((obs) => obs.disconnect());
     window.removeEventListener("dragover", preventWindowDrop);
     window.removeEventListener("drop", preventWindowDrop);

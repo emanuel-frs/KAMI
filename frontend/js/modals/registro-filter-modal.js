@@ -1,6 +1,7 @@
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
 import { noIdiomaAtual, t } from "../i18n.js";
+import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 
 /**
  * Modal "filtrar registros" — mesmo padrão singleton dos outros modais
@@ -47,6 +48,8 @@ function buildModal() {
   `;
   document.body.appendChild(wrap);
   wireModal(wrap);
+  // o select do tema, como nos outros modais (o nativo abria a lista do sistema)
+  ["#rfm-conta", "#rfm-categoria", "#rfm-tipo"].forEach((sel) => enhanceSelect(wrap.querySelector(sel)));
   return wrap;
 }
 
@@ -94,6 +97,7 @@ export function openRegistroFilterModal({ accounts, categories, current, onApply
   contaSel.value = current?.contaId || "";
   catSel.value = current?.categoria || "";
   modalEl.querySelector("#rfm-tipo").value = current?.type || "";
+  ["#rfm-conta", "#rfm-categoria", "#rfm-tipo"].forEach((sel) => refreshCustomSelect(modalEl.querySelector(sel)));
 
   modalEl.classList.add("open");
 }

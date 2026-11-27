@@ -182,6 +182,13 @@ def test_ico_01_theme_icon_is_off_by_default_and_can_be_turned_on(client):
     assert client.put("/api/perfil", json={"accent_color": "#e08fa0"}).json()["icone_tema"] is True
 
 
+def test_widgets_altura_auto_comeca_desligado_e_liga(client):
+    """Tamanho automático dos widgets: opção, desligada por padrão."""
+    assert client.get("/api/perfil").json()["widgets_altura_auto"] is False
+    assert client.put("/api/perfil", json={"widgets_altura_auto": True}).json()["widgets_altura_auto"] is True
+    assert client.put("/api/perfil", json={"accent_color": "#e08fa0"}).json()["widgets_altura_auto"] is True
+
+
 def test_date_format_preference(client):
     """ORG-07 (P-53): formato das datas — segue o sistema por padrão."""
     assert client.get("/api/perfil").json()["formato_data"] == "sistema"

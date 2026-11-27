@@ -34,6 +34,7 @@ from typing import Callable
 from fastapi.encoders import jsonable_encoder
 
 from app.assistente import config, filtro, guia
+from app.assistente.edicao import ref
 from app.assistente.tipos import ChamadaFerramenta, Ferramenta
 from app.database import local_now
 
@@ -145,8 +146,27 @@ def _maiores_gastos(conn, args):
     lista = _js(lancamentos.list_transactions(month=mes, db=conn))
     saidas = sorted((t for t in lista if t["type"] == "saida"), key=lambda t: t["amount"], reverse=True)[:limite]
     return {"month": mes, "largest_expenses": [
-        {"description": t["description"], "amount": t["amount"], "category": t["category"], "date": t["date"]}
-        for t in saidas]}
+        {"ref": ref(t["id"]), "description": t["description"], "amount": t["amount"], "category": t["category"],
+         "date": t["date"]} for t in saidas]}
+
+
+def _achar_lancamentos(conn, args):
+    """Os lançamentos de um mês, filtrados por uma palavra — pra corrigir ou
+    apagar um pelo `ref` (assistente edita, 2026-11)."""
+    from app.routers.financas import lancamentos
+
+    mes = _mes(args)
+    termo = args.get("query")
+    if termo is not None and (not isinstance(termo, str) or len(termo) > 100):
+        raise ArgumentoInvalido("query must be text (up to 100 characters)")
+    lista = [t for t in _js(lancamentos.list_transactions(month=mes, db=conn)) if t["type"] != "transferencia"]
+    if termo:
+        alvo = _sem_acento(termo)
+        lista = [t for t in lista if alvo in _sem_acento(f"{t['description']} {t['category']}")]
+    lista.sort(key=lambda t: t["date"], reverse=True)
+    return {"month": mes, "transactions": [
+        {"ref": ref(t["id"]), "date": t["date"], "description": t["description"], "amount": t["amount"],
+         "type": "income" if t["type"] == "entrada" else "expense", "category": t["category"]} for t in lista[:30]]}
 
 
 def _contas_e_categorias(conn, args):
@@ -228,7 +248,7 @@ def _metas(conn, args, perm):
     # dinheiro só com finanças liberadas — senão a meta não fala das contas
     sobra = _sobra_media(conn) if perm.get("financas") else None
     saida = {"today": _hoje().isoformat(), "goals": [
-        {"title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
+        {"ref": ref(g["id"]), "title": g["title"], "type": g["type"], "current": g["current_value"], "target": g["target_value"],
          "unit": g.get("unit_label") or g.get("unit"), "progress_pct": g["progress_pct"], "deadline": g["deadline"],
          "status": g["status"], **_ritmo(g, criadas.get(g["id"]), sobra, perm.get("financas"))} for g in lista[:30]]}
     saida["summary"] = _resumo_metas(saida["goals"])
@@ -339,8 +359,11 @@ def _agenda(conn, args):
         for ev in _js(calendario.get_events(month=mes, db=conn)):
             if ev["type"] == "acao" or not (inicio.isoformat() <= ev["date"] <= fim.isoformat()):
                 continue  # "acao" = registro de atividade, não compromisso
-            itens.append({"date": ev["date"], "time": ev.get("time"), "kind": ev["type"], "title": ev["title"],
-                          "amount": ev.get("amount"), "status": ev.get("status")})
+            item = {"date": ev["date"], "time": ev.get("time"), "kind": ev["type"], "title": ev["title"],
+                    "amount": ev.get("amount"), "status": ev.get("status")}
+            if ev["type"] in ("evento", "lembrete"):  # o que o assistente pode alterar ou apagar
+                item["ref"] = ref(ev["id"].split(":")[1])
+            itens.append(item)
     itens.sort(key=lambda i: (i["date"], i["time"] or ""))
     return {"from": inicio.isoformat(), "to": fim.isoformat(), "items": itens[:60]}
 
@@ -350,7 +373,7 @@ def _habitos(conn, args):
 
     lista = _js(habitos.listar(arquivados=False, db=conn))
     itens = [
-        {"name": h["nome"], "frequency": h["frequencia"], "due_today": h["vale_hoje"], "done_today": h["feito_hoje"],
+        {"ref": ref(h["id"]), "name": h["nome"], "frequency": h["frequencia"], "due_today": h["vale_hoje"], "done_today": h["feito_hoje"],
          "done_this_week": h["feitas_na_semana"], "streak": h["sequencia"], "best_streak": h["recorde"],
          "success_30d_pct": h["aproveitamento_30d"], "status": h["status"]} for h in lista[:30]]
     return {"conclusions": _conclusoes_habitos(itens), "habits": itens}
@@ -387,11 +410,11 @@ def _aprendizado(conn, args):
         marcos = _js(aprendizado.list_milestones(track_id=t["id"], db=conn))
         proximo = next((m["title"] for m in marcos if m["status"] != "concluido"), None)
         trilhas.append({
-            "track": t["name"], "goal": t["general_goal"], "status": t["status"],
+            "ref": ref(t["id"]), "track": t["name"], "goal": t["general_goal"], "status": t["status"],
             "completed": t["completed_milestones"], "total": t["total_milestones"], "progress_pct": t["progress_pct"],
             "next_milestone": proximo,
-            "milestones": [{"title": m["title"], "status": m["status"], "last_activity": m["last_activity_at"]}
-                           for m in marcos[:20]],
+            "milestones": [{"ref": ref(m["id"]), "title": m["title"], "status": m["status"],
+                            "last_activity": m["last_activity_at"]} for m in marcos[:20]],
         })
     # parada = a mesma regra do aviso do sino (avisos.trilha_parada), pra os dois nunca discordarem
     paradas = [{"track": o.nome, "days_without_milestone": o.vars["dias"]}
@@ -453,7 +476,7 @@ def _buscar_notas(conn, args):
         ini = max(0, pos - 100) if pos >= 0 else 0
         trecho = texto[ini:ini + 300].strip()
         tags = [t["tag"] for t in conn.execute("SELECT tag FROM notas_tags WHERE nota_id = ?", (r["id"],))]
-        achadas.append({"title": titulo or "(untitled)", "tags": tags, "excerpt": ("…" if ini else "") + trecho,
+        achadas.append({"ref": ref(r["id"]), "title": titulo or "(untitled)", "tags": tags, "excerpt": ("…" if ini else "") + trecho,
                         "updated_at": r["atualizada_em"]})
         if len(achadas) == 8:
             break
@@ -478,7 +501,17 @@ def _links_salvos(conn, args):
     if termo:
         alvo = _sem_acento(termo)
         lista = [l for l in lista if alvo in _sem_acento(f"{l['title']} {l['url']} {l.get('category') or ''}")]
-    return {"links": [{"title": l["title"], "url": l["url"], "category": l.get("category")} for l in lista[:40]]}
+    return {"links": [{"ref": ref(l["id"]), "title": l["title"], "url": l["url"], "category": l.get("category")}
+                      for l in lista[:40]]}
+
+
+def _tarefas(conn, args):
+    from app.assistente import edicao
+
+    lista = edicao.tarefas(conn)
+    abertas = [t["texto"] for t in lista if not t["feita"]]
+    return {"open": abertas[:60], "done": [t["texto"] for t in lista if t["feita"]][-20:],
+            "note": "To complete, reopen, rename or delete a task, pass its exact text as `ref`."}
 
 
 def _repositorios_github(conn, args):
@@ -580,6 +613,11 @@ LEITURAS: list[Leitura] = [
     Leitura("largest_expenses", "financas",
             "The largest individual expenses of a month (up to 10), with description, amount, category and date.",
             {"type": "object", "properties": {**_P_MES, "limit": {"type": "integer", "minimum": 1, "maximum": 10}}}, _maiores_gastos),
+    Leitura("find_transactions", "financas",
+            "ONLY money entries (expenses/income) of a month, newest first, optionally filtered by a word, each with its "
+            "`ref` — use it for 'fix the amount of yesterday's grocery', 'delete the duplicated uber'. Not for tracks, "
+            "goals or anything else.",
+            {"type": "object", "properties": {**_P_MES, "query": {"type": "string"}}}, _achar_lancamentos),
     Leitura("accounts_and_categories", "financas",
             "The person's account names (bank, whether it has balance and/or credit) and the expense/income categories "
             "they already use. Read it before proposing money entries.",
@@ -607,12 +645,15 @@ LEITURAS: list[Leitura] = [
     Leitura("learning", "aprendizado",
             "STUDIES — use it for 'how are my studies?', 'what should I study next?', 'which track is stalled?'. Learning "
             "tracks with progress, the next milestone and all milestones (status pendente/concluido/esquecido = stale), plus "
-            "Kami's computed conclusions (active tracks, milestones done, stalled tracks, the one closest to finishing).",
+            "Kami's computed conclusions (active tracks, milestones done, stalled tracks, the one closest to finishing). "
+            "Each track and milestone has a `ref`: read it before renaming, completing, deleting or reordering them.",
             _SEM_PARAMETROS, _aprendizado),
     Leitura("progress", "progresso", "Game progress: level, xp, streak, class/title, achievements, attributes and today's/this week's missions.",
             _SEM_PARAMETROS, _progresso),
     Leitura("search_notes", "notas", "Search the person's notes by a word or phrase; returns titles, tags and short excerpts (up to 8 notes).",
             {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}, _buscar_notas),
+    Leitura("tasks", "notas", "The to-do tasks (open and recently done) from the person's tasks note.",
+            _SEM_PARAMETROS, _tarefas),
     Leitura("inbox", "entrada", "Items waiting in the quick-capture inbox.", _SEM_PARAMETROS, _caixa_de_entrada),
     Leitura("saved_links", "links", "Saved links (title, url, category), optionally filtered by a word.",
             {"type": "object", "properties": {"query": {"type": "string"}}}, _links_salvos),
@@ -628,7 +669,10 @@ _POR_NOME = {l.nome: l for l in LEITURAS}
 # IA-07a (P-160): no modelo local, menos ferramentas = menos confusão.
 # Saem as de detalhe que outra já cobre (maiores gastos ⊂ resumo do mês) e
 # as raramente pedidas (links, GitHub).
-FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories"}
+# As leituras que só servem pra achar o `ref` de algo a editar também ficam
+# de fora: o modelo local aponta pelo nome (edicao.achar) e o contexto dele
+# é curto.
+FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories", "find_transactions", "tasks"}
 
 
 def disponiveis(cfg: dict, local: bool = False) -> list[Leitura]:

@@ -249,8 +249,8 @@ def screens_for(widget_type: str):
 # Montado pelo Emanuel na tela dele (1366, 4 colunas: 2/6 → 1 coluna,
 # 3/6 → 2), sem dados — por isso as alturas são as MÍNIMAS de cada widget.
 # Com dados o conteúdo cresce, e quem segura o desenho é o empacotamento
-# em faixas (frontend/js/widgets/grid.js, packLayout): vizinhos de lado
-# terminam juntos e a faixa seguinte começa reta. Telas maiores também
+# (frontend/js/widgets/grid-pack.js, packLayout): cada widget vai pro lugar
+# livre mais alto em que cabe, sem esticar ninguém. Telas maiores também
 # usam 4 colunas, então o desenho é o mesmo em 1920 (só mais largo).
 # Cada item é (widget, largura em sextos, altura mínima em px ou None =
 # pela altura do conteúdo). A ordem importa: é a ordem do encaixe.

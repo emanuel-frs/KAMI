@@ -20,6 +20,11 @@
  * pro lote, P-136); marco e meta do plano dependem da trilha (`depende`)
  * — desmarcar a trilha desmarca e trava os dois (P-138); item com `aviso`
  * (parece repetido, P-129) pode ir, mas vem desmarcado.
+ *
+ * Edições (2026-11): item com `acao` (alterar, apagar, concluir, reabrir,
+ * ordenar) mexe numa coisa que já existe. Alterar mostra os mesmos campos
+ * da criação, já com o depois, e uma linha com o antes; os outros mostram
+ * só o resumo da coisa (e a nova ordem, no ordenar).
  */
 import { aplicarProposta, desfazerLote, descartarProposta, getLote } from "../api/assistente.js";
 import { ApiError, varsLegiveis } from "../api/client.js";
@@ -46,6 +51,8 @@ const PESOS = () => [["baixo", t("metas.baixo")], ["medio", t("metas.medio")], [
 // (pelo fim da chave — a chave inteira começa com a palavra que a catraca
 // de textos soltos procura)
 const DA_CONTA = [".escolha_a_conta", ".escolha_a_forma", ".conta_sem_saldo"];
+const STATUS_TRILHA = () => ["ativa", "pausada", "parada"].map((k) => [k, t(`assistente.proposta.status.${k}`)]);
+const STATUS_HABITO = () => ["ativo", "pausado", "arquivado"].map((k) => [k, t(`assistente.proposta.status.${k}`)]);
 const FREQUENCIA = () => [
   ["diario", t("habito.todo_dia")], ["dias", t("habito.dias_fixos_da_semana")], ["semana", t("habito.x_vezes_por_semana")],
 ];
@@ -121,8 +128,14 @@ function campos(p, item, i, travado) {
       + campoTexto(i, "categoria", t("transacao.categoria"), d.categoria, { max: 60, travado }).replace("ia-prop-campo--largo", "")
       + campoTipo(i, "data", t("assistente.proposta.campo.data"), "date", d.data, travado);
   }
+  if (item.tipo === "link") {
+    return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
+      + campoTexto(i, "url", t("assistente.proposta.campo.url"), d.url, { max: 500, travado })
+      + campoTexto(i, "categoria", t("assistente.proposta.campo.categoria"), d.categoria, { max: 60, travado }).replace("ia-prop-campo--largo", "");
+  }
   if (item.tipo === "meta") {
-    const plano = d.tipo === "aprendizado";
+    // aprendizado e acadêmica progridem sozinhas: tipo e alvo não se mexem
+    const plano = d.tipo === "aprendizado" || d.tipo === "academica";
     return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
       + (plano ? "" : campoEscolha(i, "tipo", t("metas.tipo"), TIPOS_META.map((k) => [k, t(`metas.${k}`)]), d.tipo, travado))
       + (plano ? "" : campoValor(i, "alvo", t("metas.alvo"), d.alvo, travado))
@@ -135,11 +148,12 @@ function campos(p, item, i, travado) {
   }
   if (item.tipo === "trilha") {
     return campoTexto(i, "nome", t("assistente.proposta.campo.titulo"), d.nome, { max: 120, travado })
-      + campoTexto(i, "objetivo", t("assistente.proposta.campo.objetivo"), d.objetivo, { max: 500, area: true, travado });
+      + campoTexto(i, "objetivo", t("assistente.proposta.campo.objetivo"), d.objetivo, { max: 500, area: true, travado })
+      + (d.status ? campoEscolha(i, "status", t("assistente.proposta.campo.situacao"), STATUS_TRILHA(), d.status, travado) : "");
   }
   if (item.tipo === "marco") {
     return campoTexto(i, "titulo", t("assistente.proposta.campo.titulo"), d.titulo, { travado })
-      + campoTipo(i, "data", t("assistente.proposta.campo.data_opcional"), "date", d.data, travado)
+      + (d.data !== undefined ? campoTipo(i, "data", t("assistente.proposta.campo.data_opcional"), "date", d.data, travado) : "")
       + (d.descricao ? campoTexto(i, "descricao", t("assistente.proposta.campo.texto"), d.descricao, { max: 2000, area: true, travado }) : "");
   }
   if (item.tipo === "tarefa") return campoTexto(i, "texto", t("assistente.proposta.campo.tarefa"), d.texto, { max: 500, travado });
@@ -164,6 +178,7 @@ function campos(p, item, i, travado) {
   // hábito
   return campoTexto(i, "nome", t("assistente.proposta.campo.titulo"), d.nome, { max: 120, travado })
     + campoEscolha(i, "frequencia", t("habito.frequencia"), FREQUENCIA(), d.frequencia, travado)
+    + (d.status ? campoEscolha(i, "status", t("assistente.proposta.campo.situacao"), STATUS_HABITO(), d.status, travado) : "")
     + campoEscolha(i, "atributo", t("assistente.proposta.campo.atributo"), ATRIBUTOS.map((a) => [a, nomeAtributo(a)]), d.atributo, travado)
     + (d.frequencia === "dias" ? campoDias(i, d.dias_semana, travado) : "")
     + (d.frequencia === "semana" ? campoTipo(i, "vezes_semana", t("habito.quantas_vezes_por_semana"), "number", String(d.vezes_semana), travado) : "");
@@ -180,10 +195,13 @@ function rotuloDe(opcoes, valor) {
   return opcoes.find(([v]) => v === valor)?.[1] ?? valor;
 }
 
-/** [principal, detalhes...] do item, no formato das telas. */
-function resumo(item) {
-  const d = item.dados;
-  if (item.tipo === "tarefa") return [d.texto];
+/** [principal, detalhes...] do item, no formato das telas. `d` = o depois
+ *  (ou o antes, pra linha "antes:" de uma edição). */
+function resumo(item, d = item.dados) {
+  if (item.tipo === "tarefa") {
+    return item.acao ? [d.texto, t(d.feita ? "assistente.proposta.tarefa_feita" : "assistente.proposta.tarefa_aberta")] : [d.texto];
+  }
+  if (item.tipo === "link") return [d.titulo, d.url, d.categoria];
   if (item.tipo === "nota") {
     const linha = (d.conteudo || "").split("\n").map((l) => l.replace(/^[-*#>\s[\]x]+/, "").trim()).find(Boolean);
     return [d.titulo || linha || "", ...(d.titulo && linha ? [linha] : [])];
@@ -201,17 +219,57 @@ function resumo(item) {
     const alvo = d.tipo === "aprendizado" ? "" : d.tipo === "financeira" ? fmtMoeda(d.alvo) : `${d.alvo}${d.rotulo ? ` ${d.rotulo}` : ""}`;
     return [d.titulo, t(`metas.${d.tipo}`), alvo, d.prazo ? fmtData(d.prazo) : ""];
   }
-  if (item.tipo === "trilha") return [d.nome, d.objetivo];
-  if (item.tipo === "marco") return [d.titulo, d.data ? fmtData(d.data) : ""];
-  return [d.nome, rotuloFrequencia(d), nomeAtributo(d.atributo)];
+  const status = d.status ? t(`assistente.proposta.status.${d.status}`) : "";
+  if (item.tipo === "trilha") return [d.nome, d.objetivo, status];
+  if (item.tipo === "marco") return [d.titulo, d.data ? fmtData(d.data) : "", status];
+  return [d.nome, rotuloFrequencia(d), nomeAtributo(d.atributo), status];
+}
+
+/** "alterar · trilha" (item que cria não tem `acao`: fica só o tipo, como antes). */
+function rotuloTipo(item) {
+  const tipo = t(`assistente.proposta.tipo.${item.tipo}`);
+  return item.acao ? `${t(`assistente.proposta.acao.${item.acao}`)} · ${tipo}` : tipo;
+}
+
+/** Só o que muda, na linha "antes:" de uma edição. */
+function textoAntes(item) {
+  const antes = resumo(item, item.antes);
+  const depois = resumo(item);
+  const mudou = antes.filter((v, k) => v && v !== depois[k]);
+  return (mudou.length ? mudou : antes.filter(Boolean)).join(" · ");
+}
+
+/** O corpo de um item que mexe no que existe e não é "alterar". */
+function htmlAlvo(item) {
+  if (item.acao === "ordenar") {
+    return `<div class="ia-prop-ordem"><span>${escapeHtml(item.extra?.nome || "")} — ${escapeHtml(t("assistente.proposta.nova_ordem"))}</span>
+      <ol>${item.dados.ordem.map((m) => `<li>${escapeHtml(m.titulo)}</li>`).join("")}</ol></div>`;
+  }
+  const [principal, ...detalhes] = resumo(item, item.antes);
+  return `<p class="ia-prop-alvo"><span class="ia-prop-principal">${escapeHtml(principal || "—")}</span>${
+    detalhes.filter(Boolean).length ? `<span class="ia-prop-detalhe">${detalhes.filter(Boolean).map(escapeHtml).join(" · ")}</span>` : ""}</p>
+    ${item.acao === "excluir" ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.vai_apagar"))}</p>` : ""}`;
+}
+
+/** Como a coisa fica depois do item (pro resumo da proposta fechada). */
+function depoisDe(item) {
+  if (item.acao === "concluir" || item.acao === "reabrir") {
+    const fim = item.acao === "concluir";
+    if (item.tipo === "tarefa") return { ...item.antes, feita: fim };
+    if (item.tipo === "marco") return { ...item.antes, status: fim ? "concluido" : "pendente" };
+    return item.antes;
+  }
+  return item.acao && item.acao !== "alterar" ? item.antes : item.dados;
 }
 
 function htmlResumo(p, item, i) {
   const feito = p.estado === "aplicada" && (p.aplicados || []).includes(i);
-  const [principal, ...detalhes] = resumo(item);
+  const [principal, ...detalhes] = item.acao === "ordenar"
+    ? [item.extra?.nome, item.dados.ordem.map((m) => m.titulo).join(" → ")]
+    : resumo(item, depoisDe(item));
   return `<li class="ia-prop-item ia-prop-item--resumo${feito ? "" : " ia-prop-item--fora"}${item.depende != null ? " ia-prop-item--dep" : ""}" data-item="${i}">
     <span class="ia-prop-sinal" aria-hidden="true">${feito ? "[x]" : "[ ]"}</span>
-    <span class="ia-prop-tipo">${escapeHtml(t(`assistente.proposta.tipo.${item.tipo}`))}</span>
+    <span class="ia-prop-tipo"${item.acao ? ` data-acao="${item.acao}"` : ""}>${escapeHtml(rotuloTipo(item))}</span>
     <span class="ia-prop-principal">${escapeHtml(principal || "—")}</span>
     ${detalhes.filter(Boolean).length ? `<span class="ia-prop-detalhe">${detalhes.filter(Boolean).map(escapeHtml).join(" · ")}</span>` : ""}
   </li>`;
@@ -224,14 +282,20 @@ function htmlItem(p, item, i, travado) {
   const falha = p.erros?.[i] || (item.problema ? { chave: item.problema } : null);
   const classes = ["ia-prop-item", falha ? "ia-prop-item--problema" : "", item.aviso && !falha ? "ia-prop-item--aviso" : "",
     !marcado ? "ia-prop-item--fora" : "", item.depende != null ? "ia-prop-item--dep" : ""].filter(Boolean).join(" ");
-  const tipo = t(`assistente.proposta.tipo.${item.tipo}`);
-  return `<li class="${classes}" data-item="${i}">
+  const tipo = rotuloTipo(item);
+  const acao = item.acao ? ` data-acao="${item.acao}"` : "";
+  const corpo = !item.acao || item.acao === "alterar"
+    ? `<div class="ia-prop-campos">${campos(p, item, i, travado)}</div>`
+      + (item.acao === "alterar" ? `<p class="ia-prop-antes">${escapeHtml(t("assistente.proposta.antes", { texto: textoAntes(item) }))}</p>` : "")
+    : htmlAlvo(item);
+  return `<li class="${classes}" data-item="${i}"${acao}>
     <label class="ia-prop-marca">
       <input type="checkbox" data-prop="marcar" ${marcado ? "checked" : ""} ${travado || orfao ? "disabled" : ""}
         aria-label="${escapeHtml(t("assistente.proposta.marcar", { tipo }))}">
-      <span class="ia-prop-tipo">${escapeHtml(tipo)}</span>
+      <span class="ia-prop-tipo"${acao}>${escapeHtml(tipo)}</span>
     </label>
-    <div class="ia-prop-campos">${campos(p, item, i, travado)}</div>
+    ${corpo}
+    ${item.trilha_nome ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.na_trilha", { nome: item.trilha_nome }))}</p>` : ""}
     ${item.entrada ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.da_caixa", { texto: item.entrada.texto }))}</p>` : ""}
     ${item.linha ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.do_extrato", { texto: item.linha }))}</p>` : ""}
     ${item.aviso && !falha ? `<p class="ia-prop-aviso">${escapeHtml(t(item.aviso))}</p>` : ""}
@@ -276,7 +340,7 @@ function contarMarcados(p) {
 
 /** P-136: conta e forma de pagamento dos lançamentos, uma pro lote. */
 function htmlConta(p, travado) {
-  if (!p.itens.some((item) => item.tipo === "lancamento")) return "";
+  if (!p.itens.some((item) => item.tipo === "lancamento" && !item.acao)) return ""; // editar mantém a conta
   if (!p.contas?.length) return `<p class="ia-prop-problema">${escapeHtml(t("erro.assistente.escolha_a_conta"))}</p>`;
   const conta = p.contas.find((c) => c.id === p.conta_id);
   const opcoes = [...(conta ? [] : [["", "—"]]), ...p.contas.map((c) => [c.id, nomeConta(c)])];
