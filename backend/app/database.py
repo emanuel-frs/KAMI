@@ -258,6 +258,7 @@ from app.migracoes import (
     _migrate_achievements_meta,
     _migrate_user_profile_efeitos_visuais,
     _migrate_user_profile_icone_tema,
+    _migrate_user_profile_widgets_altura_auto,
     _migrate_user_profile_sequencia_protecao,
     _migrate_user_profile_recompensas,
     _migrate_user_profile_notif_fora,
@@ -407,6 +408,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     _migrate_achievements_meta(conn)
     _migrate_user_profile_efeitos_visuais(conn)
     _migrate_user_profile_icone_tema(conn)
+    _migrate_user_profile_widgets_altura_auto(conn)
     _migrate_user_profile_sequencia_protecao(conn)
     _migrate_missoes_widget(conn, had_missoes)
     _migrate_user_profile_recompensas(conn)

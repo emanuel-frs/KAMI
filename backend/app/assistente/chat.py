@@ -164,7 +164,7 @@ def _comeco(conn, cfg: dict, p, idioma: str, tela: str | None) -> tuple[Mensagem
     desligadas = [a for a, ligada in config.permissoes(cfg).items() if not ligada]
     sistema = Mensagem("sistema", instrucoes.montar(idioma, tela, local_now().date(), _perfil(conn)["moeda"],
                                                     desligadas, local=p.local))
-    return sistema, [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn))]
+    return sistema, [l.ferramenta() for l in permitidas] + [acoes.ferramenta(acoes.atributos(conn), local=p.local)]
 
 
 def aquecer(conn, idioma: str, tela: str | None, recente: tuple | None = None) -> tuple | None:

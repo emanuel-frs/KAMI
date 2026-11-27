@@ -272,7 +272,7 @@ export async function mount(container) {
     <div class="card" style="max-height: 500px; display: flex; flex-direction: column;">
       <div class="card-head">${t("aprendizado.trilhas_de_aprendizado")}</div>
       <div class="card-body apr-grid" style="flex:1;min-height:0;overflow:hidden;">
-        <div class="apr-left" style="height:100%;overflow-y:auto;">
+        <div class="apr-left">
           <div id="apr-tracks-list"><div class="empty-state">${t("geral.carregando")}</div></div>
         </div>
         <div class="apr-right" style="height:100%;overflow:hidden;display:flex;flex-direction:column;">

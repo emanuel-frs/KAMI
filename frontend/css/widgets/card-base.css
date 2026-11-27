@@ -93,6 +93,14 @@
   display: flex;
   flex-direction: column;
 }
+/* Altura que não segue o conteúdo (resize, ou o tamanho automático
+ * desligado — grid.js placeCard): o que não couber rola dentro do corpo.
+ * Widgets com lista própria (carteira, log...) já rolam na lista, que
+ * preenche o corpo; este é o caso geral. */
+.card[data-altura-fixa] > .card-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 /* ── ancora ao fim do widget ────────────────────────────────────────────
  * Empurra o elemento (e o que vem depois dele) pro final do card quando

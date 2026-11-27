@@ -104,12 +104,13 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 - Sem o Ollama, "instalar o Ollama" (mesma tela) usa o instalador oficial conferido: no Linux pede a senha do sistema; no Windows confere a assinatura da Ollama e instala só pro usuário. Instalado e fechado: "ligar o Ollama". "Desinstalar" só aparece pro Ollama que o próprio Kami instalou (os modelos só saem se a pessoa marcar).
 
 ## assistant_actions
-- O assistente pode propor: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada) e o destino dos itens da caixa de entrada.
+- O assistente pode propor CRIAR: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada), marco numa trilha que já existe, link salvo e o destino dos itens da caixa de entrada.
+- E MEXER no que já existe: alterar (nome, datas, valor, alvo, prazo, situação da trilha ou do hábito…), apagar, concluir ou reabrir (marco, tarefa, hábito de hoje) e reordenar os marcos de uma trilha. O cartão mostra o antes de cada alteração.
 - A proposta aparece como um cartão no chat: cada item pode ser editado ou desmarcado; nada é gravado até a pessoa clicar em "aplicar". Gastos e entradas usam a conta (e a forma de pagamento, se a conta tem saldo e crédito) escolhida no topo do cartão.
 - Item com problema (data que já passou, valor inválido, saldo que não cobre) vem desmarcado com o motivo. Lançamento igual a um existente (mesma data e valor) vem desmarcado com aviso.
 - Aplicar dá o mesmo xp de fazer à mão, faz uma cópia do banco antes e marca o que foi criado com "· assistente".
-- "Desfazer" (no cartão ou em configurações › assistente › ações do assistente) apaga o lote, devolve saldo, fatura e xp exatos e devolve itens à caixa de entrada; o que a pessoa editou depois fica, a não ser que ela peça.
-- Transferências, pagar contas, quitar dívidas e apagar coisas não são ações do assistente: ele explica o caminho na tela.
+- "Desfazer" (no cartão ou em configurações › assistente › ações do assistente) apaga o que o lote criou, volta o que ele alterou ao que era, traz de volta o que ele apagou (com o histórico e o xp), devolve saldo, fatura e xp exatos e devolve itens à caixa de entrada; o que a pessoa editou depois fica, a não ser que ela peça.
+- Transferências, pagar contas, quitar dívidas, contribuir pra metas, nota trancada e lançamentos criados por outro módulo (conta fixa, assinatura, parcela…) não são ações do assistente: ele explica o caminho na tela.
 
 ## notices
 - Avisos do Kami: regras no computador, sem IA, que aparecem no sino (contam no número dele). Checam ao abrir o app e a cada 6 horas.

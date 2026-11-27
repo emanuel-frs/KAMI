@@ -18,7 +18,7 @@
   overflow-y: auto;
   padding-right: var(--scroll-gutter);
 }
-.card[data-manual="1"] .ci-tags {
+.card[data-altura-fixa] .ci-tags {
   max-height: none;
 }
 
@@ -73,7 +73,7 @@
   overflow-y: auto;
   padding-right: var(--scroll-gutter);
 }
-.card[data-manual="1"] .cp-timeline {
+.card[data-altura-fixa] .cp-timeline {
   max-height: none;
 }
 
@@ -156,7 +156,7 @@
   overflow-y: auto;
   padding-right: var(--scroll-gutter);
 }
-.card[data-manual="1"] .ce-list {
+.card[data-altura-fixa] .ce-list {
   max-height: none;
 }
 
@@ -287,7 +287,7 @@
   overflow-y: auto;
   padding-right: var(--scroll-gutter);
 }
-.card[data-manual="1"] .cs-list {
+.card[data-altura-fixa] .cs-list {
   max-height: none;
 }
 

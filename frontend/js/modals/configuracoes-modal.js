@@ -93,6 +93,7 @@ import {
   buildAparenciaPanel,
   renderAccentSwatches,
   renderIconeTema,
+  renderWidgetsAuto,
   renderFormatoData,
   selectFormatoData,
   renderIdioma,
@@ -313,6 +314,7 @@ export async function openConfiguracoesModal(tabId = "aparencia", { guia = false
     renderIdioma(estado.modalEl);
     renderMoedaEPais(estado.modalEl, profile);
     renderIconeTema(estado.modalEl, profile);
+    renderWidgetsAuto(estado.modalEl, profile);
     renderSoundOptions(estado.modalEl, profile);
     renderRewards(estado.modalEl, profile);
     renderPerfilTab(estado.modalEl, profile);

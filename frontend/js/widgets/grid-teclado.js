@@ -10,13 +10,12 @@ import { openWidgetShortcutsModal } from "../modals/widget-shortcuts-modal.js";
 import {
   escolherAltura,
   alturaEscolhida,
-  WG_MIN_H,
+  pisoAltura,
   WG_RESIZE_STEP,
   snapResizeHeight,
   currentCols,
   getScaled,
   setScaled,
-  contentMinHeight,
   minScaled,
   maxScaled,
   placeCard,
@@ -317,7 +316,7 @@ export function createKeyboardReorder(container, getCommit) {
       const currentHeight = card.dataset.manual === "1" && card.style.height
         ? parseInt(card.style.height, 10)
         : Math.ceil(card.getBoundingClientRect().height);
-      const floor = Math.max(WG_MIN_H, contentMinHeight(card));
+      const floor = pisoAltura(card);
       const delta = direction === "ArrowUp" ? -WG_RESIZE_STEP : WG_RESIZE_STEP;
       const nextHeight = Math.max(
         snapResizeHeight(floor),
