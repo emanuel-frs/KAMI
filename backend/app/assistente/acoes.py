@@ -46,6 +46,7 @@ from pydantic import ValidationError
 
 from app import backup_auto
 from app.actions import revert_actions
+from app.assistente import edicao
 from app.assistente.tipos import Ferramenta
 from app.database import local_now, new_id, now_iso
 from app.mensagens import ErroKami
@@ -54,9 +55,10 @@ NOME = "propose_actions"
 ITENS_MAX = 50
 MARCOS_MAX = 20
 TEXTO_TAREFA_MAX = 500
-TIPOS = ("nota", "tarefa", "lembrete", "evento", "habito", "lancamento", "meta", "trilha", "marco")
+TIPOS = ("nota", "tarefa", "lembrete", "evento", "habito", "lancamento", "meta", "trilha", "marco", "link")
 _TIPO_DO_MODELO = {"note": "nota", "task": "tarefa", "reminder": "lembrete", "event": "evento", "habit": "habito",
-                   "expense": "lancamento", "income": "lancamento", "goal": "meta", "learning_plan": "trilha"}
+                   "expense": "lancamento", "income": "lancamento", "goal": "meta", "learning_plan": "trilha",
+                   "track": "trilha", "milestone": "marco", "link": "link"}
 _REPETE = ("none", "daily", "weekdays", "weekly", "monthly", "yearly")
 # P-137: acadêmica depende de uma formação cadastrada; aprendizado vem pelo plano
 METAS = ("livre", "financeira", "saude", "leitura", "habito")
@@ -66,7 +68,7 @@ _HORA = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 # o que a pessoa pode mudar em cada coisa criada: se mudou depois do lote,
 # desfazer pergunta antes de apagar (P-124)
 _TABELA = {"nota": "notas", "lembrete": "lembretes", "evento": "calendar_events", "habito": "habitos",
-           "lancamento": "transactions", "meta": "goals", "trilha": "tracks", "marco": "milestones"}
+           "lancamento": "transactions", "meta": "goals", "trilha": "tracks", "marco": "milestones", "link": "links"}
 _RETRATO = {
     "nota": ("titulo", "conteudo", "trancada", "arquivada"),
     "lembrete": ("titulo", "data", "hora", "repeticao", "dias_semana"),
@@ -76,19 +78,60 @@ _RETRATO = {
     "meta": ("title", "type", "target_value", "deadline", "weight", "current_value", "status", "unit_label"),
     "trilha": ("name", "general_goal", "status"),
     "marco": ("title", "description", "status", "notes"),
+    "link": ("title", "url", "category"),
 }
 
 ESTADOS = ("pendente", "aplicada", "descartada", "desfeita")
 
 
-def ferramenta(atributos: list[str]) -> Ferramenta:
+# IA-07a: o modelo local roda com contexto curto (o Ollama abre com 4096
+# tokens): com o esquema inteiro mais uma leitura, o pedido passava do
+# contexto e a resposta saía cortada (teste de 2026-11 com o qwen3.5:4b).
+# Lá vai a descrição curta e só os campos que mais confundem descritos.
+_DESCRITOS_NO_LOCAL = {"action", "ref", "title", "content", "date", "repeat", "weekdays", "track_ref", "milestone_order",
+                       "new_title", "status"}
+_DESCRICAO_LOCAL = (
+    "Propose creating or changing things in Kami (notes, tasks, reminders, events, habits, expenses/income, goals, "
+    "learning plans, tracks, milestones, links). Nothing is saved: the person reviews a card. To change something that "
+    "exists set `action` and `ref` (its exact current name or ref). All items in ONE call.")
+
+
+def _enxugar(esquema, manter: bool = False):
+    if isinstance(esquema, list):
+        return [_enxugar(x) for x in esquema]
+    if not isinstance(esquema, dict):
+        return esquema
+    out = {}
+    for k, v in esquema.items():
+        if k == "description" and not manter:
+            continue
+        if k == "properties":
+            out[k] = {nome: _enxugar(p, nome in _DESCRITOS_NO_LOCAL) for nome, p in v.items()}
+        else:
+            out[k] = _enxugar(v)
+    return out
+
+
+def ferramenta(atributos: list[str], local: bool = False) -> Ferramenta:
+    f = _ferramenta(atributos)
+    if not local:
+        return f
+    return Ferramenta(f.nome, _DESCRICAO_LOCAL, _enxugar(f.parametros))
+
+
+def _ferramenta(atributos: list[str]) -> Ferramenta:
     return Ferramenta(
         NOME,
-        "Propose creating things in Kami: notes, to-do tasks, reminders, calendar events, habits, money entries "
-        "(expense/income — one item per line of a pasted statement), goals and learning plans. NOTHING is saved by "
-        "this call: Kami shows the items to the person as a preview card, and they edit, choose and apply them. Use "
-        "it only when the person asks you to create or organize something (including sorting their inbox). Send all "
-        "items of the request in ONE call (max 50).",
+        "Propose changes in Kami: CREATE, UPDATE, DELETE, COMPLETE/REOPEN or REORDER notes, to-do tasks, reminders, "
+        "calendar events, habits, money entries (expense/income — one item per line of a pasted statement), goals, "
+        "learning plans, tracks and milestones, and saved links. NOTHING is saved by this call: Kami shows the items "
+        "to the person as a preview card, and they edit, choose, apply and can undo them. Use it only when the person "
+        "asks you to create, change, organize or remove something (including sorting their inbox). To change "
+        "something that exists, pass its `ref` (from a read tool) or its exact current name; for `update` send only "
+        "the fields that change. Examples: 'rename my Java track' → {type: track, action: update, ref, title}; 'I finished "
+        "module X' → {type: milestone, action: complete, ref}; 'delete the gym reminder' → {type: reminder, action: "
+        "delete, ref}; 'save this link' → {type: link, title, url, category}. Send all items of the request in ONE "
+        "call (max 50).",
         {
             "type": "object",
             "properties": {
@@ -105,9 +148,27 @@ def ferramenta(atributos: list[str]) -> Ferramenta:
                         "type": "object",
                         "properties": {
                             "type": {"type": "string", "enum": list(_TIPO_DO_MODELO)},
+                            "action": {"type": "string", "enum": list(edicao.ACOES),
+                                       "description": "Default create. update/delete/complete/reopen/reorder need "
+                                                      "`ref`. complete/reopen: milestone (done/pending), task (its "
+                                                      "check box), habit (mark/unmark today). reorder: a track's "
+                                                      "milestones, in `milestone_order`."},
+                            "ref": {"type": "string",
+                                    "description": "The existing item: its `ref` from the read tools, or its exact "
+                                                   "current name/title (task: its current text)."},
                             "title": {"type": "string",
-                                      "description": "Note/reminder/event/goal title, habit name, task text, money "
-                                                     "entry description, or the learning plan's track name."},
+                                      "description": "Note/reminder/event/goal/link/milestone title, habit name, task "
+                                                     "text, money entry description, or the track name. update: the "
+                                                     "new title, only if it changes."},
+                            "new_title": {"type": "string", "description": "task update: the new text."},
+                            "url": {"type": "string", "description": "link: the address (https://…)."},
+                            "status": {"type": "string", "enum": ["active", "paused", "stopped", "archived"],
+                                       "description": "update of a track (active/paused/stopped) or habit "
+                                                      "(active/paused/archived)."},
+                            "track_ref": {"type": "string",
+                                          "description": "milestone create: the existing track it goes into (`ref` or name)."},
+                            "milestone_order": {"type": "array", "items": {"type": "string"},
+                                                "description": "track reorder: milestone refs in the new order."},
                             "content": {"type": "string",
                                         "description": "note: Markdown body. event: optional notes. learning_plan: "
                                                        "the overall objective."},
@@ -125,7 +186,8 @@ def ferramenta(atributos: list[str]) -> Ferramenta:
                                           "description": "habit: the attribute that earns its xp."},
                             "amount": {"type": "number", "description": "expense/income: positive value."},
                             "category": {"type": "string",
-                                         "description": "expense/income: reuse one of the person's categories when it fits."},
+                                         "description": "expense/income: reuse one of the person's categories when it "
+                                                        "fits. link: its category (reuse an existing one)."},
                             "source_line": {"type": "string",
                                             "description": "expense/income from a pasted statement: the original line."},
                             "unclear": {"type": "boolean",
@@ -148,7 +210,7 @@ def ferramenta(atributos: list[str]) -> Ferramenta:
                                                          "item's `ref`. It leaves the inbox when applied; without it, "
                                                          "it stays there duplicated."},
                         },
-                        "required": ["type", "title"],
+                        "required": ["type"],
                     },
                 },
             },
@@ -225,6 +287,11 @@ def _dados(tipo: str, a: dict) -> dict:
         return {"titulo": titulo, "tipo": tipo_meta, "alvo": round(_num(a.get("target")), 2),
                 "rotulo": _txt(a.get("unit_label"), 30) if tipo_meta != "financeira" else "",
                 "prazo": _data_ou_vazio(a.get("deadline")), "peso": "medio", "conta_id": ""}
+    if tipo == "link":
+        return {"titulo": titulo, "url": _txt(a.get("url"), 500), "categoria": _txt(a.get("category"), 60)}
+    if tipo == "marco":  # marco solto, numa trilha que já existe
+        descricao = a.get("content") if isinstance(a.get("content"), str) else ""
+        return {"titulo": titulo, "descricao": descricao[:2000], "data": _data_ou_vazio(a.get("date"))}
     # hábito
     vezes = a.get("times_per_week")
     vezes = int(vezes) if isinstance(vezes, (int, float)) and not isinstance(vezes, bool) and 1 <= vezes <= 7 else 3
@@ -289,6 +356,9 @@ def _modelo(tipo: str, d: dict, ctx: dict | None = None):
         return aprendizado.TrackIn(name=d["nome"].strip(), general_goal=d["objetivo"].strip() or None)
     if tipo == "marco":
         return aprendizado.MilestoneIn(title=d["titulo"].strip(), description=d["descricao"].strip() or None)
+    if tipo == "link":
+        from app.routers.organizacao import links
+        return links.LinkIn(title=d["titulo"].strip(), url=d["url"].strip(), category=d["categoria"].strip())
     return None
 
 
@@ -356,6 +426,12 @@ def _conferir_item(conn, tipo: str, d: dict, ctx: dict) -> None:
         return _conferir_lancamento(conn, d, ctx)
     if tipo == "meta":
         return _conferir_meta(conn, d)
+    if tipo == "link":
+        if not (d["titulo"].strip() and d["url"].strip()):
+            raise ErroKami(422, "erro.assistente.acao_vazia", "item vazio")
+        if not d["categoria"].strip():
+            raise ErroKami(422, "erro.assistente.sem_categoria", "falta a categoria")
+        return
     if tipo in ("trilha", "marco"):
         if not (d.get("nome") or d.get("titulo") or "").strip():
             raise ErroKami(422, "erro.assistente.acao_vazia", "item vazio")
@@ -376,11 +452,20 @@ def _conferir_item(conn, tipo: str, d: dict, ctx: dict) -> None:
         habitos._validar(conn, p.frequencia, p.dias_semana, p.atributo)
 
 
+def _acao(item: dict) -> str:
+    return item.get("acao") or "criar"  # proposta de antes das edições não tem "acao"
+
+
 def _erro(conn, item: dict, ctx: dict) -> ErroKami | None:
     if item.get("ilegivel"):
         return ErroKami(422, "erro.assistente.linha_ilegivel", "o assistente não entendeu esta linha — confira e corrija")
     try:
+        if _acao(item) != "criar":
+            edicao.conferir(conn, item, ctx)
+            return None
         _conferir_item(conn, item["tipo"], item["dados"], ctx)
+        if item.get("trilha_id") and not conn.execute("SELECT 1 FROM tracks WHERE id = ?", (item["trilha_id"],)).fetchone():
+            raise ErroKami(404, "erro.assistente.alvo_sumiu", "isso não existe mais")
     except ErroKami as e:
         return e
     if item.get("entrada") and not conn.execute("SELECT 1 FROM caixa_entrada WHERE id = ?", (item["entrada"]["id"],)).fetchone():
@@ -396,7 +481,7 @@ def _problema(conn, item: dict, ctx: dict) -> str | None:
 def _aviso(conn, item: dict) -> str | None:
     """P-129: lançamento igual (data + valor + tipo) a um que já existe
     vem desmarcado — o extrato costuma repetir o que já foi lançado à mão."""
-    if item["tipo"] != "lancamento":
+    if item["tipo"] != "lancamento" or _acao(item) != "criar":
         return None
     d = item["dados"]
     if conn.execute("SELECT 1 FROM transactions WHERE date = ? AND type = ? AND abs(amount - ?) < 0.005",
@@ -438,10 +523,18 @@ def propor(conn, args: dict) -> dict:
     for a in brutos:
         if not isinstance(a, dict) or a.get("type") not in _TIPO_DO_MODELO:
             raise ValueError(f"each item needs a type: {', '.join(_TIPO_DO_MODELO)}")
-        if a["type"] == "learning_plan":
+        tipo = _TIPO_DO_MODELO[a["type"]]
+        acao = edicao.ACOES.get(a.get("action") or "create")
+        if acao is None:
+            raise ValueError(f"action must be one of: {', '.join(edicao.ACOES)}")
+        if acao != "criar":
+            itens.append(edicao.item(conn, tipo, acao, a))
+            continue
+        if a["type"] in ("learning_plan", "track"):
             itens += _plano(a, len(itens))
             continue
-        tipo = _TIPO_DO_MODELO[a["type"]]
+        if a["type"] == "milestone" and not a.get("track_ref"):
+            raise ValueError("a milestone goes into an existing track: send `track_ref` (or use learning_plan for a new one)")
         entrada = None
         ref = a.get("inbox_ref")
         if isinstance(ref, str) and ref and ref not in refs:
@@ -451,16 +544,26 @@ def propor(conn, args: dict) -> dict:
             refs.add(ref)
             entrada = dict(row)
         item = {"tipo": tipo, "dados": _dados(tipo, a), "entrada": entrada}
+        if tipo == "marco":
+            item["trilha_id"] = edicao.achar(conn, "trilha", a["track_ref"])
+            item["trilha_nome"] = conn.execute("SELECT name FROM tracks WHERE id = ?", (item["trilha_id"],)).fetchone()["name"]
         if tipo == "lancamento":
             if isinstance(a.get("source_line"), str) and a["source_line"].strip():
                 item["linha"] = a["source_line"].strip()[:300]
             if a.get("unclear") is True:
                 item["ilegivel"] = True
         itens.append(item)
+    # a mesma coisa duas vezes (alterar e apagar…) se atropela; reordenar
+    # mexe só na ordem dos marcos e vai junto com alterar a trilha
+    alvos = [(i["tipo"], i["alvo"], i["antes"].get("texto") if i["tipo"] == "tarefa" else None, i["acao"] == "ordenar")
+             for i in itens if i.get("alvo")]
+    if len(alvos) != len(set(alvos)):
+        raise ValueError("each existing item can appear only once per proposal — merge the changes into one item")
     if len(itens) > ITENS_MAX:
         raise ValueError(f"at most {ITENS_MAX} items per proposal (a learning plan counts its track, milestones and goal)")
     proposta = {"itens": itens}
-    if any(i["tipo"] == "lancamento" or (i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira") for i in itens):
+    if any(_acao(i) == "criar" and (i["tipo"] == "lancamento" or (i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira"))
+           or (_acao(i) == "alterar" and i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira") for i in itens):
         lista = contas(conn)
         proposta["contas"] = lista
         proposta["conta_id"] = _conta_sugerida(lista, args.get("account"))
@@ -486,7 +589,7 @@ def resultado_pro_modelo(proposta: dict) -> str:
         "items": len(itens),
         "items_with_problems": com_problema,
         "note": "Nothing was saved. The person reviews, edits and applies the items in the preview card. Do not say "
-                "you created anything. Reply in one short sentence asking them to review the card"
+                "you created, changed or deleted anything. Reply in one short sentence asking them to review the card"
                 + (", and mention the items marked with a problem." if com_problema else "."),
     })
 
@@ -558,6 +661,9 @@ def _criar(conn, item: dict, ctx: dict) -> list[dict]:
         id_ = habitos.criar(p, db=conn)["id"]
     elif tipo == "meta":
         id_ = metas.create_goal(p, db=conn)["id"]
+    elif tipo == "link":
+        from app.routers.organizacao import links
+        id_ = links.create_link(p, db=conn)["id"]
     else:  # trilha
         id_ = aprendizado.create_track(p, db=conn)["id"]
     titulo = d.get("titulo") or d.get("nome") or ""
@@ -644,14 +750,20 @@ def aplicar(conn, proposta: dict, escolhas: list[dict], conversa_id: str | None,
             raise e
 
     copia = backup_auto.copia_antes_de(conn, "assistente")
-    lancs = [(i, x) for i, x in escolhidos if x["tipo"] == "lancamento"]
+    lancs = [(i, x) for i, x in escolhidos if x["tipo"] == "lancamento" and _acao(x) == "criar"]
     criados = _criar_lancamentos(conn, lancs, ctx) if lancs else []
     trilhas = {}  # índice da trilha → (id, nome)
     for i, item in escolhidos:
-        if item["tipo"] == "lancamento":
+        if item["tipo"] == "lancamento" and _acao(item) == "criar":
+            continue
+        if _acao(item) != "criar":  # alterar, apagar, concluir, reabrir, ordenar
+            criados.append(edicao.aplicar(conn, item))
             continue
         dep = item.get("depende")
         ctx_item = {**ctx, "trilha_id": trilhas[dep][0], "trilha_nome": trilhas[dep][1]} if dep is not None else ctx
+        if item.get("trilha_id"):  # marco numa trilha que já existe
+            nome = conn.execute("SELECT name FROM tracks WHERE id = ?", (item["trilha_id"],)).fetchone()["name"]
+            ctx_item = {**ctx, "trilha_id": item["trilha_id"], "trilha_nome": nome}
         feitos = _criar(conn, item, ctx_item)
         if item["tipo"] == "trilha":
             trilhas[i] = (feitos[0]["id"], item["dados"]["nome"])
@@ -715,6 +827,8 @@ def _linha_da_tarefa(conteudo: str, linha: str) -> tuple[int | None, bool]:
 
 def _situacao(conn, item: dict) -> str:
     """intacto | editado | sumiu"""
+    if _acao(item) != "criar":
+        return edicao.situacao(conn, item)
     if item["tipo"] == "tarefa":
         row = conn.execute("SELECT conteudo, trancada FROM notas WHERE id = ?", (item["id"],)).fetchone()
         if row is None or row["trancada"]:
@@ -729,7 +843,7 @@ def _situacao(conn, item: dict) -> str:
 
 def _resumo(conn, lote: dict) -> dict:
     """O lote com a situação de cada item (pra tela e pro "desfazer")."""
-    itens = [{"tipo": i["tipo"], "titulo": i["titulo"],
+    itens = [{"tipo": i["tipo"], "acao": i.get("acao"), "titulo": i["titulo"],  # criar = sem acao
               "situacao": "desfeito" if lote["desfeito_em"] else _situacao(conn, i)} for i in lote["itens"]]
     return {"id": lote["id"], "conversa_id": lote["conversa_id"], "mensagem_id": lote["mensagem_id"],
             "aplicado_em": lote["aplicado_em"], "desfeito_em": lote["desfeito_em"], "itens": itens}
@@ -773,6 +887,9 @@ def _apagar(conn, item: dict) -> None:
         aprendizado.delete_milestone(id_, db=conn)
     elif tipo == "trilha":
         aprendizado.delete_track(id_, db=conn)
+    elif tipo == "link":
+        from app.routers.organizacao import links
+        links.delete_link(id_, db=conn)
 
 
 def _trilha_ocupada(conn, item: dict) -> bool:
@@ -792,6 +909,15 @@ def desfazer(conn, lote_id: str, apagar_editados: bool = False) -> dict:
     contagem = {"desfeitos": 0, "mantidos": 0, "sumidos": 0}
     for item in reversed(lote["itens"]):
         situacao = _situacao(conn, item)
+        if _acao(item) != "criar":  # devolve o antes (apagado volta com os mesmos ids)
+            if situacao == "sumiu":
+                contagem["sumidos"] += 1
+            elif situacao == "editado" and not apagar_editados:
+                contagem["mantidos"] += 1
+            else:
+                edicao.reverter(conn, item)
+                contagem["desfeitos"] += 1
+            continue
         trancada = item["tipo"] == "nota" and conn.execute(
             "SELECT trancada FROM notas WHERE id = ?", (item["id"],)).fetchone()
         if situacao == "sumiu":

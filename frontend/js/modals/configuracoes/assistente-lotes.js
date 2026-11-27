@@ -37,7 +37,9 @@ function textoDoErro(err) {
 function itensHtml(lote) {
   const mostrar = lote.itens.slice(0, ITENS_VISIVEIS).map((i) => {
     const situacao = lote.desfeito_em || i.situacao === "intacto" ? "" : ` <small>(${escapeHtml(t(`assistente.lotes.situacao.${i.situacao}`))})</small>`;
-    return `<li>${escapeHtml(t(`assistente.proposta.tipo.${i.tipo}`))}: ${escapeHtml(i.titulo || "—")}${situacao}</li>`;
+    const tipo = t(`assistente.proposta.tipo.${i.tipo}`);
+    const rotulo = i.acao ? `${t(`assistente.proposta.acao.${i.acao}`)} · ${tipo}` : tipo;
+    return `<li>${escapeHtml(rotulo)}: ${escapeHtml(i.titulo || "—")}${situacao}</li>`;
   });
   const resto = lote.itens.length - ITENS_VISIVEIS;
   if (resto > 0) mostrar.push(`<li class="settings-note">${escapeHtml(t("assistente.lotes.mais", { n: resto }))}</li>`);

@@ -861,7 +861,8 @@ def _migrate_goals_created_at(conn: sqlite3.Connection) -> None:
 
 
 # IA-05 (P-126): o que um lote do assistente pode criar
-TABELAS_CRIADO_POR = ("notas", "lembretes", "calendar_events", "habitos", "transactions", "goals", "tracks", "milestones")
+TABELAS_CRIADO_POR = ("notas", "lembretes", "calendar_events", "habitos", "transactions", "goals", "tracks", "milestones",
+                      "links")  # links: assistente edita e apaga (2026-11)
 
 
 def _migrate_criado_por(conn: sqlite3.Connection) -> None:

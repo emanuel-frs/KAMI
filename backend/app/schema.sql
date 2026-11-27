@@ -509,7 +509,8 @@ CREATE TABLE IF NOT EXISTS links (
     id       TEXT PRIMARY KEY,
     title    TEXT NOT NULL,
     url      TEXT NOT NULL,
-    category TEXT NOT NULL
+    category TEXT NOT NULL,
+    criado_por TEXT  -- IA-05 (P-126): 'assistente' = criado por um lote do assistente; NULL = pela pessoa
 );
 
 CREATE TABLE IF NOT EXISTS github_repos (

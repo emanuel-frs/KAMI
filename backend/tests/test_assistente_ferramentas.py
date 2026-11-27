@@ -89,7 +89,7 @@ def test_maiores_gastos_ordenados_e_limitados(dados):
     _, r = _rodar(dados, "largest_expenses", limit=3)
     valores = [g["amount"] for g in r["largest_expenses"]]
     assert len(valores) <= 3 and valores == sorted(valores, reverse=True)
-    assert all(set(g) == {"description", "amount", "category", "date"} for g in r["largest_expenses"])
+    assert all(set(g) == {"ref", "description", "amount", "category", "date"} for g in r["largest_expenses"])
 
 
 def test_contas_a_vencer_so_nao_pagas(dados):
