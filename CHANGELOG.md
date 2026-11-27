@@ -4,7 +4,7 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.0.2] - 2026-11-27
 
 ### Novo
 - assistente: além de criar, agora ele propõe mexer no que já existe — alterar (nome, datas, valor, alvo, prazo, situação da trilha ou do hábito…), apagar, concluir ou reabrir (módulo, tarefa, o hábito de hoje), reordenar os módulos de uma trilha e pôr um módulo novo numa trilha que já existe. Tudo passa pelo mesmo cartão de aprovação, que mostra o "antes" de cada alteração
@@ -19,6 +19,7 @@ versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - os filtros de registros financeiros e de assinaturas abriam a lista de opções do sistema, fora do visual do Kami; agora usam a mesma lista dos outros formulários
 - campos de data e hora ficavam um pouco mais altos que os outros campos (no Linux); agora têm a mesma altura
 - aprendizado: a lista de trilhas ficava mais alta que o quadro dos módulos ao lado; agora as duas colunas têm a mesma altura e a lista rola por dentro
+- dependências: `url` 2.5.9 e `cookie` 0.18.3, com correções de segurança (RUSTSEC-2026-0592, RUSTSEC-2026-0594)
 
 
 ## [2.0.1] - 2026-11-09
