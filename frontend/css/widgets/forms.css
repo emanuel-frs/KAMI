@@ -321,6 +321,21 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
+/* mesma altura dos outros campos: o WebKit põe padding no texto da data
+   (::-webkit-datetime-edit) e em cada segmento (dia/mês/ano, hora/min), e
+   o campo de data/hora ficava 4px mais alto que o de texto e o select
+   (34,8 × 30,8px no WebKitGTK). */
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-year-field,
+input[type="time"]::-webkit-datetime-edit-hour-field,
+input[type="time"]::-webkit-datetime-edit-minute-field,
+input[type="time"]::-webkit-datetime-edit-ampm-field {
+  padding: 0;
+}
+
 /* texto do placeholder "mm/dd/yyyy"/"--:--" e dos segmentos vazios —
    WebKit usa essa pseudo-classe pros campos internos (mês/dia/ano,
    hora/minuto), não o ::placeholder comum */

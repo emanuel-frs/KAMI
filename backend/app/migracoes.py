@@ -478,6 +478,18 @@ def _migrate_user_profile_icone_tema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_widgets_altura_auto(conn: sqlite3.Connection) -> None:
+    """
+    Altura dos widgets sempre igual ao conteúdo virou opção, desligada: com
+    ela ligada não dava pra diminuir um widget de lista longa (compras
+    parceladas com 6 compras, ainda mais com zoom baixo).
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "widgets_altura_auto" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN widgets_altura_auto INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+
+
 def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
     """
     GAM-06: dia a partir do qual a proteção de sequência vale. Nasce NULL

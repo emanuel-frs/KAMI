@@ -1,6 +1,7 @@
 import { icon } from "../components/icons.js";
 import { escapeHtml } from "../components/format.js";
 import { noIdiomaAtual, t } from "../i18n.js";
+import { enhanceSelect, refreshCustomSelect } from "../components/custom-select.js";
 
 /**
  * Modal "filtrar assinaturas" — mesmo padrão de registro-filter-modal.js.
@@ -42,6 +43,8 @@ function buildModal() {
   `;
   document.body.appendChild(wrap);
   wireModal(wrap);
+  // o select do tema, como nos outros modais (o nativo abria a lista do sistema)
+  ["#afm-conta", "#afm-status"].forEach((sel) => enhanceSelect(wrap.querySelector(sel)));
   return wrap;
 }
 
@@ -78,6 +81,7 @@ export function openAssinaturaFilterModal({ accounts, current, onApply } = {}) {
 
   contaSel.value = current?.contaId || "";
   modalEl.querySelector("#afm-status").value = current?.status || "";
+  ["#afm-conta", "#afm-status"].forEach((sel) => refreshCustomSelect(modalEl.querySelector(sel)));
 
   modalEl.classList.add("open");
 }

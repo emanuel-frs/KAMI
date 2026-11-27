@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
     som_interface         INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo cliques, modal, troca de tela, voz da kami
     som_avisos            INTEGER NOT NULL DEFAULT 1,   -- GAM-13: grupo toast/notificação e erro
     icone_tema            INTEGER NOT NULL DEFAULT 0,   -- ICO-01: ícone do app na cor de destaque (desligado — P-08)
+    widgets_altura_auto   INTEGER NOT NULL DEFAULT 0,   -- widget sempre do tamanho do conteúdo (desligado: teto + rolagem, redimensiona até o mínimo)
     -- ORG-05 (P-61/P-70): o que pode virar notificação do SISTEMA (fora do
     -- app); dentro do app (aviso + sino) tudo continua aparecendo
     notif_fora_lembretes   INTEGER NOT NULL DEFAULT 1,

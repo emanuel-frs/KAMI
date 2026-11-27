@@ -15,7 +15,7 @@
   overflow-y: auto;
   padding-right: var(--scroll-gutter);
 }
-.card[data-manual="1"] .ach-grid {
+.card[data-altura-fixa] .ach-grid {
   max-height: none;
 }
 .ach {

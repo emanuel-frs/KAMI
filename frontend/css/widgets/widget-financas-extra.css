@@ -61,7 +61,8 @@
  * do card-body (que já é display:flex; flex-direction:column — ver
  * card-base.css) em vez de só empilhar conteúdo cru. O max-height é o
  * teto padrão (auto-altura, sem resize manual); quando o card É
- * redimensionado manualmente (grid.js seta [data-manual="1"] no card),
+ * redimensionado manualmente ou com o tamanho automático desligado
+ * (grid.js seta [data-altura-fixa] no card),
  * o teto é removido e a lista passa a ocupar exatamente o espaço que o
  * usuário definiu — mesmo padrão já usado em log.js/achievements.js
  * (comentário em grid.js/contentMinHeight()), sem isso o conteúdo ficava
@@ -82,12 +83,12 @@
     (ver min-width:0 em .cf-name/.divida-desc abaixo), então isso é só
     um cinto de segurança, a causa raiz é corrigida lá embaixo. */
 }
-.card[data-manual="1"] .wallet-stack,
-.card[data-manual="1"] .registros-list,
-.card[data-manual="1"] .subs-list,
-.card[data-manual="1"] .dividas-list,
-.card[data-manual="1"] .contas-fixas-list,
-.card[data-manual="1"] .renda-list{
+.card[data-altura-fixa] .wallet-stack,
+.card[data-altura-fixa] .registros-list,
+.card[data-altura-fixa] .subs-list,
+.card[data-altura-fixa] .dividas-list,
+.card[data-altura-fixa] .contas-fixas-list,
+.card[data-altura-fixa] .renda-list{
   max-height: none;
 }
 .dividas-list,
@@ -361,6 +362,26 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+/* Altura que não segue o conteúdo (resize ou tamanho automático
+   desligado, ver grid.js placeCard): as duas listas — compras e fatura do
+   mês — dividem o card e cada uma rola por dentro, em vez de o widget
+   crescer uma linha a cada compra. Encolhem na proporção do tamanho de
+   cada uma; o min-height segura ~1 linha visível de cada. */
+.card[data-altura-fixa] .compras-parceladas-list,
+.card[data-altura-fixa] .cp-fatura-list{
+  flex: 1 1 auto;
+  min-height: 56px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 3px; /* separa o conteúdo da scrollbar */
+}
+.card[data-altura-fixa] .cp-fatura-list{ min-height: 34px; }
+.card[data-altura-fixa] .cp-fatura-section{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .cp-fatura-row{
   display: flex;

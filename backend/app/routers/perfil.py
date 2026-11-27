@@ -39,6 +39,7 @@ class ProfileOut(BaseModel):
     som_interface: bool = True
     som_avisos: bool = True
     icone_tema: bool = False  # ICO-01
+    widgets_altura_auto: bool = False  # widget sempre do tamanho do conteúdo
     # ORG-05: notificações do sistema (fora do app)
     notif_fora_lembretes: bool = True
     notif_fora_vencimentos: bool = True
@@ -77,6 +78,7 @@ class ProfileUpdate(Entrada):
     som_avisos: Optional[bool] = None
     # ICO-01: o ícone do app acompanha a cor de destaque (o Rust aplica)
     icone_tema: Optional[bool] = None
+    widgets_altura_auto: Optional[bool] = None
     # ORG-05
     notif_fora_lembretes: Optional[bool] = None
     notif_fora_vencimentos: Optional[bool] = None
@@ -212,6 +214,10 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
             db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (int(value), row["id"]))
     if payload.icone_tema is not None:
         db.execute("UPDATE user_profile SET icone_tema = ? WHERE id = ?", (int(payload.icone_tema), row["id"]))
+    if payload.widgets_altura_auto is not None:
+        db.execute(
+            "UPDATE user_profile SET widgets_altura_auto = ? WHERE id = ?", (int(payload.widgets_altura_auto), row["id"])
+        )
     for col in ("notif_fora_lembretes", "notif_fora_vencimentos", "notif_fora_eventos", "notif_ocultar_texto"):
         value = getattr(payload, col)
         if value is not None:

@@ -79,6 +79,13 @@ export function buildAparenciaPanel() {
         </div>
       </div>
       <div class="settings-section">
+        <h4>${t("widgets_auto.titulo")}</h4>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-widgets-auto">
+          <span>${t("widgets_auto.rotulo")}<small>${t("widgets_auto.desc")}</small></span>
+        </label>
+      </div>
+      <div class="settings-section">
         <h4>${t("aparencia.efeitos_visuais")}</h4>
         <p class="settings-desc">${t("aparencia.como_o_kami_comemora_seu")}</p>
         <div role="radiogroup" aria-label="${t("aparencia.efeitos_visuais")}" id="cfg-effects">
@@ -192,6 +199,26 @@ export function renderIconeTema(wrap, profile) {
     store.set("profile", { ...store.get("profile"), icone_tema: input.checked });
     statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? t("aparencia.icone_na_cor_de_destaque") : t("aparencia.icone_padrao_de_volta")}`;
     statusEl.classList.add("settings-status--visible");
+  });
+}
+
+// Tamanho dos widgets: sempre o do conteúdo (ligado) ou com teto, rolagem
+// e resize até o mínimo de cada widget (desligado, o padrão). O grid
+// (widgets/grid.js) ouve o store e redesenha na hora.
+export function renderWidgetsAuto(wrap, profile) {
+  const input = wrap.querySelector("#cfg-widgets-auto");
+  input.checked = Boolean(profile.widgets_altura_auto);
+  if (input.dataset.wired) return;
+  input.dataset.wired = "1";
+  input.addEventListener("change", async () => {
+    try {
+      await updateProfile({ widgets_altura_auto: input.checked });
+    } catch (err) {
+      input.checked = !input.checked;
+      showErrorModal(err.message, t("widgets_auto.falhou"));
+      return;
+    }
+    store.set("profile", { ...store.get("profile"), widgets_altura_auto: input.checked });
   });
 }
 

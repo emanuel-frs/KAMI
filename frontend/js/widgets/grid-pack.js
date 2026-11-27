@@ -19,94 +19,43 @@ export function colsForWidth(w) {
 }
 
 /**
- * Empacotamento dos cards (LAY-03/04): decide a coluna, a linha e a altura
- * DESENHADA de cada card, em ordem. Antes a posição ficava com o
- * `grid-auto-flow: dense` do navegador, que com cards de alturas diferentes
- * deixava buracos e jogava um widget readicionado em qualquer fresta (P-23).
+ * Empacotamento dos cards (LAY-03/04): decide a coluna e a linha de cada
+ * card, em ordem. Antes a posição ficava com o `grid-auto-flow: dense` do
+ * navegador, que com cards de alturas diferentes deixava buracos e jogava
+ * um widget readicionado em qualquer fresta (P-23).
  *
- * Em FAIXAS — o que importa pro olho é o alinhamento, não o espaço vazio:
- * - os primeiros cards da faixa vão lado a lado, da esquerda pra direita,
- *   no topo dela;
- * - o seguinte empilha embaixo do mais baixo da faixa (pilha: radar +
- *   atividade embaixo do perfil, ao lado da galeria) se pelo menos metade
- *   dele couber até a base da faixa — ou se a faixa ainda tem coluna livre
- *   no topo; senão, começa uma faixa nova;
- * - quando a faixa fecha, o último card de cada coluna cresce até a base
- *   dela: todos terminam na mesma linha e a faixa seguinte começa reta.
- * Nunca alarga pros lados, e quem cresce só ganha espaço vazio embaixo —
- * o conteúdo (gráficos inclusive) mantém o tamanho dele. É isso que segura
- * o desenho quando os dados fazem um widget crescer além da altura do
- * layout padrão. O card fixo (perfil) fica sempre em 1/1.
- *
- * Sem `alinhar` (durante o resize manual, pra pessoa ver a altura que
- * está escolhendo): só o encaixe no ponto mais alto, sem crescer ninguém.
+ * Cada card vai pro lugar livre MAIS ALTO em que ele cabe inteiro (e, na
+ * mesma altura, o mais à esquerda) — sem esticar ninguém: cada widget fica
+ * do tamanho dele. Dois gráficos lado a lado podem ter alturas diferentes;
+ * o widget largo que vem embaixo deles fica logo abaixo do mais baixo dos
+ * dois (o espaço entre widgets é sempre o mesmo, a margem já está em
+ * `rows`), e o vão que sobra embaixo do mais curto é ocupado pelo primeiro
+ * widget seguinte que couber nele. (Antes, a faixa fechava e o mais curto
+ * esticava até a base do vizinho: widget pequeno ficava enorme e vazio, e
+ * nem dava pra diminuí-lo.) O card fixo (perfil) fica sempre em 1/1.
  *
  * Função pura (tests/frontend/grid-pack.test.js) — o resto de grid.js é DOM:
  *   itens = [{ span, rows, pinned? }]   span em colunas reais, rows em linhas de 4px
- *   → [{ col, row, span, rows }]        1-based; rows já com o crescimento
+ *   → [{ col, row, span, rows }]        1-based
  */
-export function packLayout(items, cols, { alinhar = true } = {}) {
-  const sky = new Array(cols).fill(0); // próxima linha livre de cada coluna
-  const dono = new Array(cols).fill(null); // card cuja base define sky[c]
-  const cards = [];
-  const base = (k) => k.row + k.rows;
-  let topoFaixa = 0;
-  let baseFaixa = 0;
-
-  // só cresce quem ainda é a superfície inteira das colunas dele
-  const cresce = (k, ate) => {
-    if (!k || base(k) >= ate) return;
-    if ([...Array(k.span).keys()].some((i) => dono[k.col + i] !== k)) return;
-    k.rows = ate - k.row;
-    for (let c = k.col; c < k.col + k.span; c++) sky[c] = ate;
-  };
-
-  const fecharFaixa = () => {
-    // só quem é desta faixa (coluna vazia nela fica vazia — não puxa o de cima)
-    for (let c = 0; c < cols; c++) if (dono[c]?.row >= topoFaixa) cresce(dono[c], baseFaixa);
-    sky.fill(Math.max(baseFaixa, ...sky));
-    topoFaixa = baseFaixa = sky[0];
-  };
-
-  const melhorLugar = (s, pinned) => {
-    let col = 0;
-    let top = Infinity;
-    const last = pinned ? 0 : cols - s;
-    for (let c = 0; c <= last; c++) {
-      const t = Math.max(...sky.slice(c, c + s));
-      if (t < top) {
-        col = c;
-        top = t;
-      }
-    }
-    return { col, top };
-  };
+export function packLayout(items, cols) {
+  const postos = []; // já encaixados, 0-based
+  const livre = (col, row, s, r) =>
+    postos.every((p) => col + s <= p.col || p.col + p.span <= col || row + r <= p.row || p.row + p.rows <= row);
 
   for (const { span, rows, pinned } of items) {
     const s = Math.max(1, Math.min(cols, span));
     const r = Math.max(1, rows);
-    let { col, top } = melhorLugar(s, pinned);
-    // na faixa: no topo dela (lado a lado), empilhado com metade cabendo,
-    // ou enquanto ela ainda tiver coluna livre no topo (os próximos cards
-    // ainda vão completar a largura dela)
-    const cabe = top === topoFaixa || baseFaixa - top >= r / 2 || sky.some((v) => v === topoFaixa);
-    if (alinhar && cards.length && !cabe) {
-      fecharFaixa();
-      ({ col, top } = melhorLugar(s, pinned));
+    // o topo de um lugar livre "encosta" em cima: na linha 0 ou na base de alguém
+    const linhas = [...new Set([0, ...postos.map((p) => p.row + p.rows)])].sort((a, b) => a - b);
+    const ultimaCol = pinned ? 0 : cols - s;
+    let lugar = null;
+    for (const row of linhas) {
+      for (let col = 0; col <= ultimaCol && !lugar; col++) if (livre(col, row, s, r)) lugar = { col, row };
+      if (lugar) break;
     }
-    // vão embaixo de quem ficou por cima (o vizinho dele era mais alto):
-    // ele desce até este card
-    if (alinhar) for (let c = col; c < col + s; c++) if (sky[c] < top) cresce(dono[c], top);
-
-    const k = { col, row: top, span: s, rows: r };
-    cards.push(k);
-    for (let c = col; c < col + s; c++) {
-      sky[c] = top + r;
-      dono[c] = k;
-    }
-    baseFaixa = Math.max(baseFaixa, top + r);
+    postos.push({ col: lugar.col, row: lugar.row, span: s, rows: r });
   }
-  if (alinhar) fecharFaixa();
 
-  return cards.map((k) => ({ col: k.col + 1, row: k.row + 1, span: k.span, rows: k.rows }));
+  return postos.map((k) => ({ col: k.col + 1, row: k.row + 1, span: k.span, rows: k.rows }));
 }
