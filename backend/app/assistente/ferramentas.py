@@ -159,14 +159,73 @@ def _achar_lancamentos(conn, args):
     termo = args.get("query")
     if termo is not None and (not isinstance(termo, str) or len(termo) > 100):
         raise ArgumentoInvalido("query must be text (up to 100 characters)")
-    lista = [t for t in _js(lancamentos.list_transactions(month=mes, db=conn)) if t["type"] != "transferencia"]
+    lista = _js(lancamentos.list_transactions(month=mes, db=conn))
     if termo:
         alvo = _sem_acento(termo)
         lista = [t for t in lista if alvo in _sem_acento(f"{t['description']} {t['category']}")]
     lista.sort(key=lambda t: t["date"], reverse=True)
     return {"month": mes, "transactions": [
         {"ref": ref(t["id"]), "date": t["date"], "description": t["description"], "amount": t["amount"],
-         "type": "income" if t["type"] == "entrada" else "expense", "category": t["category"]} for t in lista[:30]]}
+         "type": {"entrada": "income", "transferencia": "transfer"}.get(t["type"], "expense"),
+         "category": t["category"]} for t in lista[:30]]}
+
+
+def _financas_recorrentes(conn, args):
+    """2.1.0: contas fixas, assinaturas, parceladas, dívidas e renda, com o
+    `ref` de cada uma e se o mês já foi pago/recebido — e as conclusões
+    feitas pelo Kami (quanto o mês tem de compromisso e o que falta)."""
+    from app.assistente import acoes, entidades as ent
+
+    mes = _hoje().strftime("%Y-%m")
+    contas = {c["id"]: f"{c['banco']} {c['nome']}" for c in acoes.contas(conn)}
+    conta = lambda i: contas.get(i) if i else None  # noqa: E731
+    fixas = [{"ref": ref(r["id"]), "name": r["name"], "amount": r["amount"], "due_day": r["due_day"],
+              "account": conta(r["conta_id"]), "active": bool(r["active"]),
+              "paid_this_month": bool(r["active"]) and ent.ENTIDADES["conta_fixa"].pago(conn, r["id"])}
+             for r in conn.execute("SELECT * FROM fixed_bills ORDER BY name")]
+    assinaturas = [{"ref": ref(r["id"]), "name": r["nome"], "amount": r["valor_esperado"], "billing_day": r["dia_cobranca"],
+                    "account": conta(r["conta_id"]), "active": bool(r["active"]),
+                    "paid_this_month": bool(r["active"]) and ent.ENTIDADES["assinatura"].pago(conn, r["id"])}
+                   for r in conn.execute("SELECT * FROM wallet_subscriptions ORDER BY nome")]
+    parceladas = [{"ref": ref(r["id"]), "name": r["nome"], "total": r["valor_total"], "installments": r["num_parcelas"],
+                   "first_month": r["mes_primeira_parcela"], "account": conta(r["conta_id"])}
+                  for r in conn.execute("SELECT * FROM compras_parceladas ORDER BY created_at DESC LIMIT 20")]
+    dividas = [{"ref": ref(r["id"]), "description": r["description"], "owed_to": r["counterparty"], "amount": r["amount"],
+                "due_date": r["due_date"], "status": "paid" if r["status"] == "paga" else "open"}
+               for r in conn.execute("SELECT * FROM debts ORDER BY due_date")]
+    renda = [{"ref": ref(r["id"]), "name": r["nome"], "amount": r["valor"], "frequency": r["frequencia"],
+              "account": conta(r["conta_id"]), "active": bool(r["active"]),
+              "received_this_month": bool(r["active"]) and r["frequencia"] != "avulsa" and ent.ENTIDADES["renda"].pago(conn, r["id"])}
+             for r in conn.execute("SELECT * FROM income_sources ORDER BY nome")]
+    ativas = [x for x in fixas + assinaturas if x["active"]]
+    c = {"month": mes,
+         "monthly_bills_total": round(sum(x["amount"] for x in ativas), 2),
+         "still_to_pay_this_month": round(sum(x["amount"] for x in ativas if not x["paid_this_month"]), 2),
+         "unpaid_names": [x["name"] for x in ativas if not x["paid_this_month"]][:15],
+         "open_debts_total": round(sum(d["amount"] for d in dividas if d["status"] == "open"), 2),
+         "monthly_income_expected": round(sum(r["amount"] for r in renda if r["active"] and r["frequency"] == "mensal"), 2)}
+    return {"conclusions": c, "fixed_bills": fixas[:30], "subscriptions": assinaturas[:30], "installment_purchases": parceladas,
+            "debts": dividas[:30], "income_sources": renda[:20]}
+
+
+def _carreira(conn, args):
+    """2.1.0: cargos, formações, salários e interesses, com `ref`."""
+    cargos = [{"ref": ref(r["id"]), "role": r["role"], "company": r["company"], "area": r["area"],
+               "employment_type": r["employment_type"], "start": r["start_date"], "end": r["end_date"]}
+              for r in conn.execute("SELECT * FROM career_positions ORDER BY start_date DESC LIMIT 20")]
+    formacoes = [{"ref": ref(r["id"]), "course": r["curso"], "institution": r["instituicao"], "level": r["nivel"],
+                  "status": r["status"], "expected_end": r["previsao_conclusao"]}
+                 for r in conn.execute("SELECT * FROM career_educations ORDER BY created_at DESC LIMIT 20")]
+    salarios = [{"ref": ref(r["id"]), "amount": r["amount"], "currency": r["currency"], "date": r["date"], "reason": r["reason"]}
+                for r in conn.execute("SELECT * FROM career_salary_records ORDER BY date DESC LIMIT 12")]
+    interesses = [{"ref": ref(r["id"]), "interest": r["tag"]} for r in conn.execute("SELECT * FROM career_interests ORDER BY tag")]
+    c = {}
+    atual = next((x for x in cargos if not x["end"]), None)
+    if atual:
+        c["current_position"] = {"role": atual["role"], "company": atual["company"], "since": atual["start"]}
+    if len(salarios) >= 2 and salarios[1]["amount"]:
+        c["last_salary_change_pct"] = round((salarios[0]["amount"] - salarios[1]["amount"]) / salarios[1]["amount"] * 100, 1)
+    return {"conclusions": c, "positions": cargos, "education": formacoes, "salaries": salarios, "interests": interesses}
 
 
 def _contas_e_categorias(conn, args):
@@ -452,6 +511,11 @@ def _progresso(conn, args):
         "achievements": f'{p["achievements_unlocked"]}/{p["achievements_total"]}',
         "attributes": [{"name": a.get("name"), "level": a.get("current_level"), "xp": a.get("current_xp")} for a in atributos],
         "missions": missoes,
+        # 2.1.0: as conquistas que a pessoa criou (o assistente cria, altera e apaga)
+        "custom_achievements": [
+            {"ref": ref(r["id"]), "title": r["title"], "rule": json.loads(r["criteria_json"] or "{}"),
+             "unlocked": r["unlocked_at"] is not None}
+            for r in conn.execute("SELECT * FROM achievements WHERE rule_type = 'custom' ORDER BY title LIMIT 30")],
     }
 
 
@@ -528,7 +592,7 @@ def _repositorios_github(conn, args):
                 status = None
         resumo = {k: status.get(k) for k in ("description", "language", "open_issues_count", "pushed_at", "stargazers_count")
                   if isinstance(status, dict) and k in status}
-        saida.append({"repository": r["repo_full_name"], "last_synced": r.get("last_synced_at"), **resumo})
+        saida.append({"ref": ref(r["id"]), "repository": r["repo_full_name"], "last_synced": r.get("last_synced_at"), **resumo})
     return {"repositories": saida}
 
 
@@ -618,6 +682,12 @@ LEITURAS: list[Leitura] = [
             "`ref` — use it for 'fix the amount of yesterday's grocery', 'delete the duplicated uber'. Not for tracks, "
             "goals or anything else.",
             {"type": "object", "properties": {**_P_MES, "query": {"type": "string"}}}, _achar_lancamentos),
+    Leitura("recurring_finances", "financas",
+            "RECURRING money — fixed bills, subscriptions, installment purchases, debts and income sources, each with its "
+            "`ref` and whether this month is already paid/received, plus Kami's conclusions (monthly bills total, still to "
+            "pay this month, open debts, expected monthly income). Use it for 'what are my subscriptions?', 'did I pay the "
+            "rent?', and before changing, paying or deleting any of them.",
+            _SEM_PARAMETROS, _financas_recorrentes),
     Leitura("accounts_and_categories", "financas",
             "The person's account names (bank, whether it has balance and/or credit) and the expense/income categories "
             "they already use. Read it before proposing money entries.",
@@ -648,7 +718,11 @@ LEITURAS: list[Leitura] = [
             "Kami's computed conclusions (active tracks, milestones done, stalled tracks, the one closest to finishing). "
             "Each track and milestone has a `ref`: read it before renaming, completing, deleting or reordering them.",
             _SEM_PARAMETROS, _aprendizado),
-    Leitura("progress", "progresso", "Game progress: level, xp, streak, class/title, achievements, attributes and today's/this week's missions.",
+    Leitura("career", "carreira",
+            "CAREER — positions (job history), education, salary records and interests, each with its `ref`, plus the "
+            "current position and the last salary change. Use it before changing or deleting any of them.",
+            _SEM_PARAMETROS, _carreira),
+    Leitura("progress", "progresso", "Game progress: level, xp, streak, class/title, achievements, attributes, today's/this week's missions and the custom achievements (with `ref`).",
             _SEM_PARAMETROS, _progresso),
     Leitura("search_notes", "notas", "Search the person's notes by a word or phrase; returns titles, tags and short excerpts (up to 8 notes).",
             {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}, _buscar_notas),
@@ -672,7 +746,8 @@ _POR_NOME = {l.nome: l for l in LEITURAS}
 # As leituras que só servem pra achar o `ref` de algo a editar também ficam
 # de fora: o modelo local aponta pelo nome (edicao.achar) e o contexto dele
 # é curto.
-FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories", "find_transactions", "tasks"}
+FORA_DO_LOCAL = {"largest_expenses", "saved_links", "github_repositories", "find_transactions", "tasks",
+                 "recurring_finances", "career"}
 
 
 def disponiveis(cfg: dict, local: bool = False) -> list[Leitura]:

@@ -32,7 +32,10 @@ class _Handler(BaseHTTPRequestHandler):
             corpo_json = None
         caminho = self.path.split("?")[0]
         srv = self.server
-        srv.recebidas.append({"metodo": self.command, "caminho": self.path, "headers": {k.lower(): v for k, v in self.headers.items()}, "json": corpo_json})
+        # a sonda do Ollama (ollama_nativo.serve) não conta: os testes conferem
+        # as requisições ao modelo pelo índice
+        if caminho != "/api/version":
+            srv.recebidas.append({"metodo": self.command, "caminho": self.path, "headers": {k.lower(): v for k, v in self.headers.items()}, "json": corpo_json})
         fila = srv.respostas.get(caminho)
         if not fila:
             self.send_response(404)

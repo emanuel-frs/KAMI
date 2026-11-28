@@ -32,6 +32,7 @@ import re
 import unicodedata
 
 from app.database import local_now
+from app.assistente import entidades as _ent
 from app.mensagens import ErroKami
 
 REF_TAM = 8
@@ -58,6 +59,14 @@ def ref(id_: str | None) -> str:
 _COLUNA_NOME = {"nota": "titulo", "lembrete": "titulo", "evento": "title", "habito": "nome", "lancamento": "description",
                 "meta": "title", "trilha": "name", "marco": "title", "link": "title"}
 
+# 2.1.0: o resto do Kami (contas fixas, assinaturas, renda, carreira,
+# conquistas…) vem descrito em entidades.py e passa pelos mesmos caminhos
+ACOES["contribute"] = "contribuir"
+for _e in _ent.ENTIDADES.values():
+    TABELA[_e.tipo] = _e.tabela
+    _NOME_EN[_e.tipo] = _e.nome_en
+    _COLUNA_NOME[_e.tipo] = _e.coluna_nome
+
 
 def _sem_acento(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", " ".join(texto.split()).lower()) if not unicodedata.combining(c))
@@ -70,20 +79,48 @@ def achar(conn, tipo: str, r) -> str:
     if not r:
         raise ValueError(f"`ref` is required to change a {nome} — copy it from the read tools")
     if _HEX.match(r.lower()):
-        rows = conn.execute(f"SELECT id FROM {TABELA[tipo]} WHERE id LIKE ? LIMIT 2", (r.lower() + "%",)).fetchall()
+        rows = conn.execute(f"SELECT id FROM {TABELA[tipo]} WHERE id LIKE ?{_ent.filtro_tabela(tipo)} LIMIT 2",
+                            (r.lower() + "%",)).fetchall()
         if len(rows) == 1:
             return rows[0]["id"]
         if len(rows) > 1:
             raise ValueError(f"ref {r!r} matches more than one {nome} — send the full ref")
     alvo = _sem_acento(r.strip("'\"“”"))
     todos = [(row["id"], _sem_acento(row["n"] or "")) for row in
-             conn.execute(f"SELECT id, {_COLUNA_NOME[tipo]} AS n FROM {TABELA[tipo]}")]
+             conn.execute(f"SELECT id, {_COLUNA_NOME[tipo]} AS n FROM {TABELA[tipo]} WHERE 1 = 1{_ent.filtro_tabela(tipo)}")]
     for achados in ([i for i, n in todos if n == alvo], [i for i, n in todos if alvo and alvo in n]):
         if len(achados) == 1:
             return achados[0]
         if len(achados) > 1:
             raise ValueError(f"more than one {nome} matches {r!r} — read them and send the `ref`")
     raise ValueError(f"there is no {nome} with ref or name {r!r} — use the refs from the read tools")
+
+
+def _data_ou_vazio_ed(v) -> str:
+    from app.assistente.acoes import _data_ou_vazio
+    return _data_ou_vazio(v)
+
+
+def tipos_do_ref(conn, r) -> list[str]:
+    """Os tipos em que este ref (ou nome exato) existe — pra quando o modelo
+    pequeno esquece o `type` do item (teste com o qwen3.5:4b, 2026-11)."""
+    r = r.strip().strip("'\"“”") if isinstance(r, str) else ""
+    if not r:
+        return []
+    achados = []
+    for tipo, tabela in TABELA.items():
+        filtro = _ent.filtro_tabela(tipo)
+        if _HEX.match(r.lower()) and conn.execute(
+                f"SELECT 1 FROM {tabela} WHERE id LIKE ?{filtro} LIMIT 1", (r.lower() + "%",)).fetchone():
+            achados.append(tipo)
+            continue
+        alvo = _sem_acento(r)
+        if any(_sem_acento(row[0] or "") == alvo for row in
+               conn.execute(f"SELECT {_COLUNA_NOME[tipo]} FROM {tabela} WHERE 1 = 1{filtro}")):
+            achados.append(tipo)
+    if not achados and nota_de_tarefas(conn) and any(t["texto"].lower() == r.lower() for t in tarefas(conn)):
+        achados.append("tarefa")
+    return achados
 
 
 def _csv(v) -> list[int]:
@@ -97,6 +134,8 @@ def atual(conn, tipo: str, id_: str) -> tuple[dict, dict]:
     row = conn.execute(f"SELECT * FROM {TABELA[tipo]} WHERE id = ?", (id_,)).fetchone()
     if row is None:
         raise ErroKami(404, "erro.assistente.alvo_sumiu", "isso não existe mais")
+    if (e := _ent.de(tipo)):
+        return e.ler(row), e.extra(row)
     r = dict(row)
     if tipo == "nota":
         tags = [t["tag"] for t in conn.execute("SELECT tag FROM notas_tags WHERE nota_id = ? ORDER BY tag", (id_,))]
@@ -107,8 +146,9 @@ def atual(conn, tipo: str, id_: str) -> tuple[dict, dict]:
                 {"vinculo_tipo": r["vinculo_tipo"], "vinculo_id": r["vinculo_id"]})
     if tipo == "evento":
         return ({"titulo": r["title"], "data": r["date"], "hora": r["time"] or "", "notas": r["notes"] or "",
-                 "repeticao": r["recurrence"] or "none"},
-                {k: r[k] for k in ("recurrence_end", "reminder_minutes_before", "color")})
+                 "repeticao": r["recurrence"] or "none", "ate": r["recurrence_end"] or "",
+                 "aviso": str(r["reminder_minutes_before"]) if r["reminder_minutes_before"] is not None else ""},
+                {"color": r["color"]})
     if tipo == "habito":
         return ({"nome": r["nome"], "frequencia": r["frequencia"], "dias_semana": _csv(r["dias_semana"]),
                  "vezes_semana": r["vezes_semana"] or 3, "atributo": r["atributo"], "status": r["status"]}, {})
@@ -164,6 +204,12 @@ def mudancas(tipo: str, a: dict) -> dict:
         m["data"] = a["date"]
     if tipo in ("lembrete", "evento") and isinstance(a.get("time"), str):
         m["hora"] = a["time"]
+    if tipo == "evento":
+        from app.assistente.acoes import aviso_min
+        if isinstance(a.get("repeat_until"), str):
+            m["ate"] = _data_ou_vazio_ed(a["repeat_until"])
+        if "remind_minutes_before" in a:
+            m["aviso"] = str(aviso_min(a["remind_minutes_before"]))
     if tipo in ("lembrete", "evento", "habito") and _repete(tipo, a.get("repeat")):
         m["repeticao" if tipo != "habito" else "frequencia"] = _repete(tipo, a["repeat"])
     if tipo in ("lembrete", "habito") and isinstance(a.get("weekdays"), list):
@@ -179,7 +225,9 @@ def mudancas(tipo: str, a: dict) -> dict:
         if isinstance(a.get("attribute"), str):
             m["atributo"] = a["attribute"]
     if tipo in _STATUS and isinstance(a.get("status"), str):
-        m["status"] = _STATUS[tipo].get(a["status"], a["status"])
+        st = _STATUS[tipo].get(a["status"], a["status"])
+        if st in _STATUS[tipo].values():  # status que não existe pro tipo (qwen3.5:4b: "concluido" numa trilha) não muda nada
+            m["status"] = st
     if tipo == "lancamento":
         if tem("amount"):
             m["valor"] = round(abs(_num(a["amount"])), 2)
@@ -249,6 +297,12 @@ def item(conn, tipo: str, acao: str, a: dict) -> dict:
     """Um item de alterar/apagar/concluir/reabrir/ordenar. ValueError (em
     inglês) quando o pedido não faz sentido — volta pro modelo corrigir."""
     nome = _NOME_EN[tipo]
+    if acao == "contribuir" and tipo != "meta":
+        raise ValueError("only goals take contributions (type goal, action contribute, amount)")
+    if (e := _ent.de(tipo)):
+        return _item_entidade(conn, e, acao, a)
+    if acao == "contribuir":
+        return _item_contribuir(conn, a)
     if tipo == "tarefa":
         return _item_tarefa(conn, acao, a)
     if acao in ("concluir", "reabrir") and tipo not in _CONCLUI:
@@ -269,6 +323,54 @@ def item(conn, tipo: str, acao: str, a: dict) -> dict:
     else:
         out["dados"] = dict(antes)
     return out
+
+
+def _contas(conn) -> list[dict]:
+    from app.assistente.acoes import contas
+    return contas(conn)
+
+
+def _item_entidade(conn, e, acao: str, a: dict) -> dict:
+    nome = e.nome_en
+    if acao == "ordenar":
+        raise ValueError(f"a {nome} cannot be reordered")
+    if acao in ("concluir", "reabrir") and not e.pagar:
+        raise ValueError(f"a {nome} cannot be completed or reopened")
+    if acao == "alterar" and not e.gravar:
+        raise ValueError(f"a {nome} cannot be changed — delete it and create a new one")
+    id_ = achar(conn, e.tipo, a.get("ref"))
+    antes, extra = atual(conn, e.tipo, id_)
+    lista = _contas(conn)
+    out = {"tipo": e.tipo, "acao": acao, "alvo": id_, "antes": antes, "extra": extra, "entrada": None}
+    if acao == "alterar":
+        out["dados"] = {**antes, **_ent.mudancas(e.campos, a, lista)}
+        out["campos"] = _ent.campos_ui(e.campos)
+    elif acao == "concluir":  # pagar / receber o mês
+        campos = [_ent.PAGAR[k] for k in e.acao_pagar]
+        out["dados"] = _ent.dados_novos(campos, a, lista)
+        if "valor_pago" in out["dados"] and not out["dados"]["valor_pago"]:
+            out["dados"]["valor_pago"] = antes.get("valor") or 0
+        out["campos"] = _ent.campos_ui(campos)
+    else:
+        out["dados"] = dict(antes)
+    if acao != "alterar":  # o cartão mostra a coisa (o antes) com os campos dela
+        out["campos_antes"] = _ent.campos_ui(e.campos)
+    return out
+
+
+def _item_contribuir(conn, a: dict) -> dict:
+    id_ = achar(conn, "meta", a.get("ref"))
+    antes, extra = atual(conn, "meta", id_)
+    g = conn.execute("SELECT current_value, target_value FROM goals WHERE id = ?", (id_,)).fetchone()
+    antes = {**antes, "atual": g["current_value"]}
+    dados = _ent.dados_novos(_ent.CONTRIBUIR, a, _contas(conn))
+    if antes["tipo"] != "financeira":
+        dados["origem"], dados["conta_id"] = "externo", ""
+    elif not dados["conta_id"]:
+        dados["conta_id"] = antes["conta_id"]
+    campos = _ent.CONTRIBUIR if antes["tipo"] == "financeira" else _ent.CONTRIBUIR[:1]
+    return {"tipo": "meta", "acao": "contribuir", "alvo": id_, "antes": antes, "extra": extra, "entrada": None,
+            "dados": dados, "campos": _ent.campos_ui(campos)}
 
 
 def _item_tarefa(conn, acao: str, a: dict) -> dict:
@@ -329,6 +431,11 @@ def conferir(conn, it: dict, ctx: dict) -> None:
         return
     if not conn.execute(f"SELECT 1 FROM {TABELA[tipo]} WHERE id = ?", (it["alvo"],)).fetchone():
         raise ErroKami(404, "erro.assistente.alvo_sumiu", "isso não existe mais")
+    if (e := _ent.de(tipo)):
+        return _conferir_entidade(conn, e, it)
+    if acao == "contribuir":
+        _ent.conferir_campos(conn, _ent.CONTRIBUIR, d)
+        return _ent.contribuicao_ok(conn, it["alvo"], d)
     if tipo == "nota" and it["extra"].get("trancada"):
         raise ErroKami(422, "erro.assistente.nota_trancada", "nota trancada: só pela tela, com o PIN")
     if tipo == "lancamento":
@@ -385,6 +492,27 @@ def conferir(conn, it: dict, ctx: dict) -> None:
         raise
 
 
+def _conferir_entidade(conn, e, it: dict) -> None:
+    acao, d, antes = it["acao"], it["dados"], it["antes"]
+    if acao == "excluir":
+        return
+    if acao in ("concluir", "reabrir"):
+        if e.pago(conn, it["alvo"]) == (acao == "concluir"):
+            raise ErroKami(422, "erro.assistente.nada_muda", "isso já está assim")
+        if acao == "concluir":
+            if antes.get("ativa") is False:
+                raise ErroKami(422, "erro.assistente.inativa", "está desativada")
+            campos = [_ent.PAGAR[k] for k in e.acao_pagar]
+            _ent.conferir_campos(conn, campos, d)
+            if "forma" in e.acao_pagar:  # receber renda não tem forma: é dinheiro entrando
+                _ent._forma_ok(conn, d.get("conta_pagamento") or antes.get("conta_id"), d.get("forma"))
+        return
+    if d == antes:
+        raise ErroKami(422, "erro.assistente.nada_muda", "isso já está assim")
+    _ent.conferir_campos(conn, e.campos, d)
+    e.conferir(conn, d)
+
+
 def _feito_hoje(conn, habito_id: str) -> bool:
     return conn.execute("SELECT 1 FROM habitos_marcas WHERE habito_id = ? AND dia = ?",
                         (habito_id, local_now().date().isoformat())).fetchone() is not None
@@ -419,9 +547,14 @@ def _gravar(conn, tipo: str, id_: str, d: dict, extra: dict) -> str:
             dias_semana=d["dias_semana"] if d["repeticao"] == "dias" else [],
             vinculo_tipo=extra.get("vinculo_tipo"), vinculo_id=extra.get("vinculo_id")), db=conn)
     elif tipo == "evento":
+        # lote da 2.0.2 guardava "repete até" e o aviso no extra; os novos, nos dados
+        ate = d.get("ate", extra.get("recurrence_end")) or None
+        from app.assistente.acoes import aviso_min
+        aviso = aviso_min(d.get("aviso", extra.get("reminder_minutes_before")))
         calendario.update_evento(id_, calendario.EventoIn(
             title=d["titulo"], date=d["data"], time=d["hora"] or None, notes=d["notas"] or None,
-            recurrence=d["repeticao"], **extra), db=conn)
+            recurrence=d["repeticao"], recurrence_end=ate if d["repeticao"] != "none" else None,
+            reminder_minutes_before=aviso if aviso not in ("", None) else None, color=extra.get("color")), db=conn)
     elif tipo == "habito":
         habitos.editar(id_, habitos.HabitoUpdate(
             nome=d["nome"], frequencia=d["frequencia"], dias_semana=d["dias_semana"] if d["frequencia"] == "dias" else [],
@@ -493,6 +626,8 @@ def retrato(conn, entrada: dict):
         return [m["id"] for m in _marcos(conn, entrada["id"])]
     if tipo == "habito" and acao in ("concluir", "reabrir"):
         return _feito_hoje(conn, entrada["id"])
+    if (e := _ent.de(tipo)) and acao in ("concluir", "reabrir"):
+        return e.pago(conn, entrada["id"])
     return _retrato(conn, tipo, entrada["id"])
 
 
@@ -501,7 +636,15 @@ def aplicar(conn, it: dict) -> dict:
     tipo, acao, id_, d = it["tipo"], it["acao"], it["alvo"], it["dados"]
     titulo = (it["antes"].get("titulo") or it["antes"].get("nome") or it["antes"].get("descricao")
               or it["antes"].get("texto") or it.get("extra", {}).get("nome") or "")
+    if not titulo:
+        titulo = next((v for v in it["antes"].values() if isinstance(v, str) and v), "")
     e = {"tipo": tipo, "acao": acao, "id": id_, "titulo": titulo, "antes": it["antes"], "extra": it.get("extra") or {}}
+    if (ent := _ent.de(tipo)):
+        return _aplicar_entidade(conn, ent, it, e)
+    if acao == "contribuir":
+        e["estado"] = _ent.contribuir(conn, id_, d)
+        e["retrato"] = retrato(conn, e)
+        return e
     if tipo == "tarefa":
         k, _ = _tarefa_agora(conn, it)
         marca = "x" if (acao == "concluir" or (acao != "reabrir" and it["antes"]["feita"])) else " "
@@ -529,6 +672,23 @@ def aplicar(conn, it: dict) -> dict:
     return e
 
 
+def _aplicar_entidade(conn, ent, it: dict, e: dict) -> dict:
+    tipo, acao, id_, d = it["tipo"], it["acao"], it["alvo"], it["dados"]
+    if acao == "alterar":
+        e["id"] = ent.gravar(conn, id_, d, it.get("extra") or {})
+    elif acao == "concluir":
+        e["estado"] = ent.pagar(conn, id_, d)
+    elif acao == "reabrir":
+        e["estado"] = _ent.estado_pago(conn, tipo, id_)
+        ent.despagar(conn, id_, e["estado"])
+    else:  # excluir
+        e["copia"] = copiar(conn, tipo, id_)
+        ent.apagar(conn, id_)
+        return e
+    e["retrato"] = retrato(conn, e)
+    return e
+
+
 # ── apagar e devolver: as linhas e o xp, com os mesmos ids ────────────────
 
 # filhos que somem junto (CASCADE) e o que só perde o vínculo (SET NULL)
@@ -547,17 +707,29 @@ def copiar(conn, tipo: str, id_: str) -> dict:
     xp (logs da coisa e dos filhos, com os bônus de cada log)."""
     from app.bonus import REF_BONUS
 
+    ent = _ent.de(tipo)
+    filhos = _FILHOS.get(tipo) or (ent.filhos if ent else [])
+    vinculos = _VINCULOS.get(tipo) or (ent.vinculos if ent else [])
+    if ent and ent.eh_log:  # a própria linha é o registro de xp: volta como log
+        copia = {"linhas": {}, "vinculos": [], "logs": []}
+        logs = _linhas(conn, "action_logs", "id", id_)
+        return _com_logs(conn, copia, logs, REF_BONUS)
     copia = {"linhas": {TABELA[tipo]: _linhas(conn, TABELA[tipo], "id", id_)}, "vinculos": [], "logs": []}
     ids = [id_]
-    for tabela, coluna in _FILHOS.get(tipo, []):
+    for tabela, coluna in filhos:
         filhos = _linhas(conn, tabela, coluna, id_)
         copia["linhas"][tabela] = filhos
         ids += [f["id"] for f in filhos if "id" in f]
-    for tabela, coluna in _VINCULOS.get(tipo, []):
+    for tabela, coluna in vinculos:
         copia["vinculos"] += [[tabela, coluna, r["id"]] for r in
                               conn.execute(f"SELECT id FROM {tabela} WHERE {coluna} = ?", (id_,))]
     marcas = "?, " * (len(ids) - 1) + "?"
     logs = [dict(r) for r in conn.execute(f"SELECT * FROM action_logs WHERE referencia_id IN ({marcas})", ids)]
+    return _com_logs(conn, copia, logs, REF_BONUS)
+
+
+def _com_logs(conn, copia: dict, logs: list, REF_BONUS: str) -> dict:
+    """Os logs e os bônus de cada log, com os atributos que cada um creditou."""
     bonus = [dict(r) for r in conn.execute(
         f"SELECT * FROM action_logs WHERE referencia_tipo = ? AND referencia_id IN ({', '.join('?' for _ in logs) or 'NULL'})",
         (REF_BONUS, *[l["id"] for l in logs]))]
@@ -597,6 +769,9 @@ def devolver(conn, entrada: dict) -> None:
         conn.commit()
         lancamentos._credit_transaction_xp(conn, out)
         return
+    ent = _ent.de(tipo)
+    if ent and ent.devolver:  # a rota de apagar mexeu em saldo/fatura: volta pela de criar
+        return ent.devolver(conn, entrada)
     copia = entrada["copia"]
     for tabela, linhas in copia["linhas"].items():
         for linha in linhas:
@@ -628,6 +803,14 @@ def reverter(conn, entrada: dict) -> None:
     tipo, acao, id_ = entrada["tipo"], entrada["acao"], entrada["id"]
     if acao == "excluir":
         return devolver(conn, entrada)
+    if (ent := _ent.de(tipo)):
+        if acao == "alterar":
+            return ent.gravar(conn, id_, entrada["antes"], entrada["extra"])
+        if acao == "concluir":
+            return ent.despagar(conn, id_, entrada["estado"])
+        return ent.pagar(conn, id_, {})  # reabrir: paga de novo
+    if acao == "contribuir":
+        return _ent.descontribuir(conn, id_, entrada["estado"])
     if tipo == "tarefa":
         row = conn.execute("SELECT conteudo FROM notas WHERE id = ?", (id_,)).fetchone()
         linhas = row["conteudo"].split("\n")
