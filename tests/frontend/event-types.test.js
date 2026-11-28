@@ -4,7 +4,7 @@ import { typeMeta, isPendingAlertEvent, typeColor } from "../../frontend/js/comp
 
 test("typeColor devolve a cor cadastrada e cai pro accent em tipo desconhecido", () => {
   assert.equal(typeColor("divida"), typeMeta().divida.color);
-  assert.equal(typeColor("evento"), "#7fa8d9");
+  assert.equal(typeColor("evento"), "var(--cal-evento)"); // 2.1.0: token (tokens.css), personalizável
   assert.equal(typeColor("tipo-que-nao-existe"), "var(--accent)");
 });
 

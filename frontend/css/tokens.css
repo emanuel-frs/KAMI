@@ -67,6 +67,31 @@
      faint em cima, precisa de checagem à parte. */
   --text-faint: #7c7c7c;
 
+  /* 2.1.0 (personalização, components/aparencia.js): o que era preto/branco
+     fixo no CSS vira token, pra uma paleta de fundo claro funcionar.
+     --extremo: o "mais claro que tudo" do tema (realces de hover, o traço
+     da textura) — branco no escuro, preto no claro. --sombra: a sombra
+     dura de pixel dos popups/toasts. Os valores daqui são os de sempre. */
+  --extremo: #ffffff;
+  --sombra: #000000;
+  /* textura: o tile e o tamanho (components/aparencia.js); este é a scanline
+     de sempre — 1px aceso a 1,8% / 2px vazio — pra antes de o perfil chegar */
+  --kami-textura: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxJyBoZWlnaHQ9JzMnIHNoYXBlLXJlbmRlcmluZz0nY3Jpc3BFZGdlcyc+PHJlY3Qgd2lkdGg9JzEnIGhlaWdodD0nMScgZmlsbD0nI2ZmZmZmZicgZmlsbC1vcGFjaXR5PScwLjAxOCcvPjwvc3ZnPg==");
+  --kami-textura-tam: 1px 3px;
+
+  /* cor de cada tipo do calendário (components/event-types.js) — a pessoa
+     pode fixar uma cor própria em configurações › aparência › cores */
+  --cal-conta_fixa: var(--text-dim);
+  --cal-divida: var(--red);
+  --cal-assinatura: var(--amber);
+  --cal-parcela: var(--text-faint);
+  --cal-meta: var(--accent);
+  --cal-acao: var(--accent-dim);
+  --cal-evento: #7fa8d9;
+  --cal-contrato_fim: var(--red);
+  --cal-revisao_salarial: var(--amber);
+  --cal-lembrete: #c9a0dc;
+
   --font: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
 }
 

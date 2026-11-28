@@ -106,7 +106,7 @@
   cursor: pointer;
 }
 .email-item:last-child { border-bottom: none; }
-.email-item:hover { background: rgba(255, 255, 255, 0.03); }
+.email-item:hover { background: color-mix(in srgb, var(--extremo) 3%, transparent); }
 .email-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .email-dot {
   flex: 0 0 auto;
@@ -219,6 +219,9 @@
   border-color: var(--accent-dim);
   background: var(--bg-alt);
 }
+/* a ordem das abas é da pessoa: segurar e arrastar (organizacao-abas.js) */
+.tabs .tab { touch-action: pan-y; user-select: none; }
+.tab.tab--arrastando { opacity: 0.6; border-style: dashed; border-color: var(--accent); }
 
 /* ── links, agrupados por categoria ───────────────────────────────────── */
 .linkgroup { margin-bottom: 12px; }
@@ -240,7 +243,7 @@
   cursor: pointer;
 }
 .linkrow:last-child { border-bottom: none; }
-.linkrow:hover { background: rgba(255, 255, 255, 0.03); color: var(--text-bright); }
+.linkrow:hover { background: color-mix(in srgb, var(--extremo) 3%, transparent); color: var(--text-bright); }
 .favicon {
   width: 13px;
   height: 13px;

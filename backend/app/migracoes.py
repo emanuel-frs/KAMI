@@ -490,6 +490,26 @@ def _migrate_user_profile_widgets_altura_auto(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_user_profile_aparencia(conn: sqlite3.Connection) -> None:
+    """
+    2.1.0: aparência personalizável em JSON (app/aparencia.py). Fica NULL —
+    quem não tem uma usa o `tema` antigo (aparencia.do_perfil), o mesmo
+    caminho de um backup antigo importado, então não há dado a converter.
+    """
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "aparencia" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN aparencia TEXT")
+    conn.commit()
+
+
+def _migrate_user_profile_org_abas(conn: sqlite3.Connection) -> None:
+    """A ordem das abas da organização é da pessoa (arrastar ou Shift+←/→)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(user_profile)").fetchall()}
+    if "org_abas" not in cols:
+        conn.execute("ALTER TABLE user_profile ADD COLUMN org_abas TEXT")
+    conn.commit()
+
+
 def _migrate_user_profile_sequencia_protecao(conn: sqlite3.Connection) -> None:
     """
     GAM-06: dia a partir do qual a proteção de sequência vale. Nasce NULL

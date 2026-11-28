@@ -37,7 +37,7 @@
   width: min(620px, 94vw);
   border: 1px solid var(--border);
   background: var(--panel);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
   cursor: default;
 }
 
@@ -285,3 +285,26 @@
   cursor: pointer;
 }
 .ki-btn-ghost:hover { color: var(--text-dim); }
+/* 2.1.0: textura (as duas livres no nível 1) e a linha do que o nível libera */
+.ki-textura {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 11px;
+}
+.ki-textura-rot { color: var(--text-dim); margin-right: 4px; }
+.ki-textura-opcao {
+  background: var(--bg);
+  border: 1px solid var(--border-interactive);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.ki-textura-opcao:hover { border-color: var(--accent); color: var(--accent); }
+.ki-textura-opcao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ki-textura-opcao[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.ki-nivel-nota { margin: 10px 0 0; font-size: 10px; color: var(--text-faint); line-height: 1.5; }

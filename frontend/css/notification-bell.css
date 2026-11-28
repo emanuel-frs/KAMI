@@ -25,7 +25,7 @@
   align-items: center;
   justify-content: center;
   background: var(--amber);
-  color: #000;
+  color: var(--bg);
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
@@ -101,7 +101,7 @@
   cursor: pointer;
 }
 .nbell-item:last-child { margin-bottom: 0; }
-.nbell-item:hover { border-color: var(--accent-dim); background: rgba(255, 255, 255, 0.03); }
+.nbell-item:hover { border-color: var(--accent-dim); background: color-mix(in srgb, var(--extremo) 3%, transparent); }
 .nbell-item.unread { border-left-color: var(--amber); background: var(--card); }
 
 .nbell-dot {

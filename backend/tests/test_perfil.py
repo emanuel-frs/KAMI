@@ -24,12 +24,12 @@ def test_update_profile_partial_fields(client):
 
 def test_update_profile_both_fields(client):
     resp = client.put(
-        "/api/perfil", json={"display_name": "Emanuel", "accent_color": "#ff8800"}
+        "/api/perfil", json={"display_name": "Emanuel", "accent_color": "#e0c15a"}
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["display_name"] == "Emanuel"
-    assert body["accent_color"] == "#ff8800"
+    assert body["accent_color"] == "#e0c15a"
 
 
 def test_update_profile_bumps_updated_at(client):
@@ -299,3 +299,14 @@ def test_paises_com_feriados(client):
     paises = client.get("/api/perfil/paises-feriados").json()["paises"]
     assert {"BR", "US", "DE", "JP"} <= set(paises)
     assert "IN" not in paises  # sem calendário: dia útil só de segunda a sexta
+
+
+def test_ordem_das_abas_da_organizacao(client):
+    """A ordem das abas da organização é da pessoa; a que falta vai pro fim."""
+    assert client.get("/api/perfil").json()["org_abas"] is None
+    r = client.put("/api/perfil", json={"org_abas": "links,notas"})
+    assert r.status_code == 200 and r.json()["org_abas"] == "links,notas,entrada,github,email"
+    assert client.get("/api/perfil").json()["org_abas"] == "links,notas,entrada,github,email"
+    assert client.put("/api/perfil", json={"org_abas": "links,links"}).json()["chave"] == "erro.perfil.abas_invalidas"
+    assert client.put("/api/perfil", json={"org_abas": "senhas"}).json()["chave"] == "erro.perfil.abas_invalidas"
+    assert client.put("/api/perfil", json={"org_abas": ""}).json()["org_abas"] is None  # volta à padrão

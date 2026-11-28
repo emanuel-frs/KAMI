@@ -69,7 +69,7 @@
   overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
   z-index: 210; /* acima de .modal-backdrop (200), pra funcionar dentro de modais */
   display: none;
 }
@@ -86,7 +86,7 @@
   white-space: nowrap;
 }
 .csel-item:last-child { border-bottom: none; }
-.csel-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-bright); }
+.csel-item:hover { background: color-mix(in srgb, var(--extremo) 5%, transparent); color: var(--text-bright); }
 .csel-item.on { color: var(--accent); }
 .csel-item.disabled { opacity: 0.4; cursor: default; }
 

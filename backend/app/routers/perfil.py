@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field
 
 from app.business_days import paises_com_feriados
 from app.database import SOM_COLUNAS, get_db, now_iso
-from app.recompensas import TEMAS, TITULOS, nivel_jogador, nivel_minimo
+from app import aparencia as ap_mod
+from app.recompensas import TITULOS, nivel_jogador, nivel_minimo
 from app.limites import Entrada
 from app.mensagens import ErroKami
 
@@ -31,7 +32,8 @@ class ProfileOut(BaseModel):
     notif_email_enabled: bool
     efeitos_visuais: str = "completo"
     titulo: Optional[str] = None  # GAM-10: chave escolhida; None = automático
-    tema: str = "padrao"          # GAM-10
+    tema: str = "padrao"          # GAM-10 (antigo: só monta a aparência de quem não tem uma)
+    aparencia: dict = Field(default_factory=ap_mod.padrao)  # 2.1.0: app/aparencia.py
     # GAM-13: sons (ver database.SOM_COLUNAS)
     som_ativo: bool = True
     som_volume: int = 60
@@ -40,6 +42,7 @@ class ProfileOut(BaseModel):
     som_avisos: bool = True
     icone_tema: bool = False  # ICO-01
     widgets_altura_auto: bool = False  # widget sempre do tamanho do conteúdo
+    org_abas: Optional[str] = None  # ordem das abas da organização ("notas,entrada,…")
     # ORG-05: notificações do sistema (fora do app)
     notif_fora_lembretes: bool = True
     notif_fora_vencimentos: bool = True
@@ -63,13 +66,15 @@ VERSAO_OU_VAZIO = r"^(\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?)?$"
 
 class ProfileUpdate(Entrada):
     display_name: Optional[str] = None
-    accent_color: Optional[str] = None
+    accent_color: Optional[str] = Field(None, pattern=ap_mod.HEX)
     notif_alerts_enabled: Optional[bool] = None
     notif_email_enabled: Optional[bool] = None
     efeitos_visuais: Optional[str] = None
     # GAM-10: "auto" volta pro título automático (o mais alto liberado)
     titulo: Optional[str] = None
-    tema: Optional[str] = None
+    # 2.1.0: a aparência inteira (paleta, textura, avatar, calendário…); o
+    # `tema` antigo não é mais escolhido — virou capacidades (app/aparencia.py)
+    aparencia: Optional[ap_mod.AparenciaIn] = None
     # GAM-13: sons
     som_ativo: Optional[bool] = None
     som_volume: Optional[int] = Field(None, ge=0, le=100)
@@ -79,6 +84,7 @@ class ProfileUpdate(Entrada):
     # ICO-01: o ícone do app acompanha a cor de destaque (o Rust aplica)
     icone_tema: Optional[bool] = None
     widgets_altura_auto: Optional[bool] = None
+    org_abas: Optional[str] = Field(None, max_length=100)
     # ORG-05
     notif_fora_lembretes: Optional[bool] = None
     notif_fora_vencimentos: Optional[bool] = None
@@ -132,16 +138,48 @@ def _get_profile_row(db):
     return row
 
 
-def _recompensas_escolhidas(db, payload, row):
+def _perfil(row) -> dict:
+    """A linha do perfil como resposta: com a aparência já completa."""
+    dados = dict(row)
+    dados["aparencia"] = ap_mod.do_perfil(row)
+    return dados
+
+
+def _aparencia_escolhida(db, payload, row, accent_color):
     """
-    GAM-10: valida título/tema pedidos contra o catálogo e o nível atual
+    2.1.0: a aparência nova (ou a de sempre) e a conferência de nível. Só o
+    que PASSA a ser usado é conferido — o que já estava em uso continua
+    valendo mesmo que o nível tenha caído depois (mesma regra do GAM-10).
+    Devolve o JSON a gravar, ou None se nada mudou.
+    """
+    antes = ap_mod.do_perfil(row)
+    depois = ap_mod.normalizar(payload.aparencia.model_dump()) if payload.aparencia is not None else antes
+    novas = ap_mod.capacidades_usadas(depois, accent_color) - ap_mod.capacidades_usadas(antes, row["accent_color"])
+    if novas:
+        nivel = nivel_jogador(db)
+        for cap in sorted(novas):
+            minimo = ap_mod.nivel_da_capacidade(cap)
+            if nivel < minimo:
+                raise ErroKami(
+                    422,
+                    "erro.perfil.campo_valor_liberado_no_nivel",
+                    "{campo} '{valor}' é liberado no nível {minimo}",
+                    campo="aparencia",
+                    valor=cap,
+                    minimo=minimo,
+                )
+    return ap_mod.serializar(depois) if payload.aparencia is not None else None
+
+
+def _titulo_escolhido(db, payload, row):
+    """
+    GAM-10: valida o título pedido contra o catálogo e o nível atual
     (app/recompensas.py). Só o que muda é validado — uma escolha antiga
     continua valendo mesmo que o nível tenha caído depois.
     """
-    titulo, tema = row["titulo"], row["tema"]
-    nivel = None
-    for campo, valor, catalogo_ in (("titulo", payload.titulo, TITULOS), ("tema", payload.tema, TEMAS)):
-        if valor is None or (campo == "titulo" and valor == "auto"):
+    titulo = row["titulo"]
+    for campo, valor, catalogo_ in (("titulo", payload.titulo, TITULOS),):
+        if valor is None or valor == "auto":
             continue
         minimo = nivel_minimo(catalogo_, valor)
         if minimo is None:
@@ -152,8 +190,7 @@ def _recompensas_escolhidas(db, payload, row):
                 campo=campo,
                 valor=valor,
             )
-        nivel = nivel if nivel is not None else nivel_jogador(db)
-        if nivel < minimo:
+        if nivel_jogador(db) < minimo:
             raise ErroKami(
                 422,
                 "erro.perfil.campo_valor_liberado_no_nivel",
@@ -164,20 +201,30 @@ def _recompensas_escolhidas(db, payload, row):
             )
     if payload.titulo is not None:
         titulo = None if payload.titulo == "auto" else payload.titulo
-    if payload.tema is not None:
-        tema = payload.tema
-    return titulo, tema
+    return titulo
 
 
 @router.get("", response_model=ProfileOut)
 def get_profile(db=Depends(get_db)):
-    return dict(_get_profile_row(db))
+    return _perfil(_get_profile_row(db))
 
 
 @router.get("/paises-feriados")
 def get_paises_feriados():
     """I18N-06: países com calendário de feriados (o nome sai do Intl no app)."""
     return {"paises": paises_com_feriados()}
+
+
+# ids das abas da organização (frontend/js/pages/organizacao-abas.js ABAS)
+ABAS_ORGANIZACAO = ("notas", "entrada", "github", "email", "links")
+
+
+def _org_abas(valor: str):
+    """A ordem das abas: só ids conhecidos, sem repetir; "" = volta à padrão."""
+    ids = [v.strip() for v in valor.split(",") if v.strip()]
+    if any(i not in ABAS_ORGANIZACAO for i in ids) or len(ids) != len(set(ids)):
+        raise ErroKami(422, "erro.perfil.abas_invalidas", "ordem de abas inválida")
+    return ",".join(ids + [a for a in ABAS_ORGANIZACAO if a not in ids]) if ids else None
 
 
 @router.put("", response_model=ProfileOut)
@@ -199,14 +246,17 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
             "efeitos_visuais inválido; valores aceitos: {valores}",
             valores=", ".join(map(str, sorted(EFEITOS_VISUAIS))),
         )
-    titulo, tema = _recompensas_escolhidas(db, payload, row)
+    titulo = _titulo_escolhido(db, payload, row)
+    aparencia = _aparencia_escolhida(db, payload, row, accent_color)
     db.execute(
         "UPDATE user_profile SET display_name = ?, accent_color = ?, "
-        "notif_alerts_enabled = ?, notif_email_enabled = ?, efeitos_visuais = ?, titulo = ?, tema = ?, "
+        "notif_alerts_enabled = ?, notif_email_enabled = ?, efeitos_visuais = ?, titulo = ?, "
         "updated_at = ? WHERE id = ?",
-        (display_name, accent_color, notif_alerts_enabled, notif_email_enabled, efeitos_visuais, titulo, tema,
+        (display_name, accent_color.lower(), notif_alerts_enabled, notif_email_enabled, efeitos_visuais, titulo,
          now_iso(), row["id"]),
     )
+    if aparencia is not None:
+        db.execute("UPDATE user_profile SET aparencia = ? WHERE id = ?", (aparencia, row["id"]))
     # GAM-13: preferências de som — cada uma só muda se veio no payload
     for col in SOM_COLUNAS:
         value = getattr(payload, col)
@@ -218,6 +268,8 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         db.execute(
             "UPDATE user_profile SET widgets_altura_auto = ? WHERE id = ?", (int(payload.widgets_altura_auto), row["id"])
         )
+    if payload.org_abas is not None:
+        db.execute("UPDATE user_profile SET org_abas = ? WHERE id = ?", (_org_abas(payload.org_abas), row["id"]))
     for col in ("notif_fora_lembretes", "notif_fora_vencimentos", "notif_fora_eventos", "notif_ocultar_texto"):
         value = getattr(payload, col)
         if value is not None:
@@ -237,7 +289,7 @@ def update_profile(payload: ProfileUpdate, db=Depends(get_db)):
         if value is not None:
             db.execute(f"UPDATE user_profile SET {col} = ? WHERE id = ?", (value or None, row["id"]))
     db.commit()
-    return dict(_get_profile_row(db))
+    return _perfil(_get_profile_row(db))
 
 
 @router.put("/avatar", response_model=ProfileOut)
@@ -248,7 +300,7 @@ def update_avatar(payload: AvatarUpdate, db=Depends(get_db)):
         (payload.avatar_ascii, now_iso(), row["id"]),
     )
     db.commit()
-    return dict(_get_profile_row(db))
+    return _perfil(_get_profile_row(db))
 
 
 @router.put("/onboarding", response_model=ProfileOut)
@@ -266,7 +318,7 @@ def update_onboarding(payload: OnboardingUpdate, db=Depends(get_db)):
         (1 if payload.completed else 0, now_iso(), row["id"]),
     )
     db.commit()
-    return dict(_get_profile_row(db))
+    return _perfil(_get_profile_row(db))
 
 
 @router.get("/tips", response_model=ScreenTipsOut)

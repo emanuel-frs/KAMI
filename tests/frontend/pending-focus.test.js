@@ -72,7 +72,7 @@ test(
     focusRow(el, "divida");
     assert.deepEqual(el._scrolledWith, { behavior: "smooth", block: "center" });
     assert.equal(el.classList.contains("kami-focus-flash"), true);
-    assert.equal(el.style.getPropertyValue("--kami-focus-color"), "var(--red)");
+    assert.equal(el.style.getPropertyValue("--kami-focus-color"), "var(--cal-divida)");
 
     t.mock.timers.tick(2200);
     assert.equal(el.classList.contains("kami-focus-flash"), false);

@@ -24,7 +24,7 @@
   flex-direction: column;
   border: 1px solid var(--border);
   background: var(--panel);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
 }
 .paleta-entrada {
   display: flex;
