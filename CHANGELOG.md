@@ -4,7 +4,9 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.1.0] - 2026-11-27
+
+_O assistente agora alcança quase tudo no Kami, e a aparência ficou sua: cores, paletas (inclusive de fundo claro), texturas e as cores da Kami, liberadas aos poucos pelo nível._
 
 ### Novo
 - assistente: agora alcança o resto do Kami pelo mesmo cartão de aprovação — contas fixas, assinaturas, compras parceladas, dívidas, fontes de renda, transferências, conquistas personalizadas, ações do núcleo (com xp), carreira (cargos, formações, salários, interesses) e repositórios do GitHub: criar, alterar e apagar, com desfazer
