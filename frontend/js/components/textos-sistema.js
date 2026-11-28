@@ -4,7 +4,7 @@ import { fmtDataCurta } from "./format.js";
 /**
  * components/textos-sistema.js — o que o backend cria em português e o app
  * mostra no idioma da pessoa (I18N): conquistas do catálogo, missões,
- * títulos e temas das recompensas, registro de atividade e descrição dos
+ * títulos e capacidades das recompensas, registro de atividade e descrição dos
  * lançamentos que o sistema cria (backend/app/mensagens.py::Texto).
  *
  * O backend manda o texto em português (a reserva) e uma chave estável; aqui
@@ -38,9 +38,8 @@ export function tituloMissao(m) {
 /** Título de recompensa (GAM-10) pela chave; `rotulo` é o português do backend. */
 export const rotuloTitulo = (chave, rotulo) => tOu(chave && `recompensa.titulo.${chave}`, rotulo);
 
-export const rotuloTema = (chave, rotulo) => tOu(chave && `recompensa.tema.${chave}`, rotulo);
-
-export const descricaoTema = (chave, desc) => tOu(chave && `recompensa.tema.${chave}.desc`, desc);
+/** Capacidade da aparência liberada pelo nível (2.1.0, backend/app/aparencia.py::CAPACIDADES). */
+export const rotuloCapacidade = (chave, rotulo) => tOu(chave && `recompensa.cap.${chave}`, rotulo);
 
 // variáveis que o backend grava já no jeito do português e que mudam de
 // forma conforme o idioma — o resto (nomes que a pessoa deu) passa intacto

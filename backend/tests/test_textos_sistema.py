@@ -1,6 +1,6 @@
 """
 I18N: textos que o backend cria e o frontend traduz pela chave —
-conquistas do seed, missões, títulos e temas das recompensas. O português
+conquistas do seed, missões, títulos e capacidades da aparência. O português
 mora nos dois lados (aqui, como reserva pra quem usa a API direto; no
 frontend/i18n/pt.json, como fonte das traduções); este teste garante que
 não se desencontram — mudar um texto aqui sem mudar lá (e nos outros 9
@@ -11,7 +11,8 @@ from pathlib import Path
 
 from app.achievements import ACHIEVEMENT_SEED
 from app.missoes import DIARIAS, SEMANAIS, nome_da_missao
-from app.recompensas import TEMAS, TITULOS
+from app.aparencia import CAPACIDADES
+from app.recompensas import TITULOS
 from app.routers.nucleo import CLASS_BY_ATTRIBUTE, POLYMATH_CLASS, SECRET_DESCRIPTION, SECRET_TITLE
 from app.widgets import WIDGET_CATALOG
 
@@ -40,11 +41,7 @@ def test_missoes():
 
 def test_recompensas():
     _confere((f"recompensa.titulo.{chave}", rotulo) for _, chave, rotulo in TITULOS)
-    _confere(
-        par
-        for _, chave, rotulo, desc in TEMAS
-        for par in ((f"recompensa.tema.{chave}", rotulo), (f"recompensa.tema.{chave}.desc", desc))
-    )
+    _confere((f"recompensa.cap.{chave}", rotulo) for _, chave, rotulo in CAPACIDADES)
 
 
 def test_nome_da_missao():

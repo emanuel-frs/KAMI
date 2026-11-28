@@ -36,7 +36,7 @@ PADROES = {
 # P-113: o que o assistente pode ler, por área (ferramentas.py liga cada
 # ferramenta a uma área). Tudo ligado menos as NOTAS — o dado mais pessoal
 # do app; a pessoa liga se quiser. Nota trancada nunca, nem com a área ligada.
-AREAS = ("financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas")
+AREAS = ("financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas", "carreira")
 PERMISSOES_PADRAO = {a: a != "notas" for a in AREAS}
 
 

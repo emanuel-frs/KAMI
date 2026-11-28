@@ -46,7 +46,7 @@ from pydantic import ValidationError
 
 from app import backup_auto
 from app.actions import revert_actions
-from app.assistente import edicao
+from app.assistente import edicao, entidades
 from app.assistente.tipos import Ferramenta
 from app.database import local_now, new_id, now_iso
 from app.mensagens import ErroKami
@@ -55,10 +55,11 @@ NOME = "propose_actions"
 ITENS_MAX = 50
 MARCOS_MAX = 20
 TEXTO_TAREFA_MAX = 500
-TIPOS = ("nota", "tarefa", "lembrete", "evento", "habito", "lancamento", "meta", "trilha", "marco", "link")
+TIPOS = ("nota", "tarefa", "lembrete", "evento", "habito", "lancamento", "meta", "trilha", "marco", "link",
+         *entidades.TIPOS)
 _TIPO_DO_MODELO = {"note": "nota", "task": "tarefa", "reminder": "lembrete", "event": "evento", "habit": "habito",
                    "expense": "lancamento", "income": "lancamento", "goal": "meta", "learning_plan": "trilha",
-                   "track": "trilha", "milestone": "marco", "link": "link"}
+                   "track": "trilha", "milestone": "marco", "link": "link", **entidades.MODELOS}
 _REPETE = ("none", "daily", "weekdays", "weekly", "monthly", "yearly")
 # P-137: acadêmica depende de uma formação cadastrada; aprendizado vem pelo plano
 METAS = ("livre", "financeira", "saude", "leitura", "habito")
@@ -89,10 +90,11 @@ ESTADOS = ("pendente", "aplicada", "descartada", "desfeita")
 # contexto e a resposta saía cortada (teste de 2026-11 com o qwen3.5:4b).
 # Lá vai a descrição curta e só os campos que mais confundem descritos.
 _DESCRITOS_NO_LOCAL = {"action", "ref", "title", "content", "date", "repeat", "weekdays", "track_ref", "milestone_order",
-                       "new_title", "status"}
+                       "new_title", "status", "day", "business_day"}
 _DESCRICAO_LOCAL = (
-    "Propose creating or changing things in Kami (notes, tasks, reminders, events, habits, expenses/income, goals, "
-    "learning plans, tracks, milestones, links). Nothing is saved: the person reviews a card. To change something that "
+    "Propose creating or changing things in Kami (notes, tasks, reminders, events, habits, expenses/income, fixed "
+    "bills, subscriptions, installments, debts, income sources, transfers, goals, learning plans, tracks, milestones, "
+    "links, achievements, career, GitHub repos). complete = mark done or paid/received. Nothing is saved: the person reviews a card. To change something that "
     "exists set `action` and `ref` (its exact current name or ref). All items in ONE call.")
 
 
@@ -123,14 +125,18 @@ def _ferramenta(atributos: list[str]) -> Ferramenta:
     return Ferramenta(
         NOME,
         "Propose changes in Kami: CREATE, UPDATE, DELETE, COMPLETE/REOPEN or REORDER notes, to-do tasks, reminders, "
-        "calendar events, habits, money entries (expense/income — one item per line of a pasted statement), goals, "
-        "learning plans, tracks and milestones, and saved links. NOTHING is saved by this call: Kami shows the items "
+        "calendar events, habits, money entries (expense/income — one item per line of a pasted statement), recurring "
+        "money (fixed bills, subscriptions, installment purchases, debts, income sources), transfers, goals (and "
+        "contributions to them), learning plans, tracks and milestones, saved links, custom achievements, core actions, "
+        "career (positions, education, salaries, interests) and GitHub repositories. NOTHING is saved by this call: Kami shows the items "
         "to the person as a preview card, and they edit, choose, apply and can undo them. Use it only when the person "
         "asks you to create, change, organize or remove something (including sorting their inbox). To change "
         "something that exists, pass its `ref` (from a read tool) or its exact current name; for `update` send only "
         "the fields that change. Examples: 'rename my Java track' → {type: track, action: update, ref, title}; 'I finished "
         "module X' → {type: milestone, action: complete, ref}; 'delete the gym reminder' → {type: reminder, action: "
-        "delete, ref}; 'save this link' → {type: link, title, url, category}. Send all items of the request in ONE "
+        "delete, ref}; 'save this link' → {type: link, title, url, category}; 'rent is 1500 every 5th' → {type: "
+        "fixed_bill, title, amount, day}; 'I paid the rent' → {type: fixed_bill, action: complete, ref}; 'put 200 in "
+        "the trip goal' → {type: goal, action: contribute, ref, amount}. Send all items of the request in ONE "
         "call (max 50).",
         {
             "type": "object",
@@ -162,9 +168,10 @@ def _ferramenta(atributos: list[str]) -> Ferramenta:
                                                      "new title, only if it changes."},
                             "new_title": {"type": "string", "description": "task update: the new text."},
                             "url": {"type": "string", "description": "link: the address (https://…)."},
-                            "status": {"type": "string", "enum": ["active", "paused", "stopped", "archived"],
-                                       "description": "update of a track (active/paused/stopped) or habit "
-                                                      "(active/paused/archived)."},
+                            "status": {"type": "string",
+                                       "enum": ["active", "paused", "stopped", "archived", "in_progress", "done"],
+                                       "description": "track (active/paused/stopped), habit (active/paused/archived) "
+                                                      "or education (in_progress/done/paused)."},
                             "track_ref": {"type": "string",
                                           "description": "milestone create: the existing track it goes into (`ref` or name)."},
                             "milestone_order": {"type": "array", "items": {"type": "string"},
@@ -174,8 +181,12 @@ def _ferramenta(atributos: list[str]) -> Ferramenta:
                                                        "the overall objective."},
                             "tags": {"type": "array", "items": {"type": "string"}, "description": "note only."},
                             "date": {"type": "string",
-                                     "description": "YYYY-MM-DD. reminder, event, expense/income: required."},
+                                     "description": "YYYY-MM-DD. reminder, event, expense/income, transfer, salary "
+                                                    "record, career position start: required. once-off income: its day."},
                             "time": {"type": "string", "description": "HH:MM, 24h. reminder: default 09:00; event: optional."},
+                            "repeat_until": {"type": "string", "description": "event that repeats: last day, YYYY-MM-DD."},
+                            "remind_minutes_before": {"type": "integer", "minimum": 0,
+                                                      "description": "event: notify this many minutes before."},
                             "repeat": {"type": "string", "enum": list(_REPETE),
                                        "description": "reminder/event/habit. weekdays = on the days in `weekdays`; "
                                                       "habit weekly = `times_per_week` on any days."},
@@ -183,8 +194,50 @@ def _ferramenta(atributos: list[str]) -> Ferramenta:
                                          "description": "0 = Monday … 6 = Sunday."},
                             "times_per_week": {"type": "integer", "minimum": 1, "maximum": 7},
                             "attribute": {"type": "string", "enum": atributos,
-                                          "description": "habit: the attribute that earns its xp."},
-                            "amount": {"type": "number", "description": "expense/income: positive value."},
+                                          "description": "habit: the attribute that earns its xp; also core action and "
+                                                         "custom achievement area."},
+                            "amount": {"type": "number",
+                                       "description": "Money, positive: expense/income, fixed bill, subscription, debt, "
+                                                      "income source, installment purchase TOTAL, salary, transfer, a "
+                                                      "goal contribution, or the amount actually paid when completing."},
+                            "account": {"type": "string",
+                                        "description": "Name of the person's account for this item (fixed bill, "
+                                                       "subscription, income source, installment card, transfer origin, "
+                                                       "contribution, paying a debt)."},
+                            "payment": {"type": "string", "enum": ["balance", "credit"],
+                                        "description": "paying from an account with balance AND credit."},
+                            "day": {"type": "integer", "minimum": 1, "maximum": 31,
+                                    "description": "fixed bill due day, subscription billing day, income source pay day."},
+                            "active": {"type": "boolean"},
+                            "installments": {"type": "integer", "minimum": 1, "description": "installment purchase."},
+                            "first_month": {"type": "string", "description": "installment purchase: YYYY-MM of the 1st one."},
+                            "counterparty": {"type": "string", "description": "debt: who it is owed to."},
+                            "frequency": {"type": "string", "enum": ["monthly", "biweekly", "weekly", "once"],
+                                          "description": "income source."},
+                            "pay_day_kind": {"type": "string", "enum": ["fixed_day", "business_day"],
+                                             "description": "income source: on `day` or on the Nth business day."},
+                            "business_day": {"type": "integer", "minimum": 1,
+                                             "description": "income source paid on the Nth business day."},
+                            "role": {"type": "string", "description": "career position: job title."},
+                            "company": {"type": "string"},
+                            "area": {"type": "string", "description": "career position area."},
+                            "employment_type": {"type": "string", "description": "e.g. full-time, contractor, intern."},
+                            "end_date": {"type": "string", "description": "career position end, YYYY-MM-DD."},
+                            "contract_end": {"type": "string"},
+                            "salary_review": {"type": "string"},
+                            "institution": {"type": "string", "description": "education."},
+                            "level": {"type": "string",
+                                      "enum": ["certificate", "technical", "bachelor", "postgraduate", "master", "doctorate"]},
+                            "currency": {"type": "string", "description": "salary record, e.g. BRL."},
+                            "count": {"type": "integer", "minimum": 1,
+                                      "description": "custom achievement: how many actions unlock it."},
+                            "keyword": {"type": "string", "description": "custom achievement: only actions with this word."},
+                            "xp": {"type": "integer", "minimum": 1, "maximum": 50, "description": "core action xp."},
+                            "impact": {"type": "integer", "minimum": 1, "maximum": 5},
+                            "to_account": {"type": "string", "description": "transfer: destination account name."},
+                            "to_external": {"type": "string", "description": "transfer to someone outside Kami."},
+                            "source": {"type": "string", "enum": ["account", "external"],
+                                       "description": "goal contribution: from an account or from outside."},
                             "category": {"type": "string",
                                          "description": "expense/income: reuse one of the person's categories when it "
                                                         "fits. link: its category (reuse an existing one)."},
@@ -196,7 +249,8 @@ def _ferramenta(atributos: list[str]) -> Ferramenta:
                             "goal_type": {"type": "string", "enum": list(METAS)},
                             "target": {"type": "number", "description": "goal: the target value (money for financeira)."},
                             "unit_label": {"type": "string", "description": "goal: unit for non-money goals (kg, pages…)."},
-                            "deadline": {"type": "string", "description": "goal: optional YYYY-MM-DD."},
+                            "deadline": {"type": "string",
+                                         "description": "YYYY-MM-DD: goal deadline, debt due date, education expected end."},
                             "milestones": {
                                 "type": "array", "maxItems": MARCOS_MAX,
                                 "description": "learning_plan: the steps, in order, each with an optional target date.",
@@ -249,6 +303,19 @@ def _dias(v) -> list[int]:
     return sorted({int(d) for d in v if isinstance(d, (int, float)) and not isinstance(d, bool) and 0 <= d <= 6})
 
 
+def aviso_min(v):
+    """Minutos de aviso antes do evento: inteiro >= 0, ou "" (sem aviso). Nos
+    dados do cartão o aviso vai como texto ("" ou "30"): o campo da tela
+    devolve texto e a edição da pessoa precisa ter o mesmo tipo."""
+    if isinstance(v, bool) or v in (None, ""):
+        return ""
+    try:
+        n = int(float(str(v).replace(",", ".")))
+    except ValueError:
+        return ""
+    return n if 0 <= n <= 60 * 24 * 30 else ""
+
+
 def _data_ou_vazio(v) -> str:
     return v if isinstance(v, str) and _DATA.match(v) else ""
 
@@ -277,7 +344,8 @@ def _dados(tipo: str, a: dict) -> dict:
     if tipo == "evento":
         recorrencia = {"daily": "daily", "weekdays": "weekly", "weekly": "weekly", "monthly": "monthly", "yearly": "yearly"}.get(repete, "none")
         notas = a.get("content") if isinstance(a.get("content"), str) else ""
-        return {"titulo": titulo, "data": data, "hora": hora, "notas": notas[:2000], "repeticao": recorrencia}
+        return {"titulo": titulo, "data": data, "hora": hora, "notas": notas[:2000], "repeticao": recorrencia,
+                "ate": _data_ou_vazio(a.get("repeat_until")), "aviso": str(aviso_min(a.get("remind_minutes_before")))}
     if tipo == "lancamento":
         return {"descricao": titulo, "valor": round(abs(_num(a.get("amount"))), 2),
                 "tipo": "entrada" if a.get("type") == "income" else "saida",
@@ -338,7 +406,9 @@ def _modelo(tipo: str, d: dict, ctx: dict | None = None):
                                     repeticao=d["repeticao"], dias_semana=d["dias_semana"])
     if tipo == "evento":
         return calendario.EventoIn(title=d["titulo"], date=d["data"], time=d["hora"] or None,
-                                   notes=d["notas"] or None, recurrence=d["repeticao"])
+                                   notes=d["notas"] or None, recurrence=d["repeticao"],
+                                   recurrence_end=(d.get("ate") or None) if d["repeticao"] != "none" else None,
+                                   reminder_minutes_before=None if aviso_min(d.get("aviso")) == "" else aviso_min(d.get("aviso")))
     if tipo == "habito":
         return habitos.HabitoIn(nome=d["nome"], frequencia=d["frequencia"], dias_semana=d["dias_semana"],
                                 vezes_semana=d["vezes_semana"], atributo=d["atributo"])
@@ -418,6 +488,9 @@ def _conferir_item(conn, tipo: str, d: dict, ctx: dict) -> None:
     """Levanta ErroKami com a chave do problema (a mesma que a tela mostraria)."""
     from app.routers import calendario, habitos, lembretes
 
+    if (ent := entidades.de(tipo)):
+        entidades.conferir_campos(conn, ent.campos, d)
+        return ent.conferir(conn, d)
     if tipo == "tarefa":
         if not d["texto"].strip():
             raise ErroKami(422, "erro.assistente.acao_vazia", "item vazio")
@@ -502,6 +575,35 @@ def _conta_sugerida(lista: list[dict], nome) -> str:
     return (com_saldo or lista or [{"id": ""}])[0]["id"]
 
 
+# o tipo do Kami → o nome que o modelo usa (o primeiro de cada um)
+_MODELO_DO_TIPO = {}
+for _m, _t in _TIPO_DO_MODELO.items():
+    _MODELO_DO_TIPO.setdefault(_t, _m)
+_STATUS_CONCLUI = {"concluido", "concluído", "done", "completed", "complete", "finished", "paid", "pago", "paga"}
+_STATUS_REABRE = {"pendente", "pending", "open", "aberta", "reopened", "unpaid"}
+
+
+def _completar(conn, a: dict) -> dict:
+    """O sistema completa o que o modelo pequeno esquece (2.1.0, teste com o
+    qwen3.5:4b): `type` ausente com um `ref` que só existe num tipo, e
+    `status` de concluído/aberto no lugar de `action` complete/reopen."""
+    a = dict(a)
+    if a.get("type") not in _TIPO_DO_MODELO and a.get("ref"):
+        tipos = edicao.tipos_do_ref(conn, a["ref"])
+        if len(tipos) == 1:
+            a["type"] = _MODELO_DO_TIPO[tipos[0]]
+    if not a.get("action") and a.get("ref"):
+        st = str(a.get("status") or "").strip().lower()
+        tipo = _TIPO_DO_MODELO.get(a.get("type"))
+        if st in _STATUS_CONCLUI and tipo not in ("trilha", "habito"):
+            a["action"] = "complete"
+        elif st in _STATUS_REABRE and tipo not in ("trilha", "habito"):
+            a["action"] = "reopen"
+        else:
+            a["action"] = "update"  # tem ref: é algo que já existe
+    return a
+
+
 def propor(conn, args: dict) -> dict:
     """A proposta pronta pro cartão: {"itens", e, com lançamento ou meta
     financeira, "contas", "conta_id", "forma"}. ValueError (texto em
@@ -510,7 +612,8 @@ def propor(conn, args: dict) -> dict:
     # IA-07a: modelo pequeno às vezes manda UM item solto, sem a lista
     # ({"type": "note", "title": …}) e repete o erro até acabar as rodadas —
     # um item solto vale como lista de um
-    if brutos is None and isinstance(args, dict) and args.get("type") and (args.get("title") or args.get("content")):
+    if brutos is None and isinstance(args, dict) and (args.get("type") or args.get("ref")) and (
+            args.get("title") or args.get("content") or args.get("ref")):
         brutos = [{k: v for k, v in args.items() if k != "items"}]
     if isinstance(brutos, str):  # a lista veio como texto JSON
         try:
@@ -519,8 +622,15 @@ def propor(conn, args: dict) -> dict:
             brutos = None
     if not isinstance(brutos, list) or not brutos:
         raise ValueError('items must be a non-empty list, e.g. {"items": [{"type": "note", "title": "...", "content": "..."}]}')
+    # qwen3.5:4b (2026-11): o `ref` veio no topo da chamada, fora do único item
+    if isinstance(args, dict) and args.get("ref") and len(brutos) == 1 and isinstance(brutos[0], dict) \
+            and not brutos[0].get("ref"):
+        brutos = [{**brutos[0], "ref": args["ref"]}]
     itens, refs = [], set()
+    lista_contas = None
     for a in brutos:
+        if isinstance(a, dict):
+            a = _completar(conn, a)
         if not isinstance(a, dict) or a.get("type") not in _TIPO_DO_MODELO:
             raise ValueError(f"each item needs a type: {', '.join(_TIPO_DO_MODELO)}")
         tipo = _TIPO_DO_MODELO[a["type"]]
@@ -529,6 +639,14 @@ def propor(conn, args: dict) -> dict:
             raise ValueError(f"action must be one of: {', '.join(edicao.ACOES)}")
         if acao != "criar":
             itens.append(edicao.item(conn, tipo, acao, a))
+            continue
+        if (ent := entidades.de(tipo)):
+            if lista_contas is None:
+                lista_contas = contas(conn)
+            dados = entidades.dados_novos(ent.campos, a, lista_contas)
+            if tipo == "transferencia" and not dados["data"]:
+                dados["data"] = local_now().date().isoformat()
+            itens.append({"tipo": tipo, "dados": dados, "campos": entidades.campos_ui(ent.campos), "entrada": None})
             continue
         if a["type"] in ("learning_plan", "track"):
             itens += _plano(a, len(itens))
@@ -563,7 +681,8 @@ def propor(conn, args: dict) -> dict:
         raise ValueError(f"at most {ITENS_MAX} items per proposal (a learning plan counts its track, milestones and goal)")
     proposta = {"itens": itens}
     if any(_acao(i) == "criar" and (i["tipo"] == "lancamento" or (i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira"))
-           or (_acao(i) == "alterar" and i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira") for i in itens):
+           or (_acao(i) == "alterar" and i["tipo"] == "meta" and i["dados"]["tipo"] == "financeira")
+           or any(c["tipo"] == "conta" for c in i.get("campos") or []) for i in itens):
         lista = contas(conn)
         proposta["contas"] = lista
         proposta["conta_id"] = _conta_sugerida(lista, args.get("account"))
@@ -612,6 +731,9 @@ def estado_pro_modelo(proposta: dict) -> str:
 def _retrato(conn, tipo: str, id_: str) -> dict | None:
     if tipo == "tarefa":
         return None
+    if (ent := entidades.de(tipo)):
+        row = conn.execute(f"SELECT * FROM {ent.tabela} WHERE id = ?", (id_,)).fetchone()
+        return None if row is None else ent.ler(row)
     cols = _RETRATO[tipo]
     row = conn.execute(f"SELECT {', '.join(cols)} FROM {_TABELA[tipo]} WHERE id = ?", (id_,)).fetchone()
     if row is None:
@@ -634,6 +756,10 @@ def _criar(conn, item: dict, ctx: dict) -> list[dict]:
     from app.routers import aprendizado, calendario, entrada, habitos, lembretes, metas, notas
 
     tipo, d = item["tipo"], item["dados"]
+    if (ent := entidades.de(tipo)):
+        id_ = ent.criar(conn, d)
+        titulo = next((v for v in d.values() if isinstance(v, str) and v), "")
+        return [{"tipo": tipo, "id": id_, "titulo": titulo, "retrato": _retrato(conn, tipo, id_)}]
     if tipo == "tarefa":
         nota_id, criada = entrada.adicionar_tarefa(conn, d["texto"])
         if criada:
@@ -719,7 +845,7 @@ def _escolhidos(proposta: dict, escolhas: list[dict]) -> list[tuple[int, dict]]:
             raise ErroKami(422, "erro.assistente.depende_da_trilha", "marque a trilha do plano junto", indice=i)
     # a meta do plano conta os marcos que vão (alvo = nº de marcos)
     for i, item in escolhidos:
-        if item["tipo"] == "meta" and item["dados"]["tipo"] == "aprendizado":
+        if item["tipo"] == "meta" and item["dados"].get("tipo") == "aprendizado":
             n = sum(1 for _, x in escolhidos if x["tipo"] == "marco" and x.get("depende") == item.get("depende"))
             if not n:
                 raise ErroKami(422, "erro.assistente.plano_sem_marcos", "a meta do plano precisa de pelo menos um marco", indice=i)
@@ -858,6 +984,8 @@ def _apagar(conn, item: dict) -> None:
     from app.routers.financas import lancamentos
 
     tipo, id_ = item["tipo"], item["id"]
+    if (ent := entidades.de(tipo)):
+        return ent.apagar(conn, id_)
     if tipo == "tarefa":
         row = conn.execute("SELECT conteudo FROM notas WHERE id = ?", (id_,)).fetchone()
         k, _ = _linha_da_tarefa(row["conteudo"], item["linha"])

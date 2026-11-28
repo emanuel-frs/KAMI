@@ -8,8 +8,7 @@ import { readFileSync } from "node:fs";
 import { usarDicionarios, tOu } from "../../frontend/js/i18n.js";
 import {
   descricaoConquista,
-  descricaoTema,
-  rotuloTema,
+  rotuloCapacidade,
   rotuloTitulo,
   textoDoRegistro,
   tituloConquista,
@@ -60,11 +59,11 @@ test("missão: diária com o nome da pessoa intacto, semanal pela chave", () => 
   assert.equal(tituloMissao({ tipo: "meta", titulo: "x" }), "x");
 });
 
-test("títulos e temas das recompensas", () => {
+test("títulos e capacidades das recompensas", () => {
   usarDicionarios("ja", dic("ja"), PT);
   assert.equal(rotuloTitulo("mestre", "mestre do terminal"), "ターミナルの達人");
-  assert.equal(rotuloTema("ambar", "âmbar clássico"), "クラシックアンバー");
-  assert.ok(descricaoTema("crt", "x").includes("ブラウン管"));
+  assert.equal(rotuloCapacidade("paleta_ambar", "paleta âmbar clássico"), "クラシックアンバーのパレット");
+  assert.equal(rotuloCapacidade("chave_do_futuro", "algo novo"), "algo novo");
   assert.equal(rotuloTitulo(undefined, "iniciante"), "iniciante");
 });
 

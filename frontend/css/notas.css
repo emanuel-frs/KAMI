@@ -53,7 +53,7 @@
   border-left: 2px solid var(--nota-cor, transparent);
   cursor: pointer;
 }
-.nota-item:hover { background: rgba(255, 255, 255, 0.03); }
+.nota-item:hover { background: color-mix(in srgb, var(--extremo) 3%, transparent); }
 .nota-item.on { background: color-mix(in srgb, var(--accent) 7%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
 .nota-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .nota-item-topo { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
@@ -216,7 +216,7 @@
   padding: 7px;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 3px 3px 0 var(--sombra);
 }
 .nota-cores[hidden] { display: none; }
 .nota-cor-opcao {
@@ -305,7 +305,7 @@
   padding: 3px;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 3px 3px 0 var(--sombra);
 }
 .ne-bolha[hidden] { display: none; }
 
@@ -367,7 +367,7 @@
 .ne-area pre {
   margin: 0 0 0.7em;
   padding: 10px 12px;
-  background: #000;
+  background: var(--bg);
   border: 1px solid var(--border-soft);
   overflow-x: auto;
   white-space: pre;
@@ -402,7 +402,7 @@
   cursor: pointer;
   min-width: 0;
 }
-.nr-item:hover { background: rgba(255, 255, 255, 0.03); }
+.nr-item:hover { background: color-mix(in srgb, var(--extremo) 3%, transparent); }
 .nr-titulo { font-size: 11px; color: var(--nota-cor, var(--text-bright)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nr-previa { font-size: 9.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nr-previa:empty { display: none; }

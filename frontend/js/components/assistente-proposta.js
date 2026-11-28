@@ -83,7 +83,67 @@ function campoValor(i, campo, rotulo, valor, travado) {
 }
 
 function msgErro(chave, vars) {
-  return tOu(chave, t("assistente.proposta.problema"), varsLegiveis(vars));
+  // "falta preencher: {campo}" — o campo vem pela chave interna; aqui vira o rótulo
+  const v = vars?.campo ? { ...vars, campo: rotuloCampo({ chave: vars.campo }) } : vars;
+  return tOu(chave, t("assistente.proposta.problema"), varsLegiveis(v));
+}
+
+// ── 2.1.0: campos descritos pelo backend (entidades.py) ──────────────────
+// item.campos = [{chave, tipo, opcoes?, rotulo?}] — o mesmo desenho pra
+// contas fixas, assinaturas, renda, carreira, conquistas, transferências…
+
+const rotuloCampo = (c) => tOu(`assistente.proposta.campo.${c.rotulo || c.chave}`, c.rotulo || c.chave);
+const rotuloOpcao = (c, v) => (v === "" ? "—" : tOu(`assistente.proposta.opcao.${c.chave}.${v}`, v));
+const SIM_NAO = () => [["true", t("assistente.proposta.sim")], ["false", t("assistente.proposta.nao")]];
+const comTipo = (html, chave, tipo) => html.replace(`data-campo="${chave}"`, `data-campo="${chave}" data-tipo="${tipo}"`);
+
+function camposGenericos(p, item, i, travado) {
+  const d = item.dados;
+  return item.campos.filter((c) => valeCampo(c, d)).map((c, k) => {
+    const r = rotuloCampo(c);
+    const v = d[c.chave];
+    let html;
+    if (c.tipo === "valor") html = campoValor(i, c.chave, r, v, travado);
+    else if (c.tipo === "inteiro" || c.tipo === "dia") html = campoTipo(i, c.chave, r, "number", v ? String(v) : "", travado);
+    else if (c.tipo === "data") html = campoTipo(i, c.chave, r, "date", v, travado);
+    // AAAA-MM em texto: o seletor de mês nativo não existe no WebKitGTK e sai fora do visual no Chromium
+    else if (c.tipo === "mes") html = campoTipo(i, c.chave, r, "text", v, travado).replace("<input ", '<input placeholder="AAAA-MM" maxlength="7" ');
+    else if (c.tipo === "escolha") html = campoEscolha(i, c.chave, r, c.opcoes.map((o) => [o, rotuloOpcao(c, o)]), v, travado);
+    else if (c.tipo === "sim_nao") html = campoEscolha(i, c.chave, r, SIM_NAO(), String(v !== false), travado);
+    else if (c.tipo === "conta") {
+      html = campoEscolha(i, c.chave, r, [["", "—"], ...(p.contas || []).map((x) => [x.id, nomeConta(x)])], v || "", travado);
+    } else if (c.tipo === "atributo") {
+      html = campoEscolha(i, c.chave, r, [["", "—"], ...ATRIBUTOS.map((a) => [a, nomeAtributo(a)])], v || "", travado);
+    } else {
+      html = campoTexto(i, c.chave, r, v, { max: 200, area: c.tipo === "area", travado });
+      if (k > 0 && c.tipo === "texto") html = html.replace("ia-prop-campo--largo", "");
+    }
+    return comTipo(html, c.chave, c.tipo);
+  }).join("");
+}
+
+// campo que depende de outro (renda: o dia só vale com "dia fixo") some quando não se aplica
+const valeCampo = (c, d) => !c.quando || Object.entries(c.quando).every(([k, vs]) => vs.includes(d[k]));
+
+/** Os campos do backend, formatados como nas telas: [principal, detalhes...]. */
+function resumoGenerico(p, campos, d) {
+  const fmt = (c) => {
+    const v = d[c.chave];
+    if (v === "" || v == null || (["inteiro", "valor", "dia"].includes(c.tipo) && !v)) return "";
+    if (c.tipo === "valor") return fmtMoeda(v);
+    if (c.tipo === "data") return fmtData(v);
+    if (c.tipo === "dia") return t("assistente.proposta.dia_n", { n: v });
+    if (c.tipo === "escolha") return rotuloOpcao(c, v);
+    if (c.tipo === "sim_nao") return v === false ? t("assistente.proposta.inativa") : "";
+    if (c.tipo === "conta") { const x = (p.contas || []).find((y) => y.id === v); return x ? nomeConta(x) : ""; }
+    if (c.tipo === "atributo") return nomeAtributo(v);
+    if (c.tipo === "inteiro") return `${rotuloCampo(c)}: ${v}`;
+    return String(v);
+  };
+  const partes = campos.filter((c) => valeCampo(c, d)).map(fmt);
+  // sem o primeiro (transferência sem descrição): o primeiro que houver vira o principal
+  const k = partes.findIndex(Boolean);
+  return k > 0 ? [partes[k], ...partes.slice(0, k), ...partes.slice(k + 1)] : partes;
 }
 
 // ── campos de cada tipo ──────────────────────────────────────────────────
@@ -120,6 +180,7 @@ function campoDias(i, dias, travado) {
 }
 
 function campos(p, item, i, travado) {
+  if (item.campos) return camposGenericos(p, item, i, travado);
   const d = item.dados;
   if (item.tipo === "lancamento") {
     return campoTexto(i, "descricao", t("transacao.descricao"), d.descricao, { travado })
@@ -173,6 +234,8 @@ function campos(p, item, i, travado) {
       + campoTipo(i, "data", t("assistente.proposta.campo.data"), "date", d.data, travado)
       + campoTipo(i, "hora", t("assistente.proposta.campo.hora"), "time", d.hora, travado)
       + campoEscolha(i, "repeticao", t("assistente.proposta.campo.repete"), REPETE_EVENTO(), d.repeticao, travado)
+      + (d.repeticao && d.repeticao !== "none" && d.ate !== undefined ? campoTipo(i, "ate", t("assistente.proposta.campo.ate"), "date", d.ate, travado) : "")
+      + (d.aviso !== undefined ? campoTipo(i, "aviso", t("assistente.proposta.campo.aviso"), "number", d.aviso === "" ? "" : String(d.aviso), travado) : "")
       + (d.notas ? campoTexto(i, "notas", t("assistente.proposta.campo.texto"), d.notas, { max: 2000, area: true, travado }) : "");
   }
   // hábito
@@ -197,7 +260,11 @@ function rotuloDe(opcoes, valor) {
 
 /** [principal, detalhes...] do item, no formato das telas. `d` = o depois
  *  (ou o antes, pra linha "antes:" de uma edição). */
-function resumo(item, d = item.dados) {
+function resumo(item, d = item.dados, p = null) {
+  // campos do backend: os do "depois" (criar/alterar) ou os da coisa (pagar, apagar…)
+  const lista = d === item.dados ? item.campos || item.campos_antes
+    : item.campos_antes || (item.acao === "alterar" ? item.campos : null);
+  if (lista) return resumoGenerico(p, lista, d);
   if (item.tipo === "tarefa") {
     return item.acao ? [d.texto, t(d.feita ? "assistente.proposta.tarefa_feita" : "assistente.proposta.tarefa_aberta")] : [d.texto];
   }
@@ -210,7 +277,11 @@ function resumo(item, d = item.dados) {
     const rep = d.repeticao === "dias" ? d.dias_semana.map((k) => diasCurtos()[k]).join(", ") : rotuloDe(REPETE_LEMBRETE(), d.repeticao);
     return [d.titulo, quando(d.data, d.hora), rep];
   }
-  if (item.tipo === "evento") return [d.titulo, quando(d.data, d.hora), rotuloDe(REPETE_EVENTO(), d.repeticao)];
+  if (item.tipo === "evento") {
+    return [d.titulo, quando(d.data, d.hora), rotuloDe(REPETE_EVENTO(), d.repeticao),
+      d.ate && d.repeticao !== "none" ? t("assistente.proposta.ate_dia", { data: fmtData(d.ate) }) : "",
+      d.aviso !== "" && d.aviso != null ? t("assistente.proposta.aviso_min", { n: d.aviso }) : ""];
+  }
   if (item.tipo === "lancamento") {
     const sinal = d.tipo === "entrada" ? "+" : "−";
     return [d.descricao, `${sinal} ${fmtMoeda(d.valor)}`, d.categoria, quando(d.data)];
@@ -226,26 +297,43 @@ function resumo(item, d = item.dados) {
 }
 
 /** "alterar · trilha" (item que cria não tem `acao`: fica só o tipo, como antes). */
+// concluir/reabrir de dinheiro diz o que é: pagar, receber, desmarcar
+const PAGA = new Set(["conta_fixa", "assinatura", "divida"]);
+
+function rotuloAcao(item) {
+  if (item.acao === "concluir" && (PAGA.has(item.tipo) || item.tipo === "renda")) {
+    return t(item.tipo === "renda" ? "assistente.proposta.acao.receber" : "assistente.proposta.acao.pagar");
+  }
+  if (item.acao === "reabrir" && (PAGA.has(item.tipo) || item.tipo === "renda")) return t("assistente.proposta.acao.despagar");
+  return t(`assistente.proposta.acao.${item.acao}`);
+}
+
 function rotuloTipo(item) {
   const tipo = t(`assistente.proposta.tipo.${item.tipo}`);
-  return item.acao ? `${t(`assistente.proposta.acao.${item.acao}`)} · ${tipo}` : tipo;
+  return item.acao ? `${rotuloAcao(item)} · ${tipo}` : tipo;
+}
+
+/** Pagar, receber, contribuir e transferir mexem no saldo: o cartão avisa. */
+function mexeNoDinheiro(item) {
+  return (item.acao === "concluir" && (PAGA.has(item.tipo) || item.tipo === "renda"))
+    || item.acao === "contribuir" || (!item.acao && item.tipo === "transferencia");
 }
 
 /** Só o que muda, na linha "antes:" de uma edição. */
-function textoAntes(item) {
-  const antes = resumo(item, item.antes);
-  const depois = resumo(item);
+function textoAntes(p, item) {
+  const antes = resumo(item, item.antes, p);
+  const depois = resumo(item, item.dados, p);
   const mudou = antes.filter((v, k) => v && v !== depois[k]);
   return (mudou.length ? mudou : antes.filter(Boolean)).join(" · ");
 }
 
 /** O corpo de um item que mexe no que existe e não é "alterar". */
-function htmlAlvo(item) {
+function htmlAlvo(p, item) {
   if (item.acao === "ordenar") {
     return `<div class="ia-prop-ordem"><span>${escapeHtml(item.extra?.nome || "")} — ${escapeHtml(t("assistente.proposta.nova_ordem"))}</span>
       <ol>${item.dados.ordem.map((m) => `<li>${escapeHtml(m.titulo)}</li>`).join("")}</ol></div>`;
   }
-  const [principal, ...detalhes] = resumo(item, item.antes);
+  const [principal, ...detalhes] = resumo(item, item.antes, p);
   return `<p class="ia-prop-alvo"><span class="ia-prop-principal">${escapeHtml(principal || "—")}</span>${
     detalhes.filter(Boolean).length ? `<span class="ia-prop-detalhe">${detalhes.filter(Boolean).map(escapeHtml).join(" · ")}</span>` : ""}</p>
     ${item.acao === "excluir" ? `<p class="ia-prop-entrada">${escapeHtml(t("assistente.proposta.vai_apagar"))}</p>` : ""}`;
@@ -266,7 +354,10 @@ function htmlResumo(p, item, i) {
   const feito = p.estado === "aplicada" && (p.aplicados || []).includes(i);
   const [principal, ...detalhes] = item.acao === "ordenar"
     ? [item.extra?.nome, item.dados.ordem.map((m) => m.titulo).join(" → ")]
-    : resumo(item, depoisDe(item));
+    : resumo(item, depoisDe(item), p);
+  if (item.acao === "contribuir") {  // o valor que entrou na meta vem primeiro
+    detalhes.unshift(`+ ${item.antes.tipo === "financeira" ? fmtMoeda(item.dados.valor) : item.dados.valor}`);
+  }
   return `<li class="ia-prop-item ia-prop-item--resumo${feito ? "" : " ia-prop-item--fora"}${item.depende != null ? " ia-prop-item--dep" : ""}" data-item="${i}">
     <span class="ia-prop-sinal" aria-hidden="true">${feito ? "[x]" : "[ ]"}</span>
     <span class="ia-prop-tipo"${item.acao ? ` data-acao="${item.acao}"` : ""}>${escapeHtml(rotuloTipo(item))}</span>
@@ -284,10 +375,11 @@ function htmlItem(p, item, i, travado) {
     !marcado ? "ia-prop-item--fora" : "", item.depende != null ? "ia-prop-item--dep" : ""].filter(Boolean).join(" ");
   const tipo = rotuloTipo(item);
   const acao = item.acao ? ` data-acao="${item.acao}"` : "";
-  const corpo = !item.acao || item.acao === "alterar"
+  const corpo = (!item.acao || item.acao === "alterar"
     ? `<div class="ia-prop-campos">${campos(p, item, i, travado)}</div>`
-      + (item.acao === "alterar" ? `<p class="ia-prop-antes">${escapeHtml(t("assistente.proposta.antes", { texto: textoAntes(item) }))}</p>` : "")
-    : htmlAlvo(item);
+      + (item.acao === "alterar" ? `<p class="ia-prop-antes">${escapeHtml(t("assistente.proposta.antes", { texto: textoAntes(p, item) }))}</p>` : "")
+    : htmlAlvo(p, item) + (item.campos ? `<div class="ia-prop-campos">${campos(p, item, i, travado)}</div>` : ""))
+    + (mexeNoDinheiro(item) ? `<p class="ia-prop-aviso">${escapeHtml(t("assistente.proposta.mexe_no_dinheiro"))}</p>` : "");
   return `<li class="${classes}" data-item="${i}"${acao}>
     <label class="ia-prop-marca">
       <input type="checkbox" data-prop="marcar" ${marcado ? "checked" : ""} ${travado || orfao ? "disabled" : ""}
@@ -378,13 +470,19 @@ function lerCampo(p, alvo) {
     d[campo] = lerValor(alvo.value);
   } else if (campo === "vezes_semana") {
     d.vezes_semana = Math.min(7, Math.max(1, Number(alvo.value) || 1));
+  } else if (alvo.dataset.tipo === "valor") {
+    d[campo] = lerValor(alvo.value);
+  } else if (alvo.dataset.tipo === "inteiro" || alvo.dataset.tipo === "dia") {
+    d[campo] = Math.max(0, Math.trunc(Number(alvo.value) || 0));
+  } else if (alvo.dataset.tipo === "sim_nao") {
+    d[campo] = alvo.value === "true";
   } else {
     d[campo] = alvo.value;
   }
   // editou: o problema antigo pode não valer mais — o backend confere de novo
   p.itens[i].problema = null;
   if (p.erros) delete p.erros[i];
-  return { i, mudouForma: ["repeticao", "frequencia", "tipo"].includes(campo) };
+  return { i, mudouForma: ["repeticao", "frequencia", "tipo"].includes(campo) || alvo.dataset.tipo === "escolha" };
 }
 
 function erroDe(err) {

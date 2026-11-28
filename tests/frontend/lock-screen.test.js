@@ -94,6 +94,30 @@ test(
 );
 
 test(
+  "2.1.0: com a abertura tocando, a tela do PIN só aparece quando ela começa a sumir",
+  withDom(PAGINA, async (dom, t) => {
+    const { lock, server, tela } = await setup(dom, t);
+    let abertura;
+    const fechando = new Promise((r) => (abertura = r));
+    lock.garantirDesbloqueio({ antes: fechando });
+    await wait(10);
+    assert.ok(server.chamadas.includes("GET /api/seguranca/pin")); // a consulta não espera
+    assert.equal(tela(), null);
+    abertura();
+    await wait(10);
+    assert.ok(tela());
+  })
+);
+
+test(
+  "2.1.0: sem PIN, o boot não espera a abertura",
+  withDom(PAGINA, async (dom, t) => {
+    const { lock } = await setup(dom, t, { ativo: false });
+    await lock.garantirDesbloqueio({ antes: new Promise(() => {}) });
+  })
+);
+
+test(
   "muitas tentativas: mostra a espera e desabilita o teclado",
   withDom(PAGINA, async (dom, t) => {
     const { lock, doc } = await setup(dom, t, { espera: 30 });

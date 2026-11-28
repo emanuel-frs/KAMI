@@ -309,15 +309,15 @@ async function main() {
     if (IS_WINDOWS) {
       ps(`$s=(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}"); $s.TargetPath="${APP}"; $s.Save()`);
     }
-    const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: 'coral' })");
+    const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { preenchimento: '#e08fa0', contorno: '#000000' })");
     log(`ícone coral aplicado em: ${JSON.stringify(onde)}`);
     if (!Array.isArray(onde) || !onde.includes("janela")) fail(`ícone na cor de destaque: ${JSON.stringify(onde)}`);
     if (IS_WINDOWS) {
       const icone = ps(`(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}").IconLocation`);
-      if (!/kami-coral\.ico,0$/i.test(icone)) fail(`atalho do Menu Iniciar não apontou pro ícone coral: ${icone}`);
+      if (!/kami-e08fa0-000000\.ico,0$/i.test(icone)) fail(`atalho do Menu Iniciar não apontou pro ícone coral: ${icone}`);
       else log("atalho do Menu Iniciar na cor coral");
     }
-    await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: null })");
+    await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { preenchimento: null, contorno: null })");
     if (IS_WINDOWS) {
       const icone = ps(`(New-Object -ComObject WScript.Shell).CreateShortcut("${LNK}").IconLocation`);
       if (!/kami\.exe,0$/i.test(icone)) fail(`desligar não devolveu o ícone do executável ao atalho: ${icone}`);
@@ -885,7 +885,7 @@ async function main() {
       if (IS_WINDOWS && !noCofre()) throw new Error(`a chave das senhas não estava no cofre antes (${usuarioCofre})`);
       const lancador = HOME_E2E && join(HOME_E2E, ".local", "share", "applications", "Kami.desktop");
       await invoke("janela_definir", { campo: "iniciar_com_sistema", valor: true });
-      const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { cor: 'coral' })");
+      const onde = await wd.execute("return window.__TAURI__.core.invoke('aplicar_icone_tema', { preenchimento: '#e08fa0', contorno: '#000000' })");
       if (!entrada()) throw new Error("o início com o sistema não ligou antes de remover");
 
       await clicar("#btn-open-settings");

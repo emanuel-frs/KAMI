@@ -70,7 +70,7 @@ def test_import_restores_a_previous_backup(client):
     backup = client.get("/api/sistema/export").json()
 
     # muda tudo depois do backup ter sido tirado
-    client.put("/api/perfil", json={"display_name": "nome mudou", "accent_color": "#ff0000"})
+    client.put("/api/perfil", json={"display_name": "nome mudou", "accent_color": "#b06060"})
     client.post(
         "/api/nucleo/actions",
         json={"description": "outra coisa", "categories": ["financas"], "xp": 10},
@@ -158,7 +158,7 @@ def test_reset_reseeds_fresh_install_defaults(client):
 
 def test_reset_after_profile_edit_restores_default_name(client):
     """Um perfil editado pelo usuário também deve voltar ao default no reset."""
-    client.put("/api/perfil", json={"display_name": "outro nome", "accent_color": "#ff0000"})
+    client.put("/api/perfil", json={"display_name": "outro nome", "accent_color": "#b06060"})
     client.post("/api/sistema/reset", json={"confirmation": "excluir"})
 
     profile_rows = client.get("/api/sistema/export").json()["tables"]["user_profile"]

@@ -396,7 +396,10 @@ async function boot() {
   // estar pronta por baixo quando ela terminar/for pulada. Essa folga
   // também é aproveitada mais abaixo pra pré-buscar as outras telas
   // (schedulePreload) enquanto o splash segura a UI.
-  const splashDone = playBootSplash();
+  // com PIN, a tela dele espera a abertura começar a sumir (2.1.0)
+  let splashFechou;
+  const splashFechando = new Promise((r) => (splashFechou = r));
+  const splashDone = playBootSplash({ aoFechar: splashFechou });
 
   registerNavigator(showPage);
 
@@ -438,7 +441,7 @@ async function boot() {
   // (o backend também recusa: 423). Um 423 no meio do uso — o vigia
   // reiniciou o backend, que nasce bloqueado — reabre a tela.
   wireLockScreen();
-  await garantirDesbloqueio();
+  await garantirDesbloqueio({ antes: splashFechando });
   startInactivityLock();
   wireNav();
   wireSettingsButton();

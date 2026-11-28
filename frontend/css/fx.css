@@ -69,7 +69,7 @@
   padding: 10px 12px;
   border: 1px solid var(--accent-dim);
   background: var(--panel);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
   font-family: var(--font);
   pointer-events: auto;
 }
@@ -102,9 +102,9 @@
 .ach-pop.animated.open { animation: fx-pop-glow 1.1s ease-out 0.15s 1; }
 .ach-pop.animated.open .ach-pop-icon { animation: fx-pop-icon 0.5s steps(4, end) 0.1s 1; }
 @keyframes fx-pop-glow {
-  0%   { box-shadow: 4px 4px 0 0 #000, 0 0 0 0 transparent; border-color: var(--accent-dim); }
-  30%  { box-shadow: 4px 4px 0 0 #000, 0 0 18px 2px color-mix(in srgb, var(--accent) 55%, transparent); border-color: var(--accent); }
-  100% { box-shadow: 4px 4px 0 0 #000, 0 0 0 0 transparent; border-color: var(--accent-dim); }
+  0%   { box-shadow: 4px 4px 0 0 var(--sombra), 0 0 0 0 transparent; border-color: var(--accent-dim); }
+  30%  { box-shadow: 4px 4px 0 0 var(--sombra), 0 0 18px 2px color-mix(in srgb, var(--accent) 55%, transparent); border-color: var(--accent); }
+  100% { box-shadow: 4px 4px 0 0 var(--sombra), 0 0 0 0 transparent; border-color: var(--accent-dim); }
 }
 @keyframes fx-pop-icon {
   0%, 50% { background: var(--accent); color: var(--bg); }

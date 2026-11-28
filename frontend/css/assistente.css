@@ -126,7 +126,7 @@
 .ia-msg-texto li[data-checked="true"]::before { content: "[x] "; color: var(--accent); }
 .ia-msg-texto blockquote { margin: 0 0 0.6em; padding-left: 10px; border-left: 2px solid var(--border-interactive); color: var(--text-dim); }
 .ia-msg-texto code { font-family: inherit; padding: 0 4px; background: var(--bg-alt); border: 1px solid var(--border-soft); color: var(--accent); }
-.ia-msg-texto pre { margin: 0 0 0.6em; padding: 8px 10px; background: #000; border: 1px solid var(--border-soft); overflow-x: auto; line-height: 1.25; }
+.ia-msg-texto pre { margin: 0 0 0.6em; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border-soft); overflow-x: auto; line-height: 1.25; }
 /* bloco de código / diagrama em texto: linguagem + copiar em cima; linha
    mais justa pra │ ┌ ─ ┐ emendarem; sem quebra (rola na horizontal) */
 .ia-codigo { margin: 0 0 0.6em; }
@@ -209,7 +209,7 @@
   margin: 4px 0 0;
   padding: 6px 8px;
   overflow: auto;
-  background: #000;
+  background: var(--bg);
   border: 1px solid var(--border-soft);
   color: var(--text-dim);
   font-size: 10.5px;

@@ -1938,6 +1938,7 @@ version = "2.0.2"
 dependencies = [
  "auto-launch",
  "dirs 7.0.0",
+ "png",
  "serde",
  "serde_json",
  "tauri",

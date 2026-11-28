@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from app.database import backup_database, get_db, local_now, new_id, now_iso
 from app.xp import level_from_xp
 from app.actions import delete_manual_action, register_action as register_action_core
-from app.achievements import REFS_BONUS, achievement_progress, check_achievements, streak_info
+from app.achievements import REFS_BONUS, achievement_progress, check_achievements, relock_unmet_achievements, streak_info
 from app.revisao_xp import review_xp
 from app.sequencia import MAX_PROTECOES
 from app.missoes import avaliar_missoes, garantir_missoes, listar_missoes
@@ -365,15 +365,8 @@ def _player_class(db) -> Optional[str]:
     return None if chave is None else CLASS_BY_ATTRIBUTE.get(chave, POLYMATH_CLASS)
 
 
-@router.post("/achievements/custom", response_model=AchievementOut, status_code=201)
-def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
-    """
-    GAM-14: cria uma conquista personalizada — "N ações [em <área>] [com
-    '<palavra>']". Entra na galeria como as outras (área = o atributo, ou
-    núcleo se for qualquer área) e já desbloqueia se o histórico cumprir.
-    Chave "custom:<id>": o seed_achievements nunca confunde com uma do
-    catálogo, nem pelo título.
-    """
+def _custom_achievement_fields(db, payload: CustomAchievementIn):
+    """(título, área, palavra, descrição) validados — criar e editar usam igual."""
     title = payload.title.strip()
     keyword = (payload.keyword or "").strip() or None
     attribute = payload.attribute or None
@@ -391,6 +384,19 @@ def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
         description += f" em {attribute}"
     if keyword:
         description += f' com "{keyword}"'
+    return title, attribute, keyword, description
+
+
+@router.post("/achievements/custom", response_model=AchievementOut, status_code=201)
+def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
+    """
+    GAM-14: cria uma conquista personalizada — "N ações [em <área>] [com
+    '<palavra>']". Entra na galeria como as outras (área = o atributo, ou
+    núcleo se for qualquer área) e já desbloqueia se o histórico cumprir.
+    Chave "custom:<id>": o seed_achievements nunca confunde com uma do
+    catálogo, nem pelo título.
+    """
+    title, attribute, keyword, description = _custom_achievement_fields(db, payload)
     achievement_id = new_id()
     db.execute(
         "INSERT INTO achievements (id, chave, title, description, criteria_json, categoria, nivel, secreta, "
@@ -403,6 +409,31 @@ def create_custom_achievement(payload: CustomAchievementIn, db=Depends(get_db)):
     )
     db.commit()
     check_achievements(db)  # o histórico já pode cumprir a regra
+    db.commit()
+    return next(a for a in list_achievements(db) if a["id"] == achievement_id)
+
+
+@router.put("/achievements/custom/{achievement_id}", response_model=AchievementOut)
+def update_custom_achievement(achievement_id: str, payload: CustomAchievementIn, db=Depends(get_db)):
+    """Muda o nome ou a regra de uma conquista personalizada (o assistente
+    também edita). A regra nova vale na hora: o que o histórico cumpre
+    desbloqueia, e o que deixou de cumprir volta a ficar bloqueado."""
+    if not db.execute("SELECT 1 FROM achievements WHERE id = ? AND rule_type = 'custom'", (achievement_id,)).fetchone():
+        raise ErroKami(
+            404,
+            "erro.nucleo.conquista_personalizada_nao_encontrada",
+            "conquista personalizada não encontrada",
+        )
+    title, attribute, keyword, description = _custom_achievement_fields(db, payload)
+    db.execute(
+        "UPDATE achievements SET title = ?, description = ?, criteria_json = ?, categoria = ? WHERE id = ?",
+        (title, description,
+         json.dumps({"type": "custom_count", "attribute": attribute, "count": payload.count, "keyword": keyword}),
+         attribute or "nucleo", achievement_id),
+    )
+    db.commit()
+    relock_unmet_achievements(db)
+    check_achievements(db)
     db.commit()
     return next(a for a in list_achievements(db) if a["id"] == achievement_id)
 

@@ -36,7 +36,7 @@ conhecem). Quem segura o gasto é o teto diário (uso.py) e o botão parar.
 import json
 from typing import Iterator, Optional
 
-from app.assistente import transporte
+from app.assistente import ollama_nativo, transporte
 from app.assistente.tipos import (
     Chamada, ChamadaFerramenta, Ferramenta, Fim, Mensagem, Provedor, TextoDelta, Uso,
 )
@@ -117,6 +117,9 @@ def _argumentos(bruto: str) -> dict:
 
 def conversar(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[Ferramenta]] = None,
               cancelamento: Optional[transporte.Cancelamento] = None) -> Iterator:
+    if ollama_nativo.serve(p):  # 2.1.0: pela API nativa, que deixa pedir o contexto
+        yield from ollama_nativo.conversar(p, mensagens, ferramentas, cancelamento)
+        return
     corpo = {"model": p.modelo, "messages": _mensagens(mensagens), "stream": True,
              "stream_options": {"include_usage": True}, **_sem_pensar(p)}
     if ferramentas:
@@ -153,6 +156,8 @@ def aquecer(p: Provedor, mensagens: list[Mensagem], ferramentas: Optional[list[F
     """Modelo local: lê as instruções e as ferramentas sem responder nada
     (1 token). O Ollama guarda o que leu, e a pergunta que vier depois com
     o mesmo começo só lê o que é novo — ver chat.aquecer."""
+    if ollama_nativo.serve(p):
+        return ollama_nativo.aquecer(p, mensagens, ferramentas)
     corpo = {"model": p.modelo, "messages": _mensagens(mensagens), "stream": False, "max_tokens": 1, **_sem_pensar(p)}
     if ferramentas:
         corpo["tools"] = _ferramentas(ferramentas)

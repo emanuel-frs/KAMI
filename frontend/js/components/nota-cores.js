@@ -3,7 +3,7 @@
 import { ACCENT_OPTIONS } from "./accent-colors.js";
 
 export const CORES_NOTA = ACCENT_OPTIONS.map((o) => ({
-  nome: o.icone,
+  nome: o.nome,
   hex: o.value,
   get rotulo() {
     return o.label.replace(/ \(.*\)$/, "");

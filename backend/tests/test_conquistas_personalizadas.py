@@ -64,3 +64,20 @@ def test_seed_nao_mexe_em_personalizada_com_titulo_igual(client, db_conn):
     assert row["chave"] == f"custom:{a['id']}"
     assert json.loads(row["criteria_json"])["type"] == "custom_count"
     assert db_conn.execute("SELECT COUNT(*) AS c FROM achievements WHERE rule_type != 'custom'").fetchone()["c"] == len(ACHIEVEMENT_SEED)
+
+
+def test_editar_muda_a_regra_e_reavalia(client, db_conn):
+    """A regra nova vale na hora: desbloqueia se o histórico cumpre, bloqueia se deixou de cumprir."""
+    for i in range(2):
+        register_action(db_conn, f"corrida {i}", ["metas"], 5, source="metas")
+    a = _create(client, title="corredor", attribute="metas", count=5, keyword=None).json()
+    assert a["unlocked"] is False
+    r = client.put(f"/api/nucleo/achievements/custom/{a['id']}",
+                   json={"title": "corredor de fim de semana", "attribute": "metas", "count": 2})
+    assert r.status_code == 200, r.text
+    assert (r.json()["title"], r.json()["unlocked"], r.json()["description"]) == ("corredor de fim de semana", True, "2 ações em metas")
+    r = client.put(f"/api/nucleo/achievements/custom/{a['id']}", json={"title": "x", "attribute": "metas", "count": 9})
+    assert r.json()["unlocked"] is False
+    assert client.put("/api/nucleo/achievements/custom/nao-existe", json={"title": "x", "count": 1}).status_code == 404
+    fixa = db_conn.execute("SELECT id FROM achievements WHERE rule_type != 'custom' LIMIT 1").fetchone()["id"]
+    assert client.put(f"/api/nucleo/achievements/custom/{fixa}", json={"title": "x", "count": 1}).status_code == 404

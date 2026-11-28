@@ -62,10 +62,15 @@ function randNoise() {
 /**
  * Toca o splash e resolve quando ele termina (materializa → pausa →
  * dissolve → fade) OU quando o usuário pula. Sempre resolve, nunca rejeita.
+ *
+ * `aoFechar` é chamado quando o fade final começa (ou na hora, se já há
+ * um splash tocando): a tela de PIN abre aí, por cima do splash que some
+ * — com o mesmo fundo, a troca não pisca e o app nunca aparece sem ela.
  */
-export function playBootSplash() {
+export function playBootSplash({ aoFechar } = {}) {
   return new Promise((resolve) => {
     if (active) {
+      aoFechar?.();
       resolve();
       return;
     }
@@ -181,6 +186,7 @@ export function playBootSplash() {
       finished = true;
       clearAllTimers();
       cancelSound();
+      aoFechar?.();
       overlay.classList.remove("open");
       overlay.classList.add("closing");
       const cleanupDelay = schedule(() => {

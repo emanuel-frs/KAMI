@@ -322,3 +322,48 @@ def test_mesmo_item_duas_vezes_volta_pro_modelo(client, falso):
     falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
     _eventos(client, "x")
     assert "only once per proposal" in falso.recebidas[1]["json"]["messages"][-1]["content"]
+
+
+def test_o_kami_completa_o_tipo_e_a_acao_que_o_modelo_esquece(client, db_conn, falso):
+    """qwen3.5:4b (2026-11): {"ref": "…", "title": "…"} sem type, e
+    {"ref": "…", "status": "concluido"} no lugar de action complete."""
+    _ligar(client, falso)
+    t, ms = _trilha(client, nome="Java e Spring Boot", concluidos=0)
+    _, _, prop, _ = _propor(client, falso, [
+        {"ref": "Java e Spring Boot", "title": "Java 21 e Spring Boot"},
+        {"ref": _ref(ms[0]["id"]), "status": "concluido"}])
+    assert [(i["tipo"], i["acao"], i["problema"]) for i in prop["itens"]] == [
+        ("trilha", "alterar", None), ("marco", "concluir", None)]
+    assert prop["itens"][0]["dados"]["nome"] == "Java 21 e Spring Boot"
+
+
+def test_nome_que_existe_em_dois_tipos_volta_pro_modelo(client, falso):
+    _ligar(client, falso)
+    _trilha(client, nome="Inglês")
+    client.post("/api/habitos", json={"nome": "Inglês", "atributo": "aprendizado"})
+    falso.limpar()
+    falso.responder("/v1/chat/completions", sse=_pede(("propose_actions", {"items": [{"ref": "Inglês", "title": "x"}]})))
+    falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
+    _eventos(client, "renomeia")
+    assert "each item needs a type" in falso.recebidas[1]["json"]["messages"][-1]["content"]
+
+
+def test_ref_no_topo_da_chamada_vai_pro_unico_item(client, falso):
+    """qwen3.5:4b: {"ref": "…", "items": [{"type": "learning_plan", "title": "novo nome"}]}."""
+    _ligar(client, falso)
+    t, _ = _trilha(client, nome="Java e Spring Boot")
+    falso.limpar()
+    falso.responder("/v1/chat/completions", sse=_pede(("propose_actions", {
+        "ref": _ref(t["id"]), "items": [{"type": "learning_plan", "title": "Java 21 e Spring Boot"}]})))
+    falso.responder("/v1/chat/completions", sse=openai_texto("ok"))
+    prop = next(e for e in _eventos(client, "renomeia") if e["tipo"] == "proposta")["proposta"]
+    assert [(i["tipo"], i["acao"], i["dados"]["nome"]) for i in prop["itens"]] == [("trilha", "alterar", "Java 21 e Spring Boot")]
+
+
+def test_status_que_nao_existe_pro_tipo_e_ignorado(client, falso):
+    _ligar(client, falso)
+    t, _ = _trilha(client, nome="Java")
+    _, _, prop, _ = _propor(client, falso, [
+        {"type": "track", "action": "update", "ref": _ref(t["id"]), "title": "Java 21", "status": "concluido"}])
+    item = prop["itens"][0]
+    assert item["problema"] is None and item["dados"]["status"] == "ativa" and item["dados"]["nome"] == "Java 21"

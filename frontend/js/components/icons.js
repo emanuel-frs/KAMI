@@ -83,6 +83,8 @@ const ICON_PATHS = {
     '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" />',
   // IA-01: botão/aba do assistente (prompt "kami>" do terminal) — Lucide "terminal"
   terminal: '<path d="m4 17 6-6-6-6" /> <path d="M12 19h8" />',
+  // 2.1.0: "voltar ao padrão" (aparência)
+  "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" />',
   lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" />',
   "lock-open": '<rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 9.9-1" />',
   // ORG-04: pausar/retomar hábito

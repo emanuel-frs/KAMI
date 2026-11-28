@@ -44,7 +44,7 @@
   padding: 24px 28px;
   border: 1px solid var(--accent-dim);
   background: var(--panel);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
   max-width: calc(100vw - 32px);
   cursor: default;
 }

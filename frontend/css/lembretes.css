@@ -79,13 +79,13 @@
   text-align: left;
   padding: 7px 9px;
   border: 1px solid var(--border-soft);
-  border-left: 2px solid #c9a0dc;
+  border-left: 2px solid var(--cal-lembrete);
   background: var(--card);
   color: var(--text);
   font-family: var(--font);
   cursor: pointer;
 }
-.cal-lembrete:hover { border-color: var(--border-interactive); border-left-color: #c9a0dc; }
+.cal-lembrete:hover { border-color: var(--border-interactive); border-left-color: var(--cal-lembrete); }
 .cal-lembrete.encerrado { opacity: 0.55; }
 .cal-lembrete-titulo { font-size: 11.5px; color: var(--text-bright); overflow-wrap: anywhere; }
 .cal-lembrete-meta { font-size: 9.5px; color: var(--text-faint); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
