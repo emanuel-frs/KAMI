@@ -97,6 +97,10 @@ import {
   handleToggleMuteAccount,
 } from "./organizacao-email.js";
 import { t } from "../i18n.js";
+import { ligarAbas, ordemDasAbas } from "./organizacao-abas.js";
+import { updateProfile } from "../api/perfil.js";
+import { registerScreenShortcuts, clearScreenShortcuts } from "../components/shortcuts.js";
+import { showErrorModal } from "../modals/err-modal.js";
 
 export const state = {
   tab: "notas", // ORG-01 (P-30): notas é a primeira aba
@@ -123,6 +127,8 @@ export const state = {
 
 export let rootEl = null;
 let clickHandler = null;
+let desligarAbas = null;
+let shortcutsToken = null;
 // dicas contextuais (etapa 5) — mesmo padrão de núcleo/perfil/finanças/metas
 let unsubscribeProfile = null;
 let currentReplayFn = null;
@@ -154,8 +160,16 @@ export async function mount(container, opts) {
   // não deixa acumular listener no nó persistente.
   if (clickHandler) container.removeEventListener("click", clickHandler);
 
-  container.innerHTML = template();
+  // a ordem das abas é da pessoa (perfil.org_abas); a primeira abre ao entrar
+  const ordem = ordemDasAbas(store.get("profile")?.org_abas);
+  container.innerHTML = template(ordem);
   bindEvents(container);
+  desligarAbas = ligarAbas(container.querySelector(".tabs"), { aoMudar: salvarOrdemDasAbas });
+  switchTab(ordem[0]);
+  shortcutsToken = registerScreenShortcuts({
+    name: "organizacao",
+    hints: [{ combos: [["Shift", "←"], ["Shift", "→"]], label: t("organizacao.mover_aba") }],
+  });
   // notas: monta já (é a primeira aba); o resto carrega em paralelo
   // (nota pedida por outra tela — opts.notaId/novaNota — abre no applyFocus)
   const notasProntas = montarNotas(container.querySelector("#org-panel-notas"));
@@ -320,6 +334,10 @@ export function unmount() {
   if (rootEl && clickHandler) rootEl.removeEventListener("click", clickHandler);
   clickHandler = null;
   rootEl = null;
+  desligarAbas?.();
+  desligarAbas = null;
+  clearScreenShortcuts(shortcutsToken);
+  shortcutsToken = null;
   state.tab = "notas";
   state.selectedAccountIds = new Set();
   state.emails = [];
@@ -335,7 +353,25 @@ export function unmount() {
 
 /* ==================== template ==================== */
 
-function template() {
+async function salvarOrdemDasAbas(ordem) {
+  const valor = ordem.join(",");
+  try {
+    await updateProfile({ org_abas: valor });
+    store.set("profile", { ...store.get("profile"), org_abas: valor });
+  } catch (err) {
+    showErrorModal(err.message, t("organizacao.erro_ordem_abas"));
+  }
+}
+
+const ROTULO_ABA = {
+  notas: () => t("organizacao.notas"),
+  entrada: () => `${t("organizacao.entrada")} <span class="tab-contagem" id="org-entrada-contagem"></span>`,
+  github: () => t("organizacao.github"),
+  email: () => t("organizacao.e_mail"),
+  links: () => t("organizacao.links"),
+};
+
+function template(ordem) {
   return `
     <div class="search-row">
       <input type="text" id="org-search" placeholder="${t("organizacao.buscar_na_web")}" aria-label="${t("organizacao.buscar_na_web_2")}" aria-keyshortcuts="Alt+B">
@@ -345,12 +381,8 @@ function template() {
     </div>
     <div id="org-search-results"></div>
 
-    <div class="tabs" style="margin-top:16px;">
-      <div class="tab on" data-tab="notas">${t("organizacao.notas")}</div>
-      <div class="tab" data-tab="entrada">${t("organizacao.entrada")} <span class="tab-contagem" id="org-entrada-contagem"></span></div>
-      <div class="tab" data-tab="github">${t("organizacao.github")}</div>
-      <div class="tab" data-tab="email">${t("organizacao.e_mail")}</div>
-      <div class="tab" data-tab="links">${t("organizacao.links")}</div>
+    <div class="tabs" style="margin-top:16px;" aria-description="${t("organizacao.mover_aba")}">
+      ${ordem.map((id, i) => `<div class="tab${i === 0 ? " on" : ""}" data-tab="${id}">${ROTULO_ABA[id]()}</div>`).join("\n      ")}
     </div>
 
     <!-- ORG-01: aba de notas — pages/organizacao-notas.js -->

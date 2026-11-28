@@ -62,14 +62,14 @@
 .apr-track-item:hover {
   border-color: var(--accent-dim);
   border-left-color: var(--accent-dim);
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--extremo) 4%, transparent);
 }
 .apr-track-item:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
 .apr-track-item.selected {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--extremo) 6%, transparent);
   border-color: var(--accent-dim);
   border-left-color: var(--accent);
 }

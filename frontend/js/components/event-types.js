@@ -8,20 +8,22 @@ import { t } from "../i18n.js";
 // seja sempre a mesma em qualquer lugar do app que ela apareça.
 // Antes essa tabela só existia dentro de pages/calendario.js.
 
+// 2.1.0: a cor de cada tipo é um token (--cal-<tipo>, tokens.css), que a
+// pessoa pode trocar em configurações › aparência › cores
 export const typeMeta = () => ({
-  conta_fixa: { label: t("event_types.conta_fixa"), color: "var(--text-dim)", icon: "receipt" },
-  divida: { label: t("event_types.divida"), color: "var(--red)", icon: "trending-down" },
-  assinatura: { label: t("event_types.assinatura"), color: "var(--amber)", icon: "repeat" },
-  parcela: { label: t("event_types.parcela"), color: "var(--text-faint)", icon: "credit-card" },
-  meta: { label: t("event_types.meta"), color: "var(--accent)", icon: "target" },
-  acao: { label: t("event_types.acao"), color: "var(--accent-dim)", icon: "zap" },
-  // único tipo com CRUD próprio (calendar_events) — cor default abaixo,
+  conta_fixa: { label: t("event_types.conta_fixa"), color: "var(--cal-conta_fixa)", icon: "receipt" },
+  divida: { label: t("event_types.divida"), color: "var(--cal-divida)", icon: "trending-down" },
+  assinatura: { label: t("event_types.assinatura"), color: "var(--cal-assinatura)", icon: "repeat" },
+  parcela: { label: t("event_types.parcela"), color: "var(--cal-parcela)", icon: "credit-card" },
+  meta: { label: t("event_types.meta"), color: "var(--cal-meta)", icon: "target" },
+  acao: { label: t("event_types.acao"), color: "var(--cal-acao)", icon: "zap" },
+  // único tipo com CRUD próprio (calendar_events) — cor do tipo abaixo,
   // mas cada evento pode sobrescrever via campo `color` (ver
-  // modals/calendario-evento-modal.js); a grade/legenda usam o default.
-  evento: { label: t("event_types.evento"), color: "#7fa8d9", icon: "calendar-days" },
-  contrato_fim: { label: t("event_types.fim_de_contrato"), color: "var(--red)", icon: "clock" },
-  revisao_salarial: { label: t("event_types.revisao_salarial"), color: "var(--amber)", icon: "trending-up" },
-  lembrete: { label: t("event_types.lembrete"), color: "#c9a0dc", icon: "bell-ring" }, // ORG-05
+  // modals/calendario-evento-modal.js); a grade/legenda usam a do tipo.
+  evento: { label: t("event_types.evento"), color: "var(--cal-evento)", icon: "calendar-days" },
+  contrato_fim: { label: t("event_types.fim_de_contrato"), color: "var(--cal-contrato_fim)", icon: "clock" },
+  revisao_salarial: { label: t("event_types.revisao_salarial"), color: "var(--cal-revisao_salarial)", icon: "trending-up" },
+  lembrete: { label: t("event_types.lembrete"), color: "var(--cal-lembrete)", icon: "bell-ring" }, // ORG-05
 });
 
 export function typeColor(type) {

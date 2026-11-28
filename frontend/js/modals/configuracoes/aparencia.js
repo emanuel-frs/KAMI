@@ -1,14 +1,15 @@
 /**
- * Aba "aparência" das configurações: cor de destaque, ícone do tema,
- * formato das datas, efeitos visuais, sons e recompensas (título/tema).
- * MAN-02: saiu de configuracoes-modal.js.
+ * Aba "aparência" das configurações. 2.1.0: dividida em três abas pequenas
+ * (o mesmo .tabs/.tab da organização) — "geral" (idioma, datas, moeda,
+ * zoom, widgets, efeitos, sons, título), "cores" e "textura" (essas duas em
+ * aparencia-visual.js). MAN-02: saiu de configuracoes-modal.js.
  */
 import { getRecompensas } from "../../api/nucleo.js";
 import { getPaisesFeriados, updateProfile } from "../../api/perfil.js";
 import { escapeHtml, fmtDataNoFormato, fmtMoeda, moeda } from "../../components/format.js";
 import { showErrorModal } from "../err-modal.js";
 import { icon } from "../../components/icons.js";
-import { ACCENT_OPTIONS } from "../../components/accent-colors.js";
+import { buildCoresPanel, buildTexturaPanel } from "./aparencia-visual.js";
 import { store } from "../../state/store.js";
 import { playSound } from "../../components/sound.js";
 import { estado } from "./estado.js";
@@ -16,7 +17,7 @@ import { IDIOMAS, carregarIdioma, idiomaAtual, localeAtual, t } from "../../i18n
 import { enhanceSelect, refreshCustomSelect } from "../../components/custom-select.js";
 import { openExternal } from "../../components/open-external.js";
 import { ZOOM_MAX, ZOOM_MIN, aumentarZoom, diminuirZoom, restaurarZoom, zoomAtual } from "../../components/zoom.js";
-import { descricaoTema, rotuloTema, rotuloTitulo } from "../../components/textos-sistema.js";
+import { rotuloTitulo } from "../../components/textos-sistema.js";
 
 // I18N-01 (P-84): onde mandar uma correção de tradução
 const ISSUES_URL = "https://github.com/emanuel-frs/KAMI/issues/new/choose";
@@ -44,10 +45,23 @@ const soundGroups = () => [
   { field: "som_avisos", label: t("aparencia.avisos"), desc: t("aparencia.notificacoes_erros_confirmacoes_e_arquivos") },
 ];
 
+// as três abas da aparência — a primeira abre sempre
+const SUBABAS = ["geral", "cores", "textura"];
+
 export function buildAparenciaPanel() {
   return `
     <div class="cfg-panel on" data-panel="aparencia">
-      <div class="settings-section" style="padding-top:0;">
+      <div class="tabs cfg-ap-abas" role="tablist" aria-label="${t("configuracoes.aparencia")}">
+        ${SUBABAS.map((a, i) => `<button type="button" class="tab${i === 0 ? " on" : ""}" role="tab" id="cfg-ap-aba-${a}" data-subaba="${a}" aria-selected="${i === 0}" aria-controls="cfg-ap-painel-${a}">${t(`aparencia.aba_${a}`)}</button>`).join("")}
+      </div>
+      <div class="cfg-ap-painel" role="tabpanel" id="cfg-ap-painel-cores" data-subpainel="cores" aria-labelledby="cfg-ap-aba-cores" hidden>
+        ${buildCoresPanel()}
+      </div>
+      <div class="cfg-ap-painel" role="tabpanel" id="cfg-ap-painel-textura" data-subpainel="textura" aria-labelledby="cfg-ap-aba-textura" hidden>
+        ${buildTexturaPanel()}
+      </div>
+      <div class="cfg-ap-painel" role="tabpanel" id="cfg-ap-painel-geral" data-subpainel="geral" aria-labelledby="cfg-ap-aba-geral">
+      <div class="settings-section">
         <h4>${t("aparencia.idioma.titulo")}</h4>
         <p class="settings-desc">${t("aparencia.idioma.desc")}</p>
         <div class="field">
@@ -57,16 +71,6 @@ export function buildAparenciaPanel() {
         </div>
         <p class="settings-desc" id="cfg-idioma-ia">${t("aparencia.idioma.aviso_ia")} <a href="#" id="cfg-idioma-sugerir">${t("aparencia.idioma.sugerir")}</a></p>
         <p class="settings-status" id="cfg-idioma-status"></p>
-      </div>
-      <div class="settings-section">
-        <h4>${t("aparencia.cor_de_destaque")}</h4>
-        <p class="settings-desc">${t("aparencia.usada_em_botoes_icones_ativos")}</p>
-        <div class="ki-swatches" id="cfg-accent-swatches"></div>
-        <p class="settings-status" id="cfg-accent-status"></p>
-        <label class="cfg-toggle" id="cfg-icone-tema-wrap" hidden>
-          <input type="checkbox" id="cfg-icone-tema">
-          <span>${t("aparencia.icone_do_app_na_cor")}<small>${t("aparencia.a_janela_e_a_barra")}</small></span>
-        </label>
       </div>
       <div class="settings-section">
         <h4>${t("zoom.titulo")}</h4>
@@ -149,56 +153,40 @@ export function buildAparenciaPanel() {
       </div>
       <div class="settings-section">
         <h4>${t("aparencia.recompensas_do_nivel")}</h4>
-        <p class="settings-desc" id="cfg-rewards-desc">${t("aparencia.titulos_e_temas_de_terminal")}</p>
+        <p class="settings-desc" id="cfg-rewards-desc"></p>
         <p class="cfg-subhead">${t("aparencia.titulo")} <small>${t("aparencia.aparece_sob_o_seu_nome")}</small></p>
         <div role="radiogroup" aria-label="${t("aparencia.titulo")}" id="cfg-titles"></div>
-        <p class="cfg-subhead">${t("aparencia.tema_de_terminal")} <small>${t("aparencia.por_cima_da_cor_de")}</small></p>
-        <div role="radiogroup" aria-label="${t("aparencia.tema_de_terminal")}" id="cfg-themes"></div>
         <p class="settings-status" id="cfg-rewards-status"></p>
+      </div>
       </div>
     </div>`;
 }
 
-// ── aba aparência ──────────────────────────────────────────────────────
-// (sem wire-up fixo aqui: os swatches são recriados a cada abertura do
-// modal via renderAccentSwatches(), chamada em openConfiguracoesModal() —
-// precisa ser assim porque o accent_color atual só é conhecido depois
-// de buscar o perfil, que é async e não pode travar buildModal().)
-export function renderAccentSwatches(wrap, currentColor) {
-  const container = wrap.querySelector("#cfg-accent-swatches");
-  container.innerHTML = ACCENT_OPTIONS.map((c) => {
-    const isSel = c.value === currentColor;
-    const sel = isSel ? " ki-swatch--sel" : "";
-    const check = icon("check", { size: 12, className: "swatch-check" });
-    return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}" aria-pressed="${isSel}">${check}</button>`;
-  }).join("");
-
-  container.querySelectorAll(".ki-swatch").forEach((btn) => {
-    btn.addEventListener("click", () => selectAccentColor(wrap, btn));
+/** Troca a aba da aparência (geral · cores · textura). */
+export function mostrarSubaba(wrap, aba) {
+  const alvo = SUBABAS.includes(aba) ? aba : SUBABAS[0];
+  wrap.querySelectorAll(".cfg-ap-abas .tab").forEach((b) => {
+    const on = b.dataset.subaba === alvo;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
   });
+  wrap.querySelectorAll(".cfg-ap-painel").forEach((p) => (p.hidden = p.dataset.subpainel !== alvo));
 }
 
-// ICO-01: só no app instalado (quem troca o ícone é o Rust); o perfil
-// guarda a escolha e components/icone-tema.js aplica ao mudar o store
-export function renderIconeTema(wrap, profile) {
-  const label = wrap.querySelector("#cfg-icone-tema-wrap");
-  label.hidden = !window.__TAURI__?.core?.invoke;
-  const input = wrap.querySelector("#cfg-icone-tema");
-  input.checked = Boolean(profile.icone_tema);
-  if (input.dataset.wired) return;
-  input.dataset.wired = "1";
-  input.addEventListener("change", async () => {
-    const statusEl = wrap.querySelector("#cfg-accent-status");
-    try {
-      await updateProfile({ icone_tema: input.checked });
-    } catch (err) {
-      input.checked = !input.checked;
-      showErrorModal(err.message, t("aparencia.erro_ao_salvar_o_icone"));
-      return;
-    }
-    store.set("profile", { ...store.get("profile"), icone_tema: input.checked });
-    statusEl.innerHTML = `${icon("check", { size: 12 })} ${input.checked ? t("aparencia.icone_na_cor_de_destaque") : t("aparencia.icone_padrao_de_volta")}`;
-    statusEl.classList.add("settings-status--visible");
+export function wireSubabas(wrap) {
+  const abas = [...wrap.querySelectorAll(".cfg-ap-abas .tab")];
+  abas.forEach((b, i) => {
+    b.addEventListener("click", () => mostrarSubaba(wrap, b.dataset.subaba));
+    // setas trocam de aba, como num tablist
+    b.addEventListener("keydown", (e) => {
+      const passo = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (!passo) return;
+      e.preventDefault();
+      const prox = abas[(i + passo + abas.length) % abas.length];
+      mostrarSubaba(wrap, prox.dataset.subaba);
+      prox.focus();
+    });
   });
 }
 
@@ -457,16 +445,11 @@ export async function renderRewards(wrap, profile) {
     wrap.querySelector("#cfg-rewards-desc").textContent = t("aparencia.nao_deu_pra_carregar_as");
     return;
   }
-  wrap.querySelector("#cfg-rewards-desc").textContent =
-    t("aparencia.recompensas_desc", { nivel: data.level });
+  wrap.querySelector("#cfg-rewards-desc").textContent = t("aparencia.titulos_desc", { nivel: data.level });
   const auto = { key: "auto", label: t("aparencia.automatico"), description: t("aparencia.o_titulo_mais_alto_que"), unlocked: true };
   const titulos = data.titulos.map((t) => ({ ...t, label: rotuloTitulo(t.key, t.label) }));
   wrap.querySelector("#cfg-titles").innerHTML = [auto, ...titulos]
     .map((t) => rewardOption("cfg-title", t, (profile.titulo ?? "auto") === t.key))
-    .join("");
-  wrap.querySelector("#cfg-themes").innerHTML = data.temas
-    .map((t) => ({ ...t, label: rotuloTema(t.key, t.label), description: descricaoTema(t.key, t.description) }))
-    .map((t) => rewardOption("cfg-theme", t, (profile.tema ?? "padrao") === t.key))
     .join("");
 }
 
@@ -481,42 +464,8 @@ export async function selectReward(wrap, field, value) {
     renderRewards(wrap, store.get("profile") ?? {});
     return;
   }
-  // o tema vale na hora (components/tema.js escuta o store); o título
-  // aparece no card de perfil (widgets/profile.js também escuta)
-  store.set("profile", { ...store.get("profile"), titulo: saved.titulo, tema: saved.tema });
-  statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
-  statusEl.classList.add("settings-status--visible");
-}
-
-async function selectAccentColor(wrap, btn) {
-  if (estado.busy) return;
-  const statusEl = wrap.querySelector("#cfg-accent-status");
-  const color = btn.dataset.color;
-
-  wrap.querySelectorAll(".ki-swatch").forEach((b) => {
-    const isSel = b === btn;
-    b.classList.toggle("ki-swatch--sel", isSel);
-    b.setAttribute("aria-pressed", String(isSel));
-  });
-  statusEl.textContent = "";
-  statusEl.classList.remove("settings-status--visible");
-
-  try {
-    await updateProfile({ accent_color: color });
-  } catch (err) {
-    showErrorModal(err.message, t("aparencia.erro_ao_salvar_cor_de"));
-    return;
-  }
-
-  // aplica globalmente na hora, igual o boot faz em app.js e o
-  // widget de perfil faz ao salvar (document.documentElement, não
-  // só dentro do modal).
-  document.documentElement.style.setProperty("--accent", color);
-
-  // propaga pro store — mantém qualquer outro lugar que leia o
-  // perfil (ex: widget de perfil) em sync sem precisar recarregar.
-  store.set("profile", { ...store.get("profile"), accent_color: color });
-
+  // o título aparece no card de perfil (widgets/profile.js escuta o store)
+  store.set("profile", { ...store.get("profile"), titulo: saved.titulo });
   statusEl.innerHTML = `${icon("check", { size: 12 })} salvo`;
   statusEl.classList.add("settings-status--visible");
 }

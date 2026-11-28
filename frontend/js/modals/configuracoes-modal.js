@@ -91,8 +91,8 @@ import { playSound } from "../components/sound.js";
 import { destroyCustomSelect } from "../components/custom-select.js";
 import {
   buildAparenciaPanel,
-  renderAccentSwatches,
-  renderIconeTema,
+  mostrarSubaba,
+  wireSubabas,
   renderWidgetsAuto,
   renderFormatoData,
   selectFormatoData,
@@ -108,6 +108,8 @@ import {
   renderRewards,
   selectReward,
 } from "./configuracoes/aparencia.js";
+import { renderVisual, salvarPendente, wireVisual } from "./configuracoes/aparencia-visual.js";
+import { fecharSeletorCor } from "../components/seletor-cor.js";
 import { buildPerfilPanel, renderPerfilTab, wirePerfilTab } from "./configuracoes/perfil.js";
 import { buildNotificacoesPanel, renderNotificacoesTab, wireNotificacoesTab } from "./configuracoes/notificacoes.js";
 import {
@@ -229,7 +231,8 @@ function wireModal(wrap) {
   volume.addEventListener("change", () => saveSound(wrap, { som_volume: Number(volume.value) }));
   wrap.querySelector("#cfg-sound-test").addEventListener("click", () => playSound("conquista", { force: true }));
   wrap.querySelector("#cfg-titles").addEventListener("change", (e) => selectReward(wrap, "titulo", e.target.value));
-  wrap.querySelector("#cfg-themes").addEventListener("change", (e) => selectReward(wrap, "tema", e.target.value));
+  wireSubabas(wrap); // 2.1.0: aparência em geral · cores · textura
+  wireVisual(wrap);
   wireBackupTab(wrap);
   wireSegurancaTab(wrap);
   wireSobreTab(wrap);
@@ -249,6 +252,7 @@ export async function openConfiguracoesModal(tabId = "aparencia", { guia = false
   estado.modalEl = estado.modalEl || buildModal();
 
   switchTab(estado.modalEl, tabs().some((t) => t.id === tabId) ? tabId : "aparencia");
+  mostrarSubaba(estado.modalEl, "geral");
 
   const confirmInput = estado.modalEl.querySelector("#sm-reset-confirm");
   const resetBtn = estado.modalEl.querySelector("#sm-reset-btn");
@@ -308,12 +312,11 @@ export async function openConfiguracoesModal(tabId = "aparencia", { guia = false
   // construído.
   try {
     const profile = await getProfile();
-    renderAccentSwatches(estado.modalEl, profile.accent_color);
+    renderVisual(estado.modalEl, profile); // 2.1.0: abas cores e textura
     renderEffectsOptions(estado.modalEl, profile.efeitos_visuais);
     renderFormatoData(estado.modalEl, profile.formato_data);
     renderIdioma(estado.modalEl);
     renderMoedaEPais(estado.modalEl, profile);
-    renderIconeTema(estado.modalEl, profile);
     renderWidgetsAuto(estado.modalEl, profile);
     renderSoundOptions(estado.modalEl, profile);
     renderRewards(estado.modalEl, profile);
@@ -358,5 +361,7 @@ if (typeof window !== "undefined") {
 }
 
 export function closeConfiguracoesModal() {
+  salvarPendente(); // 2.1.0: a última mudança de cor/textura não se perde ao fechar rápido
+  fecharSeletorCor();
   estado.modalEl?.classList.remove("open");
 }

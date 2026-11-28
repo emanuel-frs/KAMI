@@ -192,29 +192,39 @@ class Stream:
         except Exception:  # noqa: BLE001
             pass
 
+    def linhas(self) -> Iterator[str]:
+        """Uma linha não vazia por vez (NDJSON, a API nativa do Ollama) —
+        mesmo tratamento de erro e de parar que `eventos`."""
+        for linha in self._brutas():
+            if linha.strip():
+                yield linha
+
     def eventos(self) -> Iterator[tuple[str, str]]:
         """(nome do evento, dados) por evento SSE. Linhas `:` são
         comentário (o OpenRouter manda ": OPENROUTER PROCESSING" pra
         manter a conexão viva); várias linhas `data:` se juntam com \\n."""
         nome, dados = "", []
+        for linha in self._brutas():
+            if not linha:
+                if dados:
+                    yield nome or "message", "\n".join(dados)
+                nome, dados = "", []
+                continue
+            if linha.startswith(":"):
+                continue
+            campo, _, valor = linha.partition(":")
+            valor = valor[1:] if valor.startswith(" ") else valor
+            if campo == "event":
+                nome = valor
+            elif campo == "data":
+                dados.append(valor)
+        if dados:
+            yield nome or "message", "\n".join(dados)
+
+    def _brutas(self) -> Iterator[str]:
         try:
             for bruta in self._resp:
-                linha = bruta.decode("utf-8", "replace").rstrip("\r\n")
-                if not linha:
-                    if dados:
-                        yield nome or "message", "\n".join(dados)
-                    nome, dados = "", []
-                    continue
-                if linha.startswith(":"):
-                    continue
-                campo, _, valor = linha.partition(":")
-                valor = valor[1:] if valor.startswith(" ") else valor
-                if campo == "event":
-                    nome = valor
-                elif campo == "data":
-                    dados.append(valor)
-            if dados:
-                yield nome or "message", "\n".join(dados)
+                yield bruta.decode("utf-8", "replace").rstrip("\r\n")
         except (socket.timeout, TimeoutError, urllib.error.URLError, OSError, ValueError, AttributeError) as e:
             # fechado por fora (Cancelamento) no meio da leitura: o erro
             # do socket é consequência do parar, não falha do provedor
@@ -264,8 +274,12 @@ class Cancelado(Exception):
     """A leitura foi interrompida de propósito (não é erro do provedor)."""
 
 
-def abrir_stream(url: str, headers: dict, corpo: dict, timeout: float, segredo: Optional[str] = None) -> Stream:
-    req = _requisicao(url, {**headers, "Accept": "text/event-stream"}, corpo)
+def abrir_stream(url: str, headers: dict, corpo: dict, timeout: float, segredo: Optional[str] = None,
+                 ndjson: bool = False) -> Stream:
+    """`ndjson`: uma linha JSON por pedaço (API nativa do Ollama,
+    `application/x-ndjson`) em vez de SSE."""
+    aceita = "application/x-ndjson" if ndjson else "text/event-stream"
+    req = _requisicao(url, {**headers, "Accept": aceita}, corpo)
     try:
         resp = _opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as e:
@@ -273,7 +287,7 @@ def abrir_stream(url: str, headers: dict, corpo: dict, timeout: float, segredo: 
     except (urllib.error.URLError, OSError) as e:
         raise _erro_de_rede(e) from None
     tipo = resp.headers.get("Content-Type", "")
-    if "json" in tipo and "event-stream" not in tipo:
+    if "json" in tipo and "event-stream" not in tipo and not (ndjson and "ndjson" in tipo):
         # alguns servidores respondem o erro como JSON com 200; e um que
         # ignore o pedido de streaming não serve (a tela depende dele)
         bruto = resp.read(20000)

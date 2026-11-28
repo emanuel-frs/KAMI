@@ -6,19 +6,20 @@ Recompensas por nível geral (GAM-10). Regras combinadas com o Emanuel em
     algo de quem usa). As recompensas são coisas NOVAS:
   - Títulos exibidos sob o nome no perfil; o usuário escolhe entre os já
     liberados (sem escolha = o mais alto liberado, "automático").
-  - Temas de terminal aplicados por cima da cor de destaque (o visual é
-    CSS, em frontend/css/temas.css).
+  - Capacidades da aparência (2.1.0 — antes, temas de terminal fechados):
+    cor livre, paletas, texturas, texto tingido, cores do calendário
+    (app/aparencia.py).
 
 Nível geral = level_from_xp(soma do xp dos atributos), a mesma conta do
 /api/nucleo/player. Se o nível cair depois (estorno), a escolha já feita
 fica como está — não se tira recompensa de ninguém; só não dá pra
 ESCOLHER algo acima do nível atual.
 """
+from app.aparencia import CAPACIDADES
 from app.xp import level_from_xp
 
 # I18N: rótulos e descrições em português; o frontend mostra
-# `recompensa.titulo.<chave>`, `recompensa.tema.<chave>` e
-# `recompensa.tema.<chave>.desc` do dicionário do idioma
+# `recompensa.titulo.<chave>` e `recompensa.cap.<chave>` do dicionário do idioma
 # (tests/test_textos_sistema.py confere que o português é o mesmo).
 
 # (nível mínimo, chave, rótulo)
@@ -31,15 +32,10 @@ TITULOS = (
     (30, "lenda", "lenda"),
 )
 
-# (nível mínimo, chave, rótulo, descrição)
-TEMAS = (
-    (1, "padrao", "padrão", "preto, branco, cinza e a cor de destaque"),
-    (5, "fosforo", "fósforo", "o texto ganha o tom da cor de destaque, como um monitor de fósforo"),
-    (10, "crt", "crt", "linhas de varredura e cantos escurecidos, como um tubo de imagem"),
-    (15, "ambar", "âmbar clássico", "fundo quente e texto creme, como os terminais âmbar"),
-)
-TEMA_PADRAO = "padrao"
-
+# 2.1.0: os temas de terminal (padrão, fósforo, crt, âmbar) viraram
+# capacidades da aparência, liberadas aos poucos — ver app/aparencia.py
+# (CAPACIDADES). O `tema` antigo só serve pra
+# montar a aparência de quem ainda não tem uma (app/aparencia.do_tema_antigo).
 
 def nivel_jogador(db) -> int:
     total = db.execute("SELECT COALESCE(SUM(current_xp), 0) AS t FROM attributes").fetchone()["t"]
@@ -60,7 +56,7 @@ def titulo_atual(escolhido, nivel: int) -> str:
 
 
 def nivel_minimo(catalogo, chave):
-    """Nível que libera `chave` no catálogo (TITULOS ou TEMAS), ou None se não existe."""
+    """Nível que libera `chave` no catálogo (TITULOS ou CAPACIDADES), ou None se não existe."""
     return next((item[0] for item in catalogo if item[1] == chave), None)
 
 
@@ -73,8 +69,8 @@ def catalogo(db) -> dict:
             {"key": chave, "label": rotulo, "level": minimo, "unlocked": nivel >= minimo}
             for minimo, chave, rotulo in TITULOS
         ],
-        "temas": [
-            {"key": chave, "label": rotulo, "description": desc, "level": minimo, "unlocked": nivel >= minimo}
-            for minimo, chave, rotulo, desc in TEMAS
+        "capacidades": [
+            {"key": chave, "label": rotulo, "level": minimo, "unlocked": nivel >= minimo}
+            for minimo, chave, rotulo in CAPACIDADES
         ],
     }

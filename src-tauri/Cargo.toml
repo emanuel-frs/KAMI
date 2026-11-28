@@ -1,6 +1,6 @@
 [package]
 name = "kami"
-version = "2.0.2"
+version = "2.1.0"
 description = "Kami — sistema pessoal de organização gamificada, 100% local"
 edition = "2021"
 
@@ -19,6 +19,9 @@ tauri-plugin-notification = "2"
 # CONF-08: seletor de pasta da pasta extra das cópias (só o diálogo "abrir", ver capabilities)
 tauri-plugin-dialog = "2"
 dirs = "7"
+# 2.1.0: grava o ícone do app gerado nas cores do avatar (icone_tema.rs) —
+# a mesma versão que o tauri já usa pra ler PNG (feature image-png)
+png = "0.18"
 # ORG-05: abrir o kami de novo mostra a janela escondida na bandeja; iniciar com o sistema
 tauri-plugin-single-instance = "2"
 # auto-launch direto (não o tauri-plugin-autostart): só ele deixa fixar o

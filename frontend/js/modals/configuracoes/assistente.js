@@ -50,7 +50,7 @@ let editando = null; // provedor salvo em edição, ou null (novo)
 const num = (n) => new Intl.NumberFormat(localeAtual()).format(n);
 
 // P-113: áreas que o assistente pode ler (mesma lista de backend/app/assistente/config.py::AREAS)
-const AREAS = ["financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas"];
+const AREAS = ["financas", "metas", "agenda", "habitos", "aprendizado", "progresso", "entrada", "links", "github", "notas", "carreira"];
 
 export function buildAssistentePanel() {
   return `

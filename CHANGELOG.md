@@ -4,6 +4,35 @@ Todas as mudanças notáveis do Kami são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento por [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.1.0] - 2026-11-27
+
+_O assistente agora alcança quase tudo no Kami, e a aparência ficou sua: cores, paletas (inclusive de fundo claro), texturas e as cores da Kami, liberadas aos poucos pelo nível._
+
+### Novo
+- assistente: agora alcança o resto do Kami pelo mesmo cartão de aprovação — contas fixas, assinaturas, compras parceladas, dívidas, fontes de renda, transferências, conquistas personalizadas, ações do núcleo (com xp), carreira (cargos, formações, salários, interesses) e repositórios do GitHub: criar, alterar e apagar, com desfazer
+- assistente: um resumo financeiro colado vira cada coisa no lugar certo — o aluguel vira conta fixa, o salário vira renda, a Netflix vira assinatura, "10x de 300" vira compra parcelada — em vez de lançamentos avulsos
+- assistente: pagar uma conta fixa, assinatura ou dívida, marcar uma renda como recebida, contribuir pra uma meta e transferir entre contas, só quando você pede com todas as letras; o cartão mostra a conta e o valor e avisa que mexe no saldo, e desfazer devolve saldo, fatura e xp
+- assistente: eventos do calendário com "repete até" e aviso antes
+- conquistas personalizadas podem ser editadas (nome e regra); a regra nova vale na hora
+- organização: segure e arraste uma aba pra mudar a ordem (ou Shift + ← / → na aba focada); a primeira é a que abre ao entrar na tela
+- configurações › assistente: nova área que ele pode ler, carreira
+- aparência personalizável: os temas de terminal viraram peças que o nível libera aos poucos — texto tingido pela cor de destaque (nível 3), cor de destaque livre (4), textura crt (5), cores do calendário por tipo (6), paleta âmbar e paleta própria com fundo, superfície e borda (8), cor do texto e modo avançado com cada tom (10), texturas grade e pontilhado (12). Quem já usava fósforo, crt ou âmbar continua com o mesmo visual
+- a Kami nas suas duas cores: preenchimento e contorno do avatar (a partir do nível 4, junto com a cor livre); o ícone do app, quando ligado, usa as mesmas duas cores — qualquer cor, não só as 9 prontas
+- textura: escolha onde ela aparece (fundo da tela, menu lateral, componentes — uma, duas ou as três) e ajuste espaçamento, espessura (ou tamanho do ponto) e intensidade de cada uma. Desligar a textura é sempre livre
+- paletas de fundo claro funcionam: o Kami ajusta sozinho os tons apagados, as cores de entrada/saída/aviso e as do calendário até ficarem legíveis (dá pra desligar o ajuste), e mostra o contraste de cada cor
+- "voltar ao padrão" em cada seção e em cada cor da aparência, e "restaurar todas as cores"
+- seletor de cor próprio (matiz, saturação, luz e hex), igual em todo sistema
+- apresentação: além da cor, dá pra escolher a textura da tela (linhas ou lisa), com a Kami já na cor escolhida, e ela conta o que o nível libera depois
+
+### Mudado
+- configurações › aparência ficou em três abas: geral (idioma, datas, moeda, tamanho da tela, widgets, efeitos, sons, título), cores e textura
+- a aparência vai junto no backup; um backup de antes desta versão volta com o tema que tinha
+- com o PIN ligado, a abertura do Kami toca primeiro e a tela do PIN aparece quando ela termina (ou quando você a pula), em vez de abrir por cima dela
+
+### Corrigido
+- assistente no computador (Ollama): as respostas saíam cortadas em uma ou duas letras sempre que ele precisava ler seus dados — o Ollama abria o modelo com pouco contexto e cortava o começo do pedido. Agora o Kami conversa com o Ollama pela API dele e pede o contexto de que precisa, e tenta de novo quando o Ollama não consegue ler o pedido de ferramenta que o modelo escreveu
+
+
 ## [2.0.2] - 2026-11-27
 
 ### Novo

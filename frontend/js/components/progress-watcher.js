@@ -8,7 +8,7 @@ import { escapeHtml } from "./format.js";
 import { effectsMode } from "./visual-effects.js";
 import { showLevelUp } from "./level-up.js";
 import { estaNoDocumento } from "./no-documento.js";
-import { descricaoConquista, nomeAtributo, rotuloTema, rotuloTitulo, textoDoRegistro, tituloConquista, tituloMissao } from "./textos-sistema.js";
+import { descricaoConquista, nomeAtributo, rotuloCapacidade, rotuloTitulo, textoDoRegistro, tituloConquista, tituloMissao } from "./textos-sistema.js";
 import { localeAtual, t } from "../i18n.js";
 
 /**
@@ -115,7 +115,7 @@ function showXpLine(delta, attribute) {
 
 /**
  * Subida do nível geral: tela cheia (efeitos "completo") ou toast, com o
- * que acabou de ser liberado (GAM-10: títulos e temas de terminal entre o
+ * que acabou de ser liberado (GAM-10: títulos; 2.1.0: capacidades da aparência — entre o
  * nível anterior e o novo). Assíncrona só pra buscar o catálogo — se ele
  * falhar, comemora do mesmo jeito, sem a linha de "desbloqueado".
  */
@@ -126,7 +126,7 @@ async function celebrateLevel(previousLevel, player) {
     const fresh = (item) => item.level > previousLevel && item.level <= player.level;
     unlocked = [
       ...rewards.titulos.filter(fresh).map((r) => t("nivel.recompensa_titulo", { nome: rotuloTitulo(r.key, r.label) })),
-      ...rewards.temas.filter(fresh).map((r) => t("nivel.recompensa_tema", { nome: rotuloTema(r.key, r.label) })),
+      ...(rewards.capacidades || []).filter(fresh).map((r) => rotuloCapacidade(r.key, r.label)),
     ];
   } catch {
     // sem catálogo: comemora sem a linha de recompensas

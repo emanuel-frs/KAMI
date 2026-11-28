@@ -10,10 +10,10 @@
  * faz nada.
  */
 import { store } from "../state/store.js";
-import { accentIcone } from "./accent-colors.js";
+import { coresAvatar } from "./aparencia.js";
 
 const JA_APLICOU_KEY = "kami:icone-tema-aplicado";
-let aplicado = null; // nome da cor aplicada nesta execução, ou "padrao"
+let aplicado = null; // "preenchimento/contorno" aplicado nesta execução, ou "padrao"
 
 function lembrar(valor) {
   try {
@@ -35,8 +35,11 @@ function jaAplicouAntes() {
 async function sincronizar(invoke) {
   const profile = store.get("profile");
   if (!profile) return;
-  const cor = profile.icone_tema ? accentIcone(profile.accent_color) : null;
-  const chave = cor ?? "padrao";
+  // 2.1.0: as duas cores do avatar (o "K" no preenchimento, o quadrado no
+  // contorno) — o Rust gera o ícone na hora, qualquer cor serve
+  const cores = profile.icone_tema ? coresAvatar(profile.aparencia, profile.accent_color) : null;
+  const cor = cores?.preenchimento ?? null;
+  const chave = cores ? `${cores.preenchimento}/${cores.contorno}` : "padrao";
   if (chave === aplicado) return;
   // desligado e nunca ligado antes: não há nada pra desfazer (evita rodar o
   // PowerShell dos atalhos a cada abertura no Windows)
@@ -46,7 +49,7 @@ async function sincronizar(invoke) {
   }
   aplicado = chave;
   try {
-    await invoke("aplicar_icone_tema", { cor });
+    await invoke("aplicar_icone_tema", { preenchimento: cor, contorno: cores?.contorno ?? null });
     lembrar(Boolean(cor));
   } catch (err) {
     aplicado = null; // tenta de novo na próxima mudança do perfil

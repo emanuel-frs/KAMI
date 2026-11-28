@@ -59,8 +59,8 @@ Projeto pessoal, mantido por uma pessoa. Foi feito para o meu uso e publicado co
   um dia em branco; três missões por dia e uma por semana, sorteadas a partir do que dá para fazer
   agora; bônus de XP pela primeira ação do dia, pela sequência e por cuidar do atributo mais atrasado;
   e o radar avisa quando um atributo está parado há duas semanas.
-- **Progressão:** subir o nível geral libera títulos (exibidos sob o seu nome) e temas de terminal
-  (fósforo, CRT e âmbar); sua classe (Erudito, Mercador, Artífice, Estrategista, Arquivista ou Polímata)
+- **Progressão:** subir o nível geral libera títulos (exibidos sob o seu nome) e, aos poucos, a
+  personalização da aparência (cor livre, paletas, texturas, cores do calendário e da Kami); sua classe (Erudito, Mercador, Artífice, Estrategista, Arquivista ou Polímata)
   vem do atributo mais forte; e todo mês abre uma retrospectiva em ASCII do mês que acabou, exportável
   em `.txt`.
 - **Cara de terminal antigo:** texto que se digita, números que rolam, cards que ligam como um CRT,

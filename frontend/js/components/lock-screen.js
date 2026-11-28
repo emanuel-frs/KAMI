@@ -385,8 +385,17 @@ async function cifraSemChave() {
 
 // ── API pública ────────────────────────────────────────────────────────
 
-export async function garantirDesbloqueio() {
-  if (await cifraSemChave()) await abrirCifra();
+/**
+ * `antes` (2.1.0): promessa que segura a tela até a abertura do boot
+ * acabar — a pessoa vê a abertura primeiro e digita o PIN depois, em vez
+ * de digitar com a abertura tocando por baixo. As consultas ao backend
+ * já saem na hora; só o mostrar a tela espera.
+ */
+export async function garantirDesbloqueio({ antes } = {}) {
+  if (await cifraSemChave()) {
+    await antes;
+    await abrirCifra();
+  }
   let estado;
   try {
     estado = await getPin();
@@ -394,7 +403,10 @@ export async function garantirDesbloqueio() {
     return; // sem backend: o vigia mostra a faixa; um 423 depois reabre esta tela
   }
   inatividadeMin = estado.inatividade_min ?? null;
-  if (estado.ativo && estado.bloqueado) await abrir({ estado });
+  if (estado.ativo && estado.bloqueado) {
+    await antes;
+    await abrir({ estado });
+  }
 }
 
 /** "bloquear agora" (configurações › segurança): ao desbloquear, a tela fica como estava. */

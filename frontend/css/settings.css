@@ -490,3 +490,169 @@
 .cfg-ia-local-baixando progress::-moz-progress-bar { background: var(--accent); }
 #cfg-ia-local > .settings-note { margin-top: 8px; }
 .cfg-ia-local-saida { max-height: 9em; overflow: auto; margin: 6px 0; padding: 6px 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-dim); font-size: 10.5px; white-space: pre-wrap; word-break: break-all; }
+
+/* ── aparência em abas: geral · cores · textura (2.1.0) ────────────────
+   As abas pequenas são o .tabs/.tab da organização (widget-organizacao.css);
+   o resto é desta tela — aparencia-visual.js. Prefixo cfg-ap-. */
+.cfg-ap-abas { margin: 0 0 4px; }
+.cfg-ap-abas .tab { font-family: var(--font); }
+.cfg-ap-abas .tab:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.cfg-ap-painel[hidden] { display: none; }
+.cfg-ap-painel > .settings-section:first-child { padding-top: 8px; }
+
+/* título da seção com o "↺ voltar ao padrão" à direita */
+.cfg-ap-h4 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cfg-ap-padrao,
+.cfg-ap-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.cfg-ap-padrao[hidden] { display: none; }
+.cfg-ap-padrao:hover, .cfg-ap-reset:hover { color: var(--accent); }
+.cfg-ap-padrao:focus-visible, .cfg-ap-reset:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.cfg-ap-nota { margin: 8px 0 0; }
+.cfg-ap-nota:empty { display: none; }
+.cfg-ap-ruim { color: var(--red); }
+.cfg-ap-trava { margin-left: 6px; font-size: 9.5px; color: var(--text-faint); display: inline-flex; align-items: center; gap: 3px; }
+
+/* swatch "+" da cor livre (o resto é o .ki-swatch de kami-intro.css) */
+.ki-swatch.cfg-ap-livre { background: var(--bg); border: 1px dashed var(--border-interactive); color: var(--text-dim); }
+.ki-swatch.cfg-ap-livre.ki-swatch--sel { border-style: solid; border-color: var(--swatch-color); color: var(--swatch-color); }
+.ki-swatch.cfg-ap-livre:disabled { cursor: default; opacity: 0.55; }
+.ki-swatch.cfg-ap-livre:disabled:hover { transform: none; }
+
+/* linha "nome · amostra · hex · contraste" */
+.cfg-ap-cores { display: flex; flex-direction: column; }
+.cfg-ap-cor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px 78px 96px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 10.5px;
+  color: var(--text-bright);
+}
+.cfg-ap-cor + .cfg-ap-cor { border-top: 1px solid var(--border-soft); }
+.cfg-ap-cor-nome small { display: block; color: var(--text-faint); font-size: 9.5px; }
+.cfg-ap-travado { opacity: 0.45; }
+.cfg-ap-amostra {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-interactive);
+  cursor: pointer;
+}
+.cfg-ap-amostra:disabled { cursor: default; }
+.cfg-ap-amostra:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cfg-ap-hex {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border-interactive);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10.5px;
+  padding: 3px 5px;
+}
+.cfg-ap-hex:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; }
+.cfg-ap-contraste { font-size: 9.5px; text-align: right; color: var(--text-faint); }
+.cfg-ap-contraste.ok { color: var(--green); }
+.cfg-ap-contraste.ajustado { color: var(--amber); }
+.cfg-ap-contraste.ruim { color: var(--red); }
+
+/* avatar sobre o fundo e sobre um card — o fundo fica no <span>, porque o
+   filtro pintaria o background do próprio <img> */
+.cfg-ap-avatar { display: flex; gap: 8px; margin: 0 0 8px; }
+.cfg-ap-avatar figure { margin: 0; text-align: center; font-size: 9px; color: var(--text-faint); }
+.cfg-ap-avatar span { display: block; border: 1px solid var(--border-soft); margin-bottom: 3px; }
+.cfg-ap-avatar img { display: block; width: 64px; height: 64px; image-rendering: pixelated; }
+
+/* calendário: ícone · nome · amostra · hex · padrão */
+.cfg-ap-cal-tipo {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 22px 78px 74px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 10.5px;
+  color: var(--text-bright);
+}
+.cfg-ap-cal-tipo + .cfg-ap-cal-tipo { border-top: 1px solid var(--border-soft); }
+.cfg-ap-cal-tipo .cfg-ap-reset, .cfg-ap-cal-tipo .cfg-ap-contraste { justify-self: end; }
+
+/* textura: onde aparece (três botões que ligam e desligam) e ajustes */
+.cfg-ap-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border-interactive); margin: 2px 0 6px; }
+.cfg-ap-seg button {
+  background: var(--bg);
+  border: 0;
+  border-left: 1px solid var(--border-interactive);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 10.5px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.cfg-ap-seg button:first-child { border-left: 0; }
+.cfg-ap-seg button:hover { color: var(--accent); }
+.cfg-ap-seg button:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+.cfg-ap-seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.cfg-ap-ajustes-titulo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cfg-ap-ajustes { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px; align-items: start; }
+.cfg-ap-regua {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+  font-size: 10.5px;
+  color: var(--text-bright);
+  padding: 3px 0;
+}
+.cfg-ap-regua input { width: 100%; accent-color: var(--accent); }
+.cfg-ap-regua output { font-size: 9.5px; color: var(--text-faint); text-align: right; }
+.cfg-ap-zoom { height: 88px; border: 1px solid var(--border-interactive); background-color: var(--card); }
+.cfg-ap-zoom-rot { font-size: 9px; color: var(--text-faint); text-align: center; margin-top: 3px; }
+@media (max-width: 560px) {
+  .cfg-ap-ajustes { grid-template-columns: 1fr; }
+  .cfg-ap-cor { grid-template-columns: minmax(0, 1fr) 22px 72px; }
+  .cfg-ap-cor > :last-child { grid-column: 1 / -1; text-align: left; }
+}
+
+/* seletor de cor (components/seletor-cor.js) */
+.seletor-cor {
+  position: fixed;
+  z-index: 3000;
+  width: 230px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--border-interactive);
+  box-shadow: 4px 4px 0 0 var(--sombra);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.seletor-cor[hidden] { display: none; }
+.seletor-cor-previa { height: 26px; border: 1px solid var(--border); margin-bottom: 8px; }
+.seletor-cor-regua { display: grid; grid-template-columns: 62px minmax(0, 1fr) 28px; gap: 6px; align-items: center; margin: 4px 0; }
+.seletor-cor-regua input { width: 100%; accent-color: var(--accent); }
+.seletor-cor-regua output { text-align: right; color: var(--text-faint); }
+.seletor-cor-hex {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border-interactive);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10.5px;
+  padding: 3px 5px;
+}
+.seletor-cor .form-actions { margin-top: 8px; justify-content: flex-end; }

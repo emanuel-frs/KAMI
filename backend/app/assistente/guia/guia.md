@@ -26,7 +26,7 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 - Conquistas desbloqueiam quando o critério vale (ex.: "contas em dia", "mês no azul", "trilha em dia"); se deixar de valer depois (ex.: uma saída retroativa deixa um mês negativo), a conquista volta a ficar bloqueada. As de sequência usam o recorde e não somem.
 - Há conquistas secretas: bloqueadas, aparecem como "???".
 - Dá pra criar conquistas personalizadas (contam só ações de verdade, com uma palavra-chave opcional).
-- Subir o nível geral libera títulos (aparecem sob o nome) e temas de terminal (fósforo, CRT, âmbar).
+- Subir o nível geral libera títulos (aparecem sob o nome) e, aos poucos, a personalização em configurações › aparência: texto tingido (nível 3), cor livre e cores do avatar (4), textura crt (5), cores do calendário (6), paleta âmbar e paleta própria (8), cor do texto e modo avançado (10), texturas grade e pontilhado (12). As 9 cores prontas e ligar/desligar a textura são livres.
 - A classe (Erudito, Mercador, Artífice, Estrategista, Arquivista ou Polímata) vem do atributo mais forte.
 - Todo mês abre uma retrospectiva em ASCII do mês que acabou, que pode ser exportada em .txt.
 
@@ -67,6 +67,7 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 - Marcar hábito conta na sequência geral e nas missões.
 
 ## notes
+- Organização: as abas (notas, entrada, GitHub, e-mail, links) ficam na ordem que a pessoa quiser — segurar e arrastar uma aba, ou Shift + ← / → com ela focada; a primeira é a que abre ao entrar na tela.
 - Organização › notas: editor visual (salvo em markdown), tags, cores, fixar, arquivar, e vínculo com uma meta, trilha, evento ou posição.
 - Nota trancada: exige o PIN ligado; o texto fica cifrado e some da lista, da busca e do widget (o título fica). Abrir, editar ou apagar pede o PIN. O assistente NUNCA lê nota trancada.
 - A captura rápida de tarefa entra como "- [ ] texto" na nota "tarefas".
@@ -105,12 +106,14 @@ tópico da ferramenta. Ao mudar uma regra do app, mude aqui também.
 
 ## assistant_actions
 - O assistente pode propor CRIAR: nota, tarefa, lembrete, evento, hábito, gasto ou entrada (inclusive um extrato colado, linha a linha), meta (livre, financeira, saúde, leitura, hábito), plano de estudo (trilha + marcos com data + meta de aprendizado ligada), marco numa trilha que já existe, link salvo e o destino dos itens da caixa de entrada.
+- Também CRIA, ALTERA e APAGA: conta fixa, assinatura, compra parcelada, dívida, fonte de renda, transferência, conquista personalizada, ação do núcleo (com xp), cargo, formação, salário, interesse de carreira e repositório do GitHub. Um resumo financeiro colado vira cada coisa no lugar certo (o aluguel vira conta fixa, o salário vira renda, a Netflix vira assinatura, "10x de 300" vira compra parcelada).
+- MEXE NO DINHEIRO só quando a pessoa pede com todas as letras: pagar uma conta fixa, assinatura ou dívida, marcar uma renda como recebida, contribuir pra uma meta, transferir. O cartão mostra a conta e o valor e avisa que mexe no saldo; desfazer devolve saldo, fatura e xp.
 - E MEXER no que já existe: alterar (nome, datas, valor, alvo, prazo, situação da trilha ou do hábito…), apagar, concluir ou reabrir (marco, tarefa, hábito de hoje) e reordenar os marcos de uma trilha. O cartão mostra o antes de cada alteração.
 - A proposta aparece como um cartão no chat: cada item pode ser editado ou desmarcado; nada é gravado até a pessoa clicar em "aplicar". Gastos e entradas usam a conta (e a forma de pagamento, se a conta tem saldo e crédito) escolhida no topo do cartão.
 - Item com problema (data que já passou, valor inválido, saldo que não cobre) vem desmarcado com o motivo. Lançamento igual a um existente (mesma data e valor) vem desmarcado com aviso.
 - Aplicar dá o mesmo xp de fazer à mão, faz uma cópia do banco antes e marca o que foi criado com "· assistente".
 - "Desfazer" (no cartão ou em configurações › assistente › ações do assistente) apaga o que o lote criou, volta o que ele alterou ao que era, traz de volta o que ele apagou (com o histórico e o xp), devolve saldo, fatura e xp exatos e devolve itens à caixa de entrada; o que a pessoa editou depois fica, a não ser que ela peça.
-- Transferências, pagar contas, quitar dívidas, contribuir pra metas, nota trancada e lançamentos criados por outro módulo (conta fixa, assinatura, parcela…) não são ações do assistente: ele explica o caminho na tela.
+- Nota trancada e lançamentos criados por outro módulo (o pagamento de uma conta fixa, de uma assinatura…) não são ações do assistente — esses se desfazem na origem (desmarcar o pagamento, o que ele também propõe).
 
 ## notices
 - Avisos do Kami: regras no computador, sem IA, que aparecem no sino (contam no número dele). Checam ao abrir o app e a cada 6 horas.

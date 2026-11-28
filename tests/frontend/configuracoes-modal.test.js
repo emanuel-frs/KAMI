@@ -30,7 +30,7 @@ function backendFalso() {
       semanal_manter: 4, semanal_dias: 7, pasta_extra: null, extra_ok_em: null, extra_erro: null, extra_atrasada: false,
     },
     ia: {
-      permissoes: { financas: true, metas: true, agenda: true, habitos: true, aprendizado: true, progresso: true, entrada: true, links: true, github: true, notas: false },
+      permissoes: { financas: true, metas: true, agenda: true, habitos: true, aprendizado: true, progresso: true, entrada: true, links: true, github: true, notas: false, carreira: true },
       conversas: [
         { id: "c1", titulo: "guardada", guardada: true, updated_at: "2026-10-27T11:34:00-03:00" },
         { id: "c2", titulo: "só na memória", guardada: false, updated_at: "2026-10-27T11:35:00-03:00" },
@@ -45,7 +45,11 @@ function backendFalso() {
     "GET /api/nucleo/recompensas": () => ({
       level: 3,
       titulos: [{ key: "aprendiz", label: "aprendiz", description: "nível 2", unlocked: true }],
-      temas: [{ key: "padrao", label: "padrão", description: "", unlocked: true }],
+      capacidades: [
+        { key: "texto_tingido", label: "texto tingido", level: 5, unlocked: false },
+        { key: "cor_livre", label: "cor livre", level: 8, unlocked: false },
+        { key: "textura_crt", label: "textura crt", level: 10, unlocked: false },
+      ],
     }),
     "GET /api/organizacao/github-token": () => ({ configured: estado.gh }),
     "PUT /api/organizacao/github-token": () => ((estado.gh = true), { configured: true, imported: 0, removed: 0 }),
@@ -175,6 +179,19 @@ test(
       assert.equal($("#cfg-name-input").value, "Ana");
     });
 
+    await t.test("aparência (2.1.0): três abas, abre em geral", async () => {
+      const abas = [...doc.querySelectorAll(".cfg-ap-abas .tab")].map((b) => b.dataset.subaba);
+      assert.deepEqual(abas, ["geral", "cores", "textura"]);
+      assert.equal($('[data-subpainel="geral"]').hidden, false);
+      assert.equal($('[data-subpainel="cores"]').hidden, true);
+      $('.cfg-ap-abas .tab[data-subaba="cores"]').click();
+      assert.equal($('[data-subpainel="cores"]').hidden, false);
+      assert.equal($('[data-subpainel="geral"]').hidden, true);
+      // a cor livre ainda não foi liberada (nível 3): o "+" fica travado
+      assert.equal($("#cfg-ap-livre").disabled, true);
+      assert.match($("#cfg-ap-livre-nota").textContent, /8/);
+    });
+
     await t.test("aparência: escolher outra cor salva no perfil", async () => {
       const outra = [...doc.querySelectorAll("#cfg-accent-swatches .ki-swatch")].find((b) => !b.classList.contains("selected") && b.getAttribute("aria-pressed") !== "true");
       outra.click();
@@ -182,6 +199,38 @@ test(
       const put = pedidos("PUT", "/api/perfil").at(-1);
       assert.ok(put?.corpo?.accent_color, "deveria salvar accent_color");
       assert.notEqual(put.corpo.accent_color, PERFIL.accent_color);
+      assert.equal(put.corpo.aparencia.paleta, "padrao");
+      // "voltar ao padrão" aparece na seção da cor e volta ao verde
+      const padrao = $('[data-padrao="destaque"]');
+      assert.equal(padrao.hidden, false);
+      padrao.click();
+      await espera(60);
+      assert.equal(pedidos("PUT", "/api/perfil").at(-1).corpo.accent_color, "#8fbf8f");
+    });
+
+    await t.test("aparência › textura: lisa e só no fundo da tela; crt travado no nível 3", async () => {
+      $('.cfg-ap-abas .tab[data-subaba="textura"]').click();
+      const crt = $('input[name="cfg-ap-textura"][value="crt"]');
+      assert.equal(crt.disabled, true);
+      const lisa = $('input[name="cfg-ap-textura"][value="nenhuma"]');
+      lisa.checked = true;
+      lisa.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      assert.equal(pedidos("PUT", "/api/perfil").at(-1).corpo.aparencia.textura, "nenhuma");
+      assert.equal(doc.documentElement.dataset.textura, "nenhuma");
+      const scan = $('input[name="cfg-ap-textura"][value="scanline"]');
+      scan.checked = true;
+      scan.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await espera(60);
+      $('[data-lugar="menu"]').click();
+      await espera(20);
+      $('[data-lugar="componentes"]').click();
+      await espera(60);
+      const ap = pedidos("PUT", "/api/perfil").at(-1).corpo.aparencia;
+      assert.deepEqual(ap.textura_lugares, { tela: true, menu: false, componentes: false });
+      assert.ok("txTela" in doc.documentElement.dataset);
+      assert.ok(!("txMenu" in doc.documentElement.dataset));
+      $('.cfg-ap-abas .tab[data-subaba="geral"]').click();
     });
 
     await t.test("aparência (EST-03): tamanho da tela com −, + e voltar a 100%", async () => {
@@ -486,7 +535,7 @@ test(
 
     await t.test("assistente (IA-03): permissões por área — notas começam desligadas e ligam com um clique", async () => {
       const notas = $('[data-ia-area="notas"]');
-      assert.equal(doc.querySelectorAll("[data-ia-area]").length, 10);
+      assert.equal(doc.querySelectorAll("[data-ia-area]").length, 11); // + carreira (2.1.0)
       assert.equal(notas.checked, false);
       assert.equal($('[data-ia-area="financas"]').checked, true);
       notas.checked = true;

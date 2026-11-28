@@ -1,7 +1,9 @@
 import { updateProfile, updateAvatar } from "../api/perfil.js";
 import { imageToAscii, fitAsciiText, ASCII_RAMPS, loadImageFile } from "../components/ascii.js";
 import { store } from "../state/store.js";
-import { ACCENT_OPTIONS, accentLabel, accentAvatar } from "../components/accent-colors.js";
+import { ACCENT_OPTIONS, accentLabel } from "../components/accent-colors.js";
+import { calcularVisual, completar } from "../components/aparencia.js";
+import { aplicar as aplicarVisual } from "../components/tema.js";
 import { icon } from "../components/icons.js";
 import { prefersReducedMotion } from "../components/a11y.js";
 import { playSound } from "../components/sound.js";
@@ -23,7 +25,10 @@ import { noIdiomaAtual, t } from "../i18n.js";
  *   0-4  say        — apresentação do Kami (quem é, como funciona, privacidade)
  *   5    ask-name    — pergunta o nome (etapa 3, passo 1)
  *   6    say         — reage ao nome
- *   7    ask-color    — pergunta a cor de destaque (etapa 3, passo 2)
+ *   7    ask-color    — pergunta a cor de destaque e a textura (etapa 3,
+ *                       passo 2) — 2.1.0: só o que é livre no nível 1 (as 9
+ *                       cores, scanline ou nenhuma), com a Kami recolorida
+ *                       ao vivo e uma linha sobre o que o nível libera
  *   8    say         — reage à cor
  *   9    ask-avatar   — oferece gerar avatar (etapa 3, passo 3, opcional)
  *   10   say (final) — fecha a conversa e entrega o controle pro app.js
@@ -47,6 +52,7 @@ let currentImg = null;
 const draft = {
   display_name: "",
   accent_color: "#8fbf8f",
+  textura: "scanline", // 2.1.0: as duas livres no nível 1 — "scanline" ou "nenhuma"
   avatar_ascii: null,
 };
 
@@ -76,7 +82,7 @@ const BEATS = [
   { type: "ask-name", text: () => t("kami_intro.como_posso_te_chamar") },
   { type: "say", text: () => t("kami_intro.prazer", { nome: draft.display_name || t("kami_intro.entao") }) },
   { type: "ask-color", text: () => t("kami_intro.agora_qual_cor_combina_com") },
-  { type: "say", text: () => `Gostei, ${accentLabel(draft.accent_color)}.` },
+  { type: "say", text: () => t("kami_intro.gostei", { cor: accentLabel(draft.accent_color) }) },
   {
     type: "ask-avatar",
     text: () =>
@@ -96,7 +102,7 @@ function buildOverlay() {
   wrap.id = "kami-intro";
   wrap.innerHTML = `
     <div class="ki-stage">
-      <img class="ki-avatar-hero" src="assets/logos/logo-kami.gif" alt="kami" draggable="false">
+      <img class="ki-avatar-hero kami-avatar-gif" src="assets/logos/logo-kami.gif" alt="kami" draggable="false">
       <div class="ki-box" role="dialog" aria-modal="true" aria-label="kami" tabindex="-1" data-autofocus>
         <div class="ki-box-head">
           <span class="ki-speaker">kami<span class="ki-cursor"></span></span>
@@ -327,7 +333,23 @@ function buildColorControls(container, hintEl) {
     return `<button type="button" class="ki-swatch${sel}" data-color="${c.value}" data-tooltip="${c.label}" style="--swatch-color:${c.value};" aria-label="${c.label}" aria-pressed="${c.value === draft.accent_color ? "true" : "false"}"></button>`;
   }).join("");
 
-  container.innerHTML = `<div class="ki-swatches">${swatches}</div>`;
+  const texturas = [["scanline", t("kami_intro.textura_scanline")], ["nenhuma", t("kami_intro.textura_nenhuma")]];
+  container.innerHTML = `
+    <div class="ki-swatches">${swatches}</div>
+    <div class="ki-textura" role="group" aria-label="${t("kami_intro.textura")}">
+      <span class="ki-textura-rot">${t("kami_intro.textura")}</span>
+      ${texturas.map(([v, r]) => `<button type="button" class="ki-textura-opcao" data-textura="${v}" aria-pressed="${draft.textura === v}">${r}</button>`).join("")}
+    </div>
+    <p class="ki-nivel-nota">${t("kami_intro.mais_no_nivel")}</p>`;
+
+  container.querySelectorAll(".ki-textura-opcao").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      draft.textura = btn.dataset.textura;
+      container.querySelectorAll(".ki-textura-opcao").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      previa();
+    });
+  });
 
   container.querySelectorAll(".ki-swatch").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -339,8 +361,7 @@ function buildColorControls(container, hintEl) {
       });
       overlayEl.querySelector("#ki-sr-live").textContent =
         t("kami_intro.cor_selecionada", { cor: btn.getAttribute("aria-label") });
-      document.documentElement.style.setProperty("--accent", draft.accent_color);
-      setAvatarHero(draft.accent_color);
+      previa();
       canTapAdvance = true;
       hintEl.innerHTML = `${t("kami_intro.continuar")} ${icon("chevron-right", { size: 11 })}`;
       hintEl.style.visibility = "visible";
@@ -453,12 +474,10 @@ function buildAvatarControls(container) {
   });
 }
 
-// ─── avatar do topo (troca de cor junto com o accent escolhido) ───────────
-function setAvatarHero(hex) {
-  const img = overlayEl?.querySelector(".ki-avatar-hero");
-  if (!img) return;
-  const src = accentAvatar(hex);
-  if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+// ─── prévia: cor, textura e a Kami recolorida (o mesmo cálculo do app) ────
+function previa() {
+  const atual = completar(store.get("profile")?.aparencia);
+  aplicarVisual(calcularVisual({ ...atual, textura: draft.textura }, draft.accent_color));
 }
 
 // ─── navegação ─────────────────────────────────────────────────────────────
@@ -505,12 +524,13 @@ async function finish() {
     const updates = {};
     if (draft.display_name) updates.display_name = draft.display_name;
     if (draft.accent_color !== "#8fbf8f") updates.accent_color = draft.accent_color;
+    const aparencia = completar(store.get("profile")?.aparencia);
+    if (aparencia.textura !== draft.textura) updates.aparencia = { ...aparencia, textura: draft.textura };
     if (Object.keys(updates).length > 0) {
       const updated = await updateProfile(updates);
       store.set("profile", { ...store.get("profile"), ...updated });
       const usernameEl = document.getElementById("sidebar-username");
       if (usernameEl && updated.display_name) usernameEl.textContent = updated.display_name;
-      document.documentElement.style.setProperty("--accent", updated.accent_color);
     }
     if (draft.avatar_ascii) {
       const profileWithAvatar = await updateAvatar(draft.avatar_ascii);
@@ -560,10 +580,11 @@ export function openKamiIntro(onDone) {
   currentImg = null;
   draft.display_name = "";
   draft.accent_color = "#8fbf8f";
+  draft.textura = completar(store.get("profile")?.aparencia).textura === "nenhuma" ? "nenhuma" : "scanline";
   draft.avatar_ascii = null;
   overlayEl.classList.add("open");
   document.removeEventListener("keydown", onIntroKeydown); // evita duplicar se reaberto
   document.addEventListener("keydown", onIntroKeydown);
-  setAvatarHero(draft.accent_color);
+  previa();
   renderBeat(0);
 }

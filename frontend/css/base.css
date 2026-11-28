@@ -19,35 +19,13 @@ body {
   line-height: 1.6;
   position: relative;
 }
-/* textura sutil de scanline, decisão de design (seção 11 do projeto)
- *
- * Era um repeating-linear-gradient com stops de 1px, que renderiza
- * bonito no Chrome/Firefox mas fica com linhas grossas e borradas no
- * WebKitGTK (compositor do Tauri no Linux) — o motor não trata os
- * stops sub-pixel do gradient do mesmo jeito, e o resultado
- * "engorda" as linhas em vez de manter 1px nítido.
- *
- * Troquei pra uma imagem SVG tile (1x3px, mesmo padrão 1px
- * "aceso"/2px transparente e a mesma opacidade 0.018 de antes) com
- * background-size batendo exatamente 1:1 com o tamanho nativo do
- * SVG — sem nenhuma escala envolvida, então não tem o que o
- * WebKitGTK possa interpretar diferente/borrar.
- */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxJyBoZWlnaHQ9JzMnIHNoYXBlLXJlbmRlcmluZz0nY3Jpc3BFZGdlcyc+PHJlY3Qgd2lkdGg9JzEnIGhlaWdodD0nMScgZmlsbD0nI2ZmZmZmZicgZmlsbC1vcGFjaXR5PScwLjAxOCcvPjwvc3ZnPg==");
-  background-repeat: repeat;
-  background-size: 1px 3px;
-  pointer-events: none;
-  z-index: 999;
-}
+/* textura (scanline e as outras): saiu daqui na 2.1.0 — virou uma camada
+   de fundo em cada lugar que a pessoa escolhe (fundo da tela, menu,
+   componentes), ver css/temas.css e components/aparencia.js. O motivo do
+   tile SVG 1:1 em vez de gradiente continua valendo: no WebKitGTK um
+   repeating-linear-gradient com stops de 1px sai borrado e grosso. */
 a { color: var(--text-bright); }
-::selection { background: var(--text); color: #000; }
+::selection { background: var(--text); color: var(--bg); }
 
 /* ── skip link ("pular para o conteúdo", pendência 4) ────────────────
  * Primeiro elemento do body (ver index.html) — fora da tela por
@@ -412,7 +390,7 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
   overflow-y: auto;
   border: 1px solid var(--border);
   background: var(--panel);
-  box-shadow: 4px 4px 0 0 #000;
+  box-shadow: 4px 4px 0 0 var(--sombra);
 }
 .modal.wide { width: min(760px, 94vw); }
 .modal.narrow { width: min(380px, 92vw); }
@@ -471,7 +449,7 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
 .al-drop { border: 1px dashed var(--border-interactive); padding: 14px; background: var(--card); }
 .al-drop.drag { border-color: var(--accent); }
 .al-hint { font-size: 9.5px; color: var(--text-faint); line-height: 1.6; margin-top: 8px; }
-.ascii-output-wrap { overflow: auto; max-height: 340px; background: #000; border: 1px solid var(--border-soft); }
+.ascii-output-wrap { overflow: auto; max-height: 340px; background: var(--bg); border: 1px solid var(--border-soft); }
 .ascii-output {
   margin: 0;
   white-space: pre;
@@ -488,7 +466,7 @@ main.page { padding: 24px; min-width: 0; overflow-y: auto; overflow-x: hidden; h
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: #000;
+  background: var(--bg);
   border: 1px solid var(--border-soft);
   min-height: 320px;
 }

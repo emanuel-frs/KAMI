@@ -50,6 +50,7 @@ As tabelas que mais interessam fora do Kami:
 | `calendar_events`, `lembretes` | eventos e lembretes |
 | `career_positions`, `career_educations`, `career_salary_records` | cargos, formação e histórico de salário |
 | `action_logs`, `attributes`, `achievements` | o histórico de XP, os atributos e as conquistas |
+| `user_profile` | nome, cor de destaque (`accent_color`) e preferências; desde a 2.1.0, a aparência inteira em `aparencia` (JSON: paleta, textura e onde ela aparece, cores do avatar e do calendário — ver `backend/app/aparencia.py`). Um backup sem `aparencia` (de antes da 2.1.0) volta com o visual do `tema` que tinha |
 
 ## Com senha
 
